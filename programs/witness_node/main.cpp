@@ -25,6 +25,7 @@
 #include <graphene/app/config_util.hpp>
 
 #include <graphene/witness/witness.hpp>
+#include <graphene/debug_witness/debug_witness.hpp>
 #include <graphene/account_history/account_history_plugin.hpp>
 #include <graphene/accounts_list/accounts_list_plugin.hpp>
 #include <graphene/market_history/market_history_plugin.hpp>
@@ -71,6 +72,7 @@ int main(int argc, char** argv) {
       bpo::variables_map options;
 
       auto witness_plug = node->register_plugin<witness_plugin::witness_plugin>();
+      auto debug_witness_plug = node->register_plugin<debug_witness_plugin::debug_witness_plugin>();
       auto history_plug = node->register_plugin<account_history::account_history_plugin>();
       auto market_history_plug = node->register_plugin<market_history::market_history_plugin>();
       //auto generate_genesis_plug = node->register_plugin<generate_genesis_plugin::generate_genesis_plugin>();
@@ -142,7 +144,7 @@ int main(int argc, char** argv) {
          exit_promise->set_value(signal);
       }, SIGTERM);
 
-      ilog("Started witness node on a chain with ${h} blocks.", ("h", node->chain_database()->head_block_num()));
+      ilog("Started BitShares node on a chain with ${h} blocks.", ("h", node->chain_database()->head_block_num()));
       ilog("Chain ID is ${id}", ("id", node->chain_database()->get_chain_id()) );
 
       int signal = exit_promise->wait();
