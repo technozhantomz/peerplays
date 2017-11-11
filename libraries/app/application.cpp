@@ -992,9 +992,19 @@ void application::initialize(const fc::path& data_dir, const boost::program_opti
       wanted.push_back("account_history");
       wanted.push_back("market_history");
    }
-   for (auto it = wanted.cbegin(); it != wanted.cend(); it++)
+   int es_ah_conflict_counter = 0;
+   for (auto& it : wanted)
    {
-      if (!it->empty()) enable_plugin(*it);
+      if(it == "account_history")
+         ++es_ah_conflict_counter;
+      if(it == "elasticsearch")
+         ++es_ah_conflict_counter;
+
+      if(es_ah_conflict_counter > 1) {
+         elog("Can't start program with elasticsearch and account_history plugin at the same time");
+         std::exit(EXIT_FAILURE);
+      }
+      if (!it.empty()) enable_plugin(it);
    }
 }
 
