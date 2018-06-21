@@ -5,7 +5,6 @@ add_library( graphene_app
              api.cpp
              application.cpp
              database_api.cpp
-             impacted.cpp
              plugin.cpp
              config_util.cpp
              ${HEADERS}
