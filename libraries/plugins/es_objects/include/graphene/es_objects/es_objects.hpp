@@ -68,6 +68,20 @@ struct proposal_struct {
    string available_key_approvals;
    account_id_type proposer;
 
+   friend bool operator==(const proposal_struct& l, const proposal_struct& r)
+   {
+      return std::tie(l.object_id, l.block_time, l.block_number, l.expiration_time, l.review_period_time,
+                      l.proposed_transaction, l.required_active_approvals, l.available_active_approvals,
+                      l.required_owner_approvals, l.available_owner_approvals, l.available_key_approvals,
+                      l.proposer) == std::tie(r.object_id, r.block_time, r.block_number, r.expiration_time, r.review_period_time,
+                      r.proposed_transaction, r.required_active_approvals, r.available_active_approvals,
+                      r.required_owner_approvals, r.available_owner_approvals, r.available_key_approvals,
+                      r.proposer);
+   }
+   friend bool operator!=(const proposal_struct& l, const proposal_struct& r)
+   {
+      return !operator==(l, r);
+   }
 };
 struct account_struct {
    object_id_type object_id;
@@ -88,6 +102,23 @@ struct account_struct {
    string active_key_auths;
    string active_address_auths;
    account_id_type voting_account;
+
+   friend bool operator==(const account_struct& l, const account_struct& r)
+   {
+      return std::tie(l.object_id, l.block_time, l.block_number, l.membership_expiration_date, l.registrar, l.referrer,
+                      l.lifetime_referrer, l.network_fee_percentage, l.lifetime_referrer_fee_percentage,
+                      l.referrer_rewards_percentage, l.name, l.owner_account_auths, l.owner_key_auths,
+                      l.owner_address_auths, l.active_account_auths, l.active_key_auths, l.active_address_auths,
+                      l.voting_account) == std::tie(r.object_id, r.block_time, r.block_number, r.membership_expiration_date, r.registrar, r.referrer,
+                      r.lifetime_referrer, r.network_fee_percentage, r.lifetime_referrer_fee_percentage,
+                      r.referrer_rewards_percentage, r.name, r.owner_account_auths, r.owner_key_auths,
+                      r.owner_address_auths, r.active_account_auths, r.active_key_auths, r.active_address_auths,
+                      r.voting_account);
+   }
+   friend bool operator!=(const account_struct& l, const account_struct& r)
+   {
+      return !operator==(l, r);
+   }
 };
 struct asset_struct {
    object_id_type object_id;
@@ -99,6 +130,17 @@ struct asset_struct {
    asset_dynamic_data_id_type dynamic_asset_data_id;
    optional<asset_bitasset_data_id_type> bitasset_data_id;
 
+   friend bool operator==(const asset_struct& l, const asset_struct& r)
+   {
+      return std::tie(l.object_id, l.block_time, l.block_number, l.symbol, l.issuer, l.is_market_issued,
+                      l.dynamic_asset_data_id, l.bitasset_data_id) == std::tie(r.object_id, r.block_time,
+                      r.block_number, r.symbol, r.issuer, r.is_market_issued, r.dynamic_asset_data_id,
+                      r.bitasset_data_id);
+   }
+   friend bool operator!=(const asset_struct& l, const asset_struct& r)
+   {
+      return !operator==(l, r);
+   }
 };
 struct balance_struct {
    object_id_type object_id;
@@ -107,6 +149,16 @@ struct balance_struct {
    address owner;
    asset_id_type asset_id;
    share_type amount;
+
+   friend bool operator==(const balance_struct& l, const balance_struct& r)
+   {
+      return std::tie(l.object_id, l.block_time, l.block_number, l.block_time, l.owner, l.asset_id, l.amount)
+            == std::tie(r.object_id, r.block_time, r.block_number, r.block_time, r.owner, r.asset_id, r.amount);
+   }
+   friend bool operator!=(const balance_struct& l, const balance_struct& r)
+   {
+      return !operator==(l, r);
+   }
 };
 struct limit_order_struct {
    object_id_type object_id;
@@ -117,6 +169,16 @@ struct limit_order_struct {
    share_type for_sale;
    price sell_price;
    share_type deferred_fee;
+
+   friend bool operator==(const limit_order_struct& l, const limit_order_struct& r)
+   {
+      return std::tie(l.object_id, l.block_time, l.block_number, l.expiration, l.seller, l.for_sale, l.sell_price, l.deferred_fee)
+            == std::tie(r.object_id, r.block_time, r.block_number, r.expiration, r.seller, r.for_sale, r.sell_price, r.deferred_fee);
+   }
+   friend bool operator!=(const limit_order_struct& l, const limit_order_struct& r)
+   {
+      return !operator==(l, r);
+   }
 };
 struct bitasset_struct {
    object_id_type object_id;
@@ -125,6 +187,16 @@ struct bitasset_struct {
    string current_feed;
    time_point_sec current_feed_publication_time;
    time_point_sec feed_expiration_time;
+
+   friend bool operator==(const bitasset_struct& l, const bitasset_struct& r)
+   {
+      return std::tie(l.object_id, l.block_time, l.block_number, l.current_feed, l.current_feed_publication_time)
+            == std::tie(r.object_id, r.block_time, r.block_number, r.current_feed, r.current_feed_publication_time);
+   }
+   friend bool operator!=(const bitasset_struct& l, const bitasset_struct& r)
+   {
+      return !operator==(l, r);
+   }
 };
 
 } } //graphene::es_objects

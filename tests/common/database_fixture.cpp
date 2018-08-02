@@ -29,11 +29,9 @@
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/bookie/bookie_api.hpp>
 #include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
+#include <graphene/elasticsearch/elasticsearch_plugin.hpp>
+#include <graphene/es_objects/es_objects.hpp>
 
-#include <graphene/db/simple_index.hpp>
-
-#include <graphene/chain/account_object.hpp>
-#include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/fba_object.hpp>
 #include <graphene/chain/market_object.hpp>
@@ -51,9 +49,7 @@
 #include <fc/crypto/digest.hpp>
 #include <fc/smart_ref_impl.hpp>
 
-#include <iostream>
 #include <iomanip>
-#include <sstream>
 
 #include "database_fixture.hpp"
 
@@ -134,8 +130,46 @@ database_fixture::database_fixture()
    }
    
    // app.initialize();
-   ahplugin->plugin_set_app(&app);
-   ahplugin->plugin_initialize(options);
+
+   auto test_name = boost::unit_test::framework::current_test_case().p_name.value;
+   if(test_name == "elasticsearch_account_history" || test_name == "elasticsearch_suite") {
+      auto esplugin = app.register_plugin<graphene::elasticsearch::elasticsearch_plugin>();
+      esplugin->plugin_set_app(&app);
+
+      options.insert(std::make_pair("elasticsearch-node-url", boost::program_options::variable_value(string("http://localhost:9200/"), false)));
+      options.insert(std::make_pair("elasticsearch-bulk-replay", boost::program_options::variable_value(uint32_t(2), false)));
+      options.insert(std::make_pair("elasticsearch-bulk-sync", boost::program_options::variable_value(uint32_t(2), false)));
+      options.insert(std::make_pair("elasticsearch-visitor", boost::program_options::variable_value(true, false)));
+      //options.insert(std::make_pair("elasticsearch-basic-auth", boost::program_options::variable_value(string("elastic:changeme"), false)));
+
+      esplugin->plugin_initialize(options);
+      esplugin->plugin_startup();
+   }
+   else {
+      auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
+      ahplugin->plugin_set_app(&app);
+      ahplugin->plugin_initialize(options);
+      ahplugin->plugin_startup();
+   }
+
+   if(test_name == "elasticsearch_objects" || test_name == "elasticsearch_suite") {
+      auto esobjects_plugin = app.register_plugin<graphene::es_objects::es_objects_plugin>();
+      esobjects_plugin->plugin_set_app(&app);
+
+      options.insert(std::make_pair("es-objects-elasticsearch-url", boost::program_options::variable_value(string("http://localhost:9200/"), false)));
+      options.insert(std::make_pair("es-objects-bulk-replay", boost::program_options::variable_value(uint32_t(2), false)));
+      options.insert(std::make_pair("es-objects-bulk-sync", boost::program_options::variable_value(uint32_t(2), false)));
+      options.insert(std::make_pair("es-objects-proposals", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-accounts", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-assets", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-balances", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-limit-orders", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-asset-bitasset", boost::program_options::variable_value(true, false)));
+
+      esobjects_plugin->plugin_initialize(options);
+      esobjects_plugin->plugin_startup();
+   }
+
    mhplugin->plugin_set_app(&app);
    mhplugin->plugin_initialize(options);
    bookieplugin->plugin_set_app(&app);
@@ -143,7 +177,6 @@ database_fixture::database_fixture()
    affiliateplugin->plugin_set_app(&app);
    affiliateplugin->plugin_initialize(options);
 
-   ahplugin->plugin_startup();
    mhplugin->plugin_startup();
    bookieplugin->plugin_startup();
    affiliateplugin->plugin_startup();
