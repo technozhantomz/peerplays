@@ -102,6 +102,7 @@ struct account_struct {
    string active_key_auths;
    string active_address_auths;
    account_id_type voting_account;
+   string votes;
 
    friend bool operator==(const account_struct& l, const account_struct& r)
    {
@@ -109,11 +110,11 @@ struct account_struct {
                       l.lifetime_referrer, l.network_fee_percentage, l.lifetime_referrer_fee_percentage,
                       l.referrer_rewards_percentage, l.name, l.owner_account_auths, l.owner_key_auths,
                       l.owner_address_auths, l.active_account_auths, l.active_key_auths, l.active_address_auths,
-                      l.voting_account) == std::tie(r.object_id, r.block_time, r.block_number, r.membership_expiration_date, r.registrar, r.referrer,
+                      l.voting_account, l.votes) == std::tie(r.object_id, r.block_time, r.block_number, r.membership_expiration_date, r.registrar, r.referrer,
                       r.lifetime_referrer, r.network_fee_percentage, r.lifetime_referrer_fee_percentage,
                       r.referrer_rewards_percentage, r.name, r.owner_account_auths, r.owner_key_auths,
                       r.owner_address_auths, r.active_account_auths, r.active_key_auths, r.active_address_auths,
-                      r.voting_account);
+                      r.voting_account, r.votes);
    }
    friend bool operator!=(const account_struct& l, const account_struct& r)
    {
@@ -146,14 +147,14 @@ struct balance_struct {
    object_id_type object_id;
    fc::time_point_sec block_time;
    uint32_t block_number;
-   address owner;
-   asset_id_type asset_id;
-   share_type amount;
+   account_id_type owner;
+   asset_id_type asset_type;
+   share_type balance;
 
    friend bool operator==(const balance_struct& l, const balance_struct& r)
    {
-      return std::tie(l.object_id, l.block_time, l.block_number, l.block_time, l.owner, l.asset_id, l.amount)
-            == std::tie(r.object_id, r.block_time, r.block_number, r.block_time, r.owner, r.asset_id, r.amount);
+      return std::tie(l.object_id, l.block_time, l.block_number, l.block_time, l.owner, l.asset_type, l.balance)
+            == std::tie(r.object_id, r.block_time, r.block_number, r.block_time, r.owner, r.asset_type, r.balance);
    }
    friend bool operator!=(const balance_struct& l, const balance_struct& r)
    {
@@ -201,9 +202,30 @@ struct bitasset_struct {
 
 } } //graphene::es_objects
 
-FC_REFLECT( graphene::es_objects::proposal_struct, (object_id)(block_time)(block_number)(expiration_time)(review_period_time)(proposed_transaction)(required_active_approvals)(available_active_approvals)(required_owner_approvals)(available_owner_approvals)(available_key_approvals)(proposer) )
-FC_REFLECT( graphene::es_objects::account_struct, (object_id)(block_time)(block_number)(membership_expiration_date)(registrar)(referrer)(lifetime_referrer)(network_fee_percentage)(lifetime_referrer_fee_percentage)(referrer_rewards_percentage)(name)(owner_account_auths)(owner_key_auths)(owner_address_auths)(active_account_auths)(active_key_auths)(active_address_auths)(voting_account) )
-FC_REFLECT( graphene::es_objects::asset_struct, (object_id)(block_time)(block_number)(symbol)(issuer)(is_market_issued)(dynamic_asset_data_id)(bitasset_data_id) )
-FC_REFLECT( graphene::es_objects::balance_struct, (object_id)(block_time)(block_number)(block_time)(owner)(asset_id)(amount) )
-FC_REFLECT( graphene::es_objects::limit_order_struct, (object_id)(block_time)(block_number)(expiration)(seller)(for_sale)(sell_price)(deferred_fee) )
-FC_REFLECT( graphene::es_objects::bitasset_struct, (object_id)(block_time)(block_number)(current_feed)(current_feed_publication_time) )
+FC_REFLECT(
+        graphene::es_objects::proposal_struct,
+        (object_id)(block_time)(block_number)(expiration_time)(review_period_time)(proposed_transaction)(required_active_approvals)
+        (available_active_approvals)(required_owner_approvals)(available_owner_approvals)(available_key_approvals)(proposer)
+)
+FC_REFLECT(
+        graphene::es_objects::account_struct,
+        (object_id)(block_time)(block_number)(membership_expiration_date)(registrar)(referrer)(lifetime_referrer)
+        (network_fee_percentage)(lifetime_referrer_fee_percentage)(referrer_rewards_percentage)(name)(owner_account_auths)
+        (owner_key_auths)(owner_address_auths)(active_account_auths)(active_key_auths)(active_address_auths)(voting_account)(votes)
+)
+FC_REFLECT(
+        graphene::es_objects::asset_struct,
+        (object_id)(block_time)(block_number)(symbol)(issuer)(is_market_issued)(dynamic_asset_data_id)(bitasset_data_id)
+)
+FC_REFLECT(
+        graphene::es_objects::balance_struct,
+        (object_id)(block_time)(block_number)(owner)(asset_type)(balance)
+)
+FC_REFLECT(
+        graphene::es_objects::limit_order_struct,
+        (object_id)(block_time)(block_number)(expiration)(seller)(for_sale)(sell_price)(deferred_fee)
+)
+FC_REFLECT(
+        graphene::es_objects::bitasset_struct,
+        (object_id)(block_time)(block_number)(current_feed)(current_feed_publication_time)
+)
