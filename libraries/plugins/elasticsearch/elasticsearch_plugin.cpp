@@ -94,6 +94,10 @@ class elasticsearch_plugin_impl
 
 elasticsearch_plugin_impl::~elasticsearch_plugin_impl()
 {
+   if (curl) {
+      curl_easy_cleanup(curl);
+      curl = nullptr;
+   }
    return;
 }
 
