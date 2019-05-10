@@ -55,6 +55,7 @@
 #include <fc/io/json.hpp>
 #include <fc/io/stdio.hpp>
 #include <fc/network/http/websocket.hpp>
+#include <fc/rpc/api_connection.hpp>
 #include <fc/rpc/cli.hpp>
 #include <fc/rpc/websocket_api.hpp>
 #include <fc/crypto/aes.hpp>
@@ -88,6 +89,8 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 #endif
+
+template class fc::api<graphene::wallet::wallet_api>;
 
 #define BRAIN_KEY_WORD_COUNT 16
 
