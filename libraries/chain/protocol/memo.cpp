@@ -23,6 +23,7 @@
  */
 #include <graphene/chain/protocol/memo.hpp>
 #include <fc/crypto/aes.hpp>
+#include <fc/io/raw.hpp>
 
 namespace graphene { namespace chain {
 

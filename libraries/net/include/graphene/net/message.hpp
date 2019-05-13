@@ -114,8 +114,8 @@ namespace graphene { namespace net {
 
 } } // graphene::net
 
-FC_REFLECT_TYPENAME( graphene::net::message_header )
-FC_REFLECT_TYPENAME( graphene::net::message )
+FC_REFLECT( graphene::net::message_header, (size)(msg_type) )
+FC_REFLECT_DERIVED( graphene::net::message, (graphene::net::message_header), (data) )
 
 GRAPHENE_EXTERNAL_SERIALIZATION(extern, graphene::net::message_header)
 GRAPHENE_EXTERNAL_SERIALIZATION(extern, graphene::net::message)

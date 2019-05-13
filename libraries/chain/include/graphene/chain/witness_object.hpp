@@ -29,8 +29,6 @@
 namespace graphene { namespace chain {
    using namespace graphene::db;
 
-   class witness_object;
-
    class witness_object : public abstract_object<witness_object>
    {
       public:
@@ -85,3 +83,5 @@ FC_REFLECT_DERIVED( graphene::chain::witness_object, (graphene::db::object),
                     (total_missed)
                     (last_confirmed_block_num)
                   )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::witness_object )

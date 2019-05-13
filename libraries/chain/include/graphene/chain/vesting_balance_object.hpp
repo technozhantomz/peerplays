@@ -38,8 +38,6 @@
 namespace graphene { namespace chain {
    using namespace graphene::db;
 
-   class vesting_balance_object;
-
    struct vesting_policy_context
    {
       vesting_policy_context(
@@ -234,3 +232,7 @@ FC_REFLECT_DERIVED(graphene::chain::vesting_balance_object, (graphene::db::objec
                    (policy)
                    (balance_type)
                   )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::linear_vesting_policy )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::cdd_vesting_policy )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vesting_balance_object )
