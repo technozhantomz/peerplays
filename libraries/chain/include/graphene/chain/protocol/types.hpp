@@ -27,6 +27,7 @@
 #include <fc/io/enum_type.hpp>
 #include <fc/crypto/sha224.hpp>
 #include <fc/crypto/elliptic.hpp>
+#include <fc/crypto/ripemd160.hpp>
 #include <fc/reflect/reflect.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/optional.hpp>
@@ -43,7 +44,6 @@
 #include <vector>
 #include <deque>
 #include <cstdint>
-#include <graphene/chain/protocol/address.hpp>
 #include <graphene/db/object_id.hpp>
 #include <graphene/chain/protocol/config.hpp>
 

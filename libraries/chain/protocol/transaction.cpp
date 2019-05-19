@@ -27,6 +27,7 @@
 #include <fc/bitutil.hpp>
 #include <fc/smart_ref_impl.hpp>
 #include <algorithm>
+#include <fc/io/raw.hpp>
 
 namespace graphene { namespace chain {
 
