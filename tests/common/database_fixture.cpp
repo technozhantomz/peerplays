@@ -132,21 +132,26 @@ database_fixture::database_fixture()
    // app.initialize();
 
    auto test_name = boost::unit_test::framework::current_test_case().p_name.value;
-   if(test_name == "elasticsearch_account_history" || test_name == "elasticsearch_suite") {
+   if(test_name == "elasticsearch_account_history" || test_name == "elasticsearch_suite" ||
+      test_name == "elasticsearch_history_api") {
       auto esplugin = app.register_plugin<graphene::elasticsearch::elasticsearch_plugin>();
       esplugin->plugin_set_app(&app);
 
       options.insert(std::make_pair("elasticsearch-node-url", boost::program_options::variable_value(string("http://localhost:9200/"), false)));
       options.insert(std::make_pair("elasticsearch-bulk-replay", boost::program_options::variable_value(uint32_t(2), false)));
       options.insert(std::make_pair("elasticsearch-bulk-sync", boost::program_options::variable_value(uint32_t(2), false)));
-      options.insert(std::make_pair("elasticsearch-visitor", boost::program_options::variable_value(true, false)));
-      //options.insert(std::make_pair("elasticsearch-basic-auth", boost::program_options::variable_value(string("elastic:changeme"), false)));
+      options.insert(std::make_pair("elasticsearch-start-es-after-block", boost::program_options::variable_value(uint32_t(0), false)));
+      options.insert(std::make_pair("elasticsearch-visitor", boost::program_options::variable_value(false, false)));
+      options.insert(std::make_pair("elasticsearch-operation-object", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("elasticsearch-operation-string", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("elasticsearch-mode", boost::program_options::variable_value(uint16_t(2), false)));
 
       esplugin->plugin_initialize(options);
       esplugin->plugin_startup();
    }
    else {
       auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
+      app.enable_plugin("affiliate_stats");
       ahplugin->plugin_set_app(&app);
       ahplugin->plugin_initialize(options);
       ahplugin->plugin_startup();
