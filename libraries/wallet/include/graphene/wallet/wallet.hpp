@@ -2154,4 +2154,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_matched_bets_for_bettor)
         (get_all_matched_bets_for_bettor)
         (buy_ticket)
+        (quit)
       )
