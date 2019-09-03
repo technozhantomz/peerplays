@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ * Copyright (c) 2018 Peerplays Blockchain Standards Association, and contributors.
  *
  * The MIT License
  *
@@ -21,11 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#pragma once
-#include <fc/crypto/sha512.hpp>
+#include <graphene/chain/protocol/competitor.hpp>
 
-namespace graphene { namespace utilities {
+namespace graphene { namespace chain {
 
-void set_random_seed_for_testing(const fc::sha512& new_seed);
+void competitor_create_operation::validate() const
+{
+   FC_ASSERT( fee.amount >= 0 );
+}
 
-} } // end namespace graphene::utilities
+
+} } // graphene::chain
+

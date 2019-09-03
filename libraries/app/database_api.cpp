@@ -31,7 +31,6 @@
 #include <fc/smart_ref_impl.hpp>
 
 #include <fc/crypto/hex.hpp>
-#include <fc/crypto/digest.hpp>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/rational.hpp>
@@ -45,44 +44,6 @@
 #define GET_REQUIRED_FEES_MAX_RECURSION 4
 
 typedef std::map< std::pair<graphene::chain::asset_id_type, graphene::chain::asset_id_type>, std::vector<fc::variant> > market_queue_type;
-
-
-namespace {
-    
-   struct proposed_operations_digest_accumulator
-   {
-      typedef void result_type;
-      
-      void operator()(const graphene::chain::proposal_create_operation& proposal)
-      {
-         for (auto& operation: proposal.proposed_ops)
-         {
-            if( operation.op.which() != graphene::chain::operation::tag<graphene::chain::betting_market_group_create_operation>::value
-             && operation.op.which() != graphene::chain::operation::tag<graphene::chain::betting_market_create_operation>::value )
-               proposed_operations_digests.push_back(fc::digest(operation.op));
-         }
-      }
-       
-      //empty template method is needed for all other operation types
-      //we can ignore them, we are interested in only proposal_create_operation
-      template<class T>
-      void operator()(const T&) 
-      {}
-      
-      std::vector<fc::sha256> proposed_operations_digests;
-   };
-   
-   std::vector<fc::sha256> gather_proposed_operations_digests(const graphene::chain::transaction& trx)
-   {
-      proposed_operations_digest_accumulator digest_accumulator;
-      for (auto& operation: trx.operations)
-      {
-         operation.visit(digest_accumulator);
-      }
-       
-      return digest_accumulator.proposed_operations_digests;
-   }
-}
 
 namespace graphene { namespace app {
 
@@ -109,7 +70,6 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       map<uint32_t, optional<block_header>> get_block_header_batch(const vector<uint32_t> block_nums)const;
       optional<signed_block> get_block(uint32_t block_num)const;
       processed_transaction get_transaction( uint32_t block_num, uint32_t trx_in_block )const;
-      void check_transaction_for_duplicated_operations(const signed_transaction& trx);
 
       // Globals
       chain_property_object get_chain_properties()const;
@@ -153,6 +113,18 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
       vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
 
+      // Lottery Assets
+      vector<asset_object> get_lotteries( asset_id_type stop  = asset_id_type(),
+                                          unsigned limit = 100,
+                                          asset_id_type start = asset_id_type() )const;
+      vector<asset_object> get_account_lotteries( account_id_type issuer, 
+                                                  asset_id_type stop,
+                                                  unsigned limit,
+                                                  asset_id_type start )const;
+      asset get_lottery_balance( asset_id_type lottery_id )const;
+      sweeps_vesting_balance_object get_sweeps_vesting_balance_object( account_id_type account )const;
+      asset get_sweeps_vesting_balance_available_for_claim( account_id_type account )const;
+   
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
       vector<call_order_object>          get_call_orders(asset_id_type a, uint32_t limit)const;
@@ -212,7 +184,6 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
          if( !is_subscribed_to_item(i) )
          {
-            idump((i));
             _subscribe_filter.insert( vec.data(), vec.size() );//(vecconst char*)&i, sizeof(i) );
          }
       }
@@ -469,39 +440,6 @@ processed_transaction database_api_impl::get_transaction(uint32_t block_num, uin
    return opt_block->transactions[trx_num];
 }
 
-void database_api::check_transaction_for_duplicated_operations(const signed_transaction& trx)
-{
-   my->check_transaction_for_duplicated_operations(trx);
-}
-
-void database_api_impl::check_transaction_for_duplicated_operations(const signed_transaction& trx)
-{
-   const auto& idx = _db.get_index_type<proposal_index>();
-   const auto& pidx = dynamic_cast<const primary_index<proposal_index>&>(idx);
-   const auto& raidx = pidx.get_secondary_index<graphene::chain::required_approval_index>();
-
-   auto acc_itr = raidx._account_to_proposals.find( GRAPHENE_WITNESS_ACCOUNT );
-   if( acc_itr != raidx._account_to_proposals.end() ) 
-   {
-      auto& p_set = acc_itr->second;
-      
-      std::set<fc::sha256> existed_operations_digests;
-      for( auto p_itr = p_set.begin(); p_itr != p_set.end(); ++p_itr )
-      {
-         for( auto& operation : (*p_itr)(_db).proposed_transaction.operations )
-         {
-            existed_operations_digests.insert( fc::digest(operation) );
-         }
-      }
-      
-      auto proposed_operations_digests = gather_proposed_operations_digests(trx);
-      for (auto& digest : proposed_operations_digests)
-      {
-         FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for apsproval.");
-      }
-   }
-}
-
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
 // Globals                                                          //
@@ -701,7 +639,6 @@ std::map<string,full_account> database_api::get_full_accounts( const vector<stri
 
 std::map<std::string, full_account> database_api_impl::get_full_accounts( const vector<std::string>& names_or_ids, bool subscribe)
 {
-   idump((names_or_ids));
    std::map<std::string, full_account> results;
 
    for (const std::string& account_name_or_id : names_or_ids)
@@ -1083,6 +1020,103 @@ vector<optional<asset_object>> database_api_impl::lookup_asset_symbols(const vec
       return itr == assets_by_symbol.end()? optional<asset_object>() : *itr;
    });
    return result;
+}
+
+////////////////////
+// Lottery Assets //
+////////////////////
+
+
+vector<asset_object> database_api::get_lotteries(  asset_id_type stop,
+                                                   unsigned limit,
+                                                   asset_id_type start )const
+{
+   return my->get_lotteries( stop, limit, start );
+}
+vector<asset_object> database_api_impl::get_lotteries( asset_id_type stop,
+                                                       unsigned limit,
+                                                       asset_id_type start )const
+{
+   vector<asset_object> result;
+   if( limit > 100 ) limit = 100;
+   const auto& assets = _db.get_index_type<asset_index>().indices().get<by_lottery>();
+
+   const auto range = assets.equal_range( boost::make_tuple( true ) );
+   for( const auto& a : boost::make_iterator_range( range.first, range.second ) )
+   {
+      if( start == asset_id_type() || (a.get_id().instance.value <= start.instance.value) )
+         result.push_back( a );
+      if( a.get_id().instance.value < stop.instance.value || result.size() >= limit )
+         break;
+   }
+
+   return result;
+}
+vector<asset_object> database_api::get_account_lotteries( account_id_type issuer, 
+                                                               asset_id_type stop,
+                                                               unsigned limit,
+                                                               asset_id_type start )const
+{
+   return my->get_account_lotteries( issuer, stop, limit, start );
+}
+
+vector<asset_object> database_api_impl::get_account_lotteries( account_id_type issuer, 
+                                                               asset_id_type stop,
+                                                               unsigned limit,
+                                                               asset_id_type start )const
+{
+   vector<asset_object> result;
+   if( limit > 100 ) limit = 100;
+   const auto& assets = _db.get_index_type<asset_index>().indices().get<by_lottery_owner>();
+
+   const auto range = assets.equal_range( boost::make_tuple( true, issuer.instance.value ) );
+   for( const auto& a : boost::make_iterator_range( range.first, range.second ) )
+   {
+      if( start == asset_id_type() || (a.get_id().instance.value <= start.instance.value) )
+         result.push_back( a );
+      if( a.get_id().instance.value < stop.instance.value || result.size() >= limit )
+         break;
+   }
+
+   return result;
+}
+
+asset database_api::get_lottery_balance( asset_id_type lottery_id )const
+{
+   return my->get_lottery_balance( lottery_id );
+}
+
+asset database_api_impl::get_lottery_balance( asset_id_type lottery_id )const
+{
+   auto lottery_asset = lottery_id( _db );
+   FC_ASSERT( lottery_asset.is_lottery() );
+   return _db.get_balance( lottery_id );
+}
+
+sweeps_vesting_balance_object database_api::get_sweeps_vesting_balance_object( account_id_type account )const
+{
+   return my->get_sweeps_vesting_balance_object( account );
+}
+
+sweeps_vesting_balance_object database_api_impl::get_sweeps_vesting_balance_object( account_id_type account )const
+{
+   const auto& vesting_idx = _db.get_index_type<sweeps_vesting_balance_index>().indices().get<by_owner>();
+   auto account_balance = vesting_idx.find(account);
+   FC_ASSERT( account_balance != vesting_idx.end(), "NO SWEEPS VESTING BALANCE" );
+   return *account_balance;
+}
+
+asset database_api::get_sweeps_vesting_balance_available_for_claim( account_id_type account )const
+{
+   return my->get_sweeps_vesting_balance_available_for_claim( account );
+}
+
+asset database_api_impl::get_sweeps_vesting_balance_available_for_claim( account_id_type account )const
+{
+   const auto& vesting_idx = _db.get_index_type<sweeps_vesting_balance_index>().indices().get<by_owner>();
+   auto account_balance = vesting_idx.find(account);
+   FC_ASSERT( account_balance != vesting_idx.end(), "NO SWEEPS VESTING BALANCE" );
+   return account_balance->available_for_claim();
 }
 
 //////////////////////////////////////////////////////////////////////
