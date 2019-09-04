@@ -47,6 +47,7 @@ struct proposal_operation_hardfork_visitor
 
    void operator()(const committee_member_update_global_parameters_operation &op) const {
       if( block_time < HARDFORK_1000_TIME ) { // TODO: remove after hf
+         FC_ASSERT( !op.new_parameters.extensions.value.min_bet_multiplier.valid()
                && !op.new_parameters.extensions.value.max_bet_multiplier.valid()
                && !op.new_parameters.extensions.value.betting_rake_fee_percentage.valid()
                && !op.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
