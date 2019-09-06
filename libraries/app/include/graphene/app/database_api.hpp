@@ -192,6 +192,12 @@ class database_api
        */
       optional<signed_transaction> get_recent_transaction_by_id( const transaction_id_type& id )const;
 
+      /**
+       * TODO
+       * 
+       */ 
+      void check_transaction_for_duplicated_operations(const signed_transaction& trx);
+      
       /////////////
       // Globals //
       /////////////
