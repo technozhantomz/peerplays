@@ -21,6 +21,17 @@ Finally, press the 'Submit new issue' button. The Core Team will evaluate and pr
 **Bug Description**
 A clear and concise description of what the bug is.
 
+**Porting from Bitshares or other Graphene forks**
+
+Corresponding issues:
+
+    - [FILL in issue1]
+    - [FILL in any other detail]
+    
+Corresponding PR:
+
+     - [fill in corresponding PR link]
+
 **Impacts**
 Describe which portion(s) of Peerplays  may be impacted by this bug. Please tick at least one box.
 - [ ] API (the application programming interface)
@@ -33,6 +44,7 @@ Describe which portion(s) of Peerplays  may be impacted by this bug. Please tick
 - [ ] Security (the security of system or user data, etc.)
 - [ ] UX (the User Experience)
 - [ ] Other (please add below)
+
 
 **Steps To Reproduce**
 Steps to reproduce the behavior (example outlined below):
