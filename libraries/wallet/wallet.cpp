@@ -1971,7 +1971,7 @@ public:
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(witness_name);
       if( !vbid )
       {
-         //Changes done to retrive user accounts along with witnesses accounts based on account name
+         //Changes done to retrive user account/witness account based on account name
          fc::optional<account_id_type> acct_id = maybe_id<account_id_type>( witness_name );
          if( !acct_id )
             acct_id = get_account( witness_name ).id;
@@ -1985,7 +1985,7 @@ public:
          }
       }
 
-      //whether it is a witness or user, keep in container and iterate over it process all vesting balances and types 
+      //whether it is a witness or user, keep it in a container and iterate over to process all vesting balances and types 
       if(!vbos.size())
          vbos.emplace_back( get_object<vesting_balance_object>(*vbid) );
  
