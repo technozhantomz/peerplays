@@ -873,7 +873,7 @@ void schedule_pending_dividend_balances(database& db,
 
    std::map<account_id_type, share_type> vesting_amounts;
 
-   auto balance_type = vesting_balance_type::unspecified;
+   auto balance_type = vesting_balance_type::normal;
    if(db.head_block_time() >= HARDFORK_GPOS_TIME)
       balance_type = vesting_balance_type::gpos;
 
@@ -1403,7 +1403,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          d._committee_count_histogram_buffer.resize(props.parameters.maximum_committee_count / 2 + 1);
          d._total_voting_stake = 0;
 
-         auto balance_type = vesting_balance_type::unspecified;
+         auto balance_type = vesting_balance_type::normal;
          if(d.head_block_time() >= HARDFORK_GPOS_TIME)
             balance_type = vesting_balance_type::gpos;
 
