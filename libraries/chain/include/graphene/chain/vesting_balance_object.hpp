@@ -146,7 +146,7 @@ namespace graphene { namespace chain {
          vesting_policy policy;
 
          /// We can have 2 types of vesting, gpos and all the rest
-         vesting_balance_type balance_type = vesting_balance_type::unspecified;
+         vesting_balance_type balance_type = vesting_balance_type::normal;
 
          vesting_balance_object() {}
 

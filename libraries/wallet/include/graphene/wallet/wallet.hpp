@@ -1349,12 +1349,14 @@ class wallet_api
        * @param amount The amount to withdraw.
        * @param asset_symbol The symbol of the asset to withdraw.
        * @param broadcast true if you wish to broadcast the transaction
+       * @param vb_type vestig balance type to withdraw 0-OLD, 1-GPOS, 2-SONS(if required)
        */
       signed_transaction withdraw_vesting(
          string witness_name,
          string amount,
          string asset_symbol,
-         bool broadcast = false);
+         bool broadcast = false,
+         uint8_t vb_type = 0);
 
       /** Vote for a given committee_member.
        *

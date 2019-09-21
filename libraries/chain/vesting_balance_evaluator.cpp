@@ -43,7 +43,7 @@ void_result vesting_balance_create_evaluator::do_evaluate( const vesting_balance
    FC_ASSERT( !op.amount.asset_id(d).is_transfer_restricted() );
 
    if(d.head_block_time() < HARDFORK_GPOS_TIME) // Todo: can be removed after gpos hf time pass
-      FC_ASSERT( op.balance_type == vesting_balance_type::unspecified);
+      FC_ASSERT( op.balance_type == vesting_balance_type::normal);
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -101,7 +101,7 @@ object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance
          // forcing gpos policy
          linear_vesting_policy p;
          p.begin_timestamp = now;
-         p.vesting_cliff_seconds = gpo.parameters.gpos_subperiod();
+         p.vesting_cliff_seconds = gpo.parameters.gpos_vesting_lockin_period();
          p.vesting_duration_seconds = gpo.parameters.gpos_subperiod();
          obj.policy = p;
       }

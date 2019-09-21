@@ -27,7 +27,7 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
-#include <graphene/chain/hardfork.hpp>
+#include <../hardfork.d/GPOS.hf>
 
 namespace graphene { namespace chain { struct fee_schedule; } }
 
@@ -43,6 +43,7 @@ namespace graphene { namespace chain {
       optional < uint32_t >           gpos_period;
       optional < uint32_t >           gpos_subperiod;
       optional < uint32_t >           gpos_period_start;
+      optional < uint32_t >           gpos_vesting_lockin_period;
    };
 
    struct chain_parameters
@@ -121,6 +122,9 @@ namespace graphene { namespace chain {
       inline uint32_t gpos_period_start()const {
          return extensions.value.gpos_period_start.valid() ? *extensions.value.gpos_period_start : HARDFORK_GPOS_TIME.sec_since_epoch(); /// current period start date
       }
+      inline uint32_t gpos_vesting_lockin_period()const {
+         return extensions.value.gpos_vesting_lockin_period.valid() ? *extensions.value.gpos_vesting_lockin_period : GPOS_VESTING_LOCKIN_PERIOD; /// GPOS vesting lockin period
+      }      
    };
 
 } }  // graphene::chain
@@ -134,6 +138,7 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (gpos_period)
    (gpos_subperiod)
    (gpos_period_start)
+   (gpos_vesting_lockin_period)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,

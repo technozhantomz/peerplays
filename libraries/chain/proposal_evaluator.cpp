@@ -137,7 +137,7 @@ struct proposal_operation_hardfork_visitor
 
    void operator()(const vesting_balance_create_operation &vbco) const {
       if(block_time < HARDFORK_GPOS_TIME)
-      FC_ASSERT( vbco.balance_type == vesting_balance_type::unspecified, "balance_type in vesting create not allowed yet!" );
+      FC_ASSERT( vbco.balance_type == vesting_balance_type::normal, "balance_type in vesting create not allowed yet!" );
    }
 
    // loop and self visit in proposals

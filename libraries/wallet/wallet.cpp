@@ -1963,26 +1963,64 @@ public:
       string witness_name,
       string amount,
       string asset_symbol,
-      bool broadcast = false )
+      bool broadcast = false,
+      uint8_t vb_type = 0 )
    { try {
       asset_object asset_obj = get_asset( asset_symbol );
+      vector< vesting_balance_object > vbos;
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(witness_name);
       if( !vbid )
       {
-         witness_object wit = get_witness( witness_name );
-         FC_ASSERT( wit.pay_vb );
-         vbid = wit.pay_vb;
+         //Changes done to retrive user account/witness account based on account name
+         fc::optional<account_id_type> acct_id = maybe_id<account_id_type>( witness_name );
+         if( !acct_id )
+            acct_id = get_account( witness_name ).id;
+
+         vbos = _remote_db->get_vesting_balances( *acct_id );
+         if( vbos.size() == 0 )
+         {
+            witness_object wit = get_witness( witness_name );
+            FC_ASSERT( wit.pay_vb );
+            vbid = wit.pay_vb;
+         }
       }
 
-      vesting_balance_object vbo = get_object< vesting_balance_object >( *vbid );
-      vesting_balance_withdraw_operation vesting_balance_withdraw_op;
-
-      vesting_balance_withdraw_op.vesting_balance = *vbid;
-      vesting_balance_withdraw_op.owner = vbo.owner;
-      vesting_balance_withdraw_op.amount = asset_obj.amount_from_string(amount);
-
+      //whether it is a witness or user, keep it in a container and iterate over to process all vesting balances and types 
+      if(!vbos.size())
+         vbos.emplace_back( get_object<vesting_balance_object>(*vbid) );
+ 
       signed_transaction tx;
-      tx.operations.push_back( vesting_balance_withdraw_op );
+      asset withdraw_amount = asset_obj.amount_from_string(amount);
+
+      for(const vesting_balance_object& vbo: vbos )
+      {         
+         if((vb_type == (uint8_t)vbo.balance_type) && vbo.balance.amount > 0)
+         {
+            fc::optional<vesting_balance_id_type> vest_id = vbo.id;
+            vesting_balance_withdraw_operation vesting_balance_withdraw_op;
+
+            vesting_balance_withdraw_op.vesting_balance = *vest_id;
+            vesting_balance_withdraw_op.owner = vbo.owner;
+            if(withdraw_amount.amount >= vbo.balance.amount)
+            {
+               vesting_balance_withdraw_op.amount = vbo.balance.amount;
+               withdraw_amount.amount -= vbo.balance.amount;
+            }
+            else
+            {
+               vesting_balance_withdraw_op.amount = withdraw_amount.amount;
+               tx.operations.push_back( vesting_balance_withdraw_op );
+               withdraw_amount.amount -= vbo.balance.amount;
+               break;
+            }     
+
+            tx.operations.push_back( vesting_balance_withdraw_op );
+         }
+      }
+
+      if( withdraw_amount.amount > 0)
+         FC_THROW("Account has insufficient balance to withdraw");
+
       set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
       tx.validate();
 
@@ -4045,9 +4083,10 @@ signed_transaction wallet_api::withdraw_vesting(
    string witness_name,
    string amount,
    string asset_symbol,
-   bool broadcast /* = false */)
+   bool broadcast,
+   uint8_t vb_type)
 {
-   return my->withdraw_vesting( witness_name, amount, asset_symbol, broadcast );
+   return my->withdraw_vesting( witness_name, amount, asset_symbol, broadcast, vb_type );
 }
 
 signed_transaction wallet_api::vote_for_committee_member(string voting_account,
@@ -5783,7 +5822,7 @@ signed_transaction wallet_api::create_vesting_balance(string owner,
 
    fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
 
-   auto type = vesting_balance_type::unspecified;
+   auto type = vesting_balance_type::normal;
    if(is_gpos)
       type = vesting_balance_type::gpos;
 
@@ -5856,7 +5895,10 @@ vesting_balance_object_with_info::vesting_balance_object_with_info( const vestin
    : vesting_balance_object( vbo )
 {
    allowed_withdraw = get_allowed_withdraw( now );
-   allowed_withdraw_time = now;
+   if(vbo.balance_type == vesting_balance_type::gpos)
+      allowed_withdraw_time = vbo.policy.get<linear_vesting_policy>().begin_timestamp + vbo.policy.get<linear_vesting_policy>().vesting_cliff_seconds;
+   else
+      allowed_withdraw_time = now;
 }
 
 } } // graphene::wallet

@@ -26,7 +26,7 @@
 
 namespace graphene { namespace chain {
 
-   enum class vesting_balance_type { unspecified, gpos };
+   enum class vesting_balance_type { normal, gpos };
 
    struct linear_vesting_policy_initializer
    {
@@ -122,4 +122,4 @@ FC_REFLECT(graphene::chain::linear_vesting_policy_initializer, (begin_timestamp)
 FC_REFLECT(graphene::chain::cdd_vesting_policy_initializer, (start_claim)(vesting_seconds) )
 FC_REFLECT_TYPENAME( graphene::chain::vesting_policy_initializer )
 
-FC_REFLECT_ENUM( graphene::chain::vesting_balance_type, (unspecified)(gpos) )
+FC_REFLECT_ENUM( graphene::chain::vesting_balance_type, (normal)(gpos) )
