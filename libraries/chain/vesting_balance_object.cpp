@@ -36,7 +36,6 @@ inline bool sum_below_max_shares(const asset& a, const asset& b)
 
 asset linear_vesting_policy::get_allowed_withdraw( const vesting_policy_context& ctx )const
 {
-{
     share_type allowed_withdraw = 0;
 
     if( ctx.now > begin_timestamp )
