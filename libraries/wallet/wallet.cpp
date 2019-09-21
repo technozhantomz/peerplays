@@ -1995,6 +1995,13 @@ public:
                                         bool approve,
                                         bool broadcast /* = false */)
    { try {
+      std::vector<vesting_balance_object_with_info> vbo_info = get_vesting_balances(voting_account);
+      std::vector<vesting_balance_object_with_info>::iterator vbo_iter;
+
+      vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
+      if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
+         FC_THROW("Account *** ${account} *** have insufficient or 0 vested balance(GPOS) to vote", ("account", voting_account));
+
       account_object voting_account_object = get_account(voting_account);
       account_id_type committee_member_owner_account_id = get_account_id(committee_member);
       fc::optional<committee_member_object> committee_member_obj = _remote_db->get_committee_member_by_account(committee_member_owner_account_id);
@@ -2029,6 +2036,13 @@ public:
                                        bool approve,
                                        bool broadcast /* = false */)
    { try {
+      std::vector<vesting_balance_object_with_info> vbo_info = get_vesting_balances(voting_account);
+      std::vector<vesting_balance_object_with_info>::iterator vbo_iter;
+
+      vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
+      if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
+         FC_THROW("Account *** ${account} *** have insufficient or 0 vested balance(GPOS) to vote", ("account", voting_account));
+
       account_object voting_account_object = get_account(voting_account);
       account_id_type witness_owner_account_id = get_account_id(witness);
       fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
