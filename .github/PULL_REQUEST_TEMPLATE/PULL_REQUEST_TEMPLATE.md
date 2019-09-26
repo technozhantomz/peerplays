@@ -13,6 +13,23 @@ to the tracking task that it is part or all of the solution for.
 
 The Tracking issue is [Create the issue if non existent and fill in]
 
+
+## Instructions to Verify
+
+**Steps To Reproduce: **
+
+[Provide Steps to reproduce the issue or patterns/regular expression to look for in the CI]
+
+**Expected Behavior**
+
+[Provide Steps to reproduce the issue]
+
+**Tests Added and available in CI**
+
+** Screenshots (optional) **
+** Host Environment (optional) **
+** Additional Context (optional) **
+
 ### Declarations
 
 Check these if you believe they are true
@@ -20,7 +37,7 @@ Check these if you believe they are true
 - [ ] The code base is in a better state after this PR
 - [ ] Is prepared according to the [Release Management & Versioning](https://github.com/peerplays-network/peerplays/wiki/Release-Management-&-Versioning)
 - [ ] The level of testing this PR includes is appropriate
-- [ ] All tests pass using the self-service CI/Gitlab. (TODO)
+- [ ] All tests pass using the self-service CI/Gitlab.
 - [ ] Changes to the API is documented
 - [ ] Testing steps for the QA team / community is shared
 
