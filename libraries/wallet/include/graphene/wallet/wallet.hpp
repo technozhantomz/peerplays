@@ -1343,20 +1343,32 @@ class wallet_api
       vector< vesting_balance_object_with_info > get_vesting_balances( string account_name );
 
       /**
-       * Withdraw a vesting balance.
+       * Withdraw a normal(old) vesting balance.
        *
        * @param witness_name The account name of the witness, also accepts account ID or vesting balance ID type.
        * @param amount The amount to withdraw.
        * @param asset_symbol The symbol of the asset to withdraw.
        * @param broadcast true if you wish to broadcast the transaction
-       * @param vb_type vestig balance type to withdraw 0-OLD, 1-GPOS, 2-SONS(if required)
        */
       signed_transaction withdraw_vesting(
          string witness_name,
          string amount,
          string asset_symbol,
-         bool broadcast = false,
-         uint8_t vb_type = 0);
+         bool broadcast = false);
+
+      /**
+       * Withdraw a GPOS vesting balance.
+       *
+       * @param account_name The account name of the witness/user, also accepts account ID or vesting balance ID type.
+       * @param amount The amount to withdraw.
+       * @param asset_symbol The symbol of the asset to withdraw.
+       * @param broadcast true if you wish to broadcast the transaction
+       */
+      signed_transaction withdraw_GPOS_vesting_balance(
+         string account_name,
+         string amount,
+         string asset_symbol,
+         bool broadcast = false);
 
       /** Vote for a given committee_member.
        *
@@ -1966,6 +1978,7 @@ FC_API( graphene::wallet::wallet_api,
         (update_worker_votes)
         (get_vesting_balances)
         (withdraw_vesting)
+        (withdraw_GPOS_vesting_balance)
         (vote_for_committee_member)
         (vote_for_witness)
         (update_witness_votes)

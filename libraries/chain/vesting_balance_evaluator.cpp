@@ -115,6 +115,29 @@ object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance
    return vbo.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+operation_result vesting_balance_withdraw_evaluator::start_evaluate( transaction_evaluation_state& eval_state, const operation& op, bool apply )
+{ try {
+   trx_state   = &eval_state;
+   database& d = db();
+   const auto& oper = op.get<vesting_balance_withdraw_operation>();
+
+   const time_point_sec now = d.head_block_time();
+
+   if(now >= (fc::time_point_sec(1570114100)) )
+   {
+      if(oper.fee.amount == 0)
+      {
+         trx_state->skip_fee_schedule_check = true;
+         trx_state->skip_fee = true;
+      }
+   }
+   //check_required_authorities(op);
+   auto result = evaluate( oper );
+
+   if( apply ) result = this->apply( oper );
+   return result;
+} FC_CAPTURE_AND_RETHROW() }
+
 void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balance_withdraw_operation& op )
 { try {
    const database& d = db();
@@ -125,7 +148,7 @@ void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balan
    FC_ASSERT( vbo.is_withdraw_allowed( now, op.amount ), "", ("now", now)("op", op)("vbo", vbo) );
    assert( op.amount <= vbo.balance );      // is_withdraw_allowed should fail before this check is reached
 
-   /* const account_object& owner_account = */ op.owner( d );
+   /* const account_object& owner_account =  op.owner( d ); */
    // TODO: Check asset authorizations and withdrawals
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -133,6 +156,7 @@ void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balan
 void_result vesting_balance_withdraw_evaluator::do_apply( const vesting_balance_withdraw_operation& op )
 { try {
    database& d = db();
+
    const time_point_sec now = d.head_block_time();
 
    const vesting_balance_object& vbo = op.vesting_balance( d );
