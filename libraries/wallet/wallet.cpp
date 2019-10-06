@@ -1963,23 +1963,57 @@ public:
       string witness_name,
       string amount,
       string asset_symbol,
-      bool broadcast = false,
-      uint8_t vb_type = 0 )
+      bool broadcast = false )
    { try {
       asset_object asset_obj = get_asset( asset_symbol );
-      vector< vesting_balance_object > vbos;
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(witness_name);
       if( !vbid )
       {
+         witness_object wit = get_witness( witness_name );
+         FC_ASSERT( wit.pay_vb );
+         vbid = wit.pay_vb;
+      }
+
+      vesting_balance_object vbo = get_object< vesting_balance_object >( *vbid );
+
+      if(vbo.balance_type != vesting_balance_type::normal)
+         FC_THROW("Allowed to withdraw only Normal type vest balances with this method");
+
+      vesting_balance_withdraw_operation vesting_balance_withdraw_op;
+
+      vesting_balance_withdraw_op.vesting_balance = *vbid;
+      vesting_balance_withdraw_op.owner = vbo.owner;
+      vesting_balance_withdraw_op.amount = asset_obj.amount_from_string(amount);
+
+      signed_transaction tx;
+      tx.operations.push_back( vesting_balance_withdraw_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (witness_name)(amount) )
+   }
+
+   signed_transaction withdraw_GPOS_vesting_balance(
+      string account_name,
+      string amount,
+      string asset_symbol,
+      bool broadcast = false)
+   { try {
+      asset_object asset_obj = get_asset( asset_symbol );
+      vector< vesting_balance_object > vbos;
+      fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(account_name);
+      if( !vbid )
+      {
          //Changes done to retrive user account/witness account based on account name
-         fc::optional<account_id_type> acct_id = maybe_id<account_id_type>( witness_name );
+         fc::optional<account_id_type> acct_id = maybe_id<account_id_type>( account_name );
          if( !acct_id )
-            acct_id = get_account( witness_name ).id;
+            acct_id = get_account( account_name ).id;
 
          vbos = _remote_db->get_vesting_balances( *acct_id );
          if( vbos.size() == 0 )
          {
-            witness_object wit = get_witness( witness_name );
+            witness_object wit = get_witness( account_name );
             FC_ASSERT( wit.pay_vb );
             vbid = wit.pay_vb;
          }
@@ -1991,13 +2025,21 @@ public:
  
       signed_transaction tx;
       asset withdraw_amount = asset_obj.amount_from_string(amount);
-
+      bool onetime_fee_paid = false;
+            
       for(const vesting_balance_object& vbo: vbos )
       {         
-         if((vb_type == (uint8_t)vbo.balance_type) && vbo.balance.amount > 0)
+         if((vbo.balance_type == vesting_balance_type::gpos) && vbo.balance.amount > 0)
          {
             fc::optional<vesting_balance_id_type> vest_id = vbo.id;
             vesting_balance_withdraw_operation vesting_balance_withdraw_op;
+
+            // Since there are multiple vesting objects, below logic with vesting_balance_evaluator.cpp changes will
+            // deduct fee from single object and set withdrawl fee to 0 for rest of objects based on requested amount.
+            if(onetime_fee_paid)
+               vesting_balance_withdraw_op.fee = asset( 0, asset_id_type() );
+            else
+               vesting_balance_withdraw_op.fee = _remote_db->get_global_properties().parameters.current_fees->calculate_fee(vesting_balance_withdraw_op);
 
             vesting_balance_withdraw_op.vesting_balance = *vest_id;
             vesting_balance_withdraw_op.owner = vbo.owner;
@@ -2015,17 +2057,17 @@ public:
             }     
 
             tx.operations.push_back( vesting_balance_withdraw_op );
+            onetime_fee_paid = true;
          }
       }
 
       if( withdraw_amount.amount > 0)
-         FC_THROW("Account has insufficient balance to withdraw");
+         FC_THROW("Account has NO or Insufficient balance to withdraw");
 
-      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
       tx.validate();
 
       return sign_transaction( tx, broadcast );
-   } FC_CAPTURE_AND_RETHROW( (witness_name)(amount) )
+   } FC_CAPTURE_AND_RETHROW( (account_name)(amount) )
    }
 
    signed_transaction vote_for_committee_member(string voting_account,
@@ -4083,10 +4125,18 @@ signed_transaction wallet_api::withdraw_vesting(
    string witness_name,
    string amount,
    string asset_symbol,
-   bool broadcast,
-   uint8_t vb_type)
+   bool broadcast)
 {
-   return my->withdraw_vesting( witness_name, amount, asset_symbol, broadcast, vb_type );
+   return my->withdraw_vesting( witness_name, amount, asset_symbol, broadcast );
+}
+
+signed_transaction wallet_api::withdraw_GPOS_vesting_balance(
+   string account_name,
+   string amount,
+   string asset_symbol,
+   bool broadcast)
+{
+   return my->withdraw_GPOS_vesting_balance( account_name, amount, asset_symbol, broadcast );
 }
 
 signed_transaction wallet_api::vote_for_committee_member(string voting_account,
