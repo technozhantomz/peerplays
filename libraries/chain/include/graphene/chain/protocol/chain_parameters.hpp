@@ -27,6 +27,8 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
+#include <../hardfork.d/GPOS.hf>
+
 namespace graphene { namespace chain { struct fee_schedule; } }
 
 namespace graphene { namespace chain {
@@ -40,6 +42,11 @@ namespace graphene { namespace chain {
       optional< uint16_t >            sweeps_distribution_percentage;
       optional< asset_id_type >       sweeps_distribution_asset;
       optional< account_id_type >     sweeps_vesting_accumulator_account;
+      /* gpos parameters */
+      optional < uint32_t >           gpos_period;
+      optional < uint32_t >           gpos_subperiod;
+      optional < uint32_t >           gpos_period_start;
+      optional < uint32_t >           gpos_vesting_lockin_period;
    };
 
    struct chain_parameters
@@ -119,6 +126,18 @@ namespace graphene { namespace chain {
       inline account_id_type sweeps_vesting_accumulator_account()const {
          return extensions.value.sweeps_vesting_accumulator_account.valid() ? *extensions.value.sweeps_vesting_accumulator_account : SWEEPS_ACCUMULATOR_ACCOUNT;
       }
+      inline uint32_t gpos_period()const {
+         return extensions.value.gpos_period.valid() ? *extensions.value.gpos_period : GPOS_PERIOD; /// total seconds of current gpos period
+      }
+      inline uint32_t gpos_subperiod()const {
+         return extensions.value.gpos_subperiod.valid() ? *extensions.value.gpos_subperiod : GPOS_SUBPERIOD; /// gpos_period % gpos_subperiod = 0
+      }
+      inline uint32_t gpos_period_start()const {
+         return extensions.value.gpos_period_start.valid() ? *extensions.value.gpos_period_start : HARDFORK_GPOS_TIME.sec_since_epoch(); /// current period start date
+      }
+      inline uint32_t gpos_vesting_lockin_period()const {
+         return extensions.value.gpos_vesting_lockin_period.valid() ? *extensions.value.gpos_vesting_lockin_period : GPOS_VESTING_LOCKIN_PERIOD; /// GPOS vesting lockin period
+      }      
    };
 
 } }  // graphene::chain
@@ -132,6 +151,10 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (sweeps_distribution_percentage)
    (sweeps_distribution_asset)
    (sweeps_vesting_accumulator_account)
+   (gpos_period)
+   (gpos_subperiod)
+   (gpos_period_start)
+   (gpos_vesting_lockin_period)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,

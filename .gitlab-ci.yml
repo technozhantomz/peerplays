@@ -30,7 +30,7 @@ test:
     - ./tests/cli_test
   tags:
     - builder
-    
+
 code_quality:
   stage: test
   image: docker:stable

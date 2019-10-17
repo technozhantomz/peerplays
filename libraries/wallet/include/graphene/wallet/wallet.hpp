@@ -1378,7 +1378,7 @@ class wallet_api
       vector< vesting_balance_object_with_info > get_vesting_balances( string account_name );
 
       /**
-       * Withdraw a vesting balance.
+       * Withdraw a normal(old) vesting balance.
        *
        * @param witness_name The account name of the witness, also accepts account ID or vesting balance ID type.
        * @param amount The amount to withdraw.
@@ -1387,6 +1387,20 @@ class wallet_api
        */
       signed_transaction withdraw_vesting(
          string witness_name,
+         string amount,
+         string asset_symbol,
+         bool broadcast = false);
+
+      /**
+       * Withdraw a GPOS vesting balance.
+       *
+       * @param account_name The account name of the witness/user, also accepts account ID or vesting balance ID type.
+       * @param amount The amount to withdraw.
+       * @param asset_symbol The symbol of the asset to withdraw.
+       * @param broadcast true if you wish to broadcast the transaction
+       */
+      signed_transaction withdraw_GPOS_vesting_balance(
+         string account_name,
          string amount,
          string asset_symbol,
          bool broadcast = false);
@@ -1861,6 +1875,20 @@ class wallet_api
                                    rock_paper_scissors_gesture gesture,
                                    bool broadcast);
 
+      /** Create a vesting balance including gpos vesting balance after HARDFORK_GPOS_TIME
+       * @param owner vesting balance owner and creator
+       * @param amount amount to vest
+       * @param asset_symbol the symbol of the asset to vest
+       * @param is_gpos True if the balance is of gpos type
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction create_vesting_balance(string owner,
+                                                string amount,
+                                                string asset_symbol,
+                                                bool is_gpos,
+                                                bool broadcast);
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void dbg_push_blocks( std::string src_filename, uint32_t count );
@@ -2022,6 +2050,7 @@ FC_API( graphene::wallet::wallet_api,
         (update_worker_votes)
         (get_vesting_balances)
         (withdraw_vesting)
+        (withdraw_GPOS_vesting_balance)
         (vote_for_committee_member)
         (vote_for_witness)
         (update_witness_votes)
@@ -2106,6 +2135,7 @@ FC_API( graphene::wallet::wallet_api,
         (tournament_join)
         (tournament_leave)
         (rps_throw)
+        (create_vesting_balance)
         (get_upcoming_tournaments)
         (get_tournaments)
         (get_tournaments_by_state)
