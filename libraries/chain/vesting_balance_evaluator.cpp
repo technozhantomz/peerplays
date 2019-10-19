@@ -145,7 +145,7 @@ void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balan
 
    const vesting_balance_object& vbo = op.vesting_balance( d );
    FC_ASSERT( op.owner == vbo.owner, "", ("op.owner", op.owner)("vbo.owner", vbo.owner) );
-   FC_ASSERT( vbo.is_withdraw_allowed( now, op.amount ), "", ("now", now)("op", op)("vbo", vbo) );
+   FC_ASSERT( vbo.is_withdraw_allowed( now, op.amount ), "GPOS Vested Balance cannont be withdrwan during the locking period", ("now", now)("op", op)("vbo", vbo) );
    assert( op.amount <= vbo.balance );      // is_withdraw_allowed should fail before this check is reached
 
    /* const account_object& owner_account =  op.owner( d ); */

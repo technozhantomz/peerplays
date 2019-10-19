@@ -1720,6 +1720,42 @@ public:
       FC_CAPTURE_AND_RETHROW( (owner_account) )
    }
 
+   bool is_witness(string owner_account)
+   {
+      try
+      {
+         fc::optional<witness_id_type> witness_id = maybe_id<witness_id_type>(owner_account);
+         if (witness_id)
+         {
+            std::vector<witness_id_type> ids_to_get;
+            ids_to_get.push_back(*witness_id);
+            std::vector<fc::optional<witness_object>> witness_objects = _remote_db->get_witnesses(ids_to_get);
+            if (witness_objects.front())
+               return true;
+            else
+               return false;
+         }
+         else
+         {
+            // then maybe it's the owner account
+            try
+            {
+               account_id_type owner_account_id = get_account_id(owner_account);
+               fc::optional<witness_object> witness = _remote_db->get_witness_by_account(owner_account_id);
+               if (witness)
+                  return true;
+               else
+                  return false;
+            }
+            catch (const fc::exception&)
+            {
+               return false;
+            }
+         }
+      }
+      FC_CAPTURE_AND_RETHROW( (owner_account) )
+   }
+
    committee_member_object get_committee_member(string owner_account)
    {
       try
@@ -2013,9 +2049,14 @@ public:
          vbos = _remote_db->get_vesting_balances( *acct_id );
          if( vbos.size() == 0 )
          {
-            witness_object wit = get_witness( account_name );
-            FC_ASSERT( wit.pay_vb );
-            vbid = wit.pay_vb;
+            if (is_witness(account_name)) 
+            {
+               witness_object wit = get_witness( account_name );
+               FC_ASSERT( wit.pay_vb );
+               vbid = wit.pay_vb;
+            }
+            else 
+               FC_THROW("Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", account_name));
          }
       }
 
@@ -2080,7 +2121,7 @@ public:
 
       vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
       if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
-         FC_THROW("Account *** ${account} *** have insufficient or 0 vested balance(GPOS) to vote", ("account", voting_account));
+         FC_THROW("Account ${account} has no core Token vested and thus she will not be allowed to vote for the committee member", ("account", voting_account));
 
       account_object voting_account_object = get_account(voting_account);
       account_id_type committee_member_owner_account_id = get_account_id(committee_member);
@@ -2121,7 +2162,7 @@ public:
 
       vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
       if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
-         FC_THROW("Account *** ${account} *** have insufficient or 0 vested balance(GPOS) to vote", ("account", voting_account));
+         FC_THROW("Account ${account} has no core Token vested and thus she will not be allowed to vote for the witness", ("account", voting_account));
 
       account_object voting_account_object = get_account(voting_account);
       account_id_type witness_owner_account_id = get_account_id(witness);
@@ -2132,13 +2173,13 @@ public:
       {
          auto insert_result = voting_account_object.options.votes.insert(witness_obj->vote_id);
          if (!insert_result.second)
-            FC_THROW("Account ${account} was already voting for witness ${witness}", ("account", voting_account)("witness", witness));
+            FC_THROW("Account ${account} has already voted for witness ${witness}", ("account", voting_account)("witness", witness));
       }
       else
       {
          unsigned votes_removed = voting_account_object.options.votes.erase(witness_obj->vote_id);
          if (!votes_removed)
-            FC_THROW("Account ${account} is already not voting for witness ${witness}", ("account", voting_account)("witness", witness));
+            FC_THROW("Account ${account} has not voted for witness ${witness}", ("account", voting_account)("witness", witness));
       }
       account_update_operation account_update_op;
       account_update_op.account = voting_account_object.id;
@@ -4071,6 +4112,11 @@ map<string,committee_member_id_type> wallet_api::list_committee_members(const st
 witness_object wallet_api::get_witness(string owner_account)
 {
    return my->get_witness(owner_account);
+}
+
+bool wallet_api::is_witness(string owner_account)
+{
+   return my->is_witness(owner_account);
 }
 
 committee_member_object wallet_api::get_committee_member(string owner_account)
