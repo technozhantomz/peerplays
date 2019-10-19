@@ -2005,9 +2005,14 @@ public:
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(witness_name);
       if( !vbid )
       {
-         witness_object wit = get_witness( witness_name );
-         FC_ASSERT( wit.pay_vb );
-         vbid = wit.pay_vb;
+         if (is_witness(witness_name)) 
+         {
+            witness_object wit = get_witness( witness_name );
+            FC_ASSERT( wit.pay_vb, "Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", witness_name));
+            vbid = wit.pay_vb;
+         }
+         else 
+            FC_THROW("Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", witness_name));
       }
 
       vesting_balance_object vbo = get_object< vesting_balance_object >( *vbid );
@@ -2052,7 +2057,7 @@ public:
             if (is_witness(account_name)) 
             {
                witness_object wit = get_witness( account_name );
-               FC_ASSERT( wit.pay_vb );
+               FC_ASSERT( wit.pay_vb, "Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", account_name));
                vbid = wit.pay_vb;
             }
             else 
