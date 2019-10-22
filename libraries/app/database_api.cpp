@@ -2039,6 +2039,8 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
 {
    gpos_info result;
    result.vesting_factor = _db.calculate_vesting_factor(account(_db));
+   result.current_subperiod = _db.get_gpos_current_subperiod();
+   result.last_voted_time = account(_db).statistics(_db).last_vote_time;
 
    const auto& dividend_data = asset_id_type()(_db).dividend_data(_db);
    const account_object& dividend_distribution_account = dividend_data.dividend_distribution_account(_db);

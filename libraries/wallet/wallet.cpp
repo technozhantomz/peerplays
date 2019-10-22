@@ -2125,13 +2125,20 @@ public:
 
       account_object voting_account_object = get_account(voting_account);
       account_id_type witness_owner_account_id = get_account_id(witness);
+      
       fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
       if (!witness_obj)
          FC_THROW("Account ${witness} is not registered as a witness", ("witness", witness));
       if (approve)
       {
+         account_id_type stake_account = get_account_id(voting_account);
+         const auto gpos_info = _remote_db->get_gpos_info(stake_account);
+         const auto vesting_subperiod = _remote_db->get_global_properties().parameters.gpos_subperiod();
+         const auto gpos_start_time = fc::time_point_sec(_remote_db->get_global_properties().parameters.gpos_period_start());
+         const auto subperiod_start_time = gpos_start_time.sec_since_epoch() + (gpos_info.current_subperiod - 1) * vesting_subperiod;
+
          auto insert_result = voting_account_object.options.votes.insert(witness_obj->vote_id);
-         if (!insert_result.second)
+         if (!insert_result.second && (gpos_info.last_voted_time.sec_since_epoch() >= subperiod_start_time))
             FC_THROW("Account ${account} was already voting for witness ${witness}", ("account", voting_account)("witness", witness));
       }
       else
