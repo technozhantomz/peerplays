@@ -832,8 +832,102 @@ BOOST_AUTO_TEST_CASE( competing_proposals )
 */
 BOOST_AUTO_TEST_CASE( proxy_voting )
 {
+   ACTORS((alice)(bob));
    try {
 
+      // move to hardfork
+      generate_blocks( HARDFORK_GPOS_TIME );
+      generate_block();
+
+      // database api
+      graphene::app::database_api db_api(db);
+
+      const auto& core = asset_id_type()(db);
+
+      // send some asset to alice and bob
+      transfer( committee_account, alice_id, core.amount( 1000 ) );
+      transfer( committee_account, bob_id, core.amount( 1000 ) );
+      generate_block();
+
+      // add some vesting to alice and bob
+      create_vesting(alice_id, core.amount(100), vesting_balance_type::gpos);
+      generate_block();
+
+      // total balance is 100 rest of data at 0
+      auto gpos_info = db_api.get_gpos_info(alice_id);
+      BOOST_CHECK_EQUAL(gpos_info.vesting_factor, 0);
+      BOOST_CHECK_EQUAL(gpos_info.award.amount.value, 0);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 100);
+
+      create_vesting(bob_id, core.amount(100), vesting_balance_type::gpos);
+      generate_block();
+
+      gpos_info = db_api.get_gpos_info(bob_id);
+      BOOST_CHECK_EQUAL(gpos_info.vesting_factor, 0);
+      BOOST_CHECK_EQUAL(gpos_info.award.amount.value, 0);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 200);
+
+      auto now = db.head_block_time();
+      update_gpos_global(518400, 86400, now);
+
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), 518400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), 86400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
+
+      // alice assign bob as voting account
+      graphene::chain::account_update_operation op;
+      op.account = alice_id;
+      op.new_options = alice_id(db).options;
+      op.new_options->voting_account = bob_id;
+      trx.operations.push_back(op);
+      set_expiration(db, trx);
+      trx.validate();
+      sign(trx, alice_private_key);
+      PUSH_TX( db, trx, ~0 );
+      trx.clear();
+
+      generate_block();
+
+      // vote for witness1
+      auto witness1 = witness_id_type(1)(db);
+      vote_for(bob_id, witness1.vote_id, bob_private_key);
+      
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      
+      // check vesting factor of current subperiod
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 1);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 1);
+      
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();
+
+      // GPOS 2nd subperiod started.
+      // vesting factor decay
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 0.83333333333333337);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 0.83333333333333337);
+      
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();
+
+      // GPOS 3rd subperiod started
+      // vesting factor decay
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 0.66666666666666663);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 0.66666666666666663);
+
+      // vote for witness2
+      auto witness2 = witness_id_type(2)(db);
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+
+      // vesting factor should be 1 for both alice and bob for the current subperiod
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 1);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 1);
+
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();
+
+      // vesting factor decay
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 0.83333333333333337);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 0.83333333333333337);
    }
    catch (fc::exception &e) {
       edump((e.to_detail_string()));
@@ -949,5 +1043,4 @@ BOOST_AUTO_TEST_CASE( database_api )
       throw;
    }
 }
-
 BOOST_AUTO_TEST_SUITE_END()
