@@ -727,9 +727,13 @@ void deprecate_annual_members( database& db )
 
 double database::calculate_vesting_factor(const account_object& stake_account)
 {
-   // get last time voted form stats
-   const auto &stats = stake_account.statistics(*this);
-   fc::time_point_sec last_date_voted = stats.last_vote_time;
+   fc::time_point_sec last_date_voted;
+   // get last time voted form account stats
+   // check last_vote_time of proxy voting account if proxy is set
+   if (stake_account.options.voting_account == GRAPHENE_PROXY_TO_SELF_ACCOUNT)
+      last_date_voted = stake_account.statistics(*this).last_vote_time;
+   else
+      last_date_voted = stake_account.options.voting_account(*this).statistics(*this).last_vote_time;
 
    // get global data related to gpos
    const auto &gpo = this->get_global_properties();
