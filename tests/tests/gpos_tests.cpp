@@ -906,6 +906,14 @@ BOOST_AUTO_TEST_CASE( proxy_voting )
       BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 0.83333333333333337);
       BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 0.83333333333333337);
       
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();
+
+      // GPOS 3rd subperiod started
+      // vesting factor decay
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 0.66666666666666663);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 0.66666666666666663);
+
       // vote for witness2
       auto witness2 = witness_id_type(2)(db);
       vote_for(bob_id, witness2.vote_id, bob_private_key);
