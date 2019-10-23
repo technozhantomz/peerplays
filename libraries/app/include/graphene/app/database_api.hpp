@@ -119,8 +119,7 @@ struct gpos_info {
    asset award;
    share_type total_amount;
    uint32_t current_subperiod;
-   fc::time_point_sec last_voted_time;
-   
+   fc::time_point_sec last_voted_time;   
 };
 
 /**

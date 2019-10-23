@@ -284,8 +284,10 @@ void_result account_update_evaluator::do_apply( const account_update_operation& 
    {
       d.modify( acnt->statistics( d ), [&]( account_statistics_object& aso )
       {
-         //if((o.new_options->votes != acnt->options.votes ||
-         //    o.new_options->voting_account != acnt->options.voting_account))
+         fc::optional< bool > flag = o.extensions.value.update_last_voting_time;
+         if((o.new_options->votes != acnt->options.votes ||
+             o.new_options->voting_account != acnt->options.voting_account) ||
+             flag)
             aso.last_vote_time = d.head_block_time();
       } );
    }

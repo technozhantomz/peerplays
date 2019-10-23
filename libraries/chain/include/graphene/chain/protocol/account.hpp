@@ -140,6 +140,7 @@ namespace graphene { namespace chain {
          optional< void_t >            null_ext;
          optional< special_authority > owner_special_authority;
          optional< special_authority > active_special_authority;
+         optional< bool >              update_last_voting_time = false;
       };
 
       struct fee_parameters_type
