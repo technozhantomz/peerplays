@@ -727,6 +727,14 @@ void deprecate_annual_members( database& db )
 
 uint32_t database::get_gpos_current_subperiod()
 {
+   fc::time_point_sec last_date_voted;
+   // get last time voted form account stats
+   // check last_vote_time of proxy voting account if proxy is set
+   if (stake_account.options.voting_account == GRAPHENE_PROXY_TO_SELF_ACCOUNT)
+      last_date_voted = stake_account.statistics(*this).last_vote_time;
+   else
+      last_date_voted = stake_account.options.voting_account(*this).statistics(*this).last_vote_time;
+
    const auto &gpo = this->get_global_properties();
    const auto vesting_period = gpo.parameters.gpos_period();
    const auto vesting_subperiod = gpo.parameters.gpos_subperiod();
