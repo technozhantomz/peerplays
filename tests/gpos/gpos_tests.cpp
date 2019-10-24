@@ -403,7 +403,6 @@ BOOST_AUTO_TEST_CASE( voting )
 
       advance_x_maint(10);
 
-      auto now1 = db.head_block_time();
       //vote bob tot witness2 in each subperiod and verify votes
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       // go to maint
@@ -416,7 +415,6 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
       
       advance_x_maint(10);
-      now1 = db.head_block_time();
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
@@ -426,7 +424,7 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
-      now1 = db.head_block_time();
+      
       // more
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -437,7 +435,7 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
-      now1 = db.head_block_time();
+      
       // more
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -449,8 +447,7 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
-      now1 = db.head_block_time();
-
+      
       // more
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
