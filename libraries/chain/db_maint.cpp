@@ -833,7 +833,7 @@ void rolling_period_start(database& db)
       auto vesting_period = db.get_global_properties().parameters.gpos_period();
 
       auto now = db.head_block_time();
-      if(now.sec_since_epoch() > (period_start + vesting_period))
+      if(now.sec_since_epoch() >= (period_start + vesting_period))
       {
          // roll
          db.modify(db.get_global_properties(), [now](global_property_object& p) {
@@ -1390,9 +1390,9 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    distribute_fba_balances(*this);
    create_buyback_orders(*this);
 
-   rolling_period_start(*this);
-
    process_dividend_assets(*this);
+
+   rolling_period_start(*this);
 
    struct vote_tally_helper {
       database& d;
