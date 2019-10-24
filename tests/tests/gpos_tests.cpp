@@ -390,53 +390,77 @@ BOOST_AUTO_TEST_CASE( voting )
 
       // vote for witness1
       vote_for(alice_id, witness1.vote_id, alice_private_key);
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
 
       // go to maint
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
 
       // vote is the same as amount in the first subperiod since voting
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 100);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
 
+      //vote bob tot witness2 in each subperiod and verify votes
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      // go to maint
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // vote decay as time pass
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+
       BOOST_CHECK_EQUAL(witness1.total_votes, 83);
-
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
+      
       advance_x_maint(10);
-
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 66);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
-
+      
       // more
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      // decay more
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 50);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
-
+      
       // more
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      // decay more
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+
       BOOST_CHECK_EQUAL(witness1.total_votes, 33);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
-
+      
       // more
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      // decay more
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 16);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       // we are still in gpos period 1
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
 
-      advance_x_maint(10);
-
-      // until 0
-      witness1 = witness_id_type(1)(db);
-      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
-
+      advance_x_maint(5);
       // a new GPOS period is in but vote from user is before the start so his voting power is 0
       now = db.head_block_time();
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
@@ -444,7 +468,9 @@ BOOST_AUTO_TEST_CASE( voting )
       generate_block();
 
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 0);
 
       // we are in the second GPOS period, at subperiod 2, lets vote here
       vote_for(bob_id, witness2.vote_id, bob_private_key);
@@ -467,13 +493,16 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness1.total_votes, 0);
       BOOST_CHECK_EQUAL(witness2.total_votes, 83);
 
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_block();
+
       advance_x_maint(10);
 
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
 
       BOOST_CHECK_EQUAL(witness1.total_votes, 0);
-      BOOST_CHECK_EQUAL(witness2.total_votes, 66);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 83);
 
       // alice votes again, now for witness 2, her vote worth 100 now
       vote_for(alice_id, witness2.vote_id, alice_private_key);
@@ -483,7 +512,7 @@ BOOST_AUTO_TEST_CASE( voting )
       witness2 = witness_id_type(2)(db);
 
       BOOST_CHECK_EQUAL(witness1.total_votes, 100);
-      BOOST_CHECK_EQUAL(witness2.total_votes, 166);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 183);
 
    }
    catch (fc::exception &e) {
