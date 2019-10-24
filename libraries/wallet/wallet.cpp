@@ -2052,17 +2052,8 @@ public:
             acct_id = get_account( account_name ).id;
 
          vbos = _remote_db->get_vesting_balances( *acct_id );
-         if( vbos.size() == 0 )
-         {
-            if (is_witness(account_name)) 
-            {
-               witness_object wit = get_witness( account_name );
-               FC_ASSERT( wit.pay_vb, "Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", account_name));
-               vbid = wit.pay_vb;
-            }
-            else 
-               FC_THROW("Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", account_name));
-         }
+         if( vbos.size() == 0 ) 
+            FC_THROW("Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", account_name));
       }
 
       //whether it is a witness or user, keep it in a container and iterate over to process all vesting balances and types 
