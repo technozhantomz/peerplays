@@ -13,6 +13,10 @@ if(MSVC)
   set_source_files_properties( tests/serialization_tests.cpp PROPERTIES COMPILE_FLAGS "/bigobj" )
 endif(MSVC)
 
+file(GLOB GPOS_TESTS "gpos/*.cpp")
+add_executable( gpos_test ${GPOS_TESTS} ${COMMON_SOURCES} )
+target_link_libraries( gpos_test graphene_chain graphene_app graphene_account_history graphene_bookie graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
+
 file(GLOB PERFORMANCE_TESTS "performance/*.cpp")
 add_executable( performance_test ${PERFORMANCE_TESTS} ${COMMON_SOURCES} )
 target_link_libraries( performance_test graphene_chain graphene_app graphene_account_history graphene_bookie graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
