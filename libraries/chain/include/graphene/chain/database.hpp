@@ -500,6 +500,7 @@ namespace graphene { namespace chain {
          void update_worker_votes();
          public:
             double calculate_vesting_factor(const account_object& stake_account);
+            uint32_t get_gpos_current_subperiod();
 
 
       template<class... Types>

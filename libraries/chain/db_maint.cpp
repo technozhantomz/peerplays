@@ -725,6 +725,37 @@ void deprecate_annual_members( database& db )
    return;
 }
 
+uint32_t database::get_gpos_current_subperiod()
+{
+   fc::time_point_sec last_date_voted;
+
+   const auto &gpo = this->get_global_properties();
+   const auto vesting_period = gpo.parameters.gpos_period();
+   const auto vesting_subperiod = gpo.parameters.gpos_subperiod();
+   const auto period_start = fc::time_point_sec(gpo.parameters.gpos_period_start());
+
+   //  variables needed
+   const fc::time_point_sec period_end = period_start + vesting_period;
+   const auto number_of_subperiods = vesting_period / vesting_subperiod;
+   const auto now = this->head_block_time();
+   auto seconds_since_period_start = now.sec_since_epoch() - period_start.sec_since_epoch();
+
+   FC_ASSERT(period_start <= now && now <= period_end);
+
+   // get in what sub period we are
+   uint32_t current_subperiod = 0;
+   std::list<uint32_t> period_list(number_of_subperiods);
+   std::iota(period_list.begin(), period_list.end(), 1);
+
+   std::for_each(period_list.begin(), period_list.end(),[&](uint32_t period) {
+      if(seconds_since_period_start >= vesting_subperiod * (period - 1) &&
+            seconds_since_period_start < vesting_subperiod * period)
+         current_subperiod = period;
+   });
+
+   return current_subperiod;
+}
+
 double database::calculate_vesting_factor(const account_object& stake_account)
 {
    fc::time_point_sec last_date_voted;
@@ -742,25 +773,12 @@ double database::calculate_vesting_factor(const account_object& stake_account)
    const auto period_start = fc::time_point_sec(gpo.parameters.gpos_period_start());
 
    //  variables needed
-   const fc::time_point_sec period_end = period_start + vesting_period;
    const auto number_of_subperiods = vesting_period / vesting_subperiod;
-   const auto now = this->head_block_time();
    double vesting_factor;
-   auto seconds_since_period_start = now.sec_since_epoch() - period_start.sec_since_epoch();
-
-   FC_ASSERT(period_start <= now && now <= period_end);
-
-   // get in what sub period we are
-   uint32_t current_subperiod = 0;
-   std::list<uint32_t> period_list(number_of_subperiods);
-   std::iota(period_list.begin(), period_list.end(), 1);
-
-   std::for_each(period_list.begin(), period_list.end(),[&](uint32_t period) {
-      if(seconds_since_period_start >= vesting_subperiod * (period - 1) &&
-            seconds_since_period_start < vesting_subperiod * period)
-         current_subperiod = period;
-   });
-
+  
+    // get in what sub period we are
+   uint32_t current_subperiod = get_gpos_current_subperiod();
+ 
    if(current_subperiod == 0 || current_subperiod > number_of_subperiods) return 0;
    if(last_date_voted < period_start) return 0;
 
@@ -1562,6 +1580,12 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.permitted_betting_odds_increments = p.parameters.extensions.value.permitted_betting_odds_increments;
          if( !p.pending_parameters->extensions.value.live_betting_delay_time.valid() )
             p.pending_parameters->extensions.value.live_betting_delay_time = p.parameters.extensions.value.live_betting_delay_time;
+         if( !p.pending_parameters->extensions.value.gpos_period.valid() )
+            p.pending_parameters->extensions.value.gpos_period = p.parameters.extensions.value.gpos_period;
+         if( !p.pending_parameters->extensions.value.gpos_subperiod.valid() )
+            p.pending_parameters->extensions.value.gpos_subperiod = p.parameters.extensions.value.gpos_subperiod;
+         if( !p.pending_parameters->extensions.value.gpos_vesting_lockin_period.valid() )
+            p.pending_parameters->extensions.value.gpos_vesting_lockin_period = p.parameters.extensions.value.gpos_vesting_lockin_period;                              
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }

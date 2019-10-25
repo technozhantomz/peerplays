@@ -118,6 +118,8 @@ struct gpos_info {
    double vesting_factor;
    asset award;
    share_type total_amount;
+   uint32_t current_subperiod;
+   fc::time_point_sec last_voted_time;   
 };
 
 /**
@@ -672,7 +674,7 @@ FC_REFLECT( graphene::app::order_book, (base)(quote)(bids)(asks) );
 FC_REFLECT( graphene::app::market_ticker, (base)(quote)(latest)(lowest_ask)(highest_bid)(percent_change)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_volume, (base)(quote)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_trade, (date)(price)(amount)(value) );
-FC_REFLECT( graphene::app::gpos_info, (vesting_factor)(award)(total_amount) );
+FC_REFLECT( graphene::app::gpos_info, (vesting_factor)(award)(total_amount)(current_subperiod)(last_voted_time) );
 
 
 FC_API(graphene::app::database_api,

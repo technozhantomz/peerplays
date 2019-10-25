@@ -2124,11 +2124,22 @@ public:
       fc::optional<committee_member_object> committee_member_obj = _remote_db->get_committee_member_by_account(committee_member_owner_account_id);
       if (!committee_member_obj)
          FC_THROW("Account ${committee_member} is not registered as a committee_member", ("committee_member", committee_member));
+
+      bool update_vote_time = false;
+
       if (approve)
       {
+         account_id_type stake_account = get_account_id(voting_account);
+         const auto gpos_info = _remote_db->get_gpos_info(stake_account);
+         const auto vesting_subperiod = _remote_db->get_global_properties().parameters.gpos_subperiod();
+         const auto gpos_start_time = fc::time_point_sec(_remote_db->get_global_properties().parameters.gpos_period_start());
+         const auto subperiod_start_time = gpos_start_time.sec_since_epoch() + (gpos_info.current_subperiod - 1) * vesting_subperiod;
+
          auto insert_result = voting_account_object.options.votes.insert(committee_member_obj->vote_id);
-         if (!insert_result.second)
-            FC_THROW("Account ${account} was already voting for committee_member ${committee_member}", ("account", voting_account)("committee_member", committee_member));
+         if (!insert_result.second && (gpos_info.last_voted_time.sec_since_epoch() >= subperiod_start_time))
+            FC_THROW("Account ${account} was already voting for committee_member ${committee_member} in the current GPOS sub-period", ("account", voting_account)("committee_member", committee_member));
+         else
+            update_vote_time = true;   //Allow user to vote in each sub-period(Update voting time, which is reference in calculating VF)
       }
       else
       {
@@ -2139,6 +2150,7 @@ public:
       account_update_operation account_update_op;
       account_update_op.account = voting_account_object.id;
       account_update_op.new_options = voting_account_object.options;
+      account_update_op.extensions.value.update_last_voting_time = update_vote_time;
 
       signed_transaction tx;
       tx.operations.push_back( account_update_op );
@@ -2162,12 +2174,26 @@ public:
 
       account_object voting_account_object = get_account(voting_account);
       account_id_type witness_owner_account_id = get_account_id(witness);
+      
       fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
       if (!witness_obj)
          FC_THROW("Account ${witness} is not registered as a witness", ("witness", witness));
+
+      bool update_vote_time = false;
       if (approve)
       {
+         account_id_type stake_account = get_account_id(voting_account);
+         const auto gpos_info = _remote_db->get_gpos_info(stake_account);
+         const auto vesting_subperiod = _remote_db->get_global_properties().parameters.gpos_subperiod();
+         const auto gpos_start_time = fc::time_point_sec(_remote_db->get_global_properties().parameters.gpos_period_start());
+         const auto subperiod_start_time = gpos_start_time.sec_since_epoch() + (gpos_info.current_subperiod - 1) * vesting_subperiod;
+
          auto insert_result = voting_account_object.options.votes.insert(witness_obj->vote_id);
+         if (!insert_result.second && (gpos_info.last_voted_time.sec_since_epoch() >= subperiod_start_time))
+            FC_THROW("Account ${account} was already voting for witness ${witness} in the current GPOS sub-period", ("account", voting_account)("witness", witness));
+         else
+            update_vote_time = true;   //Allow user to vote in each sub-period(Update voting time, which is reference in calculating VF)
+
          if (!insert_result.second)
             FC_THROW("Account ${account} has already voted for witness ${witness}", ("account", voting_account)("witness", witness));
       }
@@ -2177,9 +2203,11 @@ public:
          if (!votes_removed)
             FC_THROW("Account ${account} has not voted for witness ${witness}", ("account", voting_account)("witness", witness));
       }
+      
       account_update_operation account_update_op;
       account_update_op.account = voting_account_object.id;
       account_update_op.new_options = voting_account_object.options;
+      account_update_op.extensions.value.update_last_voting_time = update_vote_time;
 
       signed_transaction tx;
       tx.operations.push_back( account_update_op );
