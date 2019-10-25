@@ -1090,8 +1090,8 @@ void schedule_pending_dividend_balances(database& db,
                         dlog("Crediting committee_account with ${amount}",
                              ("amount", asset(full_shares_to_credit - shares_to_credit, payout_asset_type)));
                         db.adjust_balance(dividend_data.dividend_distribution_account,
-                                          -(full_shares_to_credit - shares_to_credit));
-                        db.adjust_balance(account_id_type(0), full_shares_to_credit - shares_to_credit);
+                                          -asset(full_shares_to_credit - shares_to_credit, payout_asset_type));
+                        db.adjust_balance(account_id_type(0), asset(full_shares_to_credit - shares_to_credit, payout_asset_type));
                      }
 
                      remaining_amount_to_distribute = credit_account(db,
