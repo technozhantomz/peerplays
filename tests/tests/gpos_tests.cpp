@@ -95,6 +95,15 @@ struct gpos_fixture: database_fixture
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), vesting_subperiod);
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), period_start.sec_since_epoch());
    }
+
+   void update_maintenance_interval(uint32_t new_interval)
+   {
+      db.modify(db.get_global_properties(), [new_interval](global_property_object& p) {
+         p.parameters.maintenance_interval = new_interval;
+      });
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, new_interval);
+   }
+
    void vote_for(const account_id_type account_id, const vote_id_type vote_for, const fc::ecc::private_key& key)
    {
       account_update_operation op;
@@ -526,26 +535,26 @@ BOOST_AUTO_TEST_CASE( rolling_period_start )
    // period start rolls automatically after HF
    try {
       // advance to HF
-      generate_blocks(HARDFORK_GPOS_TIME);
-      generate_block();
 
       // update default gpos global parameters to make this thing faster
-      auto now = db.head_block_time();
-      update_gpos_global(518400, 86400, now);
+      update_gpos_global(518400, 86400, HARDFORK_GPOS_TIME);
+      generate_blocks(HARDFORK_GPOS_TIME);
+      update_maintenance_interval(3600);  //update maintenance interval to 1hr to evaluate sub-periods
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, 3600);
 
+      auto vesting_period_1 = db.get_global_properties().parameters.gpos_period_start();
+            
+      auto now = db.head_block_time();
       // moving outside period:
       while( db.head_block_time() <= now + fc::days(6) )
       {
          generate_block();
       }
-      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-
-      // rolling is here so getting the new now
-      now = db.head_block_time();
       generate_block();
-
-      // period start rolled
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
+      auto vesting_period_2 = db.get_global_properties().parameters.gpos_period_start();
+     
+     //difference between start of two consecutive vesting periods should be 6 days 
+      BOOST_CHECK_EQUAL(vesting_period_1 + 518400, vesting_period_2); 
    }
    catch (fc::exception &e) {
       edump((e.to_detail_string()));
