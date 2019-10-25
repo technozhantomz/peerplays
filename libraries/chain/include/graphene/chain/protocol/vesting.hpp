@@ -28,6 +28,16 @@ namespace graphene { namespace chain {
 
    enum class vesting_balance_type { normal, gpos };
 
+   inline std::string get_vesting_balance_type(vesting_balance_type type) {
+      switch (type) {
+         case vesting_balance_type::normal:
+            return "NORMAL";
+         case vesting_balance_type::gpos:
+         default:
+            return "GPOS";
+      }
+   }
+
    struct linear_vesting_policy_initializer
    {
       /** while vesting begins on begin_timestamp, none may be claimed before vesting_cliff_seconds have passed */
