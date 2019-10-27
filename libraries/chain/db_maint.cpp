@@ -780,6 +780,16 @@ double database::calculate_vesting_factor(const account_object& stake_account)
    uint32_t current_subperiod = get_gpos_current_subperiod();
  
    if(current_subperiod == 0 || current_subperiod > number_of_subperiods) return 0;
+
+   // On starting new vesting period, all votes become zero until some one votes, To avoid a situation of zero votes, 
+   // changes done to roll in GPOS rules, the vesting factor will be 1 for who ever votes in 6th sub-period of last vesting period
+   // BLOCKBACK-174 fix
+   if(current_subperiod == 1 && this->head_block_time() >= HARDFORK_GPOS_TIME + vesting_period)   //Applicable only from 2nd vesting period
+   {
+      if(last_date_voted > period_start - vesting_subperiod)
+         return 1;   //return vesting factor as 1
+   }
+
    if(last_date_voted < period_start) return 0;
 
    double numerator = number_of_subperiods;
