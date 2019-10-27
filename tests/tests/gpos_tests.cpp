@@ -110,6 +110,7 @@ struct gpos_fixture: database_fixture
       op.account = account_id;
       op.new_options = account_id(db).options;
       op.new_options->votes.insert(vote_for);
+      op.extensions.value.update_last_voting_time = true;
       trx.operations.push_back(op);
       set_expiration(db, trx);
       trx.validate();
