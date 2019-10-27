@@ -110,6 +110,7 @@ struct gpos_fixture: database_fixture
       op.account = account_id;
       op.new_options = account_id(db).options;
       op.new_options->votes.insert(vote_for);
+      op.extensions.value.update_last_voting_time = true;
       trx.operations.push_back(op);
       set_expiration(db, trx);
       trx.validate();
@@ -348,12 +349,10 @@ BOOST_AUTO_TEST_CASE( dividends )
 }
 
 BOOST_AUTO_TEST_CASE( gpos_basic_dividend_distribution_to_core_asset )
-{     
-
+{
    using namespace graphene;
    ACTORS((alice)(bob)(carol)(dave));
    try {
-
       const auto& core = asset_id_type()(db);
       BOOST_TEST_MESSAGE("Creating test asset");
       {
@@ -474,12 +473,10 @@ BOOST_AUTO_TEST_CASE( gpos_basic_dividend_distribution_to_core_asset )
       verify_pending_balance(carol, test_asset_object, 0);
       verify_pending_balance(dave, test_asset_object, 10000);
 
-      
       advance_to_next_payout_time();
 
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_block();   // get the maintenance skip slots out of the way
-
 
       auto verify_dividend_payout_operations = [&](const account_object& destination_account, const asset& expected_payout)
       {
@@ -516,12 +513,10 @@ BOOST_AUTO_TEST_CASE( gpos_basic_dividend_distribution_to_core_asset )
    }   
 }
 
-
 BOOST_AUTO_TEST_CASE( voting )
 {
    ACTORS((alice)(bob));
    try {
-
       // move to hardfork
       generate_blocks( HARDFORK_GPOS_TIME );
       generate_block();
@@ -704,8 +699,6 @@ BOOST_AUTO_TEST_CASE( rolling_period_start )
 {
    // period start rolls automatically after HF
    try {
-      // advance to HF
-
       // update default gpos global parameters to make this thing faster
       update_gpos_global(518400, 86400, HARDFORK_GPOS_TIME);
       generate_blocks(HARDFORK_GPOS_TIME);
@@ -731,6 +724,7 @@ BOOST_AUTO_TEST_CASE( rolling_period_start )
       throw;
    }
 }
+
 BOOST_AUTO_TEST_CASE( worker_dividends_voting )
 {
    try {
@@ -1042,7 +1036,6 @@ BOOST_AUTO_TEST_CASE( proxy_voting )
 {
    ACTORS((alice)(bob));
    try {
-
       // move to hardfork
       generate_blocks( HARDFORK_GPOS_TIME );
       generate_block();
@@ -1153,11 +1146,11 @@ BOOST_AUTO_TEST_CASE( no_proposal )
       throw;
    }
 }
+
 BOOST_AUTO_TEST_CASE( database_api )
 {
    ACTORS((alice)(bob));
    try {
-
       // move to hardfork
       generate_blocks( HARDFORK_GPOS_TIME );
       generate_block();
@@ -1251,4 +1244,5 @@ BOOST_AUTO_TEST_CASE( database_api )
       throw;
    }
 }
+
 BOOST_AUTO_TEST_SUITE_END()
