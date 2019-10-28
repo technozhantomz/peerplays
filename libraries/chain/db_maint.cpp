@@ -787,7 +787,7 @@ double database::calculate_vesting_factor(const account_object& stake_account)
    if(current_subperiod == 1 && this->head_block_time() >= HARDFORK_GPOS_TIME + vesting_period)   //Applicable only from 2nd vesting period
    {
       if(last_date_voted > period_start - vesting_subperiod)
-         return 1;   //return vesting factor as 1
+         return 1;
    }
 
    if(last_date_voted < period_start) return 0;

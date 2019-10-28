@@ -568,7 +568,7 @@ BOOST_AUTO_TEST_CASE( voting )
       auto witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness2.total_votes, 0);
 
-      // vote for witness1
+      // vote for witness1 and witness2 - sub-period 1
       vote_for(alice_id, witness1.vote_id, alice_private_key);
       vote_for(bob_id, witness2.vote_id, bob_private_key);
 
@@ -583,7 +583,7 @@ BOOST_AUTO_TEST_CASE( voting )
 
       advance_x_maint(10);
 
-      //vote bob tot witness2 in each subperiod and verify votes
+      //Bob votes for witness2 - sub-period 2
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       // go to maint
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -595,6 +595,7 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
       
       advance_x_maint(10);
+      //Bob votes for witness2 - sub-period 3
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
@@ -605,7 +606,7 @@ BOOST_AUTO_TEST_CASE( voting )
 
       advance_x_maint(10);
       
-      // more
+      // Bob votes for witness2 - sub-period 4
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
@@ -616,7 +617,7 @@ BOOST_AUTO_TEST_CASE( voting )
 
       advance_x_maint(10);
       
-      // more
+      // Bob votes for witness2 - sub-period 5
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
@@ -628,7 +629,7 @@ BOOST_AUTO_TEST_CASE( voting )
 
       advance_x_maint(10);
       
-      // more
+      // Bob votes for witness2 - sub-period 6
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
@@ -641,7 +642,7 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
 
       advance_x_maint(5);
-      // a new GPOS period is in but vote from user is before the start. WHo ever votes in 6th sub-period, votes will carry
+      // a new GPOS period is in but vote from user is before the start. Whoever votes in 6th sub-period, votes will carry
       now = db.head_block_time();
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
 
