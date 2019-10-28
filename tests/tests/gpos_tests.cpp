@@ -562,7 +562,7 @@ BOOST_AUTO_TEST_CASE( voting )
       auto witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness2.total_votes, 0);
 
-      // vote for witness1
+      // vote for witness1 and witness2 - sub-period 1
       vote_for(alice_id, witness1.vote_id, alice_private_key);
       vote_for(bob_id, witness2.vote_id, bob_private_key);
 
@@ -577,7 +577,7 @@ BOOST_AUTO_TEST_CASE( voting )
 
       advance_x_maint(10);
 
-      //vote bob tot witness2 in each subperiod and verify votes
+      //Bob votes for witness2 - sub-period 2
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       // go to maint
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -589,6 +589,7 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
       
       advance_x_maint(10);
+      //Bob votes for witness2 - sub-period 3
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
@@ -599,7 +600,7 @@ BOOST_AUTO_TEST_CASE( voting )
 
       advance_x_maint(10);
       
-      // more
+      // Bob votes for witness2 - sub-period 4
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
@@ -610,7 +611,7 @@ BOOST_AUTO_TEST_CASE( voting )
 
       advance_x_maint(10);
       
-      // more
+      // Bob votes for witness2 - sub-period 5
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
@@ -622,7 +623,7 @@ BOOST_AUTO_TEST_CASE( voting )
 
       advance_x_maint(10);
       
-      // more
+      // Bob votes for witness2 - sub-period 6
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
@@ -635,18 +636,23 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
 
       advance_x_maint(5);
-      // a new GPOS period is in but vote from user is before the start so his voting power is 0
+      // a new GPOS period is in but vote from user is before the start. Whoever votes in 6th sub-period, votes will carry
       now = db.head_block_time();
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
 
       generate_block();
 
+      // we are in the second GPOS period, at subperiod 1,
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 0);
-      BOOST_CHECK_EQUAL(witness2.total_votes, 0);
+      //It's critical here, since bob votes in 6th sub-period of last vesting period, witness2 should retain his votes
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);   
 
-      // we are in the second GPOS period, at subperiod 2, lets vote here
+
+      // lets vote here from alice to generate votes for witness 1
+      //vote from bob to reatin VF 1
+      vote_for(alice_id, witness1.vote_id, alice_private_key);
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_block();
 
@@ -656,7 +662,7 @@ BOOST_AUTO_TEST_CASE( voting )
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
 
-      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 100);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
@@ -664,7 +670,7 @@ BOOST_AUTO_TEST_CASE( voting )
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
 
-      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 83);
       BOOST_CHECK_EQUAL(witness2.total_votes, 83);
 
       vote_for(bob_id, witness2.vote_id, bob_private_key);
@@ -675,7 +681,7 @@ BOOST_AUTO_TEST_CASE( voting )
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
 
-      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 66);
       BOOST_CHECK_EQUAL(witness2.total_votes, 83);
 
       // alice votes again, now for witness 2, her vote worth 100 now

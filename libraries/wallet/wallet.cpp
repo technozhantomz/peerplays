@@ -2193,9 +2193,6 @@ public:
             FC_THROW("Account ${account} was already voting for witness ${witness} in the current GPOS sub-period", ("account", voting_account)("witness", witness));
          else
             update_vote_time = true;   //Allow user to vote in each sub-period(Update voting time, which is reference in calculating VF)
-
-         if (!insert_result.second)
-            FC_THROW("Account ${account} has already voted for witness ${witness}", ("account", voting_account)("witness", witness));
       }
       else
       {
