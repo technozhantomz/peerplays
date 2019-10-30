@@ -2008,11 +2008,11 @@ public:
          if (is_witness(witness_name)) 
          {
             witness_object wit = get_witness( witness_name );
-            FC_ASSERT( wit.pay_vb, "Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", witness_name));
+            FC_ASSERT( wit.pay_vb, "Account ${account} has no core Token ${TOKEN} vested and thus its not allowed to withdraw.", ("account", witness_name)("TOKEN", GRAPHENE_SYMBOL));
             vbid = wit.pay_vb;
          }
          else 
-            FC_THROW("Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", witness_name));
+            FC_THROW("Account ${account} has no core Token ${TOKEN} vested and thus its not allowed to withdraw.", ("account", witness_name)("TOKEN", GRAPHENE_SYMBOL));
       }
 
       vesting_balance_object vbo = get_object< vesting_balance_object >( *vbid );
@@ -2117,7 +2117,7 @@ public:
 
       vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
       if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
-         FC_THROW("Account ${account} has no core Token vested and thus she will not be allowed to vote for the committee member", ("account", voting_account));
+         FC_THROW("Account ${account} has no core Token ${TOKEN} vested and thus she will not be allowed to vote for the committee member", ("account", voting_account)("TOKEN", GRAPHENE_SYMBOL));
 
       account_object voting_account_object = get_account(voting_account);
       account_id_type committee_member_owner_account_id = get_account_id(committee_member);
@@ -2170,7 +2170,7 @@ public:
 
       vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
       if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
-         FC_THROW("Account ${account} has no core Token vested and thus she will not be allowed to vote for the witness", ("account", voting_account));
+         FC_THROW("Account ${account} has no core Token ${TOKEN} vested and thus she will not be allowed to vote for the witness", ("account", voting_account)("TOKEN", GRAPHENE_SYMBOL));
 
       account_object voting_account_object = get_account(voting_account);
       account_id_type witness_owner_account_id = get_account_id(witness);
