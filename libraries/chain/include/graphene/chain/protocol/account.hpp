@@ -296,7 +296,7 @@ FC_REFLECT( graphene::chain::account_create_operation,
             (name)(owner)(active)(options)(extensions)
           )
 
-FC_REFLECT(graphene::chain::account_update_operation::ext, (null_ext)(owner_special_authority)(active_special_authority) )
+FC_REFLECT(graphene::chain::account_update_operation::ext, (null_ext)(owner_special_authority)(active_special_authority)(update_last_voting_time) )
 FC_REFLECT( graphene::chain::account_update_operation,
             (fee)(account)(owner)(active)(new_options)(extensions)
           )
