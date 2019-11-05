@@ -1300,6 +1300,12 @@ class wallet_api
        */
       witness_object get_witness(string owner_account);
 
+      /** Returns true if the account is witness, false otherwise
+       * @param owner_account the name or id of the witness account owner, or the id of the witness
+       * @returns true if account is witness, false otherwise
+       */
+      bool is_witness(string owner_account);
+
       /** Returns information about the given committee_member.
        * @param owner_account the name or id of the committee_member account owner, or the id of the committee_member
        * @returns the information about the committee_member stored in the block chain
@@ -2041,6 +2047,7 @@ FC_API( graphene::wallet::wallet_api,
         (whitelist_account)
         (create_committee_member)
         (get_witness)
+        (is_witness)
         (get_committee_member)
         (list_witnesses)
         (list_committee_members)

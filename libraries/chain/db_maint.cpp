@@ -749,13 +749,10 @@ void deprecate_annual_members( database& db )
    return;
 }
 
-double database::calculate_vesting_factor(const account_object& stake_account)
+uint32_t database::get_gpos_current_subperiod()
 {
-   // get last time voted form stats
-   const auto &stats = stake_account.statistics(*this);
-   fc::time_point_sec last_date_voted = stats.last_vote_time;
+   fc::time_point_sec last_date_voted;
 
-   // get global data related to gpos
    const auto &gpo = this->get_global_properties();
    const auto vesting_period = gpo.parameters.gpos_period();
    const auto vesting_subperiod = gpo.parameters.gpos_subperiod();
@@ -765,7 +762,6 @@ double database::calculate_vesting_factor(const account_object& stake_account)
    const fc::time_point_sec period_end = period_start + vesting_period;
    const auto number_of_subperiods = vesting_period / vesting_subperiod;
    const auto now = this->head_block_time();
-   double vesting_factor;
    auto seconds_since_period_start = now.sec_since_epoch() - period_start.sec_since_epoch();
 
    FC_ASSERT(period_start <= now && now <= period_end);
@@ -781,7 +777,43 @@ double database::calculate_vesting_factor(const account_object& stake_account)
          current_subperiod = period;
    });
 
+   return current_subperiod;
+}
+
+double database::calculate_vesting_factor(const account_object& stake_account)
+{
+   fc::time_point_sec last_date_voted;
+   // get last time voted form account stats
+   // check last_vote_time of proxy voting account if proxy is set
+   if (stake_account.options.voting_account == GRAPHENE_PROXY_TO_SELF_ACCOUNT)
+      last_date_voted = stake_account.statistics(*this).last_vote_time;
+   else
+      last_date_voted = stake_account.options.voting_account(*this).statistics(*this).last_vote_time;
+
+   // get global data related to gpos
+   const auto &gpo = this->get_global_properties();
+   const auto vesting_period = gpo.parameters.gpos_period();
+   const auto vesting_subperiod = gpo.parameters.gpos_subperiod();
+   const auto period_start = fc::time_point_sec(gpo.parameters.gpos_period_start());
+
+   //  variables needed
+   const auto number_of_subperiods = vesting_period / vesting_subperiod;
+   double vesting_factor;
+  
+    // get in what sub period we are
+   uint32_t current_subperiod = get_gpos_current_subperiod();
+ 
    if(current_subperiod == 0 || current_subperiod > number_of_subperiods) return 0;
+
+   // On starting new vesting period, all votes become zero until someone votes, To avoid a situation of zero votes, 
+   // changes were done to roll in GPOS rules, the vesting factor will be 1 for whoever votes in 6th sub-period of last vesting period
+   // BLOCKBACK-174 fix
+   if(current_subperiod == 1 && this->head_block_time() >= HARDFORK_GPOS_TIME + vesting_period)   //Applicable only from 2nd vesting period
+   {
+      if(last_date_voted > period_start - vesting_subperiod)
+         return 1;
+   }
+
    if(last_date_voted < period_start) return 0;
 
    double numerator = number_of_subperiods;
@@ -853,7 +885,7 @@ void rolling_period_start(database& db)
       auto vesting_period = db.get_global_properties().parameters.gpos_period();
 
       auto now = db.head_block_time();
-      if(now.sec_since_epoch() > (period_start + vesting_period))
+      if(now.sec_since_epoch() >= (period_start + vesting_period))
       {
          // roll
          db.modify(db.get_global_properties(), [now](global_property_object& p) {
@@ -1114,8 +1146,8 @@ void schedule_pending_dividend_balances(database& db,
                         dlog("Crediting committee_account with ${amount}",
                              ("amount", asset(full_shares_to_credit - shares_to_credit, payout_asset_type)));
                         db.adjust_balance(dividend_data.dividend_distribution_account,
-                                          -(full_shares_to_credit - shares_to_credit));
-                        db.adjust_balance(account_id_type(0), full_shares_to_credit - shares_to_credit);
+                                          -asset(full_shares_to_credit - shares_to_credit, payout_asset_type));
+                        db.adjust_balance(account_id_type(0), asset(full_shares_to_credit - shares_to_credit, payout_asset_type));
                      }
 
                      remaining_amount_to_distribute = credit_account(db,
@@ -1415,9 +1447,9 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    distribute_fba_balances(*this);
    create_buyback_orders(*this);
 
-   rolling_period_start(*this);
-
    process_dividend_assets(*this);
+
+   rolling_period_start(*this);
 
    struct vote_tally_helper {
       database& d;
@@ -1587,6 +1619,12 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.permitted_betting_odds_increments = p.parameters.extensions.value.permitted_betting_odds_increments;
          if( !p.pending_parameters->extensions.value.live_betting_delay_time.valid() )
             p.pending_parameters->extensions.value.live_betting_delay_time = p.parameters.extensions.value.live_betting_delay_time;
+         if( !p.pending_parameters->extensions.value.gpos_period.valid() )
+            p.pending_parameters->extensions.value.gpos_period = p.parameters.extensions.value.gpos_period;
+         if( !p.pending_parameters->extensions.value.gpos_subperiod.valid() )
+            p.pending_parameters->extensions.value.gpos_subperiod = p.parameters.extensions.value.gpos_subperiod;
+         if( !p.pending_parameters->extensions.value.gpos_vesting_lockin_period.valid() )
+            p.pending_parameters->extensions.value.gpos_vesting_lockin_period = p.parameters.extensions.value.gpos_vesting_lockin_period;                              
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }
