@@ -9,8 +9,6 @@ RUN \
     apt-get update -y && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y \
       autoconf \
-      gcc-5 \
-      g++-5 \
       bash \
       build-essential \
       ca-certificates \
@@ -52,7 +50,6 @@ WORKDIR /peerplays-core
 # Compile Peerplays
 RUN \
     BOOST_ROOT=$HOME/boost_1_67_0 && \
-    export CC=gcc-5 ; export CXX=g++-5\
     git submodule update --init --recursive && \
     mkdir build && \
     mkdir build/release && \
