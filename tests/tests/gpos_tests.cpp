@@ -95,12 +95,22 @@ struct gpos_fixture: database_fixture
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), vesting_subperiod);
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), period_start.sec_since_epoch());
    }
+
+   void update_maintenance_interval(uint32_t new_interval)
+   {
+      db.modify(db.get_global_properties(), [new_interval](global_property_object& p) {
+         p.parameters.maintenance_interval = new_interval;
+      });
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, new_interval);
+   }
+
    void vote_for(const account_id_type account_id, const vote_id_type vote_for, const fc::ecc::private_key& key)
    {
       account_update_operation op;
       op.account = account_id;
       op.new_options = account_id(db).options;
       op.new_options->votes.insert(vote_for);
+      op.extensions.value.update_last_voting_time = true;
       trx.operations.push_back(op);
       set_expiration(db, trx);
       trx.validate();
@@ -339,11 +349,175 @@ BOOST_AUTO_TEST_CASE( dividends )
    }
 }
 
+BOOST_AUTO_TEST_CASE( gpos_basic_dividend_distribution_to_core_asset )
+{
+   using namespace graphene;
+   ACTORS((alice)(bob)(carol)(dave));
+   try {
+      const auto& core = asset_id_type()(db);
+      BOOST_TEST_MESSAGE("Creating test asset");
+      {
+         asset_create_operation creator;
+         creator.issuer = account_id_type();
+         creator.fee = asset();
+         creator.symbol = "TESTB";
+         creator.common_options.max_supply = 100000000;
+         creator.precision = 2;
+         creator.common_options.market_fee_percent = GRAPHENE_MAX_MARKET_FEE_PERCENT/100; /*1%*/
+         creator.common_options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
+         creator.common_options.flags = charge_market_fee;
+         creator.common_options.core_exchange_rate = price({asset(2),asset(1,asset_id_type(1))});
+         trx.operations.push_back(std::move(creator));
+         set_expiration(db, trx);
+         PUSH_TX( db, trx, ~0 );
+         trx.operations.clear();
+      }
+      
+      // pass hardfork
+      generate_blocks( HARDFORK_GPOS_TIME );
+      generate_block();
+
+      const auto& dividend_holder_asset_object = asset_id_type(0)(db);
+      const auto& dividend_data = dividend_holder_asset_object.dividend_data(db);
+      const account_object& dividend_distribution_account = dividend_data.dividend_distribution_account(db);
+      const account_object& alice = get_account("alice");
+      const account_object& bob = get_account("bob");
+      const account_object& carol = get_account("carol");
+      const account_object& dave = get_account("dave");
+      const auto& test_asset_object = get_asset("TESTB");
+
+      auto issue_asset_to_account = [&](const asset_object& asset_to_issue, const account_object& destination_account, int64_t amount_to_issue)
+      {
+         asset_issue_operation op;
+         op.issuer = asset_to_issue.issuer;
+         op.asset_to_issue = asset(amount_to_issue, asset_to_issue.id);
+         op.issue_to_account = destination_account.id;
+         trx.operations.push_back( op );
+         set_expiration(db, trx);
+         PUSH_TX( db, trx, ~0 );
+         trx.operations.clear();
+      };
+
+      auto verify_pending_balance = [&](const account_object& holder_account_obj, const asset_object& payout_asset_obj, int64_t expected_balance) {
+         int64_t pending_balance = get_dividend_pending_payout_balance(dividend_holder_asset_object.id,
+                                                                       holder_account_obj.id,
+                                                                       payout_asset_obj.id);
+         BOOST_CHECK_EQUAL(pending_balance, expected_balance);
+      };
+
+      auto advance_to_next_payout_time = [&]() {
+         // Advance to the next upcoming payout time
+         BOOST_REQUIRE(dividend_data.options.next_payout_time);
+         fc::time_point_sec next_payout_scheduled_time = *dividend_data.options.next_payout_time;
+         idump((next_payout_scheduled_time));
+         // generate blocks up to the next scheduled time
+         generate_blocks(next_payout_scheduled_time);
+         // if the scheduled time fell on a maintenance interval, then we should have paid out.
+         // if not, we need to advance to the next maintenance interval to trigger the payout
+         if (dividend_data.options.next_payout_time)
+         {
+            // we know there was a next_payout_time set when we entered this, so if
+            // it has been cleared, we must have already processed payouts, no need to
+            // further advance time.
+            BOOST_REQUIRE(dividend_data.options.next_payout_time);
+            if (*dividend_data.options.next_payout_time == next_payout_scheduled_time)
+               generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+            generate_block();   // get the maintenance skip slots out of the way
+         }
+         idump((db.head_block_time()));
+      };
+
+      // the first test will be testing pending balances, so we need to hit a
+      // maintenance interval that isn't the payout interval.  Payout is
+      // every 3 days, maintenance interval is every 1 day.
+      advance_to_next_payout_time();
+
+      // Set up the first test, issue alice, bob, and carol, and dave each 1/4 of the total
+      // supply of the core asset.
+      // Then deposit 400 TEST in the distribution account, and see that they
+      // each are credited 100 TEST.
+      transfer( committee_account(db), alice, asset( 250000000000000 ) );
+      transfer( committee_account(db), bob,   asset( 250000000000000 ) );
+      transfer( committee_account(db), carol, asset( 250000000000000 ) );
+      transfer( committee_account(db), dave,  asset( 250000000000000 ) );
+
+      // create vesting balance
+      // bob has not vested anything
+      create_vesting(alice_id, core.amount(25000000), vesting_balance_type::gpos);
+      create_vesting(carol_id, core.amount(25000000), vesting_balance_type::gpos);
+      create_vesting(dave_id, core.amount(25000000), vesting_balance_type::gpos);
+
+      // need to vote to get paid
+      // carol doesn't participate in voting
+      auto witness1 = witness_id_type(1)(db);
+      vote_for(alice_id, witness1.vote_id, alice_private_key);
+      vote_for(bob_id, witness1.vote_id, bob_private_key);
+      vote_for(dave_id, witness1.vote_id, dave_private_key);
+
+      // issuing 30000 TESTB to the dividend account
+      // alice and dave should receive 10000 TESTB as they have gpos vesting and 
+      // participated in voting
+      // bob should not receive any TESTB as he doesn't have gpos vested
+      // carol should not receive any TESTB as she doesn't participated in voting
+      // remaining 10000 TESTB should be deposited in commitee_accoount. 
+      BOOST_TEST_MESSAGE("Issuing 30000 TESTB to the dividend account");
+      issue_asset_to_account(test_asset_object, dividend_distribution_account, 30000);
+
+      generate_block();
+
+      BOOST_TEST_MESSAGE( "Generating blocks until next maintenance interval" );
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();   // get the maintenance skip slots out of the way
+
+      verify_pending_balance(alice, test_asset_object, 10000);
+      verify_pending_balance(bob, test_asset_object, 0);
+      verify_pending_balance(carol, test_asset_object, 0);
+      verify_pending_balance(dave, test_asset_object, 10000);
+
+      advance_to_next_payout_time();
+
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();   // get the maintenance skip slots out of the way
+
+      auto verify_dividend_payout_operations = [&](const account_object& destination_account, const asset& expected_payout)
+      {
+         BOOST_TEST_MESSAGE("Verifying the virtual op was created");
+         const account_transaction_history_index& hist_idx = db.get_index_type<account_transaction_history_index>();
+         auto account_history_range = hist_idx.indices().get<by_seq>().equal_range(boost::make_tuple(destination_account.id));
+         BOOST_REQUIRE(account_history_range.first != account_history_range.second);
+         const operation_history_object& history_object = std::prev(account_history_range.second)->operation_id(db);
+         const asset_dividend_distribution_operation& distribution_operation = history_object.op.get<asset_dividend_distribution_operation>();
+         BOOST_CHECK(distribution_operation.account_id == destination_account.id);
+         BOOST_CHECK(std::find(distribution_operation.amounts.begin(), distribution_operation.amounts.end(), expected_payout)
+            != distribution_operation.amounts.end());
+      };
+
+      BOOST_TEST_MESSAGE("Verifying the payouts");
+      BOOST_CHECK_EQUAL(get_balance(alice, test_asset_object), 10000);
+      verify_dividend_payout_operations(alice, asset(10000, test_asset_object.id));
+      verify_pending_balance(alice, test_asset_object, 0);
+
+      BOOST_CHECK_EQUAL(get_balance(bob, test_asset_object), 0);
+      verify_pending_balance(bob, test_asset_object, 0);
+
+      BOOST_CHECK_EQUAL(get_balance(carol, test_asset_object), 0);
+      verify_pending_balance(carol, test_asset_object, 0);
+
+      BOOST_CHECK_EQUAL(get_balance(dave, test_asset_object), 10000);
+      verify_dividend_payout_operations(dave, asset(10000, test_asset_object.id));
+      verify_pending_balance(dave, test_asset_object, 0);
+
+      BOOST_CHECK_EQUAL(get_balance(account_id_type(0)(db), test_asset_object), 10000);
+   } catch(fc::exception& e) {
+      edump((e.to_detail_string()));
+      throw;
+   }   
+}
+
 BOOST_AUTO_TEST_CASE( voting )
 {
    ACTORS((alice)(bob));
    try {
-
       // move to hardfork
       generate_blocks( HARDFORK_GPOS_TIME );
       generate_block();
@@ -389,65 +563,97 @@ BOOST_AUTO_TEST_CASE( voting )
       auto witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness2.total_votes, 0);
 
-      // vote for witness1
+      // vote for witness1 and witness2 - sub-period 1
       vote_for(alice_id, witness1.vote_id, alice_private_key);
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
 
       // go to maint
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
 
       // vote is the same as amount in the first subperiod since voting
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 100);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
 
+      //Bob votes for witness2 - sub-period 2
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      // go to maint
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // vote decay as time pass
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+
       BOOST_CHECK_EQUAL(witness1.total_votes, 83);
-
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
+      
       advance_x_maint(10);
-
+      //Bob votes for witness2 - sub-period 3
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 66);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
-
-      // more
+      
+      // Bob votes for witness2 - sub-period 4
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      // decay more
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 50);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
-
-      // more
+      
+      // Bob votes for witness2 - sub-period 5
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      // decay more
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+
       BOOST_CHECK_EQUAL(witness1.total_votes, 33);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
-
-      // more
+      
+      // Bob votes for witness2 - sub-period 6
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      // decay more
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 16);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       // we are still in gpos period 1
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
 
-      advance_x_maint(10);
-
-      // until 0
-      witness1 = witness_id_type(1)(db);
-      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
-
-      // a new GPOS period is in but vote from user is before the start so his voting power is 0
+      advance_x_maint(5);
+      // a new GPOS period is in but vote from user is before the start. Whoever votes in 6th sub-period, votes will carry
       now = db.head_block_time();
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
 
       generate_block();
 
+      // we are in the second GPOS period, at subperiod 1,
       witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+      //It's critical here, since bob votes in 6th sub-period of last vesting period, witness2 should retain his votes
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);   
 
-      // we are in the second GPOS period, at subperiod 2, lets vote here
+
+      // lets vote here from alice to generate votes for witness 1
+      //vote from bob to reatin VF 1
+      vote_for(alice_id, witness1.vote_id, alice_private_key);
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_block();
 
@@ -457,7 +663,7 @@ BOOST_AUTO_TEST_CASE( voting )
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
 
-      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 100);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
       advance_x_maint(10);
@@ -465,16 +671,19 @@ BOOST_AUTO_TEST_CASE( voting )
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
 
-      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 83);
       BOOST_CHECK_EQUAL(witness2.total_votes, 83);
+
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+      generate_block();
 
       advance_x_maint(10);
 
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
 
-      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
-      BOOST_CHECK_EQUAL(witness2.total_votes, 66);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 66);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 83);
 
       // alice votes again, now for witness 2, her vote worth 100 now
       vote_for(alice_id, witness2.vote_id, alice_private_key);
@@ -484,7 +693,7 @@ BOOST_AUTO_TEST_CASE( voting )
       witness2 = witness_id_type(2)(db);
 
       BOOST_CHECK_EQUAL(witness1.total_votes, 100);
-      BOOST_CHECK_EQUAL(witness2.total_votes, 166);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 183);
 
    }
    catch (fc::exception &e) {
@@ -497,33 +706,32 @@ BOOST_AUTO_TEST_CASE( rolling_period_start )
 {
    // period start rolls automatically after HF
    try {
-      // advance to HF
-      generate_blocks(HARDFORK_GPOS_TIME);
-      generate_block();
-
       // update default gpos global parameters to make this thing faster
-      auto now = db.head_block_time();
-      update_gpos_global(518400, 86400, now);
+      update_gpos_global(518400, 86400, HARDFORK_GPOS_TIME);
+      generate_blocks(HARDFORK_GPOS_TIME);
+      update_maintenance_interval(3600);  //update maintenance interval to 1hr to evaluate sub-periods
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, 3600);
 
+      auto vesting_period_1 = db.get_global_properties().parameters.gpos_period_start();
+            
+      auto now = db.head_block_time();
       // moving outside period:
       while( db.head_block_time() <= now + fc::days(6) )
       {
          generate_block();
       }
-      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-
-      // rolling is here so getting the new now
-      now = db.head_block_time();
       generate_block();
-
-      // period start rolled
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
+      auto vesting_period_2 = db.get_global_properties().parameters.gpos_period_start();
+     
+     //difference between start of two consecutive vesting periods should be 6 days 
+      BOOST_CHECK_EQUAL(vesting_period_1 + 518400, vesting_period_2); 
    }
    catch (fc::exception &e) {
       edump((e.to_detail_string()));
       throw;
    }
 }
+
 BOOST_AUTO_TEST_CASE( worker_dividends_voting )
 {
    try {
@@ -833,8 +1041,101 @@ BOOST_AUTO_TEST_CASE( competing_proposals )
 */
 BOOST_AUTO_TEST_CASE( proxy_voting )
 {
+   ACTORS((alice)(bob));
    try {
+      // move to hardfork
+      generate_blocks( HARDFORK_GPOS_TIME );
+      generate_block();
 
+      // database api
+      graphene::app::database_api db_api(db);
+
+      const auto& core = asset_id_type()(db);
+
+      // send some asset to alice and bob
+      transfer( committee_account, alice_id, core.amount( 1000 ) );
+      transfer( committee_account, bob_id, core.amount( 1000 ) );
+      generate_block();
+
+      // add some vesting to alice and bob
+      create_vesting(alice_id, core.amount(100), vesting_balance_type::gpos);
+      generate_block();
+
+      // total balance is 100 rest of data at 0
+      auto gpos_info = db_api.get_gpos_info(alice_id);
+      BOOST_CHECK_EQUAL(gpos_info.vesting_factor, 0);
+      BOOST_CHECK_EQUAL(gpos_info.award.amount.value, 0);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 100);
+
+      create_vesting(bob_id, core.amount(100), vesting_balance_type::gpos);
+      generate_block();
+
+      gpos_info = db_api.get_gpos_info(bob_id);
+      BOOST_CHECK_EQUAL(gpos_info.vesting_factor, 0);
+      BOOST_CHECK_EQUAL(gpos_info.award.amount.value, 0);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 200);
+
+      auto now = db.head_block_time();
+      update_gpos_global(518400, 86400, now);
+
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), 518400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), 86400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
+
+      // alice assign bob as voting account
+      graphene::chain::account_update_operation op;
+      op.account = alice_id;
+      op.new_options = alice_id(db).options;
+      op.new_options->voting_account = bob_id;
+      trx.operations.push_back(op);
+      set_expiration(db, trx);
+      trx.validate();
+      sign(trx, alice_private_key);
+      PUSH_TX( db, trx, ~0 );
+      trx.clear();
+
+      generate_block();
+
+      // vote for witness1
+      auto witness1 = witness_id_type(1)(db);
+      vote_for(bob_id, witness1.vote_id, bob_private_key);
+      
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      
+      // check vesting factor of current subperiod
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 1);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 1);
+      
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();
+
+      // GPOS 2nd subperiod started.
+      // vesting factor decay
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 0.83333333333333337);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 0.83333333333333337);
+      
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();
+
+      // GPOS 3rd subperiod started
+      // vesting factor decay
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 0.66666666666666663);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 0.66666666666666663);
+
+      // vote for witness2
+      auto witness2 = witness_id_type(2)(db);
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+
+      // vesting factor should be 1 for both alice and bob for the current subperiod
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 1);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 1);
+
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();
+
+      // vesting factor decay
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 0.83333333333333337);
+      BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 0.83333333333333337);
    }
    catch (fc::exception &e) {
       edump((e.to_detail_string()));
@@ -852,11 +1153,11 @@ BOOST_AUTO_TEST_CASE( no_proposal )
       throw;
    }
 }
+
 BOOST_AUTO_TEST_CASE( database_api )
 {
    ACTORS((alice)(bob));
    try {
-
       // move to hardfork
       generate_blocks( HARDFORK_GPOS_TIME );
       generate_block();

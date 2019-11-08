@@ -526,6 +526,7 @@ namespace graphene { namespace chain {
 
          public:
             double calculate_vesting_factor(const account_object& stake_account);
+            uint32_t get_gpos_current_subperiod();
 
          template<class Type>
          void perform_account_maintenance(Type tally_helper);
