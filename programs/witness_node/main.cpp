@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include <graphene/app/application.hpp>
+#include <graphene/app/config_util.hpp>
 
 #include <graphene/witness/witness.hpp>
 #include <graphene/account_history/account_history_plugin.hpp>
