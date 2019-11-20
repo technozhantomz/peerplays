@@ -492,9 +492,12 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.options.core_exchange_rate.quote.asset_id = asset_id_type(0);
          a.dynamic_asset_data_id = dyn_asset.id;
          a.dividend_data_id = div_asset.id;
-   });
-   assert( asset_id_type(core_asset.id) == asset().asset_id );
-   assert( get_balance(account_id_type(), asset_id_type()) == asset(dyn_asset.current_supply) );
+      });
+   FC_ASSERT( dyn_asset.id == asset_dynamic_data_id_type() );
+   FC_ASSERT( asset_id_type(core_asset.id) == asset().asset_id );
+   FC_ASSERT( get_balance(account_id_type(), asset_id_type()) == asset(dyn_asset.current_supply) );
+   _p_core_asset_obj = &core_asset;
+   _p_core_dynamic_data_obj = &dyn_asset;
 
 #ifdef _DEFAULT_DIVIDEND_ASSET
    // Create default dividend asset
@@ -527,7 +530,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.dynamic_asset_data_id = dyn_asset1.id;
          a.dividend_data_id = div_asset1.id;
       });
-   assert( default_asset.id == asset_id_type(1) );
+   FC_ASSERT( default_asset.id == asset_id_type(1) );
 #endif
 
    // Create more special assets
@@ -560,14 +563,14 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    chain_id_type chain_id = genesis_state.compute_chain_id();
 
    // Create global properties
-   create<global_property_object>([&](global_property_object& p) {
+   _p_global_prop_obj = & create<global_property_object>([&genesis_state](global_property_object& p) {
        p.parameters = genesis_state.initial_parameters;
        // Set fees to zero initially, so that genesis initialization needs not pay them
        // We'll fix it at the end of the function
        p.parameters.current_fees->zero_all_fees();
 
    });
-   create<dynamic_global_property_object>([&](dynamic_global_property_object& p) {
+   _p_dyn_global_prop_obj = & create<dynamic_global_property_object>([&genesis_state](dynamic_global_property_object& p) {
       p.time = genesis_state.initial_timestamp;
       p.dynamic_flags = 0;
       p.witness_budget = 0;
@@ -580,7 +583,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    FC_ASSERT( (genesis_state.immutable_parameters.min_witness_count & 1) == 1, "min_witness_count must be odd" );
    FC_ASSERT( (genesis_state.immutable_parameters.min_committee_member_count & 1) == 1, "min_committee_member_count must be odd" );
 
-   create<chain_property_object>([&](chain_property_object& p)
+   _p_chain_property_obj = & create<chain_property_object>([chain_id,&genesis_state](chain_property_object& p)
    {
       p.chain_id = chain_id;
       p.immutable_parameters = genesis_state.immutable_parameters;
@@ -920,7 +923,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    });
 
    // Set active witnesses
-   modify(get_global_properties(), [&](global_property_object& p) {
+   modify(get_global_properties(), [&genesis_state](global_property_object& p) {
       for( uint32_t i = 1; i <= genesis_state.initial_active_witnesses; ++i )
       {
          p.active_witnesses.insert(witness_id_type(i));
@@ -928,10 +931,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    });
 
    // Initialize witness schedule
-#ifndef NDEBUG
-   const witness_schedule_object& wso =
-#endif
-   create<witness_schedule_object>([&](witness_schedule_object& _wso)
+   _p_witness_schedule_obj = & create<witness_schedule_object>([this](witness_schedule_object& _wso)
    {
       // for scheduled
       memset(_wso.rng_seed.begin(), 0, _wso.rng_seed.size());
@@ -955,19 +955,13 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       for( const witness_id_type& wid : get_global_properties().active_witnesses )
          _wso.current_shuffled_witnesses.push_back( wid );
    });
-   assert( wso.id == witness_schedule_id_type() );
+   FC_ASSERT( _p_witness_schedule_obj->id == witness_schedule_id_type() );
 
    // Enable fees
    modify(get_global_properties(), [&genesis_state](global_property_object& p) {
       p.parameters.current_fees = genesis_state.initial_parameters.current_fees;
    });
 
-   // Create witness scheduler
-   //create<witness_schedule_object>([&]( witness_schedule_object& wso )
-   //{
-   //   for( const witness_id_type& wid : get_global_properties().active_witnesses )
-   //      wso.current_shuffled_witnesses.push_back( wid );
-   //});
 
    // Create FBA counters
    create<fba_accumulator_object>([&]( fba_accumulator_object& acc )
