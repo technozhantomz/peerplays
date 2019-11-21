@@ -2138,7 +2138,7 @@ public:
 
             vesting_balance_withdraw_op.vesting_balance = *vest_id;
             vesting_balance_withdraw_op.owner = vbo.owner;
-            if(withdraw_amount.amount >= vbo.balance.amount)
+            if(withdraw_amount.amount > vbo.balance.amount)
             {
                vesting_balance_withdraw_op.amount = vbo.balance.amount;
                withdraw_amount.amount -= vbo.balance.amount;
