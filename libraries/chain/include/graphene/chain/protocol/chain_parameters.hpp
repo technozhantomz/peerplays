@@ -34,19 +34,20 @@ namespace graphene { namespace chain { struct fee_schedule; } }
 namespace graphene { namespace chain {
    struct parameter_extension
    {
-      optional< bet_multiplier_type > min_bet_multiplier;
-      optional< bet_multiplier_type > max_bet_multiplier;
-      optional< uint16_t >            betting_rake_fee_percentage;
-      optional< flat_map<bet_multiplier_type, bet_multiplier_type> > permitted_betting_odds_increments;
-      optional< uint16_t >            live_betting_delay_time;
-      optional< uint16_t >            sweeps_distribution_percentage;
-      optional< asset_id_type >       sweeps_distribution_asset;
-      optional< account_id_type >     sweeps_vesting_accumulator_account;
+      optional< bet_multiplier_type > min_bet_multiplier                = GRAPHENE_DEFAULT_MIN_BET_MULTIPLIER;
+      optional< bet_multiplier_type > max_bet_multiplier                = GRAPHENE_DEFAULT_MAX_BET_MULTIPLIER;
+      optional< uint16_t >            betting_rake_fee_percentage       = GRAPHENE_DEFAULT_RAKE_FEE_PERCENTAGE;
+      optional< flat_map<bet_multiplier_type, bet_multiplier_type> > 
+      permitted_betting_odds_increments                                 = flat_map<bet_multiplier_type, bet_multiplier_type>(GRAPHENE_DEFAULT_PERMITTED_BETTING_ODDS_INCREMENTS);
+      optional< uint16_t >            live_betting_delay_time           = GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME;
+      optional< uint16_t >            sweeps_distribution_percentage    = SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
+      optional< asset_id_type >       sweeps_distribution_asset         = SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
+      optional< account_id_type >     sweeps_vesting_accumulator_account= SWEEPS_ACCUMULATOR_ACCOUNT;
       /* gpos parameters */
-      optional < uint32_t >           gpos_period;
-      optional < uint32_t >           gpos_subperiod;
+      optional < uint32_t >           gpos_period                       = GPOS_PERIOD;
+      optional < uint32_t >           gpos_subperiod                    = GPOS_SUBPERIOD;
       optional < uint32_t >           gpos_period_start;
-      optional < uint32_t >           gpos_vesting_lockin_period;
+      optional < uint32_t >           gpos_vesting_lockin_period        = GPOS_VESTING_LOCKIN_PERIOD;
    };
 
    struct chain_parameters
