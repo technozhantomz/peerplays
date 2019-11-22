@@ -549,6 +549,13 @@ BOOST_AUTO_TEST_CASE(get_account_history_operations) {
    try {
       graphene::app::history_api hist_api(app);
 
+      int asset_create_op_id = operation::tag<asset_create_operation>::value;
+      int account_create_op_id = operation::tag<account_create_operation>::value;
+
+      // no asset_create operation on account_id_type() should not throw any exception
+      vector<operation_history_object> histories = hist_api.get_account_history_operations(account_id_type(), asset_create_op_id, operation_history_id_type(), operation_history_id_type(), 100);
+      BOOST_CHECK_EQUAL(histories.size(), 0u);
+
       //account_id_type() do 3 ops
       create_bitasset("CNY", account_id_type());
       create_account("sam");
@@ -557,11 +564,8 @@ BOOST_AUTO_TEST_CASE(get_account_history_operations) {
       generate_block();
       fc::usleep(fc::milliseconds(2000));
 
-      int asset_create_op_id = operation::tag<asset_create_operation>::value;
-      int account_create_op_id = operation::tag<account_create_operation>::value;
-
       //account_id_type() did 1 asset_create op
-      vector<operation_history_object> histories = hist_api.get_account_history_operations(account_id_type(), asset_create_op_id, operation_history_id_type(), operation_history_id_type(), 100);
+      histories = hist_api.get_account_history_operations(account_id_type(), asset_create_op_id, operation_history_id_type(), operation_history_id_type(), 100);
       BOOST_CHECK_EQUAL(histories.size(), 1u);
       BOOST_CHECK_EQUAL(histories[0].id.instance(), 0u);
       BOOST_CHECK_EQUAL(histories[0].op.which(), asset_create_op_id);
