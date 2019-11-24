@@ -2099,6 +2099,12 @@ public:
       string asset_symbol,
       bool broadcast = false)
    { try {
+
+      //Can be deleted after GPOS hardfork time
+      time_point_sec now = time_point::now();
+      if(now < HARDFORK_GPOS_TIME)
+         FC_THROW("GPOS related functionality is not avaiable until next Spring");
+
       asset_object asset_obj = get_asset( asset_symbol );
       vector< vesting_balance_object > vbos;
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(account_name);
@@ -2171,11 +2177,15 @@ public:
                                         bool broadcast /* = false */)
    { try {
       std::vector<vesting_balance_object_with_info> vbo_info = get_vesting_balances(voting_account);
-      std::vector<vesting_balance_object_with_info>::iterator vbo_iter;
-
-      vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
-      if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
-         FC_THROW("Account ${account} has no core Token ${TOKEN} vested and thus she will not be allowed to vote for the committee member", ("account", voting_account)("TOKEN", GRAPHENE_SYMBOL));
+      
+      time_point_sec now = time_point::now();
+      if(now >= HARDFORK_GPOS_TIME)  //can be removed after GPOS HARDFORK time pass
+      {
+         std::vector<vesting_balance_object_with_info>::iterator vbo_iter;
+         vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
+         if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
+            FC_THROW("Account ${account} has no core Token ${TOKEN} vested and will not be allowed to vote for the committee member", ("account", voting_account)("TOKEN", GRAPHENE_SYMBOL));
+      }
 
       account_object voting_account_object = get_account(voting_account);
       account_id_type committee_member_owner_account_id = get_account_id(committee_member);
@@ -2187,17 +2197,25 @@ public:
 
       if (approve)
       {
-         account_id_type stake_account = get_account_id(voting_account);
-         const auto gpos_info = _remote_db->get_gpos_info(stake_account);
-         const auto vesting_subperiod = _remote_db->get_global_properties().parameters.gpos_subperiod();
-         const auto gpos_start_time = fc::time_point_sec(_remote_db->get_global_properties().parameters.gpos_period_start());
-         const auto subperiod_start_time = gpos_start_time.sec_since_epoch() + (gpos_info.current_subperiod - 1) * vesting_subperiod;
-
          auto insert_result = voting_account_object.options.votes.insert(committee_member_obj->vote_id);
-         if (!insert_result.second && (gpos_info.last_voted_time.sec_since_epoch() >= subperiod_start_time))
-            FC_THROW("Account ${account} was already voting for committee_member ${committee_member} in the current GPOS sub-period", ("account", voting_account)("committee_member", committee_member));
+         if(now >= HARDFORK_GPOS_TIME)  //can be removed after GPOS HARDFORK time pass
+         {
+            account_id_type stake_account = get_account_id(voting_account);
+            const auto gpos_info = _remote_db->get_gpos_info(stake_account);
+            const auto vesting_subperiod = _remote_db->get_global_properties().parameters.gpos_subperiod();
+            const auto gpos_start_time = fc::time_point_sec(_remote_db->get_global_properties().parameters.gpos_period_start());
+            const auto subperiod_start_time = gpos_start_time.sec_since_epoch() + (gpos_info.current_subperiod - 1) * vesting_subperiod;
+            
+            if (!insert_result.second && (gpos_info.last_voted_time.sec_since_epoch() >= subperiod_start_time))
+               FC_THROW("Account ${account} was already voting for committee_member ${committee_member} in the current GPOS sub-period", ("account", voting_account)("committee_member", committee_member));
+            else
+               update_vote_time = true;   //Allow user to vote in each sub-period(Update voting time, which is reference in calculating VF)
+         }
          else
-            update_vote_time = true;   //Allow user to vote in each sub-period(Update voting time, which is reference in calculating VF)
+         {
+            if (!insert_result.second)
+               FC_THROW("Account ${account} was already voting for committee_member ${committee_member}", ("account", voting_account)("committee_member", committee_member));
+         }
       }
       else
       {
@@ -2224,11 +2242,15 @@ public:
                                        bool broadcast /* = false */)
    { try {
       std::vector<vesting_balance_object_with_info> vbo_info = get_vesting_balances(voting_account);
-      std::vector<vesting_balance_object_with_info>::iterator vbo_iter;
-
-      vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
-      if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
-         FC_THROW("Account ${account} has no core Token ${TOKEN} vested and thus she will not be allowed to vote for the witness", ("account", voting_account)("TOKEN", GRAPHENE_SYMBOL));
+      
+      time_point_sec now = time_point::now();
+      if(now >= HARDFORK_GPOS_TIME)  //can be removed after GPOS HARDFORK time pass
+      {
+         std::vector<vesting_balance_object_with_info>::iterator vbo_iter;
+         vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
+         if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
+            FC_THROW("Account ${account} has no core Token ${TOKEN} vested and will not be allowed to vote for the witness", ("account", voting_account)("TOKEN", GRAPHENE_SYMBOL));
+      }
 
       account_object voting_account_object = get_account(voting_account);
       account_id_type witness_owner_account_id = get_account_id(witness);
@@ -2240,17 +2262,25 @@ public:
       bool update_vote_time = false;
       if (approve)
       {
-         account_id_type stake_account = get_account_id(voting_account);
-         const auto gpos_info = _remote_db->get_gpos_info(stake_account);
-         const auto vesting_subperiod = _remote_db->get_global_properties().parameters.gpos_subperiod();
-         const auto gpos_start_time = fc::time_point_sec(_remote_db->get_global_properties().parameters.gpos_period_start());
-         const auto subperiod_start_time = gpos_start_time.sec_since_epoch() + (gpos_info.current_subperiod - 1) * vesting_subperiod;
-
          auto insert_result = voting_account_object.options.votes.insert(witness_obj->vote_id);
-         if (!insert_result.second && (gpos_info.last_voted_time.sec_since_epoch() >= subperiod_start_time))
-            FC_THROW("Account ${account} was already voting for witness ${witness} in the current GPOS sub-period", ("account", voting_account)("witness", witness));
+         if(now >= HARDFORK_GPOS_TIME)  //can be removed after GPOS HARDFORK time pass
+         {
+            account_id_type stake_account = get_account_id(voting_account);
+            const auto gpos_info = _remote_db->get_gpos_info(stake_account);
+            const auto vesting_subperiod = _remote_db->get_global_properties().parameters.gpos_subperiod();
+            const auto gpos_start_time = fc::time_point_sec(_remote_db->get_global_properties().parameters.gpos_period_start());
+            const auto subperiod_start_time = gpos_start_time.sec_since_epoch() + (gpos_info.current_subperiod - 1) * vesting_subperiod;
+        
+            if (!insert_result.second && (gpos_info.last_voted_time.sec_since_epoch() >= subperiod_start_time))
+               FC_THROW("Account ${account} was already voting for witness ${witness} in the current GPOS sub-period", ("account", voting_account)("witness", witness));
+            else
+               update_vote_time = true;   //Allow user to vote in each sub-period(Update voting time, which is reference in calculating VF)
+         }
          else
-            update_vote_time = true;   //Allow user to vote in each sub-period(Update voting time, which is reference in calculating VF)
+         {
+            if (!insert_result.second)
+               FC_THROW("Account ${account} was already voting for witness ${witness}", ("account", voting_account)("witness", witness));
+         }
       }
       else
       {
@@ -6094,6 +6124,10 @@ signed_transaction wallet_api::create_vesting_balance(string owner,
                                                       bool broadcast)
 {
    FC_ASSERT( !is_locked() );
+   //Can be deleted after GPOS hardfork time
+   time_point_sec now = time_point::now();
+   if(is_gpos && now < HARDFORK_GPOS_TIME)
+      FC_THROW("GPOS related functionality is not avaiable until next Spring");
 
    account_object owner_account = get_account(owner);
    account_id_type owner_id = owner_account.id;
