@@ -2146,7 +2146,9 @@ graphene::app::gpos_info database_api::get_gpos_info(const account_id_type accou
 }
 graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type account) const
 {
+   FC_ASSERT( _db.head_block_time() > HARDFORK_GPOS_TIME);  //Can be deleted after GPOS hardfork time
    gpos_info result;
+
    result.vesting_factor = _db.calculate_vesting_factor(account(_db));
    result.current_subperiod = _db.get_gpos_current_subperiod();
    result.last_voted_time = account(_db).statistics(_db).last_vote_time;

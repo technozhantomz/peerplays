@@ -787,6 +787,9 @@ void deprecate_annual_members( database& db )
 
 uint32_t database::get_gpos_current_subperiod()
 {
+   if(this->head_block_time() < HARDFORK_GPOS_TIME)  //Can be deleted after GPOS hardfork time
+      return 0;
+
    fc::time_point_sec last_date_voted;
 
    const auto &gpo = this->get_global_properties();
@@ -849,7 +852,6 @@ double database::calculate_vesting_factor(const account_object& stake_account)
       if(last_date_voted > period_start - vesting_subperiod)
          return 1;
    }
-
    if(last_date_voted < period_start) return 0;
 
    double numerator = number_of_subperiods;
