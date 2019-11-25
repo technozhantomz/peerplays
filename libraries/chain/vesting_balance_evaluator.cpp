@@ -123,7 +123,7 @@ operation_result vesting_balance_withdraw_evaluator::start_evaluate( transaction
 
    const time_point_sec now = d.head_block_time();
 
-   if(now >= (fc::time_point_sec(1570114100)) )
+   if(now >= HARDFORK_GPOS_TIME )
    {
       if(oper.fee.amount == 0)
       {
@@ -145,7 +145,7 @@ void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balan
 
    const vesting_balance_object& vbo = op.vesting_balance( d );
    FC_ASSERT( op.owner == vbo.owner, "", ("op.owner", op.owner)("vbo.owner", vbo.owner) );
-   FC_ASSERT( vbo.is_withdraw_allowed( now, op.amount ), "${balance_type} Vested Balance cannot be withdrawn during the locking period", 
+   FC_ASSERT( vbo.is_withdraw_allowed( now, op.amount ), "Account has either insufficient ${balance_type} Vested Balance or lock-in period is not matured", 
          ("balance_type", get_vesting_balance_type(vbo.balance_type))("now", now)("op", op)("vbo", vbo) );
    assert( op.amount <= vbo.balance );      // is_withdraw_allowed should fail before this check is reached
 
