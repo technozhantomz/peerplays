@@ -762,9 +762,16 @@ public:
    {
       return get_account(account_name_or_id).get_id();
    }
+   std::string asset_id_to_string(asset_id_type id) const
+   {
+      std::string asset_id = fc::to_string(id.space_id) +
+                             "." + fc::to_string(id.type_id) +
+                             "." + fc::to_string(id.instance.value);
+      return asset_id;
+   }
    optional<asset_object> find_asset(asset_id_type id)const
    {
-      auto rec = _remote_db->get_assets({id}).front();
+      auto rec = _remote_db->get_assets({asset_id_to_string(id)}).front();
       if( rec )
          _asset_cache[id] = *rec;
       return rec;
@@ -3738,8 +3745,7 @@ asset wallet_api::get_lottery_balance( asset_id_type lottery_id )const
 vector<operation_detail> wallet_api::get_account_history(string name, int limit) const
 {
    vector<operation_detail> result;
-   auto account_id = get_account(name).get_id();
-
+   
    while (limit > 0)
    {
       bool skip_first_row = false;
@@ -3759,7 +3765,7 @@ vector<operation_detail> wallet_api::get_account_history(string name, int limit)
 
       int page_limit = skip_first_row ? std::min(100, limit + 1) : std::min(100, limit);
 
-      vector<operation_history_object> current = my->_remote_hist->get_account_history(account_id, operation_history_id_type(),
+      vector<operation_history_object> current = my->_remote_hist->get_account_history(name, operation_history_id_type(),
                                                                                        page_limit, start);
       bool first_row = true;
       for (auto &o : current)
@@ -3818,22 +3824,22 @@ vector<account_balance_object> wallet_api::list_core_accounts()const
 
 vector<bucket_object> wallet_api::get_market_history( string symbol1, string symbol2, uint32_t bucket , fc::time_point_sec start, fc::time_point_sec end )const
 {
-   return my->_remote_hist->get_market_history( get_asset_id(symbol1), get_asset_id(symbol2), bucket, start, end );
+   return my->_remote_hist->get_market_history( symbol1, symbol2, bucket, start, end );
 }
 
 vector<limit_order_object> wallet_api::get_limit_orders(string a, string b, uint32_t limit)const
 {
-   return my->_remote_db->get_limit_orders(get_asset(a).id, get_asset(b).id, limit);
+   return my->_remote_db->get_limit_orders(a, b, limit);
 }
 
 vector<call_order_object> wallet_api::get_call_orders(string a, uint32_t limit)const
 {
-   return my->_remote_db->get_call_orders(get_asset(a).id, limit);
+   return my->_remote_db->get_call_orders(a, limit);
 }
 
 vector<force_settlement_object> wallet_api::get_settle_orders(string a, uint32_t limit)const
 {
-   return my->_remote_db->get_settle_orders(get_asset(a).id, limit);
+   return my->_remote_db->get_settle_orders(a, limit);
 }
 
 brain_key_info wallet_api::suggest_brain_key()const

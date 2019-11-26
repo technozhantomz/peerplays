@@ -335,13 +335,20 @@ class database_api
       ////////////
 
       /**
+       * @brief Get asset ID from an asset symbol or ID
+       * @param symbol_or_id symbol name or ID of the asset
+       * @return asset ID
+       */
+      asset_id_type get_asset_id_from_string(const std::string& symbol_or_id) const;
+
+      /**
        * @brief Get a list of assets by ID
-       * @param asset_ids IDs of the assets to retrieve
+       * @param asset_symbols_or_ids IDs or names of the assets to retrieve
        * @return The assets corresponding to the provided IDs
        *
        * This function has semantics identical to @ref get_objects
        */
-      vector<optional<asset_object>> get_assets(const vector<asset_id_type>& asset_ids)const;
+      vector<optional<asset_object>> get_assets(const vector<std::string>& asset_symbols_or_ids)const;
 
       /**
        * @brief Get assets alphabetically by symbol name
@@ -443,23 +450,23 @@ class database_api
        * @param limit Maximum number of orders to retrieve
        * @return The limit orders, ordered from least price to greatest
        */
-      vector<limit_order_object> get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
+      vector<limit_order_object> get_limit_orders(const std::string& a, const std::string& b, uint32_t limit)const;
 
       /**
        * @brief Get call orders in a given asset
-       * @param a ID of asset being called
+       * @param a ID or name of asset being called
        * @param limit Maximum number of orders to retrieve
        * @return The call orders, ordered from earliest to be called to latest
        */
-      vector<call_order_object> get_call_orders(asset_id_type a, uint32_t limit)const;
+      vector<call_order_object> get_call_orders(const std::string& a, uint32_t limit)const;
 
       /**
        * @brief Get forced settlement orders in a given asset
-       * @param a ID of asset being settled
+       * @param a ID or name of asset being settled
        * @param limit Maximum number of orders to retrieve
        * @return The settle orders, ordered from earliest settlement date to latest
        */
-      vector<force_settlement_object> get_settle_orders(asset_id_type a, uint32_t limit)const;
+      vector<force_settlement_object> get_settle_orders(const std::string& a, uint32_t limit)const;
 
       /**
        *  @return all open margin positions for a given account id.
@@ -469,21 +476,21 @@ class database_api
       /**
        * @brief Request notification when the active orders in the market between two assets changes
        * @param callback Callback method which is called when the market changes
-       * @param a First asset ID
-       * @param b Second asset ID
+       * @param a First asset ID or name
+       * @param b Second asset ID or name
        *
        * Callback will be passed a variant containing a vector<pair<operation, operation_result>>. The vector will
        * contain, in order, the operations which changed the market, and their results.
        */
       void subscribe_to_market(std::function<void(const variant&)> callback,
-                   asset_id_type a, asset_id_type b);
+                   const std::string& a, const std::string& b);
 
       /**
        * @brief Unsubscribe from updates to a given market
-       * @param a First asset ID
-       * @param b Second asset ID
+       * @param a First asset ID or name
+       * @param b Second asset ID or name
        */
-      void unsubscribe_from_market( asset_id_type a, asset_id_type b );
+      void unsubscribe_from_market( const std::string& a, const std::string& b );
 
       /**
        * @brief Returns the ticker for the market assetA:assetB
@@ -650,7 +657,7 @@ class database_api
        *  For each operation calculate the required fee in the specified asset type.  If the asset type does
        *  not have a valid core_exchange_rate
        */
-      vector< fc::variant > get_required_fees( const vector<operation>& ops, asset_id_type id )const;
+      vector< fc::variant > get_required_fees( const vector<operation>& ops, const std::string& asset_id_or_symbol )const;
 
       ///////////////////////////
       // Proposed transactions //
@@ -766,6 +773,7 @@ FC_API(graphene::app::database_api,
    (list_assets)
    (lookup_asset_symbols)
    (get_asset_count)
+   (get_asset_id_from_string)
 
    // Peerplays
    (list_sports)

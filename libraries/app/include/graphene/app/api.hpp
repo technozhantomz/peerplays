@@ -96,7 +96,7 @@ namespace graphene { namespace app {
    {
       public:
          history_api(application& app)
-               :_app(app), database_api( std::ref(*app.chain_database()), &(app.get_options())) {}
+               :_app(app), database_api( std::ref(*app.chain_database())) {}
 
          /**
           * @brief Get operations relevant to the specificed account
@@ -143,8 +143,8 @@ namespace graphene { namespace app {
                                                                         unsigned limit = 100,
                                                                         uint32_t start = 0) const;
 
-         vector<order_history_object> get_fill_order_history( asset_id_type a, asset_id_type b, uint32_t limit )const;
-         vector<bucket_object> get_market_history( asset_id_type a, asset_id_type b, uint32_t bucket_seconds,
+         vector<order_history_object> get_fill_order_history( std::string asset_a, std::string asset_b, uint32_t limit )const;
+         vector<bucket_object> get_market_history( std::string asset_a, std::string asset_b, uint32_t bucket_seconds,
                                                    fc::time_point_sec start, fc::time_point_sec end )const;
          vector<account_balance_object> list_core_accounts()const;
          flat_set<uint32_t> get_market_history_buckets()const;
@@ -327,15 +327,35 @@ namespace graphene { namespace app {
    class asset_api
    {
       public:
-         asset_api(graphene::chain::database& db);
+         asset_api(graphene::app::application& app);
          ~asset_api();
 
-         vector<account_asset_balance> get_asset_holders( asset_id_type asset_id, uint32_t start, uint32_t limit  )const;
-         int get_asset_holders_count( asset_id_type asset_id )const;
+         /**
+          * @brief Get asset holders for a specific asset
+          * @param asset The specific asset id or symbol
+          * @param start The start index
+          * @param limit Maximum limit must not exceed 100
+          * @return A list of asset holders for the specified asset
+          */
+         vector<account_asset_balance> get_asset_holders( std::string asset, uint32_t start, uint32_t limit  )const;
+
+         /**
+          * @brief Get asset holders count for a specific asset
+          * @param asset The specific asset id or symbol
+          * @return Holders count for the specified asset
+          */
+         int get_asset_holders_count( std::string asset )const;
+
+         /**
+          * @brief Get all asset holders
+          * @return A list of all asset holders
+          */
          vector<asset_holders> get_all_asset_holders() const;
 
       private:
+         graphene::app::application& _app;
          graphene::chain::database& _db;
+         graphene::app::database_api database_api;
    };
 
    /**
