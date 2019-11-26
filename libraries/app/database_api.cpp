@@ -81,20 +81,20 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
      bool is_public_key_registered(string public_key) const;
 
       // Accounts
-      vector<optional<account_object>> get_accounts(const vector<account_id_type>& account_ids)const;
+      account_id_type get_account_id_from_string(const std::string& name_or_id)const;
+      vector<optional<account_object>> get_accounts(const vector<std::string>& account_names_or_ids)const;
       std::map<string,full_account> get_full_accounts( const vector<string>& names_or_ids, bool subscribe );
       optional<account_object> get_account_by_name( string name )const;
-      vector<account_id_type> get_account_references( account_id_type account_id )const;
+      vector<account_id_type> get_account_references( const std::string account_id_or_name )const;
       vector<optional<account_object>> lookup_account_names(const vector<string>& account_names)const;
       map<string,account_id_type> lookup_accounts(const string& lower_bound_name, uint32_t limit)const;
       uint64_t get_account_count()const;
 
       // Balances
-      vector<asset> get_account_balances(account_id_type id, const flat_set<asset_id_type>& assets)const;
-      vector<asset> get_named_account_balances(const std::string& name, const flat_set<asset_id_type>& assets)const;
+      vector<asset> get_account_balances(const std::string& account_name_or_id, const flat_set<asset_id_type>& assets)const;
       vector<balance_object> get_balance_objects( const vector<address>& addrs )const;
       vector<asset> get_vested_balances( const vector<balance_id_type>& objs )const;
-      vector<vesting_balance_object> get_vesting_balances( account_id_type account_id )const;
+      vector<vesting_balance_object> get_vesting_balances( const std::string account_id_or_name )const;
 
       // Assets
       vector<optional<asset_object>> get_assets(const vector<asset_id_type>& asset_ids)const;
@@ -127,7 +127,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
       vector<call_order_object>          get_call_orders(asset_id_type a, uint32_t limit)const;
       vector<force_settlement_object>    get_settle_orders(asset_id_type a, uint32_t limit)const;
-      vector<call_order_object>          get_margin_positions( const account_id_type& id )const;
+      vector<call_order_object>          get_margin_positions( const std::string account_id_or_name )const;
       void subscribe_to_market(std::function<void(const variant&)> callback, asset_id_type a, asset_id_type b);
       void unsubscribe_from_market(asset_id_type a, asset_id_type b);
       market_ticker                      get_ticker( const string& base, const string& quote )const;
@@ -137,13 +137,13 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Witnesses
       vector<optional<witness_object>> get_witnesses(const vector<witness_id_type>& witness_ids)const;
-      fc::optional<witness_object> get_witness_by_account(account_id_type account)const;
+      fc::optional<witness_object> get_witness_by_account(const std::string account_id_or_name)const;
       map<string, witness_id_type> lookup_witness_accounts(const string& lower_bound_name, uint32_t limit)const;
       uint64_t get_witness_count()const;
 
       // Committee members
       vector<optional<committee_member_object>> get_committee_members(const vector<committee_member_id_type>& committee_member_ids)const;
-      fc::optional<committee_member_object> get_committee_member_by_account(account_id_type account)const;
+      fc::optional<committee_member_object> get_committee_member_by_account(const std::string account_id_or_name)const;
       map<string, committee_member_id_type> lookup_committee_member_accounts(const string& lower_bound_name, uint32_t limit)const;
 
       // Votes
@@ -160,7 +160,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector< fc::variant > get_required_fees( const vector<operation>& ops, asset_id_type id )const;
 
       // Proposed transactions
-      vector<proposal_object> get_proposed_transactions( account_id_type id )const;
+      vector<proposal_object> get_proposed_transactions( const std::string account_id_or_name )const;
 
       // Blinded balances
       vector<blinded_balance_object> get_blinded_balances( const flat_set<commitment_type>& commitments )const;
@@ -175,6 +175,8 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       gpos_info get_gpos_info(const account_id_type account) const;
 
    //private:
+      const account_object* get_account_from_string( const std::string& name_or_id,
+                                                     bool throw_if_not_found = true ) const;
       template<typename T>
       void subscribe_to_item( const T& i )const
       {
@@ -614,22 +616,27 @@ bool database_api_impl::is_public_key_registered(string public_key) const
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
 
-vector<optional<account_object>> database_api::get_accounts(const vector<account_id_type>& account_ids)const
+account_id_type database_api::get_account_id_from_string(const std::string& name_or_id)const
 {
-   return my->get_accounts( account_ids );
+   return my->get_account_from_string( name_or_id )->id;
 }
 
-vector<optional<account_object>> database_api_impl::get_accounts(const vector<account_id_type>& account_ids)const
+vector<optional<account_object>> database_api::get_accounts(const vector<std::string>& account_names_or_ids)const
 {
-   vector<optional<account_object>> result; result.reserve(account_ids.size());
-   std::transform(account_ids.begin(), account_ids.end(), std::back_inserter(result),
-                  [this](account_id_type id) -> optional<account_object> {
-      if(auto o = _db.find(id))
-      {
-         subscribe_to_item( id );
-         return *o;
-      }
-      return {};
+   return my->get_accounts( account_names_or_ids );
+}
+
+vector<optional<account_object>> database_api_impl::get_accounts(const vector<std::string>& account_names_or_ids)const
+{
+   vector<optional<account_object>> result; result.reserve(account_names_or_ids.size());
+   std::transform(account_names_or_ids.begin(), account_names_or_ids.end(), std::back_inserter(result),
+                  [this](std::string id_or_name) -> optional<account_object> {
+      const account_object *account = get_account_from_string(id_or_name, false);
+      if(account == nullptr)
+         return {};
+
+      subscribe_to_item( account->id );
+      return *account;
    });
    return result;
 }
@@ -758,16 +765,17 @@ optional<account_object> database_api_impl::get_account_by_name( string name )co
    return optional<account_object>();
 }
 
-vector<account_id_type> database_api::get_account_references( account_id_type account_id )const
+vector<account_id_type> database_api::get_account_references( const std::string account_id_or_name )const
 {
-   return my->get_account_references( account_id );
+   return my->get_account_references( account_id_or_name );
 }
 
-vector<account_id_type> database_api_impl::get_account_references( account_id_type account_id )const
+vector<account_id_type> database_api_impl::get_account_references( const std::string account_id_or_name )const
 {
    const auto& idx = _db.get_index_type<account_index>();
    const auto& aidx = dynamic_cast<const base_primary_index&>(idx);
    const auto& refs = aidx.get_secondary_index<graphene::chain::account_member_index>();
+   const account_id_type account_id = get_account_from_string(account_id_or_name)->id;
    auto itr = refs.account_to_account_memberships.find(account_id);
    vector<account_id_type> result;
 
@@ -836,13 +844,16 @@ uint64_t database_api_impl::get_account_count()const
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
 
-vector<asset> database_api::get_account_balances(account_id_type id, const flat_set<asset_id_type>& assets)const
+vector<asset> database_api::get_account_balances(const std::string& account_name_or_id, const flat_set<asset_id_type>& assets)const
 {
-   return my->get_account_balances( id, assets );
+   return my->get_account_balances( account_name_or_id, assets );
 }
 
-vector<asset> database_api_impl::get_account_balances(account_id_type acnt, const flat_set<asset_id_type>& assets)const
+vector<asset> database_api_impl::get_account_balances( const std::string& account_name_or_id, 
+                                                       const flat_set<asset_id_type>& assets)const
 {
+   const account_object* account = get_account_from_string(account_name_or_id);
+   account_id_type acnt = account->id;
    vector<asset> result;
    if (assets.empty())
    {
@@ -865,15 +876,7 @@ vector<asset> database_api_impl::get_account_balances(account_id_type acnt, cons
 
 vector<asset> database_api::get_named_account_balances(const std::string& name, const flat_set<asset_id_type>& assets)const
 {
-   return my->get_named_account_balances( name, assets );
-}
-
-vector<asset> database_api_impl::get_named_account_balances(const std::string& name, const flat_set<asset_id_type>& assets) const
-{
-   const auto& accounts_by_name = _db.get_index_type<account_index>().indices().get<by_name>();
-   auto itr = accounts_by_name.find(name);
-   FC_ASSERT( itr != accounts_by_name.end() );
-   return get_account_balances(itr->get_id(), assets);
+   return my->get_account_balances( name, assets );
 }
 
 vector<balance_object> database_api::get_balance_objects( const vector<address>& addrs )const
@@ -923,15 +926,16 @@ vector<asset> database_api_impl::get_vested_balances( const vector<balance_id_ty
    } FC_CAPTURE_AND_RETHROW( (objs) )
 }
 
-vector<vesting_balance_object> database_api::get_vesting_balances( account_id_type account_id )const
+vector<vesting_balance_object> database_api::get_vesting_balances( const std::string account_id_or_name )const
 {
-   return my->get_vesting_balances( account_id );
+   return my->get_vesting_balances( account_id_or_name );
 }
 
-vector<vesting_balance_object> database_api_impl::get_vesting_balances( account_id_type account_id )const
+vector<vesting_balance_object> database_api_impl::get_vesting_balances( const std::string account_id_or_name )const
 {
    try
    {
+      const account_id_type account_id = get_account_from_string(account_id_or_name)->id;
       vector<vesting_balance_object> result;
       auto vesting_range = _db.get_index_type<vesting_balance_index>().indices().get<by_account>().equal_range(account_id);
       std::for_each(vesting_range.first, vesting_range.second,
@@ -941,7 +945,7 @@ vector<vesting_balance_object> database_api_impl::get_vesting_balances( account_
                     });
       return result;
    }
-   FC_CAPTURE_AND_RETHROW( (account_id) );
+   FC_CAPTURE_AND_RETHROW( (account_id_or_name) );
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1273,17 +1277,18 @@ vector<force_settlement_object> database_api_impl::get_settle_orders(asset_id_ty
                                           settle_index.upper_bound(mia.get_id()));
 }
 
-vector<call_order_object> database_api::get_margin_positions( const account_id_type& id )const
+vector<call_order_object> database_api::get_margin_positions( const std::string account_id_or_name )const
 {
-   return my->get_margin_positions( id );
+   return my->get_margin_positions( account_id_or_name );
 }
 
-vector<call_order_object> database_api_impl::get_margin_positions( const account_id_type& id )const
+vector<call_order_object> database_api_impl::get_margin_positions( const std::string account_id_or_name )const
 {
    try
    {
       const auto& idx = _db.get_index_type<call_order_index>();
       const auto& aidx = idx.indices().get<by_account>();
+      const account_id_type id = get_account_from_string(account_id_or_name)->id;
       auto start = aidx.lower_bound( boost::make_tuple( id, asset_id_type(0) ) );
       auto end = aidx.lower_bound( boost::make_tuple( id+1, asset_id_type(0) ) );
       vector<call_order_object> result;
@@ -1293,7 +1298,7 @@ vector<call_order_object> database_api_impl::get_margin_positions( const account
          ++start;
       }
       return result;
-   } FC_CAPTURE_AND_RETHROW( (id) )
+   } FC_CAPTURE_AND_RETHROW( (account_id_or_name) )
 }
 
 void database_api::subscribe_to_market(std::function<void(const variant&)> callback, asset_id_type a, asset_id_type b)
@@ -1540,9 +1545,10 @@ vector<optional<witness_object>> database_api::get_witnesses(const vector<witnes
    return my->get_witnesses( witness_ids );
 }
 
-vector<worker_object> database_api::get_workers_by_account(account_id_type account)const
+vector<worker_object> database_api::get_workers_by_account(const std::string account_id_or_name)const
 {
     const auto& idx = my->_db.get_index_type<worker_index>().indices().get<by_account>();
+    const account_id_type account = get_account_from_string(account_id_or_name)->id;
     auto itr = idx.find(account);
     vector<worker_object> result;
 
@@ -1568,14 +1574,15 @@ vector<optional<witness_object>> database_api_impl::get_witnesses(const vector<w
    return result;
 }
 
-fc::optional<witness_object> database_api::get_witness_by_account(account_id_type account)const
+fc::optional<witness_object> database_api::get_witness_by_account(const std::string account_id_or_name)const
 {
-   return my->get_witness_by_account( account );
+   return my->get_witness_by_account( account_id_or_name );
 }
 
-fc::optional<witness_object> database_api_impl::get_witness_by_account(account_id_type account) const
+fc::optional<witness_object> database_api_impl::get_witness_by_account(const std::string account_id_or_name) const
 {
    const auto& idx = _db.get_index_type<witness_index>().indices().get<by_account>();
+   const account_id_type account = get_account_from_string(account_id_or_name)->id;
    auto itr = idx.find(account);
    if( itr != idx.end() )
       return *itr;
@@ -1643,14 +1650,15 @@ vector<optional<committee_member_object>> database_api_impl::get_committee_membe
    return result;
 }
 
-fc::optional<committee_member_object> database_api::get_committee_member_by_account(account_id_type account)const
+fc::optional<committee_member_object> database_api::get_committee_member_by_account(const std::string account_id_or_name)const
 {
-   return my->get_committee_member_by_account( account );
+   return my->get_committee_member_by_account( account_id_or_name );
 }
 
-fc::optional<committee_member_object> database_api_impl::get_committee_member_by_account(account_id_type account) const
+fc::optional<committee_member_object> database_api_impl::get_committee_member_by_account(const std::string account_id_or_name) const
 {
    const auto& idx = _db.get_index_type<committee_member_index>().indices().get<by_account>();
+   const account_id_type account = get_account_from_string(account_id_or_name)->id;
    auto itr = idx.find(account);
    if( itr != idx.end() )
       return *itr;
@@ -1992,16 +2000,17 @@ vector< fc::variant > database_api_impl::get_required_fees( const vector<operati
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
 
-vector<proposal_object> database_api::get_proposed_transactions( account_id_type id )const
+vector<proposal_object> database_api::get_proposed_transactions( const std::string account_id_or_name )const
 {
-   return my->get_proposed_transactions( id );
+   return my->get_proposed_transactions( account_id_or_name );
 }
 
 /** TODO: add secondary index that will accelerate this process */
-vector<proposal_object> database_api_impl::get_proposed_transactions( account_id_type id )const
+vector<proposal_object> database_api_impl::get_proposed_transactions( const std::string account_id_or_name )const
 {
    const auto& idx = _db.get_index_type<proposal_index>();
    vector<proposal_object> result;
+   const account_id_type id = get_account_from_string(account_id_or_name)->id;
 
    idx.inspect_all_objects( [&](const object& obj){
            const proposal_object& p = static_cast<const proposal_object&>(obj);
@@ -2114,6 +2123,26 @@ vector<tournament_object> database_api_impl::get_tournaments_by_state(tournament
    }
 
    return result;
+}
+
+const account_object* database_api_impl::get_account_from_string( const std::string& name_or_id,
+                                                                  bool throw_if_not_found ) const
+{
+   // TODO cache the result to avoid repeatly fetching from db
+   FC_ASSERT( name_or_id.size() > 0);
+   const account_object* account = nullptr;
+   if (std::isdigit(name_or_id[0]))
+      account = _db.find(fc::variant(name_or_id, 1).as<account_id_type>(1));
+   else
+   {
+      const auto& idx = _db.get_index_type<account_index>().indices().get<by_name>();
+      auto itr = idx.find(name_or_id);
+      if (itr != idx.end())
+         account = &*itr;
+   }
+   if(throw_if_not_found)
+      FC_ASSERT( account, "no such account" );
+   return account;
 }
 
 vector<tournament_id_type> database_api::get_registered_tournaments(account_id_type account_filter, uint32_t limit) const

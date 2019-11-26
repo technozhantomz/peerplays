@@ -249,13 +249,21 @@ class database_api
       //////////////
 
       /**
-       * @brief Get a list of accounts by ID
+       * @brief Get account object from a name or ID
+       * @param name_or_id name or ID of the account
+       * @return Account ID
+       *
+       */
+      account_id_type get_account_id_from_string(const std::string& name_or_id)const;
+
+      /**
+       * @brief Get a list of accounts by ID or Name
        * @param account_ids IDs of the accounts to retrieve
        * @return The accounts corresponding to the provided IDs
        *
        * This function has semantics identical to @ref get_objects
        */
-      vector<optional<account_object>> get_accounts(const vector<account_id_type>& account_ids)const;
+      vector<optional<account_object>> get_accounts(const vector<std::string>& account_names_or_ids)const;
 
       /**
        * @brief Fetch all objects relevant to the specified accounts and subscribe to updates
@@ -275,7 +283,7 @@ class database_api
       /**
        *  @return all accounts that referr to the key or account id in their owner or active authorities.
        */
-      vector<account_id_type> get_account_references( account_id_type account_id )const;
+      vector<account_id_type> get_account_references( const std::string account_name_or_id )const;
 
       /**
        * @brief Get a list of accounts by name
@@ -304,7 +312,8 @@ class database_api
        * @param assets IDs of the assets to get balances of; if empty, get all assets account has a balance in
        * @return Balances of the account
        */
-      vector<asset> get_account_balances(account_id_type id, const flat_set<asset_id_type>& assets)const;
+      vector<asset> get_account_balances( const std::string& account_name_or_id, 
+                                          const flat_set<asset_id_type>& assets )const;
 
       /// Semantically equivalent to @ref get_account_balances, but takes a name instead of an ID.
       vector<asset> get_named_account_balances(const std::string& name, const flat_set<asset_id_type>& assets)const;
@@ -314,7 +323,7 @@ class database_api
 
       vector<asset> get_vested_balances( const vector<balance_id_type>& objs )const;
 
-      vector<vesting_balance_object> get_vesting_balances( account_id_type account_id )const;
+      vector<vesting_balance_object> get_vesting_balances( const std::string account_id_or_name )const;
 
       /**
        * @brief Get the total number of accounts registered with the blockchain
@@ -455,7 +464,7 @@ class database_api
       /**
        *  @return all open margin positions for a given account id.
        */
-      vector<call_order_object> get_margin_positions( const account_id_type& id )const;
+      vector<call_order_object> get_margin_positions( const std::string account_id_or_name )const;
 
       /**
        * @brief Request notification when the active orders in the market between two assets changes
@@ -533,7 +542,7 @@ class database_api
        * @param account The ID of the account whose witness should be retrieved
        * @return The witness object, or null if the account does not have a witness
        */
-      fc::optional<witness_object> get_witness_by_account(account_id_type account)const;
+      fc::optional<witness_object> get_witness_by_account(const std::string account_name_or_id)const;
 
       /**
        * @brief Get names and IDs for registered witnesses
@@ -563,10 +572,10 @@ class database_api
 
       /**
        * @brief Get the committee_member owned by a given account
-       * @param account The ID of the account whose committee_member should be retrieved
+       * @param account_id_or_name The ID or name of the account whose committee_member should be retrieved
        * @return The committee_member object, or null if the account does not have a committee_member
        */
-      fc::optional<committee_member_object> get_committee_member_by_account(account_id_type account)const;
+      fc::optional<committee_member_object> get_committee_member_by_account(const std::string account_id_or_name)const;
 
       /**
        * @brief Get names and IDs for registered committee_members
@@ -580,9 +589,11 @@ class database_api
       /// WORKERS
 
       /**
-       * Return the worker objects associated with this account.
+       * @brief Return the worker objects associated with this account.
+       * @param account_id_or_name The ID or name of the account whose worker should be retrieved
+       * @return The worker object or null if the account does not have a worker
        */
-      vector<worker_object> get_workers_by_account(account_id_type account)const;
+      vector<worker_object> get_workers_by_account(const std::string account_id_or_name)const;
 
 
       ///////////
@@ -648,7 +659,7 @@ class database_api
       /**
        *  @return the set of proposed transactions relevant to the specified account id.
        */
-      vector<proposal_object> get_proposed_transactions( account_id_type id )const;
+      vector<proposal_object> get_proposed_transactions( const std::string account_id_or_name )const;
 
       //////////////////////
       // Blinded balances //
@@ -734,6 +745,7 @@ FC_API(graphene::app::database_api,
    (is_public_key_registered)
 
    // Accounts
+   (get_account_id_from_string)
    (get_accounts)
    (get_full_accounts)
    (get_account_by_name)
