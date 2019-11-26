@@ -809,8 +809,8 @@ namespace graphene { namespace app {
     int asset_api::get_asset_holders_count( std::string asset ) const {
 
       const auto& bal_idx = _db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();
-      auto range = bal_idx.equal_range( boost::make_tuple( asset_id ) );
       asset_id_type asset_id = database_api.get_asset_id_from_string( asset );
+      auto range = bal_idx.equal_range( boost::make_tuple( asset_id ) );
       int count = boost::distance(range) - 1;
 
       return count;
