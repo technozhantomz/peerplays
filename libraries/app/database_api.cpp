@@ -127,10 +127,8 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       asset get_sweeps_vesting_balance_available_for_claim( account_id_type account )const;
    
       // Markets / feeds
-      vector<limit_order_object>         get_limit_orders( const asset_id_type a, const asset_id_type b,
-                                                   const uint32_t limit )const;
-      vector<limit_order_object>         get_limit_orders( const std::string& a, const std::string& b,
-                                                           uint32_t limit)const;
+      vector<limit_order_object>         get_limit_orders( const asset_id_type a, const asset_id_type b, const uint32_t limit )const;
+      vector<limit_order_object>         get_limit_orders( const std::string& a, const std::string& b, const uint32_t limit)const;
       vector<call_order_object>          get_call_orders(const std::string& a, uint32_t limit)const;
       vector<force_settlement_object>    get_settle_orders(const std::string& a, uint32_t limit)const;
       vector<call_order_object>          get_margin_positions( const std::string account_id_or_name )const;
@@ -1259,7 +1257,7 @@ vector<bet_object> database_api_impl::get_all_unmatched_bets_for_bettor(account_
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
 
-vector<limit_order_object> database_api::get_limit_orders(const std::string& a, const std::string& b, uint32_t limit)const
+vector<limit_order_object> database_api::get_limit_orders(const std::string& a, const std::string& b, const uint32_t limit)const
 {
    return my->get_limit_orders( a, b, limit );
 }
@@ -1267,7 +1265,7 @@ vector<limit_order_object> database_api::get_limit_orders(const std::string& a, 
 /**
  *  @return the limit orders for both sides of the book for the two assets specified up to limit number on each side.
  */
-vector<limit_order_object> database_api_impl::get_limit_orders(const std::string& a, const std::string& b, uint32_t limit)const
+vector<limit_order_object> database_api_impl::get_limit_orders(const std::string& a, const std::string& b, const uint32_t limit)const
 {
    const asset_id_type asset_a_id = get_asset_from_string(a)->id;
    const asset_id_type asset_b_id = get_asset_from_string(b)->id;
