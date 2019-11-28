@@ -319,7 +319,7 @@ BOOST_AUTO_TEST_CASE(track_votes_witnesses_enabled)
       INVOKE(put_my_witnesses);
 
       const account_id_type witness1_id= get_account("witness1").id;
-      auto witness1_object = db_api1.get_witness_by_account(witness1_id);
+      auto witness1_object = db_api1.get_witness_by_account(witness1_id(db).name);
       BOOST_CHECK_EQUAL(witness1_object->total_votes, 111);
 
    } FC_LOG_AND_RETHROW()
@@ -334,7 +334,7 @@ BOOST_AUTO_TEST_CASE(track_votes_witnesses_disabled)
       INVOKE(put_my_witnesses);
 
       const account_id_type witness1_id= get_account("witness1").id;
-      auto witness1_object = db_api1.get_witness_by_account(witness1_id);
+      auto witness1_object = db_api1.get_witness_by_account(witness1_id(db).name);
       BOOST_CHECK_EQUAL(witness1_object->total_votes, 0);
 
    } FC_LOG_AND_RETHROW()
@@ -498,7 +498,7 @@ BOOST_AUTO_TEST_CASE(track_votes_committee_enabled)
       INVOKE(put_my_committee_members);
 
       const account_id_type committee1_id= get_account("committee1").id;
-      auto committee1_object = db_api1.get_committee_member_by_account(committee1_id);
+      auto committee1_object = db_api1.get_committee_member_by_account(committee1_id(db).name);
       BOOST_CHECK_EQUAL(committee1_object->total_votes, 111);
 
    } FC_LOG_AND_RETHROW()
@@ -513,7 +513,7 @@ BOOST_AUTO_TEST_CASE(track_votes_committee_disabled)
       INVOKE(put_my_committee_members);
 
       const account_id_type committee1_id= get_account("committee1").id;
-      auto committee1_object = db_api1.get_committee_member_by_account(committee1_id);
+      auto committee1_object = db_api1.get_committee_member_by_account(committee1_id(db).name);
       BOOST_CHECK_EQUAL(committee1_object->total_votes, 0);
 
    } FC_LOG_AND_RETHROW()

@@ -355,7 +355,8 @@ private:
          for( const fc::optional<graphene::chain::account_object>& optional_account : owner_account_objects )
             if (optional_account)
             {
-               fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(optional_account->id);
+               std::string account_id = account_id_to_string(optional_account->id);
+               fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(account_id);
                if (witness_obj)
                   claim_registered_witness(optional_account->name);
             }
@@ -729,9 +730,17 @@ public:
    {
       return _remote_db->get_dynamic_global_properties();
    }
+   std::string account_id_to_string(account_id_type id) const
+   {
+      std::string account_id = fc::to_string(id.space_id)
+                               + "." + fc::to_string(id.type_id)
+                               + "." + fc::to_string(id.instance.value);
+      return account_id;
+   }
    account_object get_account(account_id_type id) const
    {
-      auto rec = _remote_db->get_accounts({id}).front();
+      std::string account_id = account_id_to_string(id);
+      auto rec = _remote_db->get_accounts({account_id}).front();
       FC_ASSERT(rec);
       return *rec;
    }
@@ -753,9 +762,16 @@ public:
    {
       return get_account(account_name_or_id).get_id();
    }
+   std::string asset_id_to_string(asset_id_type id) const
+   {
+      std::string asset_id = fc::to_string(id.space_id) +
+                             "." + fc::to_string(id.type_id) +
+                             "." + fc::to_string(id.instance.value);
+      return asset_id;
+   }
    optional<asset_object> find_asset(asset_id_type id)const
    {
-      auto rec = _remote_db->get_assets({id}).front();
+      auto rec = _remote_db->get_assets({asset_id_to_string(id)}).front();
       if( rec )
          _asset_cache[id] = *rec;
       return rec;
@@ -1018,7 +1034,7 @@ public:
             ("chain_id", _chain_id) );
 
       size_t account_pagination = 100;
-      vector< account_id_type > account_ids_to_send;
+      vector< std::string > account_ids_to_send;
       size_t n = _wallet.my_accounts.size();
       account_ids_to_send.reserve( std::min( account_pagination, n ) );
       auto it = _wallet.my_accounts.begin();
@@ -1033,7 +1049,8 @@ public:
          {
             assert( it != _wallet.my_accounts.end() );
             old_accounts.push_back( *it );
-            account_ids_to_send.push_back( old_accounts.back().id );
+            std::string account_id = account_id_to_string(old_accounts.back().id);
+            account_ids_to_send.push_back( account_id );
             ++it;
          }
          std::vector< optional< account_object > > accounts = _remote_db->get_accounts(account_ids_to_send);
@@ -1733,7 +1750,7 @@ public:
       committee_member_create_operation committee_member_create_op;
       committee_member_create_op.committee_member_account = get_account_id(owner_account);
       committee_member_create_op.url = url;
-      if (_remote_db->get_committee_member_by_account(committee_member_create_op.committee_member_account))
+      if (_remote_db->get_committee_member_by_account(owner_account))
          FC_THROW("Account ${owner_account} is already a committee_member", ("owner_account", owner_account));
 
       signed_transaction tx;
@@ -1763,7 +1780,7 @@ public:
             // then maybe it's the owner account
             try
             {
-               account_id_type owner_account_id = get_account_id(owner_account);
+               std::string owner_account_id = account_id_to_string(get_account_id(owner_account));
                fc::optional<witness_object> witness = _remote_db->get_witness_by_account(owner_account_id);
                if (witness)
                   return *witness;
@@ -1799,7 +1816,7 @@ public:
             // then maybe it's the owner account
             try
             {
-               account_id_type owner_account_id = get_account_id(owner_account);
+               std::string owner_account_id = account_id_to_string(get_account_id(owner_account));
                fc::optional<witness_object> witness = _remote_db->get_witness_by_account(owner_account_id);
                if (witness)
                   return true;
@@ -1834,8 +1851,7 @@ public:
             // then maybe it's the owner account
             try
             {
-               account_id_type owner_account_id = get_account_id(owner_account);
-               fc::optional<committee_member_object> committee_member = _remote_db->get_committee_member_by_account(owner_account_id);
+               fc::optional<committee_member_object> committee_member = _remote_db->get_committee_member_by_account(owner_account);
                if (committee_member)
                   return *committee_member;
                else
@@ -1871,7 +1887,7 @@ public:
       witness_create_op.initial_secret = enc.result();
 
 
-      if (_remote_db->get_witness_by_account(witness_create_op.witness_account))
+      if (_remote_db->get_witness_by_account(account_id_to_string(witness_create_op.witness_account)))
          FC_THROW("Account ${owner_account} is already a witness", ("owner_account", owner_account));
 
       signed_transaction tx;
@@ -2037,12 +2053,7 @@ public:
          return result;
       }
 
-      // try casting to avoid a round-trip if we were given an account ID
-      fc::optional<account_id_type> acct_id = maybe_id<account_id_type>( account_name );
-      if( !acct_id )
-         acct_id = get_account( account_name ).id;
-
-      vector< vesting_balance_object > vbos = _remote_db->get_vesting_balances( *acct_id );
+      vector< vesting_balance_object > vbos = _remote_db->get_vesting_balances( account_name );
       if( vbos.size() == 0 )
          return result;
 
@@ -2110,12 +2121,7 @@ public:
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(account_name);
       if( !vbid )
       {
-         //Changes done to retrive user account/witness account based on account name
-         fc::optional<account_id_type> acct_id = maybe_id<account_id_type>( account_name );
-         if( !acct_id )
-            acct_id = get_account( account_name ).id;
-
-         vbos = _remote_db->get_vesting_balances( *acct_id );
+         vbos = _remote_db->get_vesting_balances( account_name );
          if( vbos.size() == 0 ) 
             FC_THROW("Account ${account} has no core TOKEN vested and thus its not allowed to withdraw.", ("account", account_name));
       }
@@ -2188,8 +2194,7 @@ public:
       }
 
       account_object voting_account_object = get_account(voting_account);
-      account_id_type committee_member_owner_account_id = get_account_id(committee_member);
-      fc::optional<committee_member_object> committee_member_obj = _remote_db->get_committee_member_by_account(committee_member_owner_account_id);
+      fc::optional<committee_member_object> committee_member_obj = _remote_db->get_committee_member_by_account(committee_member);
       if (!committee_member_obj)
          FC_THROW("Account ${committee_member} is not registered as a committee_member", ("committee_member", committee_member));
 
@@ -2253,9 +2258,8 @@ public:
       }
 
       account_object voting_account_object = get_account(voting_account);
-      account_id_type witness_owner_account_id = get_account_id(witness);
       
-      fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
+      fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness);
       if (!witness_obj)
          FC_THROW("Account ${witness} is not registered as a witness", ("witness", witness));
 
@@ -2311,8 +2315,7 @@ public:
       account_object voting_account_object = get_account(voting_account);
       for (const std::string& witness : witnesses_to_approve)
       {
-         account_id_type witness_owner_account_id = get_account_id(witness);
-         fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
+         fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness);
          if (!witness_obj)
             FC_THROW("Account ${witness} is not registered as a witness", ("witness", witness));
          auto insert_result = voting_account_object.options.votes.insert(witness_obj->vote_id);
@@ -2321,8 +2324,7 @@ public:
       }
       for (const std::string& witness : witnesses_to_reject)
       {
-         account_id_type witness_owner_account_id = get_account_id(witness);
-         fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
+         fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness);
          if (!witness_obj)
             FC_THROW("Account ${witness} is not registered as a witness", ("witness", witness));
          unsigned votes_removed = voting_account_object.options.votes.erase(witness_obj->vote_id);
@@ -3706,8 +3708,8 @@ map<string,account_id_type> wallet_api::list_accounts(const string& lowerbound, 
 vector<asset> wallet_api::list_account_balances(const string& id)
 {
    if( auto real_id = detail::maybe_id<account_id_type>(id) )
-      return my->_remote_db->get_account_balances(*real_id, flat_set<asset_id_type>());
-   return my->_remote_db->get_account_balances(get_account(id).id, flat_set<asset_id_type>());
+      return my->_remote_db->get_account_balances(id, flat_set<asset_id_type>());
+   return my->_remote_db->get_account_balances(id, flat_set<asset_id_type>());
 }
 
 vector<asset_object> wallet_api::list_assets(const string& lowerbound, uint32_t limit)const
@@ -3743,8 +3745,7 @@ asset wallet_api::get_lottery_balance( asset_id_type lottery_id )const
 vector<operation_detail> wallet_api::get_account_history(string name, int limit) const
 {
    vector<operation_detail> result;
-   auto account_id = get_account(name).get_id();
-
+   
    while (limit > 0)
    {
       bool skip_first_row = false;
@@ -3764,7 +3765,7 @@ vector<operation_detail> wallet_api::get_account_history(string name, int limit)
 
       int page_limit = skip_first_row ? std::min(100, limit + 1) : std::min(100, limit);
 
-      vector<operation_history_object> current = my->_remote_hist->get_account_history(account_id, operation_history_id_type(),
+      vector<operation_history_object> current = my->_remote_hist->get_account_history(name, operation_history_id_type(),
                                                                                        page_limit, start);
       bool first_row = true;
       for (auto &o : current)
@@ -3799,11 +3800,10 @@ vector<operation_detail> wallet_api::get_relative_account_history(string name, u
    FC_ASSERT( start > 0 || limit <= 100 );
    
    vector<operation_detail> result;
-   auto account_id = get_account(name).get_id();
 
    while( limit > 0 )
    {
-      vector <operation_history_object> current = my->_remote_hist->get_relative_account_history(account_id, stop, std::min<uint32_t>(100, limit), start);
+      vector <operation_history_object> current = my->_remote_hist->get_relative_account_history(name, stop, std::min<uint32_t>(100, limit), start);
       for (auto &o : current) {
          std::stringstream ss;
          auto memo = o.op.visit(detail::operation_printer(ss, *my, o.result));
@@ -3824,22 +3824,22 @@ vector<account_balance_object> wallet_api::list_core_accounts()const
 
 vector<bucket_object> wallet_api::get_market_history( string symbol1, string symbol2, uint32_t bucket , fc::time_point_sec start, fc::time_point_sec end )const
 {
-   return my->_remote_hist->get_market_history( get_asset_id(symbol1), get_asset_id(symbol2), bucket, start, end );
+   return my->_remote_hist->get_market_history( symbol1, symbol2, bucket, start, end );
 }
 
 vector<limit_order_object> wallet_api::get_limit_orders(string a, string b, uint32_t limit)const
 {
-   return my->_remote_db->get_limit_orders(get_asset(a).id, get_asset(b).id, limit);
+   return my->_remote_db->get_limit_orders(a, b, limit);
 }
 
 vector<call_order_object> wallet_api::get_call_orders(string a, uint32_t limit)const
 {
-   return my->_remote_db->get_call_orders(get_asset(a).id, limit);
+   return my->_remote_db->get_call_orders(a, limit);
 }
 
 vector<force_settlement_object> wallet_api::get_settle_orders(string a, uint32_t limit)const
 {
-   return my->_remote_db->get_settle_orders(get_asset(a).id, limit);
+   return my->_remote_db->get_settle_orders(a, limit);
 }
 
 brain_key_info wallet_api::suggest_brain_key()const
