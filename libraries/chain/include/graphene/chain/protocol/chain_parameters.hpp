@@ -28,6 +28,7 @@
 #include <fc/smart_ref_fwd.hpp>
 
 #include <../hardfork.d/GPOS.hf>
+#include <memory>
 
 namespace graphene { namespace chain { struct fee_schedule; } }
 
@@ -147,7 +148,6 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (min_bet_multiplier)
    (max_bet_multiplier)
    (betting_rake_fee_percentage)
-   (permitted_betting_odds_increments)
    (live_betting_delay_time)
    (sweeps_distribution_percentage)
    (sweeps_distribution_asset)
@@ -203,3 +203,5 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (maximum_tournament_number_of_wins)
             (extensions)
           )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::chain_parameters )

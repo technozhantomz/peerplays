@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ * Copyright (c) 2019 BitShares Blockchain Foundation, and contributors.
  *
  * The MIT License
  *
@@ -21,32 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#pragma once
+#include <fc/io/raw.hpp>
 
-#include <graphene/chain/protocol/types.hpp>
-#include <fc/reflect/reflect.hpp>
+#include <graphene/net/message.hpp>
 
-namespace graphene { namespace chain {
-
-struct no_special_authority {};
-
-struct top_holders_special_authority
-{
-   asset_id_type asset;
-   uint8_t       num_top_holders = 1;
-};
-
-typedef static_variant<
-   no_special_authority,
-   top_holders_special_authority
-   > special_authority;
-
-void validate_special_authority( const special_authority& auth );
-
-} } // graphene::chain
-
-FC_REFLECT( graphene::chain::no_special_authority, )
-FC_REFLECT( graphene::chain::top_holders_special_authority, (asset)(num_top_holders) )
-FC_REFLECT_TYPENAME( graphene::chain::special_authority )
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::top_holders_special_authority )
+GRAPHENE_EXTERNAL_SERIALIZATION(/*not extern*/, graphene::net::message_header)
+GRAPHENE_EXTERNAL_SERIALIZATION(/*not extern*/, graphene::net::message)
