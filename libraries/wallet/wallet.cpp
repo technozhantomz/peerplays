@@ -1083,13 +1083,6 @@ public:
       return true;
    }
 
-   void quit()
-   {
-      ilog( "Quitting Cli Wallet ..." );
-
-      throw fc::canceled_exception();
-   }
-
    void save_wallet_file(string wallet_filename = "")
    {
       //
