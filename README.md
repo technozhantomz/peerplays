@@ -36,6 +36,7 @@ cd $HOME/src
 export BOOST_ROOT=$HOME/src/boost_1_67_0
 git clone https://github.com/peerplays-network/peerplays.git
 cd peerplays
+git checkout master # --> can be replaced with most recent release tag
 git submodule update --init --recursive
 cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
