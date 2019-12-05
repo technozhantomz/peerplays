@@ -47,7 +47,7 @@ namespace graphene { namespace chain {
       /* gpos parameters */
       optional < uint32_t >           gpos_period                       = GPOS_PERIOD;
       optional < uint32_t >           gpos_subperiod                    = GPOS_SUBPERIOD;
-      optional < uint32_t >           gpos_period_start;
+      optional < uint32_t >           gpos_period_start                 = HARDFORK_GPOS_TIME.sec_since_epoch();
       optional < uint32_t >           gpos_vesting_lockin_period        = GPOS_VESTING_LOCKIN_PERIOD;
    };
 

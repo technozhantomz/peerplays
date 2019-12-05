@@ -26,6 +26,7 @@
 #include <graphene/chain/database.hpp>
 
 #include <graphene/chain/balance_object.hpp>
+#include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/worker_object.hpp>
@@ -70,6 +71,23 @@ struct gpos_fixture: database_fixture
       return db.get<vesting_balance_object>(ptx.operation_results[0].get<object_id_type>());
    }
 
+   void withdraw_gpos_vesting(const vesting_balance_id_type v_bid, const account_id_type owner, const asset amount,
+                              const vesting_balance_type type, const fc::ecc::private_key& key)
+   {
+      vesting_balance_withdraw_operation op;
+      op.vesting_balance = v_bid;
+      op.owner = owner;
+      op.amount = amount;
+      op.balance_type = type;
+      
+      trx.operations.push_back(op);
+      set_expiration(db, trx);
+      trx.validate();
+      sign(trx, key);
+      PUSH_TX(db, trx);
+      trx.clear();
+   }
+
    void update_payout_interval(std::string asset_name, fc::time_point start, uint32_t interval)
    {
       auto dividend_holder_asset_object = get_asset(asset_name);
@@ -90,10 +108,12 @@ struct gpos_fixture: database_fixture
          p.parameters.extensions.value.gpos_period = vesting_period;
          p.parameters.extensions.value.gpos_subperiod = vesting_subperiod;
          p.parameters.extensions.value.gpos_period_start =  period_start.sec_since_epoch();
+         p.parameters.extensions.value.gpos_vesting_lockin_period = vesting_subperiod;
       });
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), vesting_period);
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), vesting_subperiod);
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), period_start.sec_since_epoch());
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_vesting_lockin_period(), vesting_subperiod);
    }
 
    void update_maintenance_interval(uint32_t new_interval)
@@ -919,6 +939,51 @@ BOOST_AUTO_TEST_CASE( account_multiple_vesting )
       throw;
    }
 }
+
+BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
+{
+   try {
+      // advance to HF
+      generate_blocks(HARDFORK_GPOS_TIME);
+      generate_block();
+      set_expiration(db, trx);
+
+      // update default gpos global parameters to 4 days
+      auto now = db.head_block_time();
+      update_gpos_global(345600, 86400, now);
+
+      ACTORS((alice)(bob));
+
+      const auto& core = asset_id_type()(db);
+
+
+      transfer( committee_account, alice_id, core.amount( 500 ) );
+      transfer( committee_account, bob_id, core.amount( 99 ) );
+
+      // add some vesting to Alice, Bob
+      vesting_balance_object vbo;
+      create_vesting(alice_id, core.amount(150), vesting_balance_type::gpos);
+      create_vesting(bob_id, core.amount(99), vesting_balance_type::gpos);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+     
+      generate_block();
+
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_blocks(db.get_global_properties().parameters.gpos_vesting_lockin_period());
+      BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 350);
+      withdraw_gpos_vesting(vbo.id, alice_id, core.amount(50), vesting_balance_type::gpos, alice_private_key);
+      withdraw_gpos_vesting(vbo.id, bob_id, core.amount(99), vesting_balance_type::gpos, bob_private_key);
+      generate_block();
+      // verify charles balance
+      BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 400);
+      BOOST_CHECK_EQUAL(get_balance(bob_id(db), core), 99);
+   }
+   catch (fc::exception &e) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+
 /*
 BOOST_AUTO_TEST_CASE( competing_proposals )
 {

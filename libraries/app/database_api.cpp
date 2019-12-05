@@ -2278,7 +2278,28 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
    }
 #endif
 
+   vector<vesting_balance_object> account_vbos;
+   const time_point_sec now = _db.head_block_time();
+   auto vesting_range = _db.get_index_type<vesting_balance_index>().indices().get<by_account>().equal_range(account);
+   std::for_each(vesting_range.first, vesting_range.second,
+                  [&account_vbos, now](const vesting_balance_object& balance) {
+                     if(balance.balance.amount > 0 && balance.balance_type == vesting_balance_type::gpos
+                        && balance.balance.asset_id == asset_id_type())
+                        account_vbos.emplace_back(balance);
+                  });
+                  
+   share_type allowed_withdraw_amount = 0, account_vested_balance = 0;
+   
+   for (const vesting_balance_object& vesting_balance_obj : account_vbos)
+   {
+      account_vested_balance += vesting_balance_obj.balance.amount;
+      if(vesting_balance_obj.is_withdraw_allowed(_db.head_block_time(), vesting_balance_obj.balance.amount))
+         allowed_withdraw_amount += vesting_balance_obj.balance.amount;
+   }
+
    result.total_amount = total_amount;
+   result.allowed_withdraw_amount = allowed_withdraw_amount;
+   result.account_vested_balance = account_vested_balance;
    return result;
 }
 
