@@ -514,6 +514,93 @@ BOOST_AUTO_TEST_CASE( gpos_basic_dividend_distribution_to_core_asset )
    }   
 }
 
+BOOST_AUTO_TEST_CASE( votes_on_gpos_activation )
+{
+   ACTORS((alice)(bob));
+   try {
+      const auto& core = asset_id_type()(db);
+
+      // send some asset to alice and bob
+      transfer( committee_account, alice_id, core.amount( 1000 ) );
+      transfer( committee_account, bob_id, core.amount( 1000 ) );
+      generate_block();
+
+      // update default gpos
+      auto now = db.head_block_time();
+      // 5184000 = 60x60x24x6 = 6 days
+      // 864000 = 60x60x24x1 = 1 days
+      update_gpos_global(518400, 86400, now);
+
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), 518400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), 86400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
+      // no votes for witness 1
+      auto witness1 = witness_id_type(1)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+
+      // no votes for witness 2
+      auto witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 0);
+
+      // vote for witness1 and witness2 - this before GPOS period starts
+      vote_for(alice_id, witness1.vote_id, alice_private_key);
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+
+      // go to maint
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+
+      // vote is the same as amount in the first subperiod since voting
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+      
+      // move to hardfork
+      generate_blocks( HARDFORK_GPOS_TIME );
+      generate_block();
+
+      update_maintenance_interval(3600);  //update maintenance interval to 1hr to evaluate sub-periods
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, 3600);
+
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+
+      // add some vesting to alice and don't add anything for Bob
+      create_vesting(alice_id, core.amount(99), vesting_balance_type::gpos);
+      generate_block();
+      vote_for(alice_id, witness1.vote_id, alice_private_key);
+      generate_block();
+
+      advance_x_maint(1);
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      //System needs to consider votes based on both regular balance + GPOS balance for 1/2 sub-period on GPOS activation
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+
+      advance_x_maint(2);
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+
+      advance_x_maint(3);
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      //Since Alice has votes, votes should be based on GPOS balance i.e 99
+      //Since Bob not voted after GPOS activation, witness2 votes should be 0 after crossing 1/2 sub-period(6 maintanence intervals in this case)
+      BOOST_CHECK_EQUAL(witness1.total_votes, 99);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 0);
+
+   }
+   catch (fc::exception &e) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+
 BOOST_AUTO_TEST_CASE( voting )
 {
    ACTORS((alice)(bob));
