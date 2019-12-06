@@ -1085,6 +1085,7 @@ public:
 
       return true;
    }
+
    void save_wallet_file(string wallet_filename = "")
    {
       //
