@@ -529,11 +529,11 @@ BOOST_AUTO_TEST_CASE( votes_on_gpos_activation )
       auto now = db.head_block_time();
       // 5184000 = 60x60x24x6 = 6 days
       // 864000 = 60x60x24x1 = 1 days
-      update_gpos_global(518400, 86400, now);
+      update_gpos_global(518400, 86400, HARDFORK_GPOS_TIME);
 
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), 518400);
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), 86400);
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), HARDFORK_GPOS_TIME.sec_since_epoch());
       // no votes for witness 1
       auto witness1 = witness_id_type(1)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 0);
@@ -555,12 +555,12 @@ BOOST_AUTO_TEST_CASE( votes_on_gpos_activation )
       BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
       BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
       
+      update_maintenance_interval(3600);  //update maintenance interval to 1hr to evaluate sub-periods
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, 3600);
+
       // move to hardfork
       generate_blocks( HARDFORK_GPOS_TIME );
       generate_block();
-
-      update_maintenance_interval(3600);  //update maintenance interval to 1hr to evaluate sub-periods
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, 3600);
 
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
@@ -580,17 +580,18 @@ BOOST_AUTO_TEST_CASE( votes_on_gpos_activation )
       BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
       BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
 
-      advance_x_maint(2);
+      advance_x_maint(6);
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
       BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
 
-      advance_x_maint(3);
+      advance_x_maint(5);
+      generate_block();
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
       //Since Alice has votes, votes should be based on GPOS balance i.e 99
-      //Since Bob not voted after GPOS activation, witness2 votes should be 0 after crossing 1/2 sub-period(6 maintanence intervals in this case)
+      //Since Bob not voted after GPOS activation, witness2 votes should be 0 after crossing 1/2 sub-period(12 maintanence intervals in this case)
       BOOST_CHECK_EQUAL(witness1.total_votes, 99);
       BOOST_CHECK_EQUAL(witness2.total_votes, 0);
 
