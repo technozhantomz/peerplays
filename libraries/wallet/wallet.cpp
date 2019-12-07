@@ -2134,47 +2134,18 @@ public:
       if(!vbos.size())
          vbos.emplace_back( get_object<vesting_balance_object>(*vbid) );
  
+      const vesting_balance_object& vbo = vbos.front();
+
+      vesting_balance_withdraw_operation vesting_balance_withdraw_op;
+
+      vesting_balance_withdraw_op.vesting_balance = vbo.id;
+      vesting_balance_withdraw_op.owner = vbo.owner;
+      vesting_balance_withdraw_op.amount = asset_obj.amount_from_string(amount);
+      vesting_balance_withdraw_op.balance_type = vesting_balance_type::gpos;
+
       signed_transaction tx;
-      asset withdraw_amount = asset_obj.amount_from_string(amount);
-      bool onetime_fee_paid = false;
-            
-      for(const vesting_balance_object& vbo: vbos )
-      {         
-         if((vbo.balance_type == vesting_balance_type::gpos) && vbo.balance.amount > 0)
-         {
-            fc::optional<vesting_balance_id_type> vest_id = vbo.id;
-            vesting_balance_withdraw_operation vesting_balance_withdraw_op;
-
-            // Since there are multiple vesting objects, below logic with vesting_balance_evaluator.cpp changes will
-            // deduct fee from single object and set withdrawl fee to 0 for rest of objects based on requested amount.
-            if(onetime_fee_paid)
-               vesting_balance_withdraw_op.fee = asset( 0, asset_id_type() );
-            else
-               vesting_balance_withdraw_op.fee = _remote_db->get_global_properties().parameters.current_fees->calculate_fee(vesting_balance_withdraw_op);
-
-            vesting_balance_withdraw_op.vesting_balance = *vest_id;
-            vesting_balance_withdraw_op.owner = vbo.owner;
-            if(withdraw_amount.amount > vbo.balance.amount)
-            {
-               vesting_balance_withdraw_op.amount = vbo.balance.amount;
-               withdraw_amount.amount -= vbo.balance.amount;
-            }
-            else
-            {
-               vesting_balance_withdraw_op.amount = withdraw_amount.amount;
-               tx.operations.push_back( vesting_balance_withdraw_op );
-               withdraw_amount.amount -= vbo.balance.amount;
-               break;
-            }     
-
-            tx.operations.push_back( vesting_balance_withdraw_op );
-            onetime_fee_paid = true;
-         }
-      }
-
-      if( withdraw_amount.amount > 0)
-         FC_THROW("Account has NO or Insufficient balance to withdraw");
-
+      tx.operations.push_back( vesting_balance_withdraw_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
       tx.validate();
 
       return sign_transaction( tx, broadcast );

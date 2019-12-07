@@ -112,6 +112,7 @@ namespace graphene { namespace chain {
       vesting_balance_id_type vesting_balance;
       account_id_type         owner; ///< Must be vesting_balance.owner
       asset                   amount;
+      vesting_balance_type    balance_type;
 
       account_id_type   fee_payer()const { return owner; }
       void              validate()const
@@ -127,7 +128,7 @@ FC_REFLECT( graphene::chain::vesting_balance_create_operation::fee_parameters_ty
 FC_REFLECT( graphene::chain::vesting_balance_withdraw_operation::fee_parameters_type, (fee) )
 
 FC_REFLECT( graphene::chain::vesting_balance_create_operation, (fee)(creator)(owner)(amount)(policy)(balance_type) )
-FC_REFLECT( graphene::chain::vesting_balance_withdraw_operation, (fee)(vesting_balance)(owner)(amount) )
+FC_REFLECT( graphene::chain::vesting_balance_withdraw_operation, (fee)(vesting_balance)(owner)(amount)(balance_type) )
 
 FC_REFLECT(graphene::chain::linear_vesting_policy_initializer, (begin_timestamp)(vesting_cliff_seconds)(vesting_duration_seconds) )
 FC_REFLECT(graphene::chain::cdd_vesting_policy_initializer, (start_claim)(vesting_seconds) )
