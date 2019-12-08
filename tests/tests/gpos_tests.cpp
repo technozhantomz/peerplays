@@ -658,13 +658,20 @@ BOOST_AUTO_TEST_CASE( voting )
       // go to maint
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
 
-      // vote is the same as amount in the first subperiod since voting
+      // need to consider both gpos and regular balance for first 1/2 sub period
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+
+      advance_x_maint(6);
+
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 100);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
-      advance_x_maint(10);
+      advance_x_maint(4);
 
       //Bob votes for witness2 - sub-period 2
       vote_for(bob_id, witness2.vote_id, bob_private_key);
