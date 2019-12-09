@@ -261,8 +261,6 @@ void_result account_update_evaluator::do_evaluate( const account_update_operatio
       FC_ASSERT( !o.extensions.value.owner_special_authority.valid() );
       FC_ASSERT( !o.extensions.value.active_special_authority.valid() );
    }
-   if( d.head_block_time() < HARDFORK_GPOS_TIME )
-      FC_ASSERT( !o.extensions.value.update_last_voting_time.valid() );
 
    try
    {
