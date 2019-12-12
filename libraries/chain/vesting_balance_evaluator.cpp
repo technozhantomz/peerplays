@@ -191,7 +191,7 @@ void_result vesting_balance_withdraw_evaluator::do_apply( const vesting_balance_
       std::for_each(vesting_range.first, vesting_range.second,
                     [&ids, now](const vesting_balance_object& balance) {
                         if(balance.balance.amount > 0 && balance.balance_type == vesting_balance_type::gpos
-                         && balance.balance.asset_id == asset_id_type())
+                         && balance.is_withdraw_allowed(now, balance.balance.amount) && balance.balance.asset_id == asset_id_type())
                            ids.emplace_back(balance.id);
                     });
 
@@ -202,8 +202,8 @@ void_result vesting_balance_withdraw_evaluator::do_apply( const vesting_balance_
          if(total_withdraw_amount.amount > vbo.balance.amount)
          {
             total_withdraw_amount.amount -= vbo.balance.amount;
-            d.modify( vbo, [&]( vesting_balance_object& vbo ) {vbo.withdraw( now, vbo.balance );} );
             d.adjust_balance( op.owner, vbo.balance );            
+            d.modify( vbo, [&]( vesting_balance_object& vbo ) {vbo.withdraw( now, vbo.balance );} );
          }
          else
          {
