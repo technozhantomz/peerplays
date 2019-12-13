@@ -1049,6 +1049,7 @@ BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
 
       ACTORS((alice)(bob));
 
+      graphene::app::database_api db_api1(db);
       const auto& core = asset_id_type()(db);
 
 
@@ -1072,6 +1073,43 @@ BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
       // verify charles balance
       BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 400);
       BOOST_CHECK_EQUAL(get_balance(bob_id(db), core), 99);
+
+      // Add more 50 and 73 vesting objects and withdraw 90 from 
+      // total vesting balance of user
+      create_vesting(alice_id, core.amount(50), vesting_balance_type::gpos);
+      create_vesting(alice_id, core.amount(73), vesting_balance_type::gpos);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+     
+      generate_block();
+
+      vector<vesting_balance_object> vbos = db_api1.get_vesting_balances("alice");
+      asset total_vesting;
+      for (const vesting_balance_object& vbo : vbos)
+      {
+         if (vbo.balance_type == vesting_balance_type::gpos && vbo.balance.asset_id == asset_id_type())
+            total_vesting += vbo.balance;
+      }
+      // total vesting balance of alice
+      BOOST_CHECK_EQUAL(total_vesting.amount.value, core.amount(223).amount.value);
+
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_blocks(db.get_global_properties().parameters.gpos_vesting_lockin_period());
+      BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 277);
+      withdraw_gpos_vesting(vbo.id, alice_id, core.amount(90), vesting_balance_type::gpos, alice_private_key);
+      generate_block();
+      // verify alice balance
+      BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 367);
+
+      // verify remaining vesting balance
+      vbos = db_api1.get_vesting_balances("alice");
+      asset remaining_vesting;
+      for (const vesting_balance_object& vbo : vbos)
+      {
+         if (vbo.balance_type == vesting_balance_type::gpos && vbo.balance.asset_id == asset_id_type())
+            remaining_vesting += vbo.balance;
+      }
+      // remaining vesting balance of alice
+      BOOST_CHECK_EQUAL(remaining_vesting.amount.value, core.amount(133).amount.value);
    }
    catch (fc::exception &e) {
       edump((e.to_detail_string()));
