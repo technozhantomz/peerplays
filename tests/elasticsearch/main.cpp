@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
       graphene::utilities::ES es;
       es.curl = curl;
       es.elasticsearch_url = "http://localhost:9200/";
-      es.index_prefix = "bitshares-";
+      es.index_prefix = "peerplays-";
       //es.auth = "elastic:changeme";
 
       // delete all first
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
          fc::usleep(fc::milliseconds(1000));
 
          // for later use
-         //int asset_create_op_id = operation::tag<asset_create_operation>::value;
+         //int asset_crobjeate_op_id = operation::tag<asset_create_operation>::value;
          //int account_create_op_id = operation::tag<account_create_operation>::value;
 
          string query = "{ \"query\" : { \"bool\" : { \"must\" : [{\"match_all\": {}}] } } }";
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
 
          // check the visitor data
          auto block_date = db.head_block_time();
-         std::string index_name = graphene::utilities::generateIndexName(block_date, "bitshares-");
+         std::string index_name = graphene::utilities::generateIndexName(block_date, "peerplays-");
 
          es.endpoint = index_name + "/data/2.9.12"; // we know last op is a transfer of amount 300
          res = graphene::utilities::getEndPoint(es);
@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_objects) {
       graphene::utilities::ES es;
       es.curl = curl;
       es.elasticsearch_url = "http://localhost:9200/";
-      es.index_prefix = "objects-";
+      es.index_prefix = "ppobjects-";
       //es.auth = "elastic:changeme";
 
       // delete all first
@@ -193,10 +193,10 @@ BOOST_AUTO_TEST_CASE(elasticsearch_suite) {
       graphene::utilities::ES es;
       es.curl = curl;
       es.elasticsearch_url = "http://localhost:9200/";
-      es.index_prefix = "bitshares-";
+      es.index_prefix = "peerplays-";
       auto delete_account_history = graphene::utilities::deleteAll(es);
       fc::usleep(fc::milliseconds(1000));
-      es.index_prefix = "objects-";
+      es.index_prefix = "ppobjects-";
       auto delete_objects = graphene::utilities::deleteAll(es);
       fc::usleep(fc::milliseconds(1000));
 
@@ -219,7 +219,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_history_api) {
       graphene::utilities::ES es;
       es.curl = curl;
       es.elasticsearch_url = "http://localhost:9200/";
-      es.index_prefix = "bitshares-";
+      es.index_prefix = "peerplays-";
 
       auto delete_account_history = graphene::utilities::deleteAll(es);
 

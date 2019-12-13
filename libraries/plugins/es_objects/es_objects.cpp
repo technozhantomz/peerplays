@@ -63,7 +63,7 @@ class es_objects_plugin_impl
       bool _es_objects_balances = true;
       bool _es_objects_limit_orders = true;
       bool _es_objects_asset_bitasset = true;
-      std::string _es_objects_index_prefix = "objects-";
+      std::string _es_objects_index_prefix = "ppobjects-";
       uint32_t _es_objects_start_es_after_block = 0;
       CURL *curl; // curl handler
       vector <std::string> bulk;
@@ -308,7 +308,7 @@ void es_objects_plugin::plugin_set_program_options(
          ("es-objects-balances", boost::program_options::value<bool>(), "Store balances objects(true)")
          ("es-objects-limit-orders", boost::program_options::value<bool>(), "Store limit order objects(true)")
          ("es-objects-asset-bitasset", boost::program_options::value<bool>(), "Store feed data(true)")
-         ("es-objects-index-prefix", boost::program_options::value<std::string>(), "Add a prefix to the index(objects-)")
+         ("es-objects-index-prefix", boost::program_options::value<std::string>(), "Add a prefix to the index(ppobjects-)")
          ("es-objects-keep-only-current", boost::program_options::value<bool>(), "Keep only current state of the objects(true)")
          ("es-objects-start-es-after-block", boost::program_options::value<uint32_t>(), "Start doing ES job after block(0)")
          ;
