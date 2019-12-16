@@ -24,6 +24,8 @@
 #pragma once
 
 #include <fc/array.hpp>
+#include <fc/io/datastream.hpp>
+#include <fc/io/raw_fwd.hpp>
 #include <string>
 
 namespace fc { namespace ecc { class public_key; } }
@@ -73,6 +75,13 @@ FC_REFLECT( graphene::chain::pts_address, (addr) )
 
 namespace fc 
 { 
-   void to_variant( const graphene::chain::pts_address& var,  fc::variant& vo );
-   void from_variant( const fc::variant& var,  graphene::chain::pts_address& vo );
-}
+   void to_variant( const graphene::chain::pts_address& var,  fc::variant& vo, uint32_t max_depth = 1 );
+   void from_variant( const fc::variant& var,  graphene::chain::pts_address& vo, uint32_t max_depth = 1 );
+namespace raw {
+   extern template void pack( datastream<size_t>& s, const graphene::chain::pts_address& tx,
+                              uint32_t _max_depth=FC_PACK_MAX_DEPTH );
+   extern template void pack( datastream<char*>& s, const graphene::chain::pts_address& tx,
+                              uint32_t _max_depth=FC_PACK_MAX_DEPTH );
+   extern template void unpack( datastream<const char*>& s, graphene::chain::pts_address& tx,
+                                uint32_t _max_depth=FC_PACK_MAX_DEPTH );
+} } // fc::raw

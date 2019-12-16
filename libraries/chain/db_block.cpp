@@ -345,6 +345,8 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
    size_t old_applied_ops_size = _applied_ops.size();
 
    try {
+      if( _undo_db.size() >= _undo_db.max_size() )
+         _undo_db.set_max_size( _undo_db.size() + 1 );
       auto session = _undo_db.start_undo_session(true);
       for( auto& op : proposal.proposed_transaction.operations )
          eval_state.operation_results.emplace_back(apply_operation(eval_state, op));
@@ -498,7 +500,7 @@ signed_block database::_generate_block(
       FC_ASSERT( fc::raw::pack_size(pending_block) <= get_global_properties().parameters.maximum_block_size );
    }
 
-   push_block( pending_block, skip );
+   push_block( pending_block, skip | skip_transaction_signatures ); // skip authority check when pushing self-generated blocks
 
    return pending_block;
 } FC_CAPTURE_AND_RETHROW( (witness_id) ) }
@@ -590,13 +592,15 @@ void database::_apply_block( const signed_block& next_block )
 
    const witness_object& signing_witness = validate_block_header(skip, next_block);
    const auto& global_props = get_global_properties();
-   const auto& dynamic_global_props = get<dynamic_global_property_object>(dynamic_global_property_id_type());
+   const auto& dynamic_global_props = get_dynamic_global_properties();
    bool maint_needed = (dynamic_global_props.next_maintenance_time <= next_block.timestamp);
 
    _current_block_num    = next_block_num;
    _current_trx_in_block = 0;
    _current_op_in_trx    = 0;
    _current_virtual_op   = 0;
+
+   _issue_453_affected_assets.clear();
 
    for( const auto& trx : next_block.transactions )
    {
@@ -636,7 +640,8 @@ void database::_apply_block( const signed_block& next_block )
    clear_expired_transactions();
    clear_expired_proposals();
    clear_expired_orders();
-   update_expired_feeds();
+   update_expired_feeds();       // this will update expired feeds and some core exchange rates
+   update_core_exchange_rates(); // this will update remaining core exchange rates
    update_withdraw_permissions();
    update_tournaments();
    update_betting_markets(next_block.timestamp);
@@ -670,6 +675,19 @@ processed_transaction database::apply_transaction(const signed_transaction& trx,
    });
    return result;
 }
+
+class undo_size_restorer {
+   public:
+      undo_size_restorer( undo_database& db ) : _db( db ), old_max( db.max_size() ) {
+         _db.set_max_size( old_max * 2 );
+      }
+      ~undo_size_restorer() {
+         _db.set_max_size( old_max );
+      }
+   private:
+      undo_database& _db;
+      size_t         old_max;
+};
 
 processed_transaction database::_apply_transaction(const signed_transaction& trx)
 { try {
@@ -729,6 +747,7 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
 
    eval_state.operation_results.reserve(trx.operations.size());
 
+   const undo_size_restorer undo_guard( _undo_db );
    //Finally process the operations
    processed_transaction ptrx(trx);
    _current_op_in_trx = 0;
@@ -742,9 +761,9 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
    ptrx.operation_results = std::move(eval_state.operation_results);
 
    //Make sure the temp account has no non-zero balances
-   const auto& index = get_index_type<account_balance_index>().indices().get<by_account_asset>();
-   auto range = index.equal_range( boost::make_tuple( GRAPHENE_TEMP_ACCOUNT ) );
-   std::for_each(range.first, range.second, [](const account_balance_object& b) { FC_ASSERT(b.balance == 0); });
+   const auto& balances = get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >().get_account_balances( GRAPHENE_TEMP_ACCOUNT );
+   for( const auto b : balances )
+      FC_ASSERT(b.second->balance == 0);
 
    return ptrx;
 } FC_CAPTURE_AND_RETHROW( (trx) ) }

@@ -1,0 +1,4 @@
+// GPOS HARDFORK Thursday, October 1, 2020 05:00:00 AM GMT
+#ifndef HARDFORK_GPOS_TIME
+#define HARDFORK_GPOS_TIME (fc::time_point_sec( 1601528400 ))
+#endif

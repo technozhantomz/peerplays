@@ -27,19 +27,28 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
+#include <../hardfork.d/GPOS.hf>
+#include <memory>
+
 namespace graphene { namespace chain { struct fee_schedule; } }
 
 namespace graphene { namespace chain {
    struct parameter_extension
    {
-      optional< bet_multiplier_type > min_bet_multiplier;
-      optional< bet_multiplier_type > max_bet_multiplier;
-      optional< uint16_t >            betting_rake_fee_percentage;
-      optional< flat_map<bet_multiplier_type, bet_multiplier_type> > permitted_betting_odds_increments;
-      optional< uint16_t >            live_betting_delay_time;
-      optional< uint16_t >            sweeps_distribution_percentage;
-      optional< asset_id_type >       sweeps_distribution_asset;
-      optional< account_id_type >     sweeps_vesting_accumulator_account;
+      optional< bet_multiplier_type > min_bet_multiplier                = GRAPHENE_DEFAULT_MIN_BET_MULTIPLIER;
+      optional< bet_multiplier_type > max_bet_multiplier                = GRAPHENE_DEFAULT_MAX_BET_MULTIPLIER;
+      optional< uint16_t >            betting_rake_fee_percentage       = GRAPHENE_DEFAULT_RAKE_FEE_PERCENTAGE;
+      optional< flat_map<bet_multiplier_type, bet_multiplier_type> > 
+      permitted_betting_odds_increments                                 = flat_map<bet_multiplier_type, bet_multiplier_type>(GRAPHENE_DEFAULT_PERMITTED_BETTING_ODDS_INCREMENTS);
+      optional< uint16_t >            live_betting_delay_time           = GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME;
+      optional< uint16_t >            sweeps_distribution_percentage    = SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
+      optional< asset_id_type >       sweeps_distribution_asset         = SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
+      optional< account_id_type >     sweeps_vesting_accumulator_account= SWEEPS_ACCUMULATOR_ACCOUNT;
+      /* gpos parameters */
+      optional < uint32_t >           gpos_period                       = GPOS_PERIOD;
+      optional < uint32_t >           gpos_subperiod                    = GPOS_SUBPERIOD;
+      optional < uint32_t >           gpos_period_start                 = HARDFORK_GPOS_TIME.sec_since_epoch();
+      optional < uint32_t >           gpos_vesting_lockin_period        = GPOS_VESTING_LOCKIN_PERIOD;
    };
 
    struct chain_parameters
@@ -119,6 +128,18 @@ namespace graphene { namespace chain {
       inline account_id_type sweeps_vesting_accumulator_account()const {
          return extensions.value.sweeps_vesting_accumulator_account.valid() ? *extensions.value.sweeps_vesting_accumulator_account : SWEEPS_ACCUMULATOR_ACCOUNT;
       }
+      inline uint32_t gpos_period()const {
+         return extensions.value.gpos_period.valid() ? *extensions.value.gpos_period : GPOS_PERIOD; /// total seconds of current gpos period
+      }
+      inline uint32_t gpos_subperiod()const {
+         return extensions.value.gpos_subperiod.valid() ? *extensions.value.gpos_subperiod : GPOS_SUBPERIOD; /// gpos_period % gpos_subperiod = 0
+      }
+      inline uint32_t gpos_period_start()const {
+         return extensions.value.gpos_period_start.valid() ? *extensions.value.gpos_period_start : HARDFORK_GPOS_TIME.sec_since_epoch(); /// current period start date
+      }
+      inline uint32_t gpos_vesting_lockin_period()const {
+         return extensions.value.gpos_vesting_lockin_period.valid() ? *extensions.value.gpos_vesting_lockin_period : GPOS_VESTING_LOCKIN_PERIOD; /// GPOS vesting lockin period
+      }      
    };
 
 } }  // graphene::chain
@@ -127,11 +148,14 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (min_bet_multiplier)
    (max_bet_multiplier)
    (betting_rake_fee_percentage)
-   (permitted_betting_odds_increments)
    (live_betting_delay_time)
    (sweeps_distribution_percentage)
    (sweeps_distribution_asset)
    (sweeps_vesting_accumulator_account)
+   (gpos_period)
+   (gpos_subperiod)
+   (gpos_period_start)
+   (gpos_vesting_lockin_period)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,
@@ -179,3 +203,5 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (maximum_tournament_number_of_wins)
             (extensions)
           )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::chain_parameters )

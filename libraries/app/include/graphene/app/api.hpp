@@ -95,31 +95,32 @@ namespace graphene { namespace app {
    class history_api
    {
       public:
-         history_api(application& app):_app(app){}
+         history_api(application& app)
+               :_app(app), database_api( std::ref(*app.chain_database())) {}
 
          /**
           * @brief Get operations relevant to the specificed account
-          * @param account The account whose history should be queried
+          * @param account_id_or_name The account ID or name whose history should be queried
           * @param stop ID of the earliest operation to retrieve
           * @param limit Maximum number of operations to retrieve (must not exceed 100)
           * @param start ID of the most recent operation to retrieve
           * @return A list of operations performed by account, ordered from most recent to oldest.
           */
-         vector<operation_history_object> get_account_history(account_id_type account,
+         vector<operation_history_object> get_account_history(const std::string account_id_or_name,
                                                               operation_history_id_type stop = operation_history_id_type(),
                                                               unsigned limit = 100,
                                                               operation_history_id_type start = operation_history_id_type())const;
 
          /**
           * @brief Get only asked operations relevant to the specified account
-          * @param account The account whose history should be queried
+          * @param account_id_or_name The account ID or name whose history should be queried
           * @param operation_id The ID of the operation we want to get operations in the account( 0 = transfer , 1 = limit order create, ...)
           * @param stop ID of the earliest operation to retrieve
           * @param limit Maximum number of operations to retrieve (must not exceed 100)
           * @param start ID of the most recent operation to retrieve
           * @return A list of operations performed by account, ordered from most recent to oldest.
           */
-         vector<operation_history_object> get_account_history_operations(account_id_type account,
+         vector<operation_history_object> get_account_history_operations(const std::string account_id_or_name,
                                                                          int operation_id,
                                                                          operation_history_id_type start = operation_history_id_type(),
                                                                          operation_history_id_type stop = operation_history_id_type(),
@@ -129,7 +130,7 @@ namespace graphene { namespace app {
           * @breif Get operations relevant to the specified account referenced
           * by an event numbering specific to the account. The current number of operations
           * for the account can be found in the account statistics (or use 0 for start).
-          * @param account The account whose history should be queried
+          * @param account_id_or_name The account ID or name whose history should be queried
           * @param stop Sequence number of earliest operation. 0 is default and will
           * query 'limit' number of operations.
           * @param limit Maximum number of operations to retrieve (must not exceed 100)
@@ -137,18 +138,19 @@ namespace graphene { namespace app {
           * 0 is default, which will start querying from the most recent operation.
           * @return A list of operations performed by account, ordered from most recent to oldest.
           */
-         vector<operation_history_object> get_relative_account_history( account_id_type account,
+         vector<operation_history_object> get_relative_account_history( const std::string account_id_or_name,
                                                                         uint32_t stop = 0,
                                                                         unsigned limit = 100,
                                                                         uint32_t start = 0) const;
 
-         vector<order_history_object> get_fill_order_history( asset_id_type a, asset_id_type b, uint32_t limit )const;
-         vector<bucket_object> get_market_history( asset_id_type a, asset_id_type b, uint32_t bucket_seconds,
+         vector<order_history_object> get_fill_order_history( std::string asset_a, std::string asset_b, uint32_t limit )const;
+         vector<bucket_object> get_market_history( std::string asset_a, std::string asset_b, uint32_t bucket_seconds,
                                                    fc::time_point_sec start, fc::time_point_sec end )const;
          vector<account_balance_object> list_core_accounts()const;
          flat_set<uint32_t> get_market_history_buckets()const;
       private:
            application& _app;
+           graphene::app::database_api database_api;
    };
 
    /**
@@ -325,17 +327,47 @@ namespace graphene { namespace app {
    class asset_api
    {
       public:
-         asset_api(graphene::chain::database& db);
+         asset_api(graphene::app::application& app);
          ~asset_api();
 
-         vector<account_asset_balance> get_asset_holders( asset_id_type asset_id, uint32_t start, uint32_t limit  )const;
-         int get_asset_holders_count( asset_id_type asset_id )const;
+         /**
+          * @brief Get asset holders for a specific asset
+          * @param asset The specific asset id or symbol
+          * @param start The start index
+          * @param limit Maximum limit must not exceed 100
+          * @return A list of asset holders for the specified asset
+          */
+         vector<account_asset_balance> get_asset_holders( std::string asset, uint32_t start, uint32_t limit  )const;
+
+         /**
+          * @brief Get asset holders count for a specific asset
+          * @param asset The specific asset id or symbol
+          * @return Holders count for the specified asset
+          */
+         int get_asset_holders_count( std::string asset )const;
+
+         /**
+          * @brief Get all asset holders
+          * @return A list of all asset holders
+          */
          vector<asset_holders> get_all_asset_holders() const;
 
       private:
+         graphene::app::application& _app;
          graphene::chain::database& _db;
+         graphene::app::database_api database_api;
    };
+} } // graphene::app
 
+extern template class fc::api<graphene::app::block_api>;
+extern template class fc::api<graphene::app::network_broadcast_api>;
+extern template class fc::api<graphene::app::network_node_api>;
+extern template class fc::api<graphene::app::history_api>;
+extern template class fc::api<graphene::app::crypto_api>;
+extern template class fc::api<graphene::app::asset_api>;
+extern template class fc::api<graphene::debug_witness::debug_api>;
+
+namespace graphene { namespace app {
    /**
     * @brief The login_api class implements the bottom layer of the RPC API
     *
@@ -396,6 +428,8 @@ namespace graphene { namespace app {
    };
 
 }}  // graphene::app
+
+extern template class fc::api<graphene::app::login_api>;
 
 FC_REFLECT( graphene::app::network_broadcast_api::transaction_confirmation,
         (id)(block_num)(trx_num)(trx) )

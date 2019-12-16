@@ -60,6 +60,7 @@ add_library( graphene_chain
              protocol/confidential.cpp
              protocol/vote.cpp
              protocol/tournament.cpp
+             protocol/small_ops.cpp
 
              genesis_state.cpp
              get_config.cpp
@@ -93,6 +94,7 @@ add_library( graphene_chain
              fba_object.cpp
              proposal_object.cpp
              vesting_balance_object.cpp
+             small_objects.cpp
 
              block_database.cpp
 

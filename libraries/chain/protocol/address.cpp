@@ -27,9 +27,10 @@
 #include <fc/crypto/base58.hpp>
 #include <algorithm>
 
+#include <fc/io/raw.hpp>
+
 namespace graphene {
   namespace chain {
-   address::address(){}
 
    address::address( const std::string& base58str )
    {
@@ -101,12 +102,14 @@ namespace graphene {
 
 namespace fc
 {
-    void to_variant( const graphene::chain::address& var,  variant& vo )
+    void to_variant( const graphene::chain::address& var,  variant& vo, uint32_t max_depth )
     {
         vo = std::string(var);
     }
-    void from_variant( const variant& var,  graphene::chain::address& vo )
+    void from_variant( const variant& var,  graphene::chain::address& vo, uint32_t max_depth )
     {
         vo = graphene::chain::address( var.as_string() );
     }
 }
+
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::address )

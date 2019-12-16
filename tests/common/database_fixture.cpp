@@ -127,6 +127,12 @@ database_fixture::database_fixture()
       options.insert(std::make_pair("track-account", boost::program_options::variable_value(track_account, false)));
    }
 
+   // standby votes tracking
+   if( boost::unit_test::framework::current_test_case().p_name.value == "track_votes_witnesses_disabled" ||
+       boost::unit_test::framework::current_test_case().p_name.value == "track_votes_committee_disabled") {
+      app.chain_database()->enable_standby_votes_tracking( false );
+   }
+   
    // app.initialize();
    ahplugin->plugin_set_app(&app);
    ahplugin->plugin_initialize(options);
@@ -191,7 +197,7 @@ void database_fixture::verify_asset_supplies( const database& db )
    const asset_dynamic_data_object& core_asset_data = db.get_core_asset().dynamic_asset_data_id(db);
    BOOST_CHECK(core_asset_data.fee_pool == 0);
 
-   const simple_index<account_statistics_object>& statistics_index = db.get_index_type<simple_index<account_statistics_object>>();
+   const auto& statistics_index = db.get_index_type<account_stats_index>().indices();
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
    const auto& settle_index = db.get_index_type<force_settlement_index>().indices();
    const auto& tournaments_index = db.get_index_type<tournament_index>().indices();
@@ -699,7 +705,6 @@ const account_object& database_fixture::create_account(
       trx.validate();
 
       processed_transaction ptx = db.push_transaction(trx, ~0);
-      //wdump( (ptx) );
       const account_object& result = db.get<account_object>(ptx.operation_results[0].get<object_id_type>());
       trx.operations.clear();
       return result;
@@ -769,7 +774,6 @@ const limit_order_object*database_fixture::create_sell_order(account_id_type use
 
 const limit_order_object* database_fixture::create_sell_order( const account_object& user, const asset& amount, const asset& recv )
 {
-   //wdump((amount)(recv));
    limit_order_create_operation buy_order;
    buy_order.seller = user.id;
    buy_order.amount_to_sell = amount;
@@ -780,7 +784,6 @@ const limit_order_object* database_fixture::create_sell_order( const account_obj
    auto processed = db.push_transaction(trx, ~0);
    trx.operations.clear();
    verify_asset_supplies(db);
-   //wdump((processed));
    return db.find<limit_order_object>( processed.operation_results[0].get<object_id_type>() );
 }
 

@@ -27,8 +27,6 @@
 
 namespace graphene { namespace chain {
 
-class chain_property_object;
-
 /**
  * Contains invariants which are set at genesis and never changed.
  */
@@ -48,3 +46,5 @@ FC_REFLECT_DERIVED( graphene::chain::chain_property_object, (graphene::db::objec
                     (chain_id)
                     (immutable_parameters)
                   )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::chain_property_object )

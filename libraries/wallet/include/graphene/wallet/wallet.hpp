@@ -34,8 +34,8 @@ using namespace std;
 
 namespace fc
 {
-   void to_variant(const account_multi_index_type& accts, variant& vo);
-   void from_variant(const variant &var, account_multi_index_type &vo);
+   void to_variant( const account_multi_index_type& accts, variant& vo, uint32_t max_depth );
+   void from_variant( const variant &var, account_multi_index_type &vo, uint32_t max_depth );
 }
 
 namespace graphene { namespace wallet {
@@ -348,6 +348,12 @@ class wallet_api
        * @returns the list of asset objects, ordered by symbol
        */
       vector<asset_object>              list_assets(const string& lowerbound, uint32_t limit)const;
+
+      /** Returns assets count registered on the blockchain.
+       * 
+       * @returns assets count
+       */
+      uint64_t get_asset_count()const;
    
    
       vector<asset_object>              get_lotteries( asset_id_type stop = asset_id_type(),
@@ -491,6 +497,11 @@ class wallet_api
        * @ingroup Transaction Builder API
        */
       signed_transaction sign_builder_transaction(transaction_handle_type transaction_handle, bool broadcast = true);
+      /** Broadcast signed transaction
+       * @param tx signed transaction
+       * @returns the transaction ID along with the signed transaction.
+       */
+      pair<transaction_id_type,signed_transaction> broadcast_transaction(signed_transaction tx);
       /**
        * @ingroup Transaction Builder API
        */
@@ -589,6 +600,12 @@ class wallet_api
        * @returns true if the specified wallet is loaded
        */
       bool    load_wallet_file(string wallet_filename = "");
+
+      /** Quitting from Peerplays wallet.
+       * 
+       * The current wallet will be closed.
+       */
+      void    quit();
 
       /** Saves the current wallet to the given filename.
        * 
@@ -1283,6 +1300,12 @@ class wallet_api
        */
       witness_object get_witness(string owner_account);
 
+      /** Returns true if the account is witness, false otherwise
+       * @param owner_account the name or id of the witness account owner, or the id of the witness
+       * @returns true if account is witness, false otherwise
+       */
+      bool is_witness(string owner_account);
+
       /** Returns information about the given committee_member.
        * @param owner_account the name or id of the committee_member account owner, or the id of the committee_member
        * @returns the information about the committee_member stored in the block chain
@@ -1361,7 +1384,7 @@ class wallet_api
       vector< vesting_balance_object_with_info > get_vesting_balances( string account_name );
 
       /**
-       * Withdraw a vesting balance.
+       * Withdraw a normal(old) vesting balance.
        *
        * @param witness_name The account name of the witness, also accepts account ID or vesting balance ID type.
        * @param amount The amount to withdraw.
@@ -1370,6 +1393,20 @@ class wallet_api
        */
       signed_transaction withdraw_vesting(
          string witness_name,
+         string amount,
+         string asset_symbol,
+         bool broadcast = false);
+
+      /**
+       * Withdraw a GPOS vesting balance.
+       *
+       * @param account_name The account name of the witness/user, also accepts account ID or vesting balance ID type.
+       * @param amount The amount to withdraw.
+       * @param asset_symbol The symbol of the asset to withdraw.
+       * @param broadcast true if you wish to broadcast the transaction
+       */
+      signed_transaction withdraw_GPOS_vesting_balance(
+         string account_name,
          string amount,
          string asset_symbol,
          bool broadcast = false);
@@ -1506,6 +1543,37 @@ class wallet_api
        * @return the signed version of the transaction
        */
       signed_transaction sign_transaction(signed_transaction tx, bool broadcast = false);
+
+      /** Get transaction signers.
+       *
+       * Returns information about who signed the transaction, specifically,
+       * the corresponding public keys of the private keys used to sign the transaction.
+       * @param tx the signed transaction
+       * @return the set of public_keys
+       */
+      flat_set<public_key_type> get_transaction_signers(const signed_transaction &tx) const;
+
+      /** Get key references.
+       *
+       * Returns accounts related to given public keys.
+       * @param keys public keys to search for related accounts
+       * @return the set of related accounts
+       */
+      vector<vector<account_id_type>> get_key_references(const vector<public_key_type> &keys) const;
+
+      /** Signs a transaction.
+       *
+       * Given a fully-formed transaction with or without signatures, signs
+       * the transaction with the owned keys and optionally broadcasts the
+       * transaction.
+       *
+       * @param tx the unsigned transaction
+       * @param broadcast true if you wish to broadcast the transaction
+       *
+       * @return the signed transaction
+       */
+      signed_transaction add_transaction_signature( signed_transaction tx,
+                                                    bool broadcast = false );
 
       /** Returns an uninitialized object representing a given blockchain operation.
        *
@@ -1813,6 +1881,20 @@ class wallet_api
                                    rock_paper_scissors_gesture gesture,
                                    bool broadcast);
 
+      /** Create a vesting balance including gpos vesting balance after HARDFORK_GPOS_TIME
+       * @param owner vesting balance owner and creator
+       * @param amount amount to vest
+       * @param asset_symbol the symbol of the asset to vest
+       * @param is_gpos True if the balance is of gpos type
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction create_vesting_balance(string owner,
+                                                string amount,
+                                                string asset_symbol,
+                                                bool is_gpos,
+                                                bool broadcast);
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void dbg_push_blocks( std::string src_filename, uint32_t count );
@@ -1844,6 +1926,8 @@ class wallet_api
 };
 
 } }
+
+extern template class fc::api<graphene::wallet::wallet_api>;
 
 FC_REFLECT( graphene::wallet::key_label, (label)(key) )
 FC_REFLECT( graphene::wallet::blind_balance, (amount)(from)(to)(one_time_key)(blinding_factor)(commitment)(used) )
@@ -1914,6 +1998,7 @@ FC_API( graphene::wallet::wallet_api,
         (set_fees_on_builder_transaction)
         (preview_builder_transaction)
         (sign_builder_transaction)
+        (broadcast_transaction)
         (propose_builder_transaction)
         (propose_builder_transaction2)
         (remove_builder_transaction)
@@ -1925,6 +2010,7 @@ FC_API( graphene::wallet::wallet_api,
         (list_accounts)
         (list_account_balances)
         (list_assets)
+        (get_asset_count)
         (import_key)
         (import_accounts)
         (import_account_keys)
@@ -1963,6 +2049,7 @@ FC_API( graphene::wallet::wallet_api,
         (whitelist_account)
         (create_committee_member)
         (get_witness)
+        (is_witness)
         (get_committee_member)
         (list_witnesses)
         (list_committee_members)
@@ -1972,6 +2059,7 @@ FC_API( graphene::wallet::wallet_api,
         (update_worker_votes)
         (get_vesting_balances)
         (withdraw_vesting)
+        (withdraw_GPOS_vesting_balance)
         (vote_for_committee_member)
         (vote_for_witness)
         (update_witness_votes)
@@ -1998,6 +2086,9 @@ FC_API( graphene::wallet::wallet_api,
         (save_wallet_file)
         (serialize_transaction)
         (sign_transaction)
+        (get_transaction_signers)
+        (get_key_references)
+        (add_transaction_signature)
         (get_prototype_operation)
         (propose_parameter_change)
         (propose_fee_change)
@@ -2053,6 +2144,7 @@ FC_API( graphene::wallet::wallet_api,
         (tournament_join)
         (tournament_leave)
         (rps_throw)
+        (create_vesting_balance)
         (get_upcoming_tournaments)
         (get_tournaments)
         (get_tournaments_by_state)
@@ -2064,4 +2156,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_matched_bets_for_bettor)
         (get_all_matched_bets_for_bettor)
         (buy_ticket)
+        (quit)
       )
