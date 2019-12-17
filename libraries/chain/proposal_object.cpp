@@ -43,9 +43,6 @@ bool proposal_object::is_authorized_to_execute(database& db) const
    } 
    catch ( const fc::exception& e )
    {
-      #ifndef NDEBUG
-         wlog( "caught exception ${e} while checking authorization of proposal operations",("e", e.to_detail_string()) );
-      #endif
       return false;
    }
    return true;
