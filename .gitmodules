@@ -5,5 +5,5 @@
 [submodule "libraries/fc"]
     path = libraries/fc
     url = https://github.com/peerplays-network/peerplays-fc.git
-    branch = beatrice
+    branch = latest-fc
     ignore = dirty
