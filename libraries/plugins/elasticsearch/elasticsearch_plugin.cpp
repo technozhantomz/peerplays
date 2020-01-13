@@ -75,6 +75,7 @@ class elasticsearch_plugin_impl
       std::string bulk_line;
       std::string index_name;
       bool is_sync = false;
+      fc::time_point last_sync;
    private:
       bool add_elasticsearch( const account_id_type account_id, const optional<operation_history_object>& oho, const uint32_t block_number );
       const account_transaction_history_object& addNewEntry(const account_statistics_object& stats_obj,
@@ -192,10 +193,12 @@ bool elasticsearch_plugin_impl::update_account_histories( const signed_block& b 
 
 void elasticsearch_plugin_impl::checkState(const fc::time_point_sec& block_time)
 {
-   if((fc::time_point::now() - block_time) < fc::seconds(30))
+   fc::time_point current_time(fc::time_point::now());
+   if(((current_time - block_time) < fc::seconds(30)) || (current_time - last_sync > fc::seconds(60)))
    {
       limit_documents = _elasticsearch_bulk_sync;
       is_sync = true;
+      last_sync = current_time;
    }
    else
    {
