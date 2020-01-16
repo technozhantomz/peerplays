@@ -72,13 +72,13 @@ struct gpos_fixture: database_fixture
    }
 
    void withdraw_gpos_vesting(const vesting_balance_id_type v_bid, const account_id_type owner, const asset amount,
-                              const vesting_balance_type type, const fc::ecc::private_key& key)
+                              /*const vesting_balance_type type, */const fc::ecc::private_key& key)
    {
       vesting_balance_withdraw_operation op;
       op.vesting_balance = v_bid;
       op.owner = owner;
       op.amount = amount;
-      op.balance_type = type;
+      //op.balance_type = type;
       
       trx.operations.push_back(op);
       set_expiration(db, trx);
@@ -1057,9 +1057,9 @@ BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
       transfer( committee_account, bob_id, core.amount( 99 ) );
 
       // add some vesting to Alice, Bob
-      vesting_balance_object vbo;
-      create_vesting(alice_id, core.amount(150), vesting_balance_type::gpos);
-      create_vesting(bob_id, core.amount(99), vesting_balance_type::gpos);
+      vesting_balance_object vbo1, vbo2;
+      vbo1 = create_vesting(alice_id, core.amount(150), vesting_balance_type::gpos);
+      vbo2 = create_vesting(bob_id, core.amount(99), vesting_balance_type::gpos);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
      
       generate_block();
@@ -1067,8 +1067,8 @@ BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_blocks(db.get_global_properties().parameters.gpos_vesting_lockin_period());
       BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 350);
-      withdraw_gpos_vesting(vbo.id, alice_id, core.amount(50), vesting_balance_type::gpos, alice_private_key);
-      withdraw_gpos_vesting(vbo.id, bob_id, core.amount(99), vesting_balance_type::gpos, bob_private_key);
+      withdraw_gpos_vesting(vbo1.id, alice_id, core.amount(50), /*vesting_balance_type::gpos, */alice_private_key);
+      withdraw_gpos_vesting(vbo2.id, bob_id, core.amount(99), /*vesting_balance_type::gpos, */bob_private_key);
       generate_block();
       // verify charles balance
       BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 400);
@@ -1076,8 +1076,8 @@ BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
 
       // Add more 50 and 73 vesting objects and withdraw 90 from 
       // total vesting balance of user
-      create_vesting(alice_id, core.amount(50), vesting_balance_type::gpos);
-      create_vesting(alice_id, core.amount(73), vesting_balance_type::gpos);
+      vbo1 = create_vesting(alice_id, core.amount(50), vesting_balance_type::gpos);
+      vbo2 = create_vesting(alice_id, core.amount(73), vesting_balance_type::gpos);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
      
       generate_block();
@@ -1095,7 +1095,7 @@ BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_blocks(db.get_global_properties().parameters.gpos_vesting_lockin_period());
       BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 277);
-      withdraw_gpos_vesting(vbo.id, alice_id, core.amount(90), vesting_balance_type::gpos, alice_private_key);
+      withdraw_gpos_vesting(vbo1.id, alice_id, core.amount(90), /*vesting_balance_type::gpos,*/ alice_private_key);
       generate_block();
       // verify alice balance
       BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 367);

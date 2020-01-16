@@ -2141,7 +2141,6 @@ public:
       vesting_balance_withdraw_op.vesting_balance = vbo.id;
       vesting_balance_withdraw_op.owner = vbo.owner;
       vesting_balance_withdraw_op.amount = asset_obj.amount_from_string(amount);
-      vesting_balance_withdraw_op.balance_type = vesting_balance_type::gpos;
 
       signed_transaction tx;
       tx.operations.push_back( vesting_balance_withdraw_op );
