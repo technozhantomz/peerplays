@@ -6,7 +6,7 @@ This is a quick introduction to get new developers and witnesses up to speed on 
 Witness Node Setup
 -----------------
 For instructions on witness node installation and configuration refer to the Peerplays Documentation here:
-https://www.peerplays.tech/witnesses/setting-up-a-witness-node.
+https://www.peerplays.tech/witnesses/setting-up-a-witness-node
 
  
 BOS and MINT Setup
