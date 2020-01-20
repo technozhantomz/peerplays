@@ -22,4 +22,3 @@ Wallet Setup
 -----------------
 Full instructions on setting up a cli_wallet can be found here:
 https://www.peerplays.tech/witnesses/setting-up-a-witness-node./cli-wallet-setup
-
