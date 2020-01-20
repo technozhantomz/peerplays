@@ -6,6 +6,7 @@ This is a quick introduction to get new developers and witnesses up to speed on 
 Witness Node Setup
 -----------------
 For instructions on witness node installation and configuration refer to the Peerplays Documentation here:
+
 https://www.peerplays.tech/witnesses/setting-up-a-witness-node
 
  
@@ -15,10 +16,12 @@ The Bookie Oracle System (BOS) and Manual Intervention Tool (MINT) need to be in
 They are both prerequisites for the operation of the BookiePro app.
 
 Full instructions on BOS and MINT installation can be found here:
+
 https://www.peerplays.tech/bookie-oracle-suite-bos/intro-bos
 
 
 Wallet Setup
 -----------------
 Full instructions on setting up a cli_wallet can be found here:
+
 https://www.peerplays.tech/witnesses/setting-up-a-witness-node./cli-wallet-setup
