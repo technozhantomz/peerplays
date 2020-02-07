@@ -27,9 +27,10 @@
 #include <graphene/chain/transaction_evaluation_state.hpp>
 
 #include <graphene/db/generic_index.hpp>
+#include <boost/multi_index/composite_key.hpp>
 
 namespace graphene { namespace chain {
-
+   class database;
 
 /**
  *  @brief tracks the approval of a partially approved transaction 
@@ -51,8 +52,10 @@ class proposal_object : public abstract_object<proposal_object>
       flat_set<account_id_type>     available_owner_approvals;
       flat_set<public_key_type>     available_key_approvals;
       account_id_type               proposer;
+      std::string                   fail_reason;
 
-      bool is_authorized_to_execute(database& db)const;
+      bool is_authorized_to_execute(database& db) const;
+
 };
 
 /**
@@ -94,4 +97,6 @@ typedef generic_index<proposal_object, proposal_multi_index_container> proposal_
 FC_REFLECT_DERIVED( graphene::chain::proposal_object, (graphene::chain::object),
                     (expiration_time)(review_period_time)(proposed_transaction)(required_active_approvals)
                     (available_active_approvals)(required_owner_approvals)(available_owner_approvals)
-                    (available_key_approvals)(proposer) )
+                    (available_key_approvals)(proposer)(fail_reason))
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::proposal_object )

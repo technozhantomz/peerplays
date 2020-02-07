@@ -211,6 +211,7 @@
                                                              { 10000000, 100000} } /* <= 1000: 10.00 */ 
 #define GRAPHENE_DEFAULT_BETTING_PERCENT_FEE (2 * GRAPHENE_1_PERCENT)
 #define GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME            5 // seconds
+#define GRAPHENE_MAX_NESTED_OBJECTS                         (200)
 #define TOURNAMENT_MIN_ROUND_DELAY                          0
 #define TOURNAMENT_MAX_ROUND_DELAY                          600
 #define TOURNAMENT_MIN_TIME_PER_COMMIT_MOVE                 0
@@ -226,8 +227,10 @@
 #define TOURNAMENT_MAX_WHITELIST_LENGTH                     1000
 #define TOURNAMENT_MAX_START_TIME_IN_FUTURE                 (60*60*24*7*4) // 1 month
 #define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
-
 #define SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE              (2*GRAPHENE_1_PERCENT)
 #define SWEEPS_DEFAULT_DISTRIBUTION_ASSET                   (graphene::chain::asset_id_type(0))
 #define SWEEPS_VESTING_BALANCE_MULTIPLIER                   100000000
 #define SWEEPS_ACCUMULATOR_ACCOUNT                          (graphene::chain::account_id_type(0))
+#define GPOS_PERIOD                                         (60*60*24*30*6) // 6 months
+#define GPOS_SUBPERIOD                                      (60*60*24*30) // 1 month
+#define GPOS_VESTING_LOCKIN_PERIOD                          (60*60*24*30) // 1 month

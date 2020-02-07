@@ -42,7 +42,7 @@ void database::debug_dump()
    const asset_dynamic_data_object& core_asset_data = db.get_core_asset().dynamic_asset_data_id(db);
 
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
-   const simple_index<account_statistics_object>& statistics_index = db.get_index_type<simple_index<account_statistics_object>>();
+   const auto& statistics_index = db.get_index_type<account_stats_index>().indices();
    map<asset_id_type,share_type> total_balances;
    map<asset_id_type,share_type> total_debts;
    share_type core_in_orders;
@@ -118,10 +118,10 @@ void debug_apply_update( database& db, const fc::variant_object& vo )
    auto it_id = vo.find("id");
    FC_ASSERT( it_id != vo.end() );
 
-   from_variant( it_id->value(), oid );
+   from_variant( it_id->value(), oid, GRAPHENE_MAX_NESTED_OBJECTS );
    action = ( vo.size() == 1 ) ? db_action_delete : db_action_write;
 
-   from_variant( vo["id"], oid );
+   from_variant( vo["id"], oid, GRAPHENE_MAX_NESTED_OBJECTS );
    if( vo.size() == 1 )
       action = db_action_delete;
    auto it_action = vo.find("_action" );
@@ -143,25 +143,19 @@ void debug_apply_update( database& db, const fc::variant_object& vo )
    switch( action )
    {
       case db_action_create:
-         /*
-         idx.create( [&]( object& obj )
-         {
-            idx.object_from_variant( vo, obj );
-         } );
-         */
          FC_ASSERT( false );
          break;
       case db_action_write:
          db.modify( db.get_object( oid ), [&]( object& obj )
          {
             idx.object_default( obj );
-            idx.object_from_variant( vo, obj );
+            idx.object_from_variant( vo, obj, GRAPHENE_MAX_NESTED_OBJECTS );
          } );
          break;
       case db_action_update:
          db.modify( db.get_object( oid ), [&]( object& obj )
          {
-            idx.object_from_variant( vo, obj );
+            idx.object_from_variant( vo, obj, GRAPHENE_MAX_NESTED_OBJECTS );
          } );
          break;
       case db_action_delete:

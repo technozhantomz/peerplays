@@ -24,12 +24,7 @@
 
 #pragma once
 
-#include <cassert>
-#include <cstdint>
-#include <string>
-
-#include <fc/container/flat.hpp>
-#include <fc/reflect/reflect.hpp>
+#include <graphene/chain/protocol/types.hpp>
 
 namespace graphene { namespace chain {
 
@@ -141,8 +136,8 @@ namespace fc
 
 class variant;
 
-void to_variant( const graphene::chain::vote_id_type& var, fc::variant& vo );
-void from_variant( const fc::variant& var, graphene::chain::vote_id_type& vo );
+void to_variant( const graphene::chain::vote_id_type& var, fc::variant& vo, uint32_t max_depth = 1 );
+void from_variant( const fc::variant& var, graphene::chain::vote_id_type& vo, uint32_t max_depth = 1 );
 
 } // fc
 
@@ -150,3 +145,5 @@ FC_REFLECT_TYPENAME( fc::flat_set<graphene::chain::vote_id_type> )
 
 FC_REFLECT_ENUM( graphene::chain::vote_id_type::vote_type, (witness)(committee)(worker)(VOTE_TYPE_COUNT) )
 FC_REFLECT( graphene::chain::vote_id_type, (content) )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vote_id_type )
