@@ -2122,6 +2122,7 @@ public:
 
       asset_object asset_obj = get_asset( asset_symbol );
       vector< vesting_balance_object > vbos;
+       vesting_balance_object vbo;
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(account_name);
       if( !vbid )
       {
@@ -2134,7 +2135,13 @@ public:
       if(!vbos.size())
          vbos.emplace_back( get_object<vesting_balance_object>(*vbid) );
  
-      const vesting_balance_object& vbo = vbos.front();
+      for (const vesting_balance_object& vesting_balance_obj: vbos) {
+         if(vesting_balance_obj.balance_type == vesting_balance_type::gpos)
+         {
+            vbo = vesting_balance_obj;
+            break;
+         }
+      }
 
       vesting_balance_withdraw_operation vesting_balance_withdraw_op;
 

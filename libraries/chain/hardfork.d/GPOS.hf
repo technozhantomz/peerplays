@@ -1,4 +1,4 @@
-// GPOS HARDFORK Monday, 6 January 2020 01:00:00 GMT
+// GPOS HARDFORK Monday, 17 February 2020 22:00:00 GMT
 #ifndef HARDFORK_GPOS_TIME
-#define HARDFORK_GPOS_TIME (fc::time_point_sec( 1578272400 ))
+#define HARDFORK_GPOS_TIME (fc::time_point_sec( 1581976800 ))
 #endif
