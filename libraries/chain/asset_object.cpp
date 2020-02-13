@@ -24,9 +24,8 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/database.hpp>
 
+#include <fc/io/raw.hpp>
 #include <fc/uint128.hpp>
-
-#include <cmath>
 
 using namespace graphene::chain;
 
@@ -296,3 +295,11 @@ void sweeps_vesting_balance_object::adjust_balance( const asset& delta )
    FC_ASSERT( delta.asset_id == asset_id );
    balance += delta.amount.value;
 }
+
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_dynamic_data_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_bitasset_data_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_dividend_data_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::total_distributed_dividend_balance_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::lottery_balance_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::sweeps_vesting_balance_object )

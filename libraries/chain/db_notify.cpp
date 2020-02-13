@@ -34,6 +34,13 @@
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/exceptions.hpp>
+#include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/operation_history_object.hpp>
+#include <graphene/chain/vesting_balance_object.hpp>
+#include <graphene/chain/transaction_object.hpp>
+#include <graphene/chain/impacted.hpp>
+
 
 using namespace fc;
 using namespace graphene::chain;
@@ -288,13 +295,13 @@ struct get_impacted_account_visitor
    }
 };
 
-void operation_get_impacted_accounts( const operation& op, flat_set<account_id_type>& result )
+void graphene::chain::operation_get_impacted_accounts( const operation& op, flat_set<account_id_type>& result )
 {
   get_impacted_account_visitor vtor = get_impacted_account_visitor( result );
   op.visit( vtor );
 }
 
-void transaction_get_impacted_accounts( const transaction& tx, flat_set<account_id_type>& result )
+void graphene::chain::transaction_get_impacted_accounts( const transaction& tx, flat_set<account_id_type>& result )
 {
   for( const auto& op : tx.operations )
     operation_get_impacted_accounts( op, result );

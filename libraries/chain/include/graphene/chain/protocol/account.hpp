@@ -317,5 +317,16 @@ FC_REFLECT( graphene::chain::account_whitelist_operation::fee_parameters_type, (
 FC_REFLECT( graphene::chain::account_update_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::account_upgrade_operation::fee_parameters_type, (membership_annual_fee)(membership_lifetime_fee) )
 FC_REFLECT( graphene::chain::account_transfer_operation::fee_parameters_type, (fee) )
-
 FC_REFLECT( graphene::chain::account_transfer_operation, (fee)(account_id)(new_owner)(extensions) )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_options )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_create_operation::fee_parameters_type )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_whitelist_operation::fee_parameters_type )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_update_operation::fee_parameters_type )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_upgrade_operation::fee_parameters_type )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_transfer_operation::fee_parameters_type )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_create_operation )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_whitelist_operation )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_update_operation )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_upgrade_operation )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_transfer_operation )

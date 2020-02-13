@@ -31,6 +31,8 @@
 #include <graphene/market_history/market_history_plugin.hpp>
 #include <graphene/accounts_list/accounts_list_plugin.hpp>
 
+#include <graphene/elasticsearch/elasticsearch_plugin.hpp>
+
 #include <graphene/debug_witness/debug_api.hpp>
 #include <graphene/affiliate_stats/affiliate_stats_api.hpp>
 #include <graphene/bookie/bookie_api.hpp>
@@ -357,7 +359,17 @@ namespace graphene { namespace app {
          graphene::chain::database& _db;
          graphene::app::database_api database_api;
    };
+} } // graphene::app
 
+extern template class fc::api<graphene::app::block_api>;
+extern template class fc::api<graphene::app::network_broadcast_api>;
+extern template class fc::api<graphene::app::network_node_api>;
+extern template class fc::api<graphene::app::history_api>;
+extern template class fc::api<graphene::app::crypto_api>;
+extern template class fc::api<graphene::app::asset_api>;
+extern template class fc::api<graphene::debug_witness::debug_api>;
+
+namespace graphene { namespace app {
    /**
     * @brief The login_api class implements the bottom layer of the RPC API
     *
@@ -418,6 +430,8 @@ namespace graphene { namespace app {
    };
 
 }}  // graphene::app
+
+extern template class fc::api<graphene::app::login_api>;
 
 FC_REFLECT( graphene::app::network_broadcast_api::transaction_confirmation,
         (id)(block_num)(trx_num)(trx) )

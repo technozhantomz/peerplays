@@ -22,8 +22,9 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <graphene/chain/protocol/operations.hpp>
+#include <graphene/chain/protocol/types.hpp>
 #include <graphene/db/generic_index.hpp>
+#include <graphene/chain/protocol/account.hpp>
 #include <boost/multi_index/composite_key.hpp>
 
 namespace graphene { namespace chain {
@@ -574,4 +575,7 @@ FC_REFLECT_DERIVED( graphene::chain::pending_dividend_payout_balance_for_holder_
                     (graphene::db::object),
                     (owner)(dividend_holder_asset_type)(dividend_payout_asset_type)(pending_balance) )
 
-
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_balance_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_statistics_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::pending_dividend_payout_balance_for_holder_object )

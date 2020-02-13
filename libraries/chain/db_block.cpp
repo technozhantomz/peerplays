@@ -336,8 +336,6 @@ processed_transaction database::validate_transaction( const signed_transaction& 
 
 processed_transaction database::push_proposal(const proposal_object& proposal)
 { try {
-   FC_ASSERT( _undo_db.size() < _undo_db.max_size(), "Undo database is full!" );
-
    transaction_evaluation_state eval_state(this);
    eval_state._is_proposed_trx = true;
 
@@ -347,6 +345,8 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
    size_t old_applied_ops_size = _applied_ops.size();
 
    try {
+      if( _undo_db.size() >= _undo_db.max_size() )
+         _undo_db.set_max_size( _undo_db.size() + 1 );
       auto session = _undo_db.start_undo_session(true);
       for( auto& op : proposal.proposed_transaction.operations )
          eval_state.operation_results.emplace_back(apply_operation(eval_state, op));

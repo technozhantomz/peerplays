@@ -119,7 +119,9 @@ struct gpos_info {
    asset award;
    share_type total_amount;
    uint32_t current_subperiod;
-   fc::time_point_sec last_voted_time;   
+   fc::time_point_sec last_voted_time;
+   share_type allowed_withdraw_amount;
+   share_type account_vested_balance;
 };
 
 /**
@@ -715,12 +717,14 @@ private:
 
 } }
 
+extern template class fc::api<graphene::app::database_api>;
+
 FC_REFLECT( graphene::app::order, (price)(quote)(base) );
 FC_REFLECT( graphene::app::order_book, (base)(quote)(bids)(asks) );
 FC_REFLECT( graphene::app::market_ticker, (base)(quote)(latest)(lowest_ask)(highest_bid)(percent_change)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_volume, (base)(quote)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_trade, (date)(price)(amount)(value) );
-FC_REFLECT( graphene::app::gpos_info, (vesting_factor)(award)(total_amount)(current_subperiod)(last_voted_time) );
+FC_REFLECT( graphene::app::gpos_info, (vesting_factor)(award)(total_amount)(current_subperiod)(last_voted_time)(allowed_withdraw_amount)(account_vested_balance) );
 
 
 FC_API(graphene::app::database_api,

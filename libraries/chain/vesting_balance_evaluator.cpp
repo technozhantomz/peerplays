@@ -118,19 +118,8 @@ object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance
 operation_result vesting_balance_withdraw_evaluator::start_evaluate( transaction_evaluation_state& eval_state, const operation& op, bool apply )
 { try {
    trx_state   = &eval_state;
-   database& d = db();
    const auto& oper = op.get<vesting_balance_withdraw_operation>();
 
-   const time_point_sec now = d.head_block_time();
-
-   if(now >= HARDFORK_GPOS_TIME )
-   {
-      if(oper.fee.amount == 0)
-      {
-         trx_state->skip_fee_schedule_check = true;
-         trx_state->skip_fee = true;
-      }
-   }
    //check_required_authorities(op);
    auto result = evaluate( oper );
 
@@ -144,10 +133,32 @@ void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balan
    const time_point_sec now = d.head_block_time();
 
    const vesting_balance_object& vbo = op.vesting_balance( d );
-   FC_ASSERT( op.owner == vbo.owner, "", ("op.owner", op.owner)("vbo.owner", vbo.owner) );
-   FC_ASSERT( vbo.is_withdraw_allowed( now, op.amount ), "Account has either insufficient ${balance_type} Vested Balance or lock-in period is not matured", 
-         ("balance_type", get_vesting_balance_type(vbo.balance_type))("now", now)("op", op)("vbo", vbo) );
-   assert( op.amount <= vbo.balance );      // is_withdraw_allowed should fail before this check is reached
+   if(vbo.balance_type == vesting_balance_type::normal)
+   {
+      FC_ASSERT( op.owner == vbo.owner, "", ("op.owner", op.owner)("vbo.owner", vbo.owner) );
+      FC_ASSERT( vbo.is_withdraw_allowed( now, op.amount ), "Account has insufficient ${balance_type} Vested Balance to withdraw",
+            ("balance_type", get_vesting_balance_type(vbo.balance_type))("now", now)("op", op)("vbo", vbo) );
+      assert( op.amount <= vbo.balance );      // is_withdraw_allowed should fail before this check is reached
+   }
+   else if(now > HARDFORK_GPOS_TIME && vbo.balance_type == vesting_balance_type::gpos)
+   {
+      const account_id_type account_id = op.owner;
+      vector<vesting_balance_object> vbos;
+      auto vesting_range = d.get_index_type<vesting_balance_index>().indices().get<by_account>().equal_range(account_id);
+      std::for_each(vesting_range.first, vesting_range.second,
+                    [&vbos, now](const vesting_balance_object& balance) {
+                        if(balance.balance.amount > 0 && balance.balance_type == vesting_balance_type::gpos
+                         && balance.is_withdraw_allowed(now, balance.balance.amount) && balance.balance.asset_id == asset_id_type())
+                           vbos.emplace_back(balance);
+                    });
+
+      asset total_amount;
+      for (const vesting_balance_object& vesting_balance_obj : vbos)
+      {
+         total_amount += vesting_balance_obj.balance.amount;
+      }
+      FC_ASSERT( op.amount <= total_amount, "Account has either insufficient GPOS Vested Balance or lock-in period is not matured");
+   }
 
    /* const account_object& owner_account =  op.owner( d ); */
    // TODO: Check asset authorizations and withdrawals
@@ -159,21 +170,53 @@ void_result vesting_balance_withdraw_evaluator::do_apply( const vesting_balance_
    database& d = db();
 
    const time_point_sec now = d.head_block_time();
-
+   //Handling all GPOS withdrawls separately from normal and SONs(future extension).
+   // One request/transaction would be sufficient to withdraw from multiple vesting balance ids
    const vesting_balance_object& vbo = op.vesting_balance( d );
-
-   // Allow zero balance objects to stick around, (1) to comply
-   // with the chain's "objects live forever" design principle, (2)
-   // if it's cashback or worker, it'll be filled up again.
-
-   d.modify( vbo, [&]( vesting_balance_object& vbo )
+   if(vbo.balance_type == vesting_balance_type::normal)
    {
-      vbo.withdraw( now, op.amount );
-   } );
+      // Allow zero balance objects to stick around, (1) to comply
+      // with the chain's "objects live forever" design principle, (2)
+      // if it's cashback or worker, it'll be filled up again.
 
-   d.adjust_balance( op.owner, op.amount );
+      d.modify( vbo, [&]( vesting_balance_object& vbo )
+      {
+         vbo.withdraw( now, op.amount );
+      } );
 
-   // TODO: Check asset authorizations and withdrawals
+      d.adjust_balance( op.owner, op.amount );
+   }
+   else if(now > HARDFORK_GPOS_TIME && vbo.balance_type == vesting_balance_type::gpos)
+   {
+      const account_id_type account_id = op.owner;
+      vector<vesting_balance_id_type> ids;
+      auto vesting_range = d.get_index_type<vesting_balance_index>().indices().get<by_account>().equal_range(account_id);
+      std::for_each(vesting_range.first, vesting_range.second,
+                    [&ids, now](const vesting_balance_object& balance) {
+                        if(balance.balance.amount > 0 && balance.balance_type == vesting_balance_type::gpos
+                         && balance.is_withdraw_allowed(now, balance.balance.amount) && balance.balance.asset_id == asset_id_type())
+                           ids.emplace_back(balance.id);
+                    });
+
+      asset total_withdraw_amount = op.amount;
+      for (const vesting_balance_id_type& id : ids)
+      {
+         const vesting_balance_object& vbo = id( d );
+         if(total_withdraw_amount.amount > vbo.balance.amount)
+         {
+            total_withdraw_amount.amount -= vbo.balance.amount;
+            d.adjust_balance( op.owner, vbo.balance );            
+            d.modify( vbo, [&]( vesting_balance_object& vbo ) {vbo.withdraw( now, vbo.balance );} );
+         }
+         else
+         {
+            d.modify( vbo, [&]( vesting_balance_object& vbo ) {vbo.withdraw( now, total_withdraw_amount );} );
+            d.adjust_balance( op.owner, total_withdraw_amount);
+            break;
+         }
+      }
+   }
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 

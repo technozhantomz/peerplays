@@ -1560,11 +1560,19 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
 
             if(d.head_block_time() >= HARDFORK_GPOS_TIME)
             {
-               if (itr == vesting_amounts.end())
+               if (itr == vesting_amounts.end() && d.head_block_time() >= (HARDFORK_GPOS_TIME + props.parameters.gpos_subperiod()/2))
                   return;
 
                auto vesting_factor = d.calculate_vesting_factor(stake_account);
                voting_stake = (uint64_t)floor(voting_stake * vesting_factor);
+
+               //Include votes(based on stake) for the period of gpos_subperiod()/2 as system has zero votes on GPOS activation
+               if(d.head_block_time() < (HARDFORK_GPOS_TIME + props.parameters.gpos_subperiod()/2))
+               {
+                  voting_stake += stats.total_core_in_orders.value
+                                 + (stake_account.cashback_vb.valid() ? (*stake_account.cashback_vb)(d).balance.amount.value : 0)
+                                 + d.get_balance(stake_account.get_id(), asset_id_type()).amount.value;
+               }
             }
             else
             {
@@ -1644,6 +1652,8 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.permitted_betting_odds_increments = p.parameters.extensions.value.permitted_betting_odds_increments;
          if( !p.pending_parameters->extensions.value.live_betting_delay_time.valid() )
             p.pending_parameters->extensions.value.live_betting_delay_time = p.parameters.extensions.value.live_betting_delay_time;
+         if( !p.pending_parameters->extensions.value.gpos_period_start.valid() )
+            p.pending_parameters->extensions.value.gpos_period_start = p.parameters.extensions.value.gpos_period_start;
          if( !p.pending_parameters->extensions.value.gpos_period.valid() )
             p.pending_parameters->extensions.value.gpos_period = p.parameters.extensions.value.gpos_period;
          if( !p.pending_parameters->extensions.value.gpos_subperiod.valid() )

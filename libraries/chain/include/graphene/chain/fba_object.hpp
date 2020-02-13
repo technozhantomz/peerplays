@@ -49,4 +49,7 @@ class fba_accumulator_object : public graphene::db::abstract_object< fba_accumul
 
 } } // graphene::chain
 
-FC_REFLECT_DERIVED( graphene::chain::fba_accumulator_object, (graphene::db::object), (accumulated_fba_fees)(designated_asset) )
+FC_REFLECT_DERIVED( graphene::chain::fba_accumulator_object, (graphene::db::object),
+                                (accumulated_fba_fees)(designated_asset) )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::fba_accumulator_object )

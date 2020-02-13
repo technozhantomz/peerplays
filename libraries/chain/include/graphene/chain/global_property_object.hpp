@@ -126,7 +126,6 @@ namespace graphene { namespace chain {
 }}
 
 FC_REFLECT_DERIVED( graphene::chain::dynamic_global_property_object, (graphene::db::object),
-                    (random)
                     (head_block_number)
                     (head_block_id)
                     (time)
@@ -149,3 +148,6 @@ FC_REFLECT_DERIVED( graphene::chain::global_property_object, (graphene::db::obje
                     (active_committee_members)
                     (active_witnesses)
                   )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::dynamic_global_property_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::global_property_object )

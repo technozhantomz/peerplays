@@ -26,6 +26,7 @@
 #include <graphene/chain/database.hpp>
 
 #include <graphene/chain/balance_object.hpp>
+#include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/worker_object.hpp>
@@ -70,6 +71,23 @@ struct gpos_fixture: database_fixture
       return db.get<vesting_balance_object>(ptx.operation_results[0].get<object_id_type>());
    }
 
+   void withdraw_gpos_vesting(const vesting_balance_id_type v_bid, const account_id_type owner, const asset amount,
+                              /*const vesting_balance_type type, */const fc::ecc::private_key& key)
+   {
+      vesting_balance_withdraw_operation op;
+      op.vesting_balance = v_bid;
+      op.owner = owner;
+      op.amount = amount;
+      //op.balance_type = type;
+      
+      trx.operations.push_back(op);
+      set_expiration(db, trx);
+      trx.validate();
+      sign(trx, key);
+      PUSH_TX(db, trx);
+      trx.clear();
+   }
+
    void update_payout_interval(std::string asset_name, fc::time_point start, uint32_t interval)
    {
       auto dividend_holder_asset_object = get_asset(asset_name);
@@ -90,10 +108,12 @@ struct gpos_fixture: database_fixture
          p.parameters.extensions.value.gpos_period = vesting_period;
          p.parameters.extensions.value.gpos_subperiod = vesting_subperiod;
          p.parameters.extensions.value.gpos_period_start =  period_start.sec_since_epoch();
+         p.parameters.extensions.value.gpos_vesting_lockin_period = vesting_subperiod;
       });
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), vesting_period);
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), vesting_subperiod);
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), period_start.sec_since_epoch());
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_vesting_lockin_period(), vesting_subperiod);
    }
 
    void update_maintenance_interval(uint32_t new_interval)
@@ -514,6 +534,94 @@ BOOST_AUTO_TEST_CASE( gpos_basic_dividend_distribution_to_core_asset )
    }   
 }
 
+BOOST_AUTO_TEST_CASE( votes_on_gpos_activation )
+{
+   ACTORS((alice)(bob));
+   try {
+      const auto& core = asset_id_type()(db);
+
+      // send some asset to alice and bob
+      transfer( committee_account, alice_id, core.amount( 1000 ) );
+      transfer( committee_account, bob_id, core.amount( 1000 ) );
+      generate_block();
+
+      // update default gpos
+      auto now = db.head_block_time();
+      // 5184000 = 60x60x24x6 = 6 days
+      // 864000 = 60x60x24x1 = 1 days
+      update_gpos_global(518400, 86400, HARDFORK_GPOS_TIME);
+
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), 518400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), 86400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), HARDFORK_GPOS_TIME.sec_since_epoch());
+      // no votes for witness 1
+      auto witness1 = witness_id_type(1)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+
+      // no votes for witness 2
+      auto witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 0);
+
+      // vote for witness1 and witness2 - this before GPOS period starts
+      vote_for(alice_id, witness1.vote_id, alice_private_key);
+      vote_for(bob_id, witness2.vote_id, bob_private_key);
+
+      // go to maint
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+
+      // vote is the same as amount in the first subperiod since voting
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+      
+      update_maintenance_interval(3600);  //update maintenance interval to 1hr to evaluate sub-periods
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, 3600);
+
+      // move to hardfork
+      generate_blocks( HARDFORK_GPOS_TIME );
+      generate_block();
+
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+
+      // add some vesting to alice and don't add anything for Bob
+      create_vesting(alice_id, core.amount(99), vesting_balance_type::gpos);
+      generate_block();
+      vote_for(alice_id, witness1.vote_id, alice_private_key);
+      generate_block();
+
+      advance_x_maint(1);
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      //System needs to consider votes based on both regular balance + GPOS balance for 1/2 sub-period on GPOS activation
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+
+      advance_x_maint(6);
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+
+      advance_x_maint(5);
+      generate_block();
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      //Since Alice has votes, votes should be based on GPOS balance i.e 99
+      //Since Bob not voted after GPOS activation, witness2 votes should be 0 after crossing 1/2 sub-period(12 maintanence intervals in this case)
+      BOOST_CHECK_EQUAL(witness1.total_votes, 99);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 0);
+
+   }
+   catch (fc::exception &e) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+
 BOOST_AUTO_TEST_CASE( voting )
 {
    ACTORS((alice)(bob));
@@ -570,13 +678,20 @@ BOOST_AUTO_TEST_CASE( voting )
       // go to maint
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
 
-      // vote is the same as amount in the first subperiod since voting
+      // need to consider both gpos and regular balance for first 1/2 sub period
+      witness1 = witness_id_type(1)(db);
+      witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
+
+      advance_x_maint(6);
+
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 100);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
-      advance_x_maint(10);
+      advance_x_maint(4);
 
       //Bob votes for witness2 - sub-period 2
       vote_for(bob_id, witness2.vote_id, bob_private_key);
@@ -919,6 +1034,89 @@ BOOST_AUTO_TEST_CASE( account_multiple_vesting )
       throw;
    }
 }
+
+BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
+{
+   try {
+      // advance to HF
+      generate_blocks(HARDFORK_GPOS_TIME);
+      generate_block();
+      set_expiration(db, trx);
+
+      // update default gpos global parameters to 4 days
+      auto now = db.head_block_time();
+      update_gpos_global(345600, 86400, now);
+
+      ACTORS((alice)(bob));
+
+      graphene::app::database_api db_api1(db);
+      const auto& core = asset_id_type()(db);
+
+
+      transfer( committee_account, alice_id, core.amount( 500 ) );
+      transfer( committee_account, bob_id, core.amount( 99 ) );
+
+      // add some vesting to Alice, Bob
+      vesting_balance_object vbo1, vbo2;
+      vbo1 = create_vesting(alice_id, core.amount(150), vesting_balance_type::gpos);
+      vbo2 = create_vesting(bob_id, core.amount(99), vesting_balance_type::gpos);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+     
+      generate_block();
+
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_blocks(db.get_global_properties().parameters.gpos_vesting_lockin_period());
+      BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 350);
+      withdraw_gpos_vesting(vbo1.id, alice_id, core.amount(50), /*vesting_balance_type::gpos, */alice_private_key);
+      withdraw_gpos_vesting(vbo2.id, bob_id, core.amount(99), /*vesting_balance_type::gpos, */bob_private_key);
+      generate_block();
+      // verify charles balance
+      BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 400);
+      BOOST_CHECK_EQUAL(get_balance(bob_id(db), core), 99);
+
+      // Add more 50 and 73 vesting objects and withdraw 90 from 
+      // total vesting balance of user
+      vbo1 = create_vesting(alice_id, core.amount(50), vesting_balance_type::gpos);
+      vbo2 = create_vesting(alice_id, core.amount(73), vesting_balance_type::gpos);
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+     
+      generate_block();
+
+      vector<vesting_balance_object> vbos = db_api1.get_vesting_balances("alice");
+      asset total_vesting;
+      for (const vesting_balance_object& vbo : vbos)
+      {
+         if (vbo.balance_type == vesting_balance_type::gpos && vbo.balance.asset_id == asset_id_type())
+            total_vesting += vbo.balance;
+      }
+      // total vesting balance of alice
+      BOOST_CHECK_EQUAL(total_vesting.amount.value, core.amount(223).amount.value);
+
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_blocks(db.get_global_properties().parameters.gpos_vesting_lockin_period());
+      BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 277);
+      withdraw_gpos_vesting(vbo1.id, alice_id, core.amount(90), /*vesting_balance_type::gpos,*/ alice_private_key);
+      generate_block();
+      // verify alice balance
+      BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 367);
+
+      // verify remaining vesting balance
+      vbos = db_api1.get_vesting_balances("alice");
+      asset remaining_vesting;
+      for (const vesting_balance_object& vbo : vbos)
+      {
+         if (vbo.balance_type == vesting_balance_type::gpos && vbo.balance.asset_id == asset_id_type())
+            remaining_vesting += vbo.balance;
+      }
+      // remaining vesting balance of alice
+      BOOST_CHECK_EQUAL(remaining_vesting.amount.value, core.amount(133).amount.value);
+   }
+   catch (fc::exception &e) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+
 /*
 BOOST_AUTO_TEST_CASE( competing_proposals )
 {

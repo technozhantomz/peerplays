@@ -30,8 +30,6 @@
 
 namespace graphene { namespace chain {
 
-class witness_schedule_object;
-
 typedef hash_ctr_rng<
    /* HashClass  = */ fc::sha256,
    /* SeedLength = */ GRAPHENE_RNG_SEED_LENGTH
@@ -96,3 +94,6 @@ FC_REFLECT_DERIVED(
    (recent_slots_filled)
    (current_shuffled_witnesses)
 )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::witness_scheduler )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::witness_schedule_object )
