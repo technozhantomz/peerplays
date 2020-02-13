@@ -24,7 +24,7 @@
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/bookie/bookie_objects.hpp>
 
-#include <graphene/app/impacted.hpp>
+#include <graphene/chain/impacted.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/account_object.hpp>

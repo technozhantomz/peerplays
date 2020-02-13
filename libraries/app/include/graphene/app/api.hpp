@@ -31,6 +31,8 @@
 #include <graphene/market_history/market_history_plugin.hpp>
 #include <graphene/accounts_list/accounts_list_plugin.hpp>
 
+#include <graphene/elasticsearch/elasticsearch_plugin.hpp>
+
 #include <graphene/debug_witness/debug_api.hpp>
 #include <graphene/affiliate_stats/affiliate_stats_api.hpp>
 #include <graphene/bookie/bookie_api.hpp>
