@@ -1100,6 +1100,8 @@ public:
       if( wallet_filename == "" )
          wallet_filename = _wallet_filename;
 
+      ilog( "saving wallet to file ${fn}", ("fn", wallet_filename) );
+
       string data = fc::json::to_pretty_string( _wallet );
       try
       {
