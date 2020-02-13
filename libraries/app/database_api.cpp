@@ -26,11 +26,15 @@
 #include <graphene/chain/get_config.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/protocol/address.hpp>
+#include <graphene/chain/pts_address.hpp>
 
 #include <fc/bloom_filter.hpp>
 #include <fc/smart_ref_impl.hpp>
 
 #include <fc/crypto/hex.hpp>
+#include <fc/rpc/api_connection.hpp>
+#include <fc/uint128.hpp>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/rational.hpp>
@@ -44,6 +48,8 @@
 #define GET_REQUIRED_FEES_MAX_RECURSION 4
 
 typedef std::map< std::pair<graphene::chain::asset_id_type, graphene::chain::asset_id_type>, std::vector<fc::variant> > market_queue_type;
+
+template class fc::api<graphene::app::database_api>;
 
 namespace graphene { namespace app {
 
@@ -2272,7 +2278,28 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
    }
 #endif
 
+   vector<vesting_balance_object> account_vbos;
+   const time_point_sec now = _db.head_block_time();
+   auto vesting_range = _db.get_index_type<vesting_balance_index>().indices().get<by_account>().equal_range(account);
+   std::for_each(vesting_range.first, vesting_range.second,
+                  [&account_vbos, now](const vesting_balance_object& balance) {
+                     if(balance.balance.amount > 0 && balance.balance_type == vesting_balance_type::gpos
+                        && balance.balance.asset_id == asset_id_type())
+                        account_vbos.emplace_back(balance);
+                  });
+                  
+   share_type allowed_withdraw_amount = 0, account_vested_balance = 0;
+   
+   for (const vesting_balance_object& vesting_balance_obj : account_vbos)
+   {
+      account_vested_balance += vesting_balance_obj.balance.amount;
+      if(vesting_balance_obj.is_withdraw_allowed(_db.head_block_time(), vesting_balance_obj.balance.amount))
+         allowed_withdraw_amount += vesting_balance_obj.balance.amount;
+   }
+
    result.total_amount = total_amount;
+   result.allowed_withdraw_amount = allowed_withdraw_amount;
+   result.account_vested_balance = account_vested_balance;
    return result;
 }
 

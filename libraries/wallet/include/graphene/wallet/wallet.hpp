@@ -1927,6 +1927,8 @@ class wallet_api
 
 } }
 
+extern template class fc::api<graphene::wallet::wallet_api>;
+
 FC_REFLECT( graphene::wallet::key_label, (label)(key) )
 FC_REFLECT( graphene::wallet::blind_balance, (amount)(from)(to)(one_time_key)(blinding_factor)(commitment)(used) )
 FC_REFLECT( graphene::wallet::blind_confirmation::output, (label)(pub_key)(decrypted_memo)(confirmation)(auth)(confirmation_receipt) )
@@ -2154,4 +2156,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_matched_bets_for_bettor)
         (get_all_matched_bets_for_bettor)
         (buy_ticket)
+        (quit)
       )

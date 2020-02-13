@@ -27,9 +27,10 @@
 #include <fc/crypto/base58.hpp>
 #include <algorithm>
 
+#include <fc/io/raw.hpp>
+
 namespace graphene {
   namespace chain {
-   address::address(){}
 
    address::address( const std::string& base58str )
    {
@@ -110,3 +111,5 @@ namespace fc
         vo = graphene::chain::address( var.as_string() );
     }
 }
+
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::address )

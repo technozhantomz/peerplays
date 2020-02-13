@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 #include <graphene/chain/account_object.hpp>
-#include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/database.hpp>
-#include <graphene/chain/hardfork.hpp>
+
+#include <fc/io/raw.hpp>
 #include <fc/uint128.hpp>
 
 namespace graphene { namespace chain {
@@ -320,3 +320,8 @@ const account_balance_object* balances_by_account_index::get_account_balance( co
 }
 
 } } // graphene::chain
+
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_balance_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_statistics_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::pending_dividend_payout_balance_for_holder_object )

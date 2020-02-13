@@ -55,6 +55,7 @@
 #include <fc/io/json.hpp>
 #include <fc/io/stdio.hpp>
 #include <fc/network/http/websocket.hpp>
+#include <fc/rpc/api_connection.hpp>
 #include <fc/rpc/cli.hpp>
 #include <fc/rpc/websocket_api.hpp>
 #include <fc/crypto/aes.hpp>
@@ -88,6 +89,8 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 #endif
+
+template class fc::api<graphene::wallet::wallet_api>;
 
 #define BRAIN_KEY_WORD_COUNT 16
 
@@ -1082,6 +1085,7 @@ public:
 
       return true;
    }
+
    void save_wallet_file(string wallet_filename = "")
    {
       //
@@ -1108,14 +1112,38 @@ public:
          //
          // http://en.wikipedia.org/wiki/Most_vexing_parse
          //
-         fc::ofstream outfile{ fc::path( wallet_filename ) };
+         std::string tmp_wallet_filename = wallet_filename + ".tmp";
+         fc::ofstream outfile{ fc::path( tmp_wallet_filename ) };
          outfile.write( data.c_str(), data.length() );
          outfile.flush();
          outfile.close();
+
+         ilog( "saved successfully wallet to tmp file ${fn}", ("fn", tmp_wallet_filename) );
+
+         std::string wallet_file_content;
+         fc::read_file_contents(tmp_wallet_filename, wallet_file_content);
+
+         if (wallet_file_content == data) {
+            dlog( "validated successfully tmp wallet file ${fn}", ("fn", tmp_wallet_filename) );
+            fc::rename( tmp_wallet_filename, wallet_filename );
+            dlog( "renamed successfully tmp wallet file ${fn}", ("fn", tmp_wallet_filename) );
+         } 
+         else 
+         {
+            FC_THROW("tmp wallet file cannot be validated ${fn}", ("fn", tmp_wallet_filename) );
+         }
+
+         ilog( "successfully saved wallet to file ${fn}", ("fn", wallet_filename) );
+
          disable_umask_protection();
       }
       catch(...)
       {
+         string ws_password = _wallet.ws_password;
+         _wallet.ws_password = "";
+         elog("wallet file content is: ${data}", ("data", fc::json::to_pretty_string( _wallet ) ) );
+         _wallet.ws_password = ws_password;
+
          disable_umask_protection();
          throw;
       }
@@ -2118,6 +2146,7 @@ public:
 
       asset_object asset_obj = get_asset( asset_symbol );
       vector< vesting_balance_object > vbos;
+      vesting_balance_object vbo;
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(account_name);
       if( !vbid )
       {
@@ -2130,47 +2159,23 @@ public:
       if(!vbos.size())
          vbos.emplace_back( get_object<vesting_balance_object>(*vbid) );
  
-      signed_transaction tx;
-      asset withdraw_amount = asset_obj.amount_from_string(amount);
-      bool onetime_fee_paid = false;
-            
-      for(const vesting_balance_object& vbo: vbos )
-      {         
-         if((vbo.balance_type == vesting_balance_type::gpos) && vbo.balance.amount > 0)
+      for (const vesting_balance_object& vesting_balance_obj: vbos) {
+         if(vesting_balance_obj.balance_type == vesting_balance_type::gpos)
          {
-            fc::optional<vesting_balance_id_type> vest_id = vbo.id;
-            vesting_balance_withdraw_operation vesting_balance_withdraw_op;
-
-            // Since there are multiple vesting objects, below logic with vesting_balance_evaluator.cpp changes will
-            // deduct fee from single object and set withdrawl fee to 0 for rest of objects based on requested amount.
-            if(onetime_fee_paid)
-               vesting_balance_withdraw_op.fee = asset( 0, asset_id_type() );
-            else
-               vesting_balance_withdraw_op.fee = _remote_db->get_global_properties().parameters.current_fees->calculate_fee(vesting_balance_withdraw_op);
-
-            vesting_balance_withdraw_op.vesting_balance = *vest_id;
-            vesting_balance_withdraw_op.owner = vbo.owner;
-            if(withdraw_amount.amount > vbo.balance.amount)
-            {
-               vesting_balance_withdraw_op.amount = vbo.balance.amount;
-               withdraw_amount.amount -= vbo.balance.amount;
-            }
-            else
-            {
-               vesting_balance_withdraw_op.amount = withdraw_amount.amount;
-               tx.operations.push_back( vesting_balance_withdraw_op );
-               withdraw_amount.amount -= vbo.balance.amount;
-               break;
-            }     
-
-            tx.operations.push_back( vesting_balance_withdraw_op );
-            onetime_fee_paid = true;
+            vbo = vesting_balance_obj;
+            break;
          }
       }
 
-      if( withdraw_amount.amount > 0)
-         FC_THROW("Account has NO or Insufficient balance to withdraw");
+      vesting_balance_withdraw_operation vesting_balance_withdraw_op;
 
+      vesting_balance_withdraw_op.vesting_balance = vbo.id;
+      vesting_balance_withdraw_op.owner = vbo.owner;
+      vesting_balance_withdraw_op.amount = asset_obj.amount_from_string(amount);
+
+      signed_transaction tx;
+      tx.operations.push_back( vesting_balance_withdraw_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
       tx.validate();
 
       return sign_transaction( tx, broadcast );
