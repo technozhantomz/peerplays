@@ -77,7 +77,7 @@ database_fixture::database_fixture()
          std::cout << "running test " << boost::unit_test::framework::current_test_case().p_name << std::endl;
    }
 
-   auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
+   //auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
    auto mhplugin = app.register_plugin<graphene::market_history::market_history_plugin>();
    auto bookieplugin = app.register_plugin<graphene::bookie::bookie_plugin>();
    auto affiliateplugin = app.register_plugin<graphene::affiliate_stats::affiliate_stats_plugin>();
