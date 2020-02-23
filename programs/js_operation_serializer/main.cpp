@@ -45,7 +45,8 @@
 #include <graphene/chain/game_object.hpp>
 #include <graphene/chain/son_object.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
-#include <graphene/chain/son_wallet_transfer_object.hpp>
+#include <graphene/chain/son_wallet_deposit_object.hpp>
+#include <graphene/chain/son_wallet_withdraw_object.hpp>
 #include <graphene/chain/sidechain_address_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>

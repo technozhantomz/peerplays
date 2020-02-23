@@ -19,9 +19,8 @@ object_id_type add_sidechain_address_evaluator::do_apply(const sidechain_address
     const auto& new_sidechain_address_object = db().create<sidechain_address_object>( [&]( sidechain_address_object& obj ){
         obj.sidechain_address_account = op.sidechain_address_account;
         obj.sidechain = op.sidechain;
-        obj.address = op.address;
-        obj.private_key = op.private_key;
-        obj.public_key = op.public_key;
+        obj.deposit_address = op.deposit_address;
+        obj.withdraw_address = op.withdraw_address;
     });
     return new_sidechain_address_object.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -41,9 +40,8 @@ object_id_type update_sidechain_address_evaluator::do_apply(const sidechain_addr
    if(itr != idx.end())
    {
        db().modify(*itr, [&op](sidechain_address_object &sao) {
-           if(op.address.valid()) sao.address = *op.address;
-           if(op.private_key.valid()) sao.private_key = *op.private_key;
-           if(op.public_key.valid()) sao.public_key = *op.public_key;
+           if(op.deposit_address.valid()) sao.deposit_address = *op.deposit_address;
+           if(op.withdraw_address.valid()) sao.withdraw_address = *op.withdraw_address;
        });
    }
    return op.sidechain_address_id;

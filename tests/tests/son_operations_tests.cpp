@@ -843,35 +843,12 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
 
       BOOST_CHECK( obj->status == son_status::active);
 
-      const auto& son_btc_account = db.create<account_object>( [&]( account_object& obj ) {
-         obj.name = "son_btc_account";
-         obj.statistics = db.create<account_statistics_object>([&]( account_statistics_object& acc_stat ){ acc_stat.owner = obj.id; }).id;
-         obj.membership_expiration_date = time_point_sec::maximum();
-         obj.network_fee_percentage = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
-         obj.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT - GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
-
-         obj.owner.add_authority( bob_id, 1 );
-         obj.active.add_authority( bob_id, 1 );
-         obj.active.weight_threshold = 1;
-         obj.owner.weight_threshold = 1;
-      });
-
-      db.modify( db.get_global_properties(), [&]( global_property_object& _gpo )
-      {
-         _gpo.parameters.extensions.value.son_pay_daily_max = 200;
-         _gpo.parameters.witness_pay_per_block = 0;
-
-         _gpo.parameters.extensions.value.son_btc_account = son_btc_account.get_id();
-         if( _gpo.pending_parameters )
-            _gpo.pending_parameters->extensions.value.son_btc_account = son_btc_account.get_id();
-      });
-
       {
          // Check that transaction fails if down_ts < last_active_timestamp
          generate_block();
          // Send Report Down Operation for an active status SON
          son_report_down_operation op;
-         op.payer = db.get_global_properties().parameters.get_son_btc_account_id();
+         op.payer = GRAPHENE_SON_ACCOUNT;
          op.son_id = son_id_type(0);
          op.down_ts = fc::time_point_sec(son_stats_obj->last_active_timestamp - fc::seconds(1));
 
@@ -884,7 +861,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
       }
 
       {
-         // Check that transaction fails if payer is not son_btc_account.
+         // Check that transaction fails if payer is not GRAPHENE_SON_ACCOUNT.
          generate_block();
          // Send Report Down Operation for an active status SON
          son_report_down_operation op;
@@ -901,11 +878,11 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
       }
 
       {
-         // Check that transaction succeeds after getting enough approvals on son_btc_account.
+         // Check that transaction succeeds after getting enough approvals on GRAPHENE_SON_ACCOUNT.
          generate_block();
          // Send Report Down Operation for an active status SON
          son_report_down_operation op;
-         op.payer = db.get_global_properties().parameters.get_son_btc_account_id();
+         op.payer = GRAPHENE_SON_ACCOUNT;
          op.son_id = son_id_type(0);
          op.down_ts = son_stats_obj->last_active_timestamp;
 
@@ -925,7 +902,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          generate_block();
          // Send Report Down Operation for an active status SON
          son_report_down_operation op;
-         op.payer = db.get_global_properties().parameters.get_son_btc_account_id();
+         op.payer = GRAPHENE_SON_ACCOUNT;
          op.son_id = son_id_type(0);
          op.down_ts = son_stats_obj->last_active_timestamp;
 

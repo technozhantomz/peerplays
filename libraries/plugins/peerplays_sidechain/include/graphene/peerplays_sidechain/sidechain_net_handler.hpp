@@ -16,11 +16,16 @@ public:
     virtual ~sidechain_net_handler();
 
     graphene::peerplays_sidechain::sidechain_type get_sidechain();
-    std::vector<std::string> get_sidechain_addresses();
+    std::vector<std::string> get_sidechain_deposit_addresses();
+    std::vector<std::string> get_sidechain_withdraw_addresses();
 
     void sidechain_event_data_received(const sidechain_event_data& sed);
 
     virtual void recreate_primary_wallet() = 0;
+    virtual void process_deposits() = 0;
+    virtual void process_deposit(const son_wallet_deposit_object& swdo) = 0;
+    virtual void process_withdrawals() = 0;
+    virtual void process_withdrawal(const son_wallet_withdraw_object& swwo) = 0;
 
 protected:
     peerplays_sidechain_plugin& plugin;
@@ -31,8 +36,6 @@ protected:
     virtual std::string transfer( const std::string& from, const std::string& to, const uint64_t amount ) = 0;
     virtual std::string sign_transaction( const std::string& transaction ) = 0;
     virtual std::string send_transaction( const std::string& transaction ) = 0;
-
-    virtual void handle_event( const std::string& event_data ) = 0;
 
 private:
 

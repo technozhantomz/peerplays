@@ -118,7 +118,8 @@ add_library( graphene_chain
              son_object.cpp
 
              son_wallet_evaluator.cpp
-             son_wallet_transfer_evaluator.cpp
+             son_wallet_deposit_evaluator.cpp
+             son_wallet_withdraw_evaluator.cpp
 
              sidechain_address_evaluator.cpp
 

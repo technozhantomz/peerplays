@@ -4,9 +4,11 @@
 #include <string>
 #include <vector>
 
+#include <fc/safe.hpp>
 #include <fc/time.hpp>
 #include <fc/crypto/sha256.hpp>
 
+#include <graphene/chain/protocol/asset.hpp>
 #include <graphene/chain/protocol/types.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
@@ -70,9 +72,11 @@ struct sidechain_event_data {
     std::string sidechain_transaction_id;
     std::string sidechain_from;
     std::string sidechain_to;
-    int64_t sidechain_amount;
+    std::string sidechain_currency;
+    fc::safe<int64_t> sidechain_amount;
     chain::account_id_type peerplays_from;
     chain::account_id_type peerplays_to;
+    chain::asset peerplays_asset;
 };
 
 } } // graphene::peerplays_sidechain

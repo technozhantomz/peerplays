@@ -8,8 +8,7 @@ namespace graphene { namespace chain {
 void_result recreate_son_wallet_evaluator::do_evaluate(const son_wallet_recreate_operation& op)
 { try{
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
-   //FC_ASSERT(db().get_global_properties().parameters.get_son_btc_account_id() != GRAPHENE_NULL_ACCOUNT, "SON paying account not set.");
-   FC_ASSERT( op.payer == db().get_global_properties().parameters.get_son_btc_account_id(), "SON paying account must be set as payer." );
+   FC_ASSERT( op.payer == GRAPHENE_SON_ACCOUNT, "SON paying account must be set as payer." );
 
    const auto& idx = db().get_index_type<son_wallet_index>().indices().get<by_id>();
    auto itr = idx.rbegin();
@@ -54,8 +53,7 @@ object_id_type recreate_son_wallet_evaluator::do_apply(const son_wallet_recreate
 void_result update_son_wallet_evaluator::do_evaluate(const son_wallet_update_operation& op)
 { try{
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
-   //FC_ASSERT(db().get_global_properties().parameters.get_son_btc_account_id() != GRAPHENE_NULL_ACCOUNT, "SON paying account not set.");
-   FC_ASSERT( op.payer == db().get_global_properties().parameters.get_son_btc_account_id(), "SON paying account must be set as payer." );
+   FC_ASSERT( op.payer == GRAPHENE_SON_ACCOUNT, "SON paying account must be set as payer." );
 
    const auto& idx = db().get_index_type<son_wallet_index>().indices().get<by_id>();
    FC_ASSERT( idx.find(op.son_wallet_id) != idx.end() );

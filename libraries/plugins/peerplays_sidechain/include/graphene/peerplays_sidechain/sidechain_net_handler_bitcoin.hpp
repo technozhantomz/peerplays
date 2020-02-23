@@ -7,7 +7,6 @@
 
 #include <fc/signals.hpp>
 #include <fc/network/http/connection.hpp>
-#include <graphene/chain/database.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
@@ -72,8 +71,10 @@ public:
    virtual ~sidechain_net_handler_bitcoin();
 
    void recreate_primary_wallet();
-
-   bool connection_is_not_defined() const;
+   void process_deposits();
+   void process_deposit(const son_wallet_deposit_object& swdo);
+   void process_withdrawals();
+   void process_withdrawal(const son_wallet_withdraw_object& swwo);
 
    std::string create_multisignature_wallet( const std::vector<std::string> public_keys );
    std::string transfer( const std::string& from, const std::string& to, const uint64_t amount );

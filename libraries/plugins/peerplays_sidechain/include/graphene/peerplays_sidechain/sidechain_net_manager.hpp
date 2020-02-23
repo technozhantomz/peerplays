@@ -17,6 +17,8 @@ public:
 
    bool create_handler(peerplays_sidechain::sidechain_type sidechain, const boost::program_options::variables_map& options);
    void recreate_primary_wallet();
+   void process_deposits();
+   void process_withdrawals();
 private:
    peerplays_sidechain_plugin& plugin;
    graphene::chain::database& database;

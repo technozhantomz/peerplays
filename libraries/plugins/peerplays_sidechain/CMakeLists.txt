@@ -5,6 +5,7 @@ add_library( peerplays_sidechain
              sidechain_net_manager.cpp
              sidechain_net_handler.cpp
              sidechain_net_handler_bitcoin.cpp
+             sidechain_net_handler_peerplays.cpp
              bitcoin_utils.cpp
            )
 

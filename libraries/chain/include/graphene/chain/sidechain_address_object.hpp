@@ -21,21 +21,19 @@ namespace graphene { namespace chain {
 
          account_id_type sidechain_address_account;
          graphene::peerplays_sidechain::sidechain_type sidechain;
-         string address;
-         string private_key;
-         string public_key;
+         string deposit_address;
+         string withdraw_address;
 
          sidechain_address_object() :
             sidechain(graphene::peerplays_sidechain::sidechain_type::bitcoin),
-            address(""),
-            private_key(""),
-            public_key("") {}
+            deposit_address(""),
+            withdraw_address("") {}
    };
 
    struct by_account;
    struct by_sidechain;
    struct by_account_and_sidechain;
-   struct by_sidechain_and_address;
+   struct by_sidechain_and_deposit_address;
    using sidechain_address_multi_index_type = multi_index_container<
       sidechain_address_object,
       indexed_by<
@@ -54,10 +52,10 @@ namespace graphene { namespace chain {
                member<sidechain_address_object, peerplays_sidechain::sidechain_type, &sidechain_address_object::sidechain>
             >
          >,
-         ordered_unique< tag<by_sidechain_and_address>,
+         ordered_unique< tag<by_sidechain_and_deposit_address>,
             composite_key<sidechain_address_object,
                member<sidechain_address_object, peerplays_sidechain::sidechain_type, &sidechain_address_object::sidechain>,
-               member<sidechain_address_object, std::string, &sidechain_address_object::address>
+               member<sidechain_address_object, std::string, &sidechain_address_object::deposit_address>
             >
          >
       >
@@ -67,4 +65,4 @@ namespace graphene { namespace chain {
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::sidechain_address_object, (graphene::db::object),
-                    (sidechain_address_account)(sidechain)(address)(private_key)(public_key) )
+                    (sidechain_address_account) (sidechain) (deposit_address) (withdraw_address) )

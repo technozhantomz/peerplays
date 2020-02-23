@@ -457,8 +457,9 @@ void database::update_active_sons()
             a.active.account_auths[weight.first] += votes;
             a.active.weight_threshold += votes;
          }
-
-         a.active.weight_threshold /= 2;
+   
+         a.active.weight_threshold *= 2;
+         a.active.weight_threshold /= 3;
          a.active.weight_threshold += 1;
       }
       else
@@ -466,12 +467,11 @@ void database::update_active_sons()
          vote_counter vc;
          for( const son_object& son : sons )
             vc.add( son.son_account, std::max(_vote_tally_buffer[son.vote_id], UINT64_C(1)) );
-         vc.finish( a.active );
+         vc.finish_2_3( a.active );
       }
    } );
 
    // Compare current and to-be lists of active sons
-   //const global_property_object& gpo = get_global_properties();
    auto cur_active_sons = gpo.active_sons;
    vector<son_info> new_active_sons;
    for( const son_object& son : sons ) {
@@ -602,83 +602,6 @@ void database::update_active_sons()
 
    update_son_metrics();
 
-   if(gpo.active_sons.size() > 0 ) {
-      if(gpo.parameters.get_son_btc_account_id() == GRAPHENE_NULL_ACCOUNT) {
-         const auto& son_btc_account = create<account_object>( [&]( account_object& obj ) {
-            uint64_t total_votes = 0;
-            obj.name = "son_btc_account";
-            obj.statistics = create<account_statistics_object>([&]( account_statistics_object& acc_stat ){ acc_stat.owner = obj.id; }).id;
-            obj.membership_expiration_date = time_point_sec::maximum();
-            obj.network_fee_percentage = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
-            obj.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT - GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
-
-            for( const auto& son_info : gpo.active_sons )
-            {
-               const son_object& son = get(son_info.son_id);
-               total_votes += _vote_tally_buffer[son.vote_id];
-            }
-            // total_votes is 64 bits. Subtract the number of leading low bits from 64 to get the number of useful bits,
-            // then I want to keep the most significant 16 bits of what's left.
-            int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
-
-            for( const auto& son_info : gpo.active_sons )
-            {
-               // Ensure that everyone has at least one vote. Zero weights aren't allowed.
-               const son_object& son = get(son_info.son_id);
-               uint16_t votes = std::max((_vote_tally_buffer[son.vote_id] >> bits_to_drop), uint64_t(1) );
-               obj.owner.account_auths[son.son_account] += votes;
-               obj.owner.weight_threshold += votes;
-               obj.active.account_auths[son.son_account] += votes;
-               obj.active.weight_threshold += votes;
-            }
-            obj.owner.weight_threshold *= 2;
-            obj.owner.weight_threshold /= 3;
-            obj.owner.weight_threshold += 1;
-            obj.active.weight_threshold *= 2;
-            obj.active.weight_threshold /= 3;
-            obj.active.weight_threshold += 1;
-         });
-
-         modify( gpo, [&]( global_property_object& gpo ) {
-            gpo.parameters.extensions.value.son_btc_account = son_btc_account.get_id();
-            if( gpo.pending_parameters )
-               gpo.pending_parameters->extensions.value.son_btc_account = son_btc_account.get_id();
-         });
-      } else {
-         modify( get(gpo.parameters.get_son_btc_account_id()), [&]( account_object& obj )
-         {
-            uint64_t total_votes = 0;
-            obj.owner.weight_threshold = 0;
-            obj.owner.account_auths.clear();
-            obj.active.weight_threshold = 0;
-            obj.active.account_auths.clear();
-            for( const auto& son_info : gpo.active_sons )
-            {
-               const son_object& son = get(son_info.son_id);
-               total_votes += _vote_tally_buffer[son.vote_id];
-            }
-            // total_votes is 64 bits. Subtract the number of leading low bits from 64 to get the number of useful bits,
-            // then I want to keep the most significant 16 bits of what's left.
-            int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
-            for( const auto& son_info : gpo.active_sons )
-            {
-               // Ensure that everyone has at least one vote. Zero weights aren't allowed.
-               const son_object& son = get(son_info.son_id);
-               uint16_t votes = std::max((_vote_tally_buffer[son.vote_id] >> bits_to_drop), uint64_t(1) );
-               obj.owner.account_auths[son.son_account] += votes;
-               obj.owner.weight_threshold += votes;
-               obj.active.account_auths[son.son_account] += votes;
-               obj.active.weight_threshold += votes;
-            }
-            obj.owner.weight_threshold *= 2;
-            obj.owner.weight_threshold /= 3;
-            obj.owner.weight_threshold += 1;
-            obj.active.weight_threshold *= 2;
-            obj.active.weight_threshold /= 3;
-            obj.active.weight_threshold += 1;
-         });
-      }
-   }
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::initialize_budget_record( fc::time_point_sec now, budget_record& rec )const

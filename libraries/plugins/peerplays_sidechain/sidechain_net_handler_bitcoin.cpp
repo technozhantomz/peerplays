@@ -15,6 +15,8 @@
 #include <graphene/chain/sidechain_address_object.hpp>
 #include <graphene/chain/son_info.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
+#include <graphene/chain/son_wallet_deposit_object.hpp>
+#include <graphene/chain/son_wallet_withdraw_object.hpp>
 #include <graphene/chain/protocol/son_wallet.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
@@ -396,7 +398,7 @@ void sidechain_net_handler_bitcoin::recreate_primary_wallet() {
             boost::property_tree::json_parser::write_json(res, pt.get_child("result"));
 
             son_wallet_update_operation op;
-            op.payer = gpo.parameters.get_son_btc_account_id();
+            op.payer = GRAPHENE_SON_ACCOUNT;
             op.son_wallet_id = (*obj).id;
             op.sidechain = sidechain_type::bitcoin;
             op.address = res.str();
@@ -422,43 +424,45 @@ void sidechain_net_handler_bitcoin::recreate_primary_wallet() {
    }
 }
 
-bool sidechain_net_handler_bitcoin::connection_is_not_defined() const
-{
-   return listener->connection_is_not_defined() && bitcoin_client->connection_is_not_defined();
+void sidechain_net_handler_bitcoin::process_deposits() {
+   sidechain_net_handler::process_deposits();
 }
 
-std::string sidechain_net_handler_bitcoin::create_multisignature_wallet( const std::vector<std::string> public_keys )
-{
+void sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_object& swdo) {
+}
+
+void sidechain_net_handler_bitcoin::process_withdrawals() {
+   sidechain_net_handler::process_withdrawals();
+}
+
+void sidechain_net_handler_bitcoin::process_withdrawal(const son_wallet_withdraw_object& swwo) {
+}
+
+std::string sidechain_net_handler_bitcoin::create_multisignature_wallet( const std::vector<std::string> public_keys ) {
    return bitcoin_client->add_multisig_address(public_keys);
 }
 
-std::string sidechain_net_handler_bitcoin::transfer( const std::string& from, const std::string& to, const uint64_t amount )
-{
+std::string sidechain_net_handler_bitcoin::transfer( const std::string& from, const std::string& to, const uint64_t amount ) {
    return "";
 }
 
-std::string sidechain_net_handler_bitcoin::sign_transaction( const std::string& transaction )
-{
+std::string sidechain_net_handler_bitcoin::sign_transaction( const std::string& transaction ) {
    return "";
 }
 
-std::string sidechain_net_handler_bitcoin::send_transaction( const std::string& transaction )
-{
+std::string sidechain_net_handler_bitcoin::send_transaction( const std::string& transaction ) {
    return "";
 }
 
 void sidechain_net_handler_bitcoin::handle_event( const std::string& event_data ) {
-   ilog("peerplays sidechain plugin:  sidechain_net_handler_bitcoin::handle_event");
-   ilog("                             event_data: ${event_data}", ("event_data", event_data));
-
    std::string block = bitcoin_client->receive_full_block( event_data );
    if( block != "" ) {
       const auto& vins = extract_info_from_block( block );
 
-      const auto& sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_address>();
+      const auto& sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address>();
 
       for( const auto& v : vins ) {
-         const auto& addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain_type::bitcoin, v.address));
+         const auto& addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, v.address));
          if ( addr_itr == sidechain_addresses_idx.end() )
             continue;
 
@@ -473,16 +477,17 @@ void sidechain_net_handler_bitcoin::handle_event( const std::string& event_data 
          sed.sidechain_transaction_id = v.out.hash_tx;
          sed.sidechain_from = "";
          sed.sidechain_to = v.address;
+         sed.sidechain_currency = "BTC";
          sed.sidechain_amount = v.out.amount;
          sed.peerplays_from = addr_itr->sidechain_address_account;
          sed.peerplays_to = GRAPHENE_SON_ACCOUNT;
+         sed.peerplays_asset = asset(sed.sidechain_amount / 1000); // For Bitcoin, the exchange rate is 1:1, for others, get the exchange rate from market
          sidechain_event_data_received(sed);
       }
    }
 }
 
-std::vector<info_for_vin> sidechain_net_handler_bitcoin::extract_info_from_block( const std::string& _block )
-{
+std::vector<info_for_vin> sidechain_net_handler_bitcoin::extract_info_from_block( const std::string& _block ) {
    std::stringstream ss( _block );
    boost::property_tree::ptree block;
    boost::property_tree::read_json( ss, block );
