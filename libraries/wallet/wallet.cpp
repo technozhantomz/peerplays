@@ -1988,19 +1988,22 @@ public:
       });
       std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
       vector<account_id_type> owners;
-      owners.resize(son_objects.size());
-      std::transform(son_objects.begin(), son_objects.end(), owners.begin(),
-                     [](const fc::optional<son_object>& obj) {
-                        FC_ASSERT(obj, "Invalid active SONs list in global properties.");
-                        return obj->son_account;
-                     });
+      for(auto obj: son_objects)
+      {
+         if (obj)
+            owners.push_back(obj->son_account);
+      }
       vector<fc::optional<account_object>> accs = _remote_db->get_accounts(owners);
+      std::remove_if(son_objects.begin(), son_objects.end(),
+                     [](const fc::optional<son_object>& obj) -> bool { return obj.valid(); });
       map<string, son_id_type> result;
-      std::transform(accs.begin(), accs.end(), son_ids.begin(),
+      std::transform(accs.begin(), accs.end(), son_objects.begin(),
                      std::inserter(result, result.end()),
-                     [](fc::optional<account_object>& acct, son_id_type& sid) {
+                     [](fc::optional<account_object>& acct, fc::optional<son_object> son) {
                         FC_ASSERT(acct, "Invalid active SONs list in global properties.");
-                        return std::make_pair<string, son_id_type>(string(acct->name), std::move(sid));
+                        if (son.valid())
+                           return std::make_pair<string, son_id_type>(string(acct->name), std::move(son->id));
+                        return std::make_pair<string, son_id_type>(string(acct->name), std::move(son_id_type()));
                      });
       return result;
    } FC_CAPTURE_AND_RETHROW() }

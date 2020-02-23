@@ -650,6 +650,9 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
           BOOST_CHECK(active_sons.find(name) != active_sons.end());
       }
 
+      // check list_active_son after SON deletion
+      con.wallet_api_ptr->delete_son("sonaccount1", true);
+      BOOST_CHECK_NO_THROW(con.wallet_api_ptr->list_active_sons());
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");
       edump((e.to_detail_string()));
