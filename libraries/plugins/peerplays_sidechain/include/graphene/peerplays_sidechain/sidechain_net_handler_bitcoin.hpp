@@ -7,6 +7,8 @@
 
 #include <fc/signals.hpp>
 #include <fc/network/http/connection.hpp>
+#include <graphene/chain/son_wallet_deposit_object.hpp>
+#include <graphene/chain/son_wallet_withdraw_object.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
@@ -21,20 +23,18 @@ public:
 class bitcoin_rpc_client {
 public:
    bitcoin_rpc_client( std::string _ip, uint32_t _rpc, std::string _user, std::string _password) ;
-   std::string receive_full_block( const std::string& block_hash );
-   int32_t receive_confirmations_tx( const std::string& tx_hash );
-   bool receive_mempool_entry_tx( const std::string& tx_hash );
-   uint64_t receive_estimated_fee();
-   void send_btc_tx( const std::string& tx_hex );
-   std::string add_multisig_address( const std::vector<std::string> public_keys );
    bool connection_is_not_defined() const;
-   std::string create_raw_transaction(const std::string& txid, const std::string& vout, const std::string& out_address, double transfer_amount);
-   std::string sign_raw_transaction_with_wallet(const std::string& tx_hash);
-   std::string sign_raw_transaction_with_privkey(const std::string& tx_hash, const std::string& private_key);
-   void import_address( const std::string& address_or_script);
-   std::vector<btc_txout> list_unspent();
-   std::vector<btc_txout> list_unspent_by_address_and_amount(const std::string& address, double transfer_amount);
-   std::string prepare_tx(const std::vector<btc_txout>& ins, const fc::flat_map<std::string, double> outs);
+
+   std::string addmultisigaddress( const std::vector<std::string> public_keys );
+   std::string createrawtransaction(const std::vector<btc_txout>& ins, const fc::flat_map<std::string, double> outs);
+   uint64_t estimatesmartfee();
+   std::string getblock( const std::string& block_hash, int32_t verbosity = 2 );
+   void importaddress( const std::string& address_or_script);
+   std::vector<btc_txout> listunspent();
+   std::vector<btc_txout> listunspent_by_address_and_amount(const std::string& address, double transfer_amount);
+   void sendrawtransaction( const std::string& tx_hex );
+   std::string signrawtransactionwithkey(const std::string& tx_hash, const std::string& private_key);
+   std::string signrawtransactionwithwallet(const std::string& tx_hash);
 
 private:
 
@@ -86,8 +86,8 @@ public:
    std::string send_transaction( const std::string& transaction );
    std::string sign_and_send_transaction_with_wallet ( const std::string& tx_json );
    std::string transfer_all_btc(const std::string& from_address, const std::string& to_address);
-   std::string transfer_deposit_to_primary_wallet (const sidechain_event_data& sed);
-   std::string transfer_withdrawal_from_primary_wallet(const std::string& user_address, double sidechain_amount);
+   std::string transfer_deposit_to_primary_wallet (const son_wallet_deposit_object &swdo);
+   std::string transfer_withdrawal_from_primary_wallet(const son_wallet_withdraw_object &swwo);
 
 
 private:

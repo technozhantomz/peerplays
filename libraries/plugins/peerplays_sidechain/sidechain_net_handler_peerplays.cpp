@@ -22,7 +22,7 @@ namespace graphene { namespace peerplays_sidechain {
 sidechain_net_handler_peerplays::sidechain_net_handler_peerplays(peerplays_sidechain_plugin& _plugin, const boost::program_options::variables_map& options) :
       sidechain_net_handler(_plugin, options) {
    sidechain = sidechain_type::peerplays;
-   plugin.database().applied_block.connect( [&] (const signed_block& b) { on_block_applied(b); } );
+   plugin.database().applied_block.connect( [&] (const signed_block& b) { on_applied_block(b); } );
 }
 
 sidechain_net_handler_peerplays::~sidechain_net_handler_peerplays() {
@@ -61,7 +61,7 @@ std::string sidechain_net_handler_peerplays::send_transaction( const std::string
    return "";
 }
 
-void sidechain_net_handler_peerplays::on_block_applied(const signed_block& b) {
+void sidechain_net_handler_peerplays::on_applied_block(const signed_block& b) {
     for (const auto& trx: b.transactions) {
         size_t operation_index = -1;
         for (auto op: trx.operations) {

@@ -36,8 +36,6 @@ protected:
     virtual std::string transfer( const std::string& from, const std::string& to, const uint64_t amount ) = 0;
     virtual std::string sign_transaction( const std::string& transaction ) = 0;
     virtual std::string send_transaction( const std::string& transaction ) = 0;
-    //virtual std::string transfer_deposit_to_primary_wallet (const sidechain_event_data& sed) = 0;
-    //virtual std::string transfer_withdrawal_from_primary_wallet(const std::string& user_address, double sidechain_amount) = 0;
 
 private:
 

@@ -26,7 +26,7 @@ public:
 
 private:
 
-    void on_block_applied(const signed_block& b);
+    void on_applied_block(const signed_block& b);
 
 };
 

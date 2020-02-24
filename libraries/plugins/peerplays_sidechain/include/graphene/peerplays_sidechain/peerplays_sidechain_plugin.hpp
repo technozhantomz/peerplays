@@ -28,6 +28,7 @@ class peerplays_sidechain_plugin : public graphene::app::plugin
       std::unique_ptr<detail::peerplays_sidechain_plugin_impl> my;
 
       std::set<chain::son_id_type>& get_sons();
+      son_id_type& get_current_son_id();
       son_object get_son_object(son_id_type son_id);
       bool is_active_son(son_id_type son_id);
       std::map<chain::public_key_type, fc::ecc::private_key>& get_private_keys();
