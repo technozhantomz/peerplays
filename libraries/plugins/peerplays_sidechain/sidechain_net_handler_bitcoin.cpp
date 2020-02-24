@@ -112,6 +112,8 @@ void bitcoin_rpc_client::send_btc_tx( const std::string& tx_hex )
    const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"send_tx\", \"method\": \"sendrawtransaction\", \"params\": [") +
                      std::string("\"") + tx_hex + std::string("\"") + std::string("] }");
 
+   ilog(body);
+
    const auto reply = send_post_request( body );
 
    if( reply.body.empty() )
@@ -167,6 +169,72 @@ std::string bitcoin_rpc_client::add_multisig_address( const std::vector<std::str
    if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
       wlog( "BTC multisig address creation failed! Reply: ${msg}", ("msg", reply_str) );
    }
+   return "";
+}
+
+std::string bitcoin_rpc_client::create_raw_transaction(const std::string& txid, const std::string& nvout, const std::string& out_address, double transfer_amount)
+{
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"createrawtransaction\", \"method\": \"createrawtransaction\", \"params\": [");
+   std::string params = "";
+   std::string input = std::string("[{\"txid\":\"") + txid + std::string("\",\"vout\":")+ nvout +std::string("}]");
+   std::string output = std::string("[{\"") + out_address + std::string("\":") + std::to_string(transfer_amount) + std::string("}]");
+   params = params + input + std::string(",") + output;
+   body = body + params + std::string("]}");
+
+   ilog(body);
+
+   const auto reply = send_post_request( body );
+
+   if( reply.body.empty() )
+      return "";
+
+   std::string reply_str( reply.body.begin(), reply.body.end() );
+
+   std::stringstream ss(reply_str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   if( reply.status == 200 ) {
+      return reply_str;
+   }
+
+   if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
+      wlog( "BTC createrawtransaction failed! Reply: ${msg}", ("msg", reply_str) );
+   }
+   return "";
+}
+
+std::string bitcoin_rpc_client::sign_raw_transaction_with_wallet(const std::string& tx_hash)
+{
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"signrawtransactionwithwallet\", \"method\": \"signrawtransactionwithwallet\", \"params\": [");
+   std::string params = "\"" + tx_hash + "\"";
+   body = body + params + std::string("]}");
+
+   ilog(body);
+
+   const auto reply = send_post_request( body );
+
+   if( reply.body.empty() )
+      return "";
+
+   std::string reply_str( reply.body.begin(), reply.body.end() );
+
+   std::stringstream ss(reply_str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   if( reply.status == 200 ) {
+      return reply_str;
+   }
+
+   if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
+      wlog( "BTC sign_raw_transaction_with_wallet failed! Reply: ${msg}", ("msg", reply_str) );
+   }
+   return "";
+}
+
+std::string bitcoin_rpc_client::sign_raw_transaction_with_privkey(const std::string& tx_hash, const std::string& private_key)
+{
    return "";
 }
 
@@ -240,6 +308,51 @@ std::vector<btc_txout> bitcoin_rpc_client::list_unspent()
    return result;
 }
 
+std::vector<btc_txout> bitcoin_rpc_client::list_unspent_by_address_and_amount(const std::string& address, double minimum_amount)
+{
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": \"listunspent\", \"params\": [");
+   body += std::string("1,999999,[\"");
+   body += address;
+   body += std::string("\"],true,{\"minimumAmount\":");
+   body += std::to_string(minimum_amount);
+   body += std::string("}] }");
+
+   ilog(body);
+
+   const auto reply = send_post_request( body );
+
+   std::vector<btc_txout> result;
+   if( reply.body.empty() )
+   {
+      wlog("Failed to list unspent txo");
+      return result;
+   }
+
+   std::string reply_str( reply.body.begin(), reply.body.end() );
+
+   std::stringstream ss(reply_str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   if( reply.status == 200 ) {
+      idump((reply_str));
+      if( json.count( "result" ) )
+      {
+         for(auto& entry: json.get_child("result"))
+         {
+            btc_txout txo;
+            txo.txid_ = entry.second.get_child("txid").get_value<std::string>();
+            txo.out_num_ = entry.second.get_child("vout").get_value<unsigned int>();
+            txo.amount_ = entry.second.get_child("amount").get_value<double>();
+            result.push_back(txo);
+         }
+      }
+   } else if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
+      wlog( "Failed to list unspent txo! Reply: ${msg}", ("msg", reply_str) );
+   }
+   return result;
+}
+
 std::string bitcoin_rpc_client::prepare_tx(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs)
 {
    std::string body("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": \"createrawtransaction\", \"params\": [");
@@ -249,21 +362,21 @@ std::string bitcoin_rpc_client::prepare_tx(const std::vector<btc_txout> &ins, co
    {
       if(!first)
          body += ",";
-      body += "{\"txid\":\"" + entry.txid_ + "\",\"vout\":\"" + fc::to_string(entry.out_num_) + "\"}";
+      body += "{\"txid\":\"" + entry.txid_ + "\",\"vout\":" + std::to_string(entry.out_num_) + "}";
       first = false;
    }
-   body += "]";
+   body += "],[";
    first = true;
-   body += "{";
    for(const auto& entry: outs)
    {
       if(!first)
          body += ",";
-      body += "\"" + entry.first + "\":\"" + fc::to_string(entry.second) + "\"";
+      body += "{\"" + entry.first + "\":" + std::to_string(entry.second) + "}";
       first = false;
    }
-   body += "}";
-   body += std::string("] }");
+   body += std::string("]] }");
+
+   ilog(body);
 
    const auto reply = send_post_request( body );
 
@@ -282,7 +395,7 @@ std::string bitcoin_rpc_client::prepare_tx(const std::vector<btc_txout> &ins, co
    if( reply.status == 200 ) {
       idump((reply_str));
       if( json.count( "result" ) )
-         return json.get_child("result").get_value<std::string>();
+         return reply_str;
    } else if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
       wlog( "Failed to create raw transaction: [${body}]! Reply: ${msg}", ("body", body)("msg", reply_str) );
    }
@@ -350,6 +463,21 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    rpc_port = options.at("bitcoin-node-rpc-port").as<uint32_t>();
    rpc_user = options.at("bitcoin-node-rpc-user").as<std::string>();
    rpc_password = options.at("bitcoin-node-rpc-password").as<std::string>();
+
+   if( options.count("bitcoin-private-keys") )
+   {
+      const std::vector<std::string> pub_priv_keys = options["bitcoin-private-keys"].as<std::vector<std::string>>();
+      for (const std::string& itr_key_pair : pub_priv_keys)
+      {
+         auto key_pair = graphene::app::dejsonify<std::pair<std::string, std::string> >(itr_key_pair, 5);
+         ilog("Public Key: ${public}", ("public", key_pair.first));
+         if(!key_pair.first.length() || !key_pair.second.length())
+         {
+            FC_THROW("Invalid public private key pair.");
+         }
+         _private_keys[key_pair.first] = key_pair.second;
+      }
+   }
 
    fc::http::connection conn;
    try {
@@ -452,6 +580,170 @@ std::string sidechain_net_handler_bitcoin::sign_transaction( const std::string& 
 
 std::string sidechain_net_handler_bitcoin::send_transaction( const std::string& transaction ) {
    return "";
+}
+
+std::string sidechain_net_handler_bitcoin::sign_and_send_transaction_with_wallet ( const std::string& tx_json )
+{
+   std::string reply_str = tx_json;
+
+   ilog(reply_str);
+
+   std::stringstream ss_utx(reply_str);
+   boost::property_tree::ptree pt;
+   boost::property_tree::read_json( ss_utx, pt );
+
+   if( !(pt.count( "error" ) && pt.get_child( "error" ).empty()) || !pt.count("result") ) {
+      return "";
+   }
+
+   std::string unsigned_tx_hex = pt.get<std::string>("result");
+
+   reply_str = bitcoin_client->sign_raw_transaction_with_wallet(unsigned_tx_hex);
+   ilog(reply_str);
+   std::stringstream ss_stx(reply_str);
+   boost::property_tree::ptree stx_json;
+   boost::property_tree::read_json( ss_stx, stx_json );
+
+   if( !(stx_json.count( "error" ) && stx_json.get_child( "error" ).empty()) || !stx_json.count("result") || !stx_json.get_child("result").count("hex") ) {
+      return "";
+   }
+
+   std::string signed_tx_hex = stx_json.get<std::string>("result.hex");
+
+   bitcoin_client->send_btc_tx(signed_tx_hex);
+
+   return reply_str;
+}
+
+std::string sidechain_net_handler_bitcoin::transfer_all_btc(const std::string& from_address, const std::string& to_address)
+{
+   uint64_t fee_rate = bitcoin_client->receive_estimated_fee();
+   uint64_t min_fee_rate = 1000;
+   fee_rate = std::max(fee_rate, min_fee_rate);
+
+   double min_amount = ((double)fee_rate/100000000.0); // Account only for relay fee for now
+   double total_amount = 0.0;
+   std::vector<btc_txout> unspent_utxo= bitcoin_client->list_unspent_by_address_and_amount(from_address, 0);
+
+   if(unspent_utxo.size() == 0)
+   {
+      wlog("Failed to find UTXOs to spend for ${pw}",("pw", from_address));
+      return "";
+   }
+   else
+   {
+      for(const auto& utx: unspent_utxo)
+      {
+         total_amount += utx.amount_;
+      }
+
+      if(min_amount >= total_amount)
+      {
+         wlog("Failed not enough BTC to transfer from ${fa}",("fa", from_address));
+         return "";
+      }
+   }
+
+   fc::flat_map<std::string, double> outs;
+   outs[to_address] = total_amount - min_amount;
+
+   std::string reply_str = bitcoin_client->prepare_tx(unspent_utxo, outs);
+   return sign_and_send_transaction_with_wallet(reply_str);
+}
+
+std::string sidechain_net_handler_bitcoin::transfer_deposit_to_primary_wallet ( const sidechain_event_data& sed )
+{
+   const auto& idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+   auto obj = idx.rbegin();
+   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
+       return "";
+   }
+
+   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
+
+   std::stringstream ss(pw_address_json);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   std::string pw_address = json.get<std::string>("address");
+
+   std::string txid = sed.sidechain_transaction_id;
+   std::string suid = sed.sidechain_uid;
+   std::string nvout = suid.substr(suid.find_last_of("-")+1);
+   uint64_t deposit_amount = sed.sidechain_amount.value;
+   uint64_t fee_rate = bitcoin_client->receive_estimated_fee();
+   uint64_t min_fee_rate = 1000;
+   fee_rate = std::max(fee_rate, min_fee_rate);
+   deposit_amount -= fee_rate; // Deduct minimum relay fee
+   double transfer_amount = (double)deposit_amount/100000000.0;
+
+   std::vector<btc_txout> ins;
+   fc::flat_map<std::string, double> outs;
+
+   btc_txout utxo;
+   utxo.txid_ = txid;
+   utxo.out_num_ = std::stoul(nvout);
+
+   ins.push_back(utxo);
+
+   outs[pw_address] = transfer_amount;
+
+   std::string reply_str = bitcoin_client->prepare_tx(ins, outs);
+   return sign_and_send_transaction_with_wallet(reply_str);
+}
+
+std::string sidechain_net_handler_bitcoin::transfer_withdrawal_from_primary_wallet(const std::string& user_address, double sidechain_amount) {
+   const auto& idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+   auto obj = idx.rbegin();
+   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end())
+   {
+       return "";
+   }
+
+   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
+
+   std::stringstream ss(pw_address_json);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   std::string pw_address = json.get<std::string>("address");
+
+   uint64_t fee_rate = bitcoin_client->receive_estimated_fee();
+   uint64_t min_fee_rate = 1000;
+   fee_rate = std::max(fee_rate, min_fee_rate);
+
+   double min_amount = sidechain_amount + ((double)fee_rate/100000000.0); // Account only for relay fee for now
+   double total_amount = 0.0;
+   std::vector<btc_txout> unspent_utxo= bitcoin_client->list_unspent_by_address_and_amount(pw_address, 0);
+
+   if(unspent_utxo.size() == 0)
+   {
+      wlog("Failed to find UTXOs to spend for ${pw}",("pw", pw_address));
+      return "";
+   }
+   else
+   {
+      for(const auto& utx: unspent_utxo)
+      {
+         total_amount += utx.amount_;
+      }
+
+      if(min_amount > total_amount)
+      {
+         wlog("Failed not enough BTC to spend for ${pw}",("pw", pw_address));
+	 return "";
+      }
+   }
+
+   fc::flat_map<std::string, double> outs;
+   outs[user_address] = sidechain_amount;
+   if((total_amount - min_amount) > 0.0)
+   {
+      outs[pw_address] = total_amount - min_amount;
+   }
+
+   std::string reply_str = bitcoin_client->prepare_tx(unspent_utxo, outs);
+   return sign_and_send_transaction_with_wallet(reply_str);
 }
 
 void sidechain_net_handler_bitcoin::handle_event( const std::string& event_data ) {

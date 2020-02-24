@@ -122,6 +122,7 @@ add_library( graphene_chain
              son_wallet_withdraw_evaluator.cpp
 
              sidechain_address_evaluator.cpp
+             sidechain_transaction_evaluator.cpp
 
              ${HEADERS}
              ${PROTOCOL_HEADERS}
