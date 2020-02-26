@@ -313,7 +313,7 @@ void database::verify_signing_witness( const signed_block& new_block, const fork
       witness_id_type wid;
       const witness_schedule_object& wso = get_witness_schedule_object();
       // ask the near scheduler who goes in the given slot
-      bool slot_is_near = wso.scheduler.get_slot(slot_num-1, wid);
+      bool slot_is_near = wso.scheduler.get_slot(slot_num, wid);
       if(! slot_is_near)
       {
          // if the near scheduler doesn't know, we have to extend it to
@@ -325,7 +325,7 @@ void database::verify_signing_witness( const signed_block& new_block, const fork
 
          far_future_witness_scheduler far_scheduler =
             far_future_witness_scheduler(wso.scheduler, far_rng);
-         if(!far_scheduler.get_slot(slot_num-1, wid))
+         if(!far_scheduler.get_slot(slot_num, wid))
          {
             // no scheduled witness -- somebody set up us the bomb
             // n.b. this code path is impossible, the present
@@ -338,7 +338,7 @@ void database::verify_signing_witness( const signed_block& new_block, const fork
       FC_ASSERT( new_block.witness == wid, "Witness produced block at wrong time",
                ("block witness",new_block.witness)("scheduled",wid)("slot_num",slot_num) );
       FC_ASSERT( new_block.validate_signee( wid(*this).signing_key ) );
-   }
+   }   
 }
 
 void database::update_witnesses( fork_item& fork_entry )const
