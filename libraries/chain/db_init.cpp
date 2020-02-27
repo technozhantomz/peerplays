@@ -461,7 +461,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "son-account";
        a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
-       a.owner.weight_threshold = 0;
+       a.owner.weight_threshold = 1;
        a.active.weight_threshold = 0;
        a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_SON_ACCOUNT;
        a.membership_expiration_date = time_point_sec::maximum();

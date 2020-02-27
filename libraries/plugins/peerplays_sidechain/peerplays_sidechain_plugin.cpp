@@ -327,10 +327,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
 {
    auto create_son_down_proposal = [&](chain::son_id_type son_id, fc::time_point_sec last_active_ts) {
       chain::database& d = plugin.database();
-      chain::son_id_type my_son_id = *(_sons.begin());
       const chain::global_property_object& gpo = d.get_global_properties();
-      const auto& idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
-      auto son_obj = idx.find( my_son_id );
 
       chain::son_report_down_operation son_down_op;
       son_down_op.payer = GRAPHENE_SON_ACCOUNT;
@@ -338,7 +335,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
       son_down_op.down_ts = last_active_ts;
 
       proposal_create_operation proposal_op;
-      proposal_op.fee_paying_account = son_obj->son_account;
+      proposal_op.fee_paying_account = get_son_object(plugin.get_current_son_id()).son_account;
       proposal_op.proposed_ops.push_back( op_wrapper( son_down_op ) );
       uint32_t lifetime = ( gpo.parameters.block_interval * gpo.active_witnesses.size() ) * 3;
       proposal_op.expiration_time = time_point_sec( d.head_block_time().sec_since_epoch() + lifetime );
@@ -350,7 +347,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
    const chain::dynamic_global_property_object& dgpo = d.get_dynamic_global_properties();
    const auto& idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
    std::set<son_id_type> sons_being_reported_down = d.get_sons_being_reported_down();
-   chain::son_id_type my_son_id = *(_sons.begin());
+   chain::son_id_type my_son_id = get_current_son_id();
    for(auto son_inf: gpo.active_sons) {
       if(my_son_id == son_inf.son_id || (sons_being_reported_down.find(son_inf.son_id) != sons_being_reported_down.end())){
          continue;
@@ -364,7 +361,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
           ((fc::time_point::now() - last_active_ts) > fc::microseconds(down_threshold)))  {
          ilog("peerplays_sidechain_plugin:  sending son down proposal for ${t} from ${s}",("t",std::string(object_id_type(son_obj->id)))("s",std::string(object_id_type(my_son_id))));
          chain::proposal_create_operation op = create_son_down_proposal(son_inf.son_id, last_active_ts);
-         chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(son_obj->signing_key), op);
+         chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(get_son_object(my_son_id).signing_key), op);
          fc::future<bool> fut = fc::async( [&](){
             try {
                d.push_transaction(trx, database::validation_steps::skip_block_size_check);
