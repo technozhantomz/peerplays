@@ -981,18 +981,21 @@ void application::initialize(const fc::path& data_dir, const boost::program_opti
       std::exit(EXIT_SUCCESS);
    }
 
-   std::vector<string> wanted;
+   std::set<string> wanted;
    if( options.count("plugins") )
    {
       boost::split(wanted, options.at("plugins").as<std::string>(), [](char c){return c == ' ';});
    }
    else
-   {
-      wanted.push_back("witness");
-      wanted.push_back("account_history");
-      wanted.push_back("market_history");
-      wanted.push_back("bookie");
+   {      
+      wanted.insert("account_history");
+      wanted.insert("market_history");
+      wanted.insert("accounts_list");
+      wanted.insert("affiliate_stats");
    }
+   wanted.insert("witness");
+   wanted.insert("bookie");
+
    int es_ah_conflict_counter = 0;
    for (auto& it : wanted)
    {
