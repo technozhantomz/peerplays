@@ -69,8 +69,8 @@ void_result delete_son_evaluator::do_evaluate(const son_delete_operation& op)
     // Get the current block witness signatory
     witness_id_type wit_id = db().get_scheduled_witness(1);
     const witness_object& current_witness = wit_id(db());
-    // Either owner can remove or witness
-    FC_ASSERT(db().get(op.son_id).son_account == op.owner_account || (db().is_son_dereg_valid(op.son_id) && op.payer == current_witness.witness_account));
+    // Either owner can remove or consensus son account
+    FC_ASSERT(op.payer == db().get(op.son_id).son_account || (db().is_son_dereg_valid(op.son_id) && op.payer == GRAPHENE_SON_ACCOUNT));
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
     FC_ASSERT( idx.find(op.son_id) != idx.end() );
     return void_result();

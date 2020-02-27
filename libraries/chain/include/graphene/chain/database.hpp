@@ -302,11 +302,10 @@ namespace graphene { namespace chain {
          std::set<son_id_type>                  get_sons_being_deregistered();
          std::set<son_id_type>                  get_sons_being_reported_down();
          std::set<son_id_type>                  get_sons_to_be_deregistered();
-         fc::optional<operation>                create_son_deregister_proposal(const son_id_type& son_id, const witness_object& current_witness );
+         fc::optional<operation>                create_son_deregister_proposal( son_id_type son_id, account_id_type paying_son );
          signed_transaction                     create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op );
-         void                                   process_son_proposals( const witness_object& current_witness, const fc::ecc::private_key& private_key );
          void                                   remove_son_proposal( const proposal_object& proposal );
-         bool                                   is_son_dereg_valid( const son_id_type& son_id );
+         bool                                   is_son_dereg_valid( son_id_type son_id );
 
          time_point_sec   head_block_time()const;
          uint32_t         head_block_num()const;

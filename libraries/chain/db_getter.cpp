@@ -170,7 +170,7 @@ std::set<son_id_type> database::get_sons_to_be_deregistered()
          // TODO : We need to add a function that returns if we can deregister SON 
          // i.e. with introduction of PW code, we have to make a decision if the SON 
          // is needed for release of funds from the PW
-         if(head_block_time() - stats.last_down_timestamp >= fc::hours(SON_DEREGISTER_TIME))
+         if(head_block_time() - stats.last_down_timestamp >= fc::seconds(get_global_properties().parameters.son_deregister_time()))
          {
             ret.insert(son.id);
          }
@@ -194,14 +194,14 @@ std::set<son_id_type> database::get_sons_being_reported_down()
    return ret;
 }
 
-fc::optional<operation> database::create_son_deregister_proposal(const son_id_type& son_id, const witness_object& current_witness )
+fc::optional<operation> database::create_son_deregister_proposal( son_id_type son_id, account_id_type paying_son )
 {
    son_delete_operation son_dereg_op;
-   son_dereg_op.payer = current_witness.witness_account;
+   son_dereg_op.payer = GRAPHENE_SON_ACCOUNT;
    son_dereg_op.son_id = son_id;
 
    proposal_create_operation proposal_op;
-   proposal_op.fee_paying_account = current_witness.witness_account;
+   proposal_op.fee_paying_account = paying_son;
    proposal_op.proposed_ops.push_back( op_wrapper( son_dereg_op ) );
    uint32_t lifetime = ( get_global_properties().parameters.block_interval * get_global_properties().active_witnesses.size() ) * 3;
    proposal_op.expiration_time = time_point_sec( head_block_time().sec_since_epoch() + lifetime );
@@ -222,31 +222,6 @@ signed_transaction database::create_signed_transaction( const fc::ecc::private_k
    return processed_trx;
 }
 
-void database::process_son_proposals( const witness_object& current_witness, const fc::ecc::private_key& private_key )
-{
-   const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get< by_id >();
-   const auto& proposal_idx = get_index_type<proposal_index>().indices().get< by_id >();
-
-   auto approve_proposal = [ & ]( const proposal_id_type& id )
-   {
-      proposal_update_operation puo;
-      puo.fee_paying_account = current_witness.witness_account;
-      puo.proposal = id;
-      puo.active_approvals_to_add = { current_witness.witness_account };
-      _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, puo ) );
-   };
-
-   for( auto& son_proposal : son_proposal_idx )
-   {
-      const auto& proposal = proposal_idx.find( son_proposal.proposal_id );
-      FC_ASSERT( proposal != proposal_idx.end() );
-      if( proposal->proposer == current_witness.witness_account)
-      {
-         approve_proposal( proposal->id );
-      }
-   }
-}
-
 void database::remove_son_proposal( const proposal_object& proposal )
 { try {
    if( proposal.proposed_transaction.operations.size() == 1 &&
@@ -262,13 +237,13 @@ void database::remove_son_proposal( const proposal_object& proposal )
    }
 } FC_CAPTURE_AND_RETHROW( (proposal) ) }
 
-bool database::is_son_dereg_valid( const son_id_type& son_id )
+bool database::is_son_dereg_valid( son_id_type son_id )
 {
    const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
    auto son = son_idx.find( son_id );
    FC_ASSERT( son != son_idx.end() );
    bool ret = ( son->status == son_status::in_maintenance &&
-                (head_block_time() - son->statistics(*this).last_down_timestamp >= fc::hours(SON_DEREGISTER_TIME)));
+                (head_block_time() - son->statistics(*this).last_down_timestamp >= fc::seconds(get_global_properties().parameters.son_deregister_time())));
    return ret;
 }
 

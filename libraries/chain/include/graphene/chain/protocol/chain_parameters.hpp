@@ -46,6 +46,9 @@ namespace graphene { namespace chain {
       optional < uint32_t >           son_vesting_amount;
       optional < uint32_t >           son_vesting_period;
       optional < uint32_t >           son_pay_daily_max;
+      optional < uint32_t >           son_deregister_time;
+      optional < uint32_t >           son_heartbeat_frequency;
+      optional < uint32_t >           son_down_time;
    };
 
    struct chain_parameters
@@ -138,6 +141,15 @@ namespace graphene { namespace chain {
       inline uint16_t son_pay_daily_max()const {
          return extensions.value.son_pay_daily_max.valid() ? *extensions.value.son_pay_daily_max : MIN_SON_PAY_DAILY_MAX;
       }
+      inline uint16_t son_deregister_time()const {
+         return extensions.value.son_deregister_time.valid() ? *extensions.value.son_deregister_time : SON_DEREGISTER_TIME;
+      }
+      inline uint16_t son_heartbeat_frequency()const {
+         return extensions.value.son_heartbeat_frequency.valid() ? *extensions.value.son_heartbeat_frequency : SON_HEARTBEAT_FREQUENCY;
+      }
+      inline uint16_t son_down_time()const {
+         return extensions.value.son_down_time.valid() ? *extensions.value.son_down_time : SON_DOWN_TIME;
+      }
    };
 
 } }  // graphene::chain
@@ -155,6 +167,9 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (son_vesting_amount)
    (son_vesting_period)
    (son_pay_daily_max)
+   (son_deregister_time)
+   (son_heartbeat_frequency)
+   (son_down_time)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,

@@ -45,6 +45,7 @@ class peerplays_sidechain_plugin_impl
       void schedule_heartbeat_loop();
       void heartbeat_loop();
       void create_son_down_proposals();
+      void create_son_deregister_proposals();
       void recreate_primary_wallet();
       void process_deposits();
       void process_withdrawals();
@@ -285,9 +286,9 @@ fc::ecc::private_key peerplays_sidechain_plugin_impl::get_private_key(chain::pub
 void peerplays_sidechain_plugin_impl::schedule_heartbeat_loop()
 {
    fc::time_point now = fc::time_point::now();
-   int64_t time_to_next_heartbeat = 180000000;
+   int64_t time_to_next_heartbeat = plugin.database().get_global_properties().parameters.son_heartbeat_frequency();
 
-   fc::time_point next_wakeup( now + fc::microseconds( time_to_next_heartbeat ) );
+   fc::time_point next_wakeup( now + fc::seconds( time_to_next_heartbeat ) );
 
    _heartbeat_task = fc::schedule([this]{heartbeat_loop();},
                                          next_wakeup, "SON Heartbeat Production");
@@ -319,6 +320,47 @@ void peerplays_sidechain_plugin_impl::heartbeat_loop()
             }
          });
          fut.wait(fc::seconds(10));
+      }
+   }
+}
+
+void peerplays_sidechain_plugin_impl::create_son_deregister_proposals()
+{
+   chain::database& d = plugin.database();
+   std::set<son_id_type> sons_to_be_dereg = d.get_sons_to_be_deregistered();
+   chain::son_id_type my_son_id = get_current_son_id();
+
+   if(sons_to_be_dereg.size() > 0)
+   {
+      // We shouldn't raise proposals for the SONs for which a de-reg
+      // proposal is already raised.
+      std::set<son_id_type> sons_being_dereg = d.get_sons_being_deregistered();
+      for( auto& son : sons_to_be_dereg)
+      {
+         // New SON to be deregistered
+         if(sons_being_dereg.find(son) == sons_being_dereg.end() && my_son_id != son)
+         {
+            // Creating the de-reg proposal
+            auto op = d.create_son_deregister_proposal(son, get_son_object(my_son_id).son_account);
+            if(op.valid())
+            {
+               // Signing and pushing into the txs to be included in the block
+               ilog("peerplays_sidechain_plugin:  sending son deregister proposal for ${p} from ${s}", ("p", son) ("s", my_son_id));
+               chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(get_son_object(my_son_id).signing_key), *op);
+               fc::future<bool> fut = fc::async( [&](){
+                  try {
+                     d.push_transaction(trx, database::validation_steps::skip_block_size_check);
+                     if(plugin.app().p2p_node())
+                        plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+                     return true;
+                  } catch(fc::exception e){
+                     ilog("peerplays_sidechain_plugin_impl:  sending son dereg proposal failed with exception ${e}",("e", e.what()));
+                     return false;
+                  }
+               });
+               fut.wait(fc::seconds(10));
+            }
+         }
       }
    }
 }
@@ -356,9 +398,9 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
       auto stats = son_obj->statistics(d);
       fc::time_point_sec last_maintenance_time = dgpo.next_maintenance_time - gpo.parameters.maintenance_interval;
       fc::time_point_sec last_active_ts = ((stats.last_active_timestamp > last_maintenance_time) ? stats.last_active_timestamp : last_maintenance_time);
-      int64_t down_threshold = 2*180000000;
+      int64_t down_threshold = gpo.parameters.son_down_time();
       if(((son_obj->status == chain::son_status::active) || (son_obj->status == chain::son_status::request_maintenance)) &&
-          ((fc::time_point::now() - last_active_ts) > fc::microseconds(down_threshold)))  {
+          ((fc::time_point::now() - last_active_ts) > fc::seconds(down_threshold)))  {
          ilog("peerplays_sidechain_plugin:  sending son down proposal for ${t} from ${s}",("t",std::string(object_id_type(son_obj->id)))("s",std::string(object_id_type(my_son_id))));
          chain::proposal_create_operation op = create_son_down_proposal(son_inf.son_id, last_active_ts);
          chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(get_son_object(my_son_id).signing_key), op);
@@ -412,6 +454,8 @@ void peerplays_sidechain_plugin_impl::on_applied_block( const signed_block& b )
 
       create_son_down_proposals();
 
+      create_son_deregister_proposals();
+
       recreate_primary_wallet();
 
       process_deposits();
@@ -463,6 +507,12 @@ void peerplays_sidechain_plugin_impl::on_new_objects(const vector<object_id_type
 
             if(proposal->proposed_transaction.operations.size() == 1
             && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_report_down_operation>::value) {
+               approve_proposal( son_id, proposal->id );
+               continue;
+            }
+
+            if(proposal->proposed_transaction.operations.size() == 1
+            && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_delete_operation>::value) {
                approve_proposal( son_id, proposal->id );
                continue;
             }
