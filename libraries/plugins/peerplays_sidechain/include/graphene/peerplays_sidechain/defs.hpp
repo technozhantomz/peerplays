@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
+#include <fc/crypto/sha256.hpp>
 #include <fc/safe.hpp>
 #include <fc/time.hpp>
-#include <fc/crypto/sha256.hpp>
 
 #include <graphene/chain/protocol/asset.hpp>
 #include <graphene/chain/protocol/types.hpp>
@@ -22,14 +22,11 @@ enum class sidechain_type {
 
 using bytes = std::vector<unsigned char>;
 
-struct prev_out
-{
-   bool operator!=( const prev_out& obj ) const
-   {
-      if( this->hash_tx != obj.hash_tx ||
+struct prev_out {
+   bool operator!=(const prev_out &obj) const {
+      if (this->hash_tx != obj.hash_tx ||
           this->n_vout != obj.n_vout ||
-          this->amount != obj.amount )
-      {
+          this->amount != obj.amount) {
          return true;
       }
       return false;
@@ -40,16 +37,15 @@ struct prev_out
    uint64_t amount;
 };
 
-struct info_for_vin
-{
+struct info_for_vin {
    info_for_vin() = default;
 
-   info_for_vin( const prev_out& _out, const std::string& _address, bytes _script = bytes(), bool _resend = false );
+   info_for_vin(const prev_out &_out, const std::string &_address, bytes _script = bytes(), bool _resend = false);
 
-   bool operator!=( const info_for_vin& obj ) const;
+   bool operator!=(const info_for_vin &obj) const;
 
    struct comparer {
-      bool operator() ( const info_for_vin& lhs, const info_for_vin& rhs ) const;
+      bool operator()(const info_for_vin &lhs, const info_for_vin &rhs) const;
    };
 
    static uint64_t count_id_info_for_vin;
@@ -66,19 +62,19 @@ struct info_for_vin
 };
 
 struct sidechain_event_data {
-    fc::time_point_sec timestamp;
-    sidechain_type sidechain;
-    std::string sidechain_uid;
-    std::string sidechain_transaction_id;
-    std::string sidechain_from;
-    std::string sidechain_to;
-    std::string sidechain_currency;
-    fc::safe<int64_t> sidechain_amount;
-    chain::account_id_type peerplays_from;
-    chain::account_id_type peerplays_to;
-    chain::asset peerplays_asset;
+   fc::time_point_sec timestamp;
+   sidechain_type sidechain;
+   std::string sidechain_uid;
+   std::string sidechain_transaction_id;
+   std::string sidechain_from;
+   std::string sidechain_to;
+   std::string sidechain_currency;
+   fc::safe<int64_t> sidechain_amount;
+   chain::account_id_type peerplays_from;
+   chain::account_id_type peerplays_to;
+   chain::asset peerplays_asset;
 };
 
-} } // graphene::peerplays_sidechain
+}} // namespace graphene::peerplays_sidechain
 
-FC_REFLECT_ENUM(graphene::peerplays_sidechain::sidechain_type, (bitcoin)(ethereum)(eos)(peerplays) )
+FC_REFLECT_ENUM(graphene::peerplays_sidechain::sidechain_type, (bitcoin)(ethereum)(eos)(peerplays))
