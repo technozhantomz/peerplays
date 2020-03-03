@@ -37,8 +37,6 @@
 namespace graphene { namespace chain {
    using namespace graphene::db;
 
-   class vesting_balance_object;
-
    struct vesting_policy_context
    {
       vesting_policy_context(
@@ -212,12 +210,14 @@ namespace graphene { namespace chain {
            composite_key<
               vesting_balance_object,
               member_offset<vesting_balance_object, asset_id_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,asset_id))>,
+              member<vesting_balance_object, vesting_balance_type, &vesting_balance_object::balance_type>,
               member_offset<vesting_balance_object, share_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,amount))>
               //member<vesting_balance_object, account_id_type, &vesting_balance_object::owner>
               //member_offset<vesting_balance_object, account_id_type, (size_t) (offsetof(vesting_balance_object,owner))>
            >,
            composite_key_compare<
               std::less< asset_id_type >,
+              std::less< vesting_balance_type >,
               std::greater< share_type >
               //std::less< account_id_type >
            >
@@ -255,3 +255,7 @@ FC_REFLECT_DERIVED(graphene::chain::vesting_balance_object, (graphene::db::objec
                    (policy)
                    (balance_type)
                   )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::linear_vesting_policy )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::cdd_vesting_policy )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vesting_balance_object )

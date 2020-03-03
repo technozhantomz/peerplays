@@ -29,11 +29,9 @@
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/bookie/bookie_api.hpp>
 #include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
+#include <graphene/elasticsearch/elasticsearch_plugin.hpp>
+#include <graphene/es_objects/es_objects.hpp>
 
-#include <graphene/db/simple_index.hpp>
-
-#include <graphene/chain/account_object.hpp>
-#include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/fba_object.hpp>
 #include <graphene/chain/market_object.hpp>
@@ -54,7 +52,6 @@
 #include <exception>
 #include <iostream>
 #include <iomanip>
-#include <sstream>
 
 #include "database_fixture.hpp"
 
@@ -82,7 +79,7 @@ database_fixture::database_fixture()
          std::cout << "running test " << boost::unit_test::framework::current_test_case().p_name << std::endl;
    }
 
-   auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
+   //auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
    auto mhplugin = app.register_plugin<graphene::market_history::market_history_plugin>();
    auto bookieplugin = app.register_plugin<graphene::bookie::bookie_plugin>();
    auto affiliateplugin = app.register_plugin<graphene::affiliate_stats::affiliate_stats_plugin>();
@@ -128,9 +125,58 @@ database_fixture::database_fixture()
       options.insert(std::make_pair("track-account", boost::program_options::variable_value(track_account, false)));
    }
 
+   // standby votes tracking
+   if( boost::unit_test::framework::current_test_case().p_name.value == "track_votes_witnesses_disabled" ||
+       boost::unit_test::framework::current_test_case().p_name.value == "track_votes_committee_disabled") {
+      app.chain_database()->enable_standby_votes_tracking( false );
+   }
+   
    // app.initialize();
-   ahplugin->plugin_set_app(&app);
-   ahplugin->plugin_initialize(options);
+
+   auto test_name = boost::unit_test::framework::current_test_case().p_name.value;
+   if(test_name == "elasticsearch_account_history" || test_name == "elasticsearch_suite" ||
+      test_name == "elasticsearch_history_api") {
+      auto esplugin = app.register_plugin<graphene::elasticsearch::elasticsearch_plugin>();
+      esplugin->plugin_set_app(&app);
+
+      options.insert(std::make_pair("elasticsearch-node-url", boost::program_options::variable_value(string("http://localhost:9200/"), false)));
+      options.insert(std::make_pair("elasticsearch-bulk-replay", boost::program_options::variable_value(uint32_t(2), false)));
+      options.insert(std::make_pair("elasticsearch-bulk-sync", boost::program_options::variable_value(uint32_t(2), false)));
+      options.insert(std::make_pair("elasticsearch-start-es-after-block", boost::program_options::variable_value(uint32_t(0), false)));
+      options.insert(std::make_pair("elasticsearch-visitor", boost::program_options::variable_value(false, false)));
+      options.insert(std::make_pair("elasticsearch-operation-object", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("elasticsearch-operation-string", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("elasticsearch-mode", boost::program_options::variable_value(uint16_t(2), false)));
+
+      esplugin->plugin_initialize(options);
+      esplugin->plugin_startup();
+   }
+   else {
+      auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
+      app.enable_plugin("affiliate_stats");
+      ahplugin->plugin_set_app(&app);
+      ahplugin->plugin_initialize(options);
+      ahplugin->plugin_startup();
+   }
+
+   if(test_name == "elasticsearch_objects" || test_name == "elasticsearch_suite") {
+      auto esobjects_plugin = app.register_plugin<graphene::es_objects::es_objects_plugin>();
+      esobjects_plugin->plugin_set_app(&app);
+
+      options.insert(std::make_pair("es-objects-elasticsearch-url", boost::program_options::variable_value(string("http://localhost:9200/"), false)));
+      options.insert(std::make_pair("es-objects-bulk-replay", boost::program_options::variable_value(uint32_t(2), false)));
+      options.insert(std::make_pair("es-objects-bulk-sync", boost::program_options::variable_value(uint32_t(2), false)));
+      options.insert(std::make_pair("es-objects-proposals", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-accounts", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-assets", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-balances", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-limit-orders", boost::program_options::variable_value(true, false)));
+      options.insert(std::make_pair("es-objects-asset-bitasset", boost::program_options::variable_value(true, false)));
+
+      esobjects_plugin->plugin_initialize(options);
+      esobjects_plugin->plugin_startup();
+   }
+
    mhplugin->plugin_set_app(&app);
    mhplugin->plugin_initialize(options);
    bookieplugin->plugin_set_app(&app);
@@ -138,7 +184,6 @@ database_fixture::database_fixture()
    affiliateplugin->plugin_set_app(&app);
    affiliateplugin->plugin_initialize(options);
 
-   ahplugin->plugin_startup();
    mhplugin->plugin_startup();
    bookieplugin->plugin_startup();
    affiliateplugin->plugin_startup();
@@ -194,7 +239,7 @@ void database_fixture::verify_asset_supplies( const database& db )
    const asset_dynamic_data_object& core_asset_data = db.get_core_asset().dynamic_asset_data_id(db);
    BOOST_CHECK(core_asset_data.fee_pool == 0);
 
-   const simple_index<account_statistics_object>& statistics_index = db.get_index_type<simple_index<account_statistics_object>>();
+   const auto& statistics_index = db.get_index_type<account_stats_index>().indices();
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
    const auto& settle_index = db.get_index_type<force_settlement_index>().indices();
    const auto& tournaments_index = db.get_index_type<tournament_index>().indices();

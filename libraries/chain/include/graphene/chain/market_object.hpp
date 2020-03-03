@@ -217,3 +217,7 @@ FC_REFLECT_DERIVED( graphene::chain::force_settlement_object,
                     (graphene::db::object),
                     (owner)(balance)(settlement_date)
                   )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::limit_order_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::call_order_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::force_settlement_object )

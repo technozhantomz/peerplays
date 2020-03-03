@@ -22,10 +22,11 @@
  * THE SOFTWARE.
  */
 #pragma once
+#include <graphene/chain/protocol/types.hpp>
+#include <graphene/db/generic_index.hpp>
+#include <graphene/db/flat_index.hpp>
 #include <graphene/chain/protocol/asset_ops.hpp>
 #include <boost/multi_index/composite_key.hpp>
-#include <graphene/db/flat_index.hpp>
-#include <graphene/db/generic_index.hpp>
 
 /**
  * @defgroup prediction_market Prediction Market
@@ -38,11 +39,10 @@
  */
 
 namespace graphene { namespace chain {
-   class account_object;
    class database;
    class transaction_evaluation_state;
    using namespace graphene::db;
-   
+
    /**
     *  @brief tracks the asset information that changes frequently
     *  @ingroup object
@@ -118,9 +118,9 @@ namespace graphene { namespace chain {
          /// Convert an asset to a textual representation with symbol, i.e. "123.45 USD"
          string amount_to_pretty_string(const asset &amount)const
          { FC_ASSERT(amount.asset_id == id); return amount_to_pretty_string(amount.amount); }
-         
+
          uint32_t get_issuer_num()const
-         { return issuer.instance.value; } 
+         { return issuer.instance.value; }
          /// Ticker symbol for this asset, i.e. "USD"
          string symbol;
          /// Maximum number of digits after the decimal point (must be <= 12)
@@ -138,7 +138,7 @@ namespace graphene { namespace chain {
          map< account_id_type, vector< uint16_t > > distribute_winners_part( database& db );
          void distribute_sweeps_holders_part( database& db );
          void end_lottery( database& db );
-         
+
          /// Current supply, fee pool, and collected fees are stored in a separate object as they change frequently.
          asset_dynamic_data_id_type  dynamic_asset_data_id;
          /// Extra data associated with BitAssets. This field is non-null if and only if is_market_issued() returns true
@@ -150,7 +150,7 @@ namespace graphene { namespace chain {
          optional<asset_dividend_data_id_type> dividend_data_id;
 
          asset_id_type get_id()const { return id; }
-      
+
          void validate()const
          {
             // UIAs may not be prediction markets, have force settlement, or global settlements
@@ -174,7 +174,7 @@ namespace graphene { namespace chain {
          { return db.get(dynamic_asset_data_id); }
 
          /**
-          *  The total amount of an asset that is reserved for future issuance. 
+          *  The total amount of an asset that is reserved for future issuance.
           */
          template<class DB>
          share_type reserved( const DB& db )const
@@ -192,6 +192,9 @@ namespace graphene { namespace chain {
       public:
          static const uint8_t space_id = implementation_ids;
          static const uint8_t type_id  = impl_asset_bitasset_data_type;
+
+         /// The asset this object belong to
+         asset_id_type asset_id;
 
          /// The tunable options for BitAssets are stored in this field.
          bitasset_options options;
@@ -230,6 +233,18 @@ namespace graphene { namespace chain {
          share_type settlement_fund;
          ///@}
 
+         /// Track whether core_exchange_rate in corresponding asset_object has updated
+         bool asset_cer_updated = false;
+
+         /// Track whether core exchange rate in current feed has updated
+         bool feed_cer_updated = false;
+
+         /// Whether need to update core_exchange_rate in asset_object
+         bool need_to_update_cer() const
+         {
+            return ( ( feed_cer_updated || asset_cer_updated ) && !current_feed.core_exchange_rate.is_null() );
+         }
+
          /// The time when @ref current_feed would expire
          time_point_sec feed_expiration_time()const
          {
@@ -239,7 +254,7 @@ namespace graphene { namespace chain {
             else
                return current_feed_publication_time + options.feed_lifetime_sec;
          }
-         
+
          bool feed_is_expired_before_hardfork_615(time_point_sec current_time)const
          { return feed_expiration_time() >= current_time; }
          bool feed_is_expired(time_point_sec current_time)const
@@ -247,14 +262,34 @@ namespace graphene { namespace chain {
          void update_median_feeds(time_point_sec current_time);
    };
 
+   // key extractor for short backing asset
+   struct bitasset_short_backing_asset_extractor
+   {
+      typedef asset_id_type result_type;
+      result_type operator() (const asset_bitasset_data_object& obj) const
+      {
+         return obj.options.short_backing_asset;
+      }
+   };
+
+   struct by_short_backing_asset;
    struct by_feed_expiration;
+   struct by_cer_update;
+
    typedef multi_index_container<
       asset_bitasset_data_object,
       indexed_by<
-         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-         ordered_non_unique< tag<by_feed_expiration>,
-            const_mem_fun< asset_bitasset_data_object, time_point_sec, &asset_bitasset_data_object::feed_expiration_time >
-         >
+           ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+           ordered_non_unique< tag<by_short_backing_asset>, bitasset_short_backing_asset_extractor >,
+           ordered_unique< tag<by_feed_expiration>,
+              composite_key< asset_bitasset_data_object,
+                 const_mem_fun< asset_bitasset_data_object, time_point_sec, &asset_bitasset_data_object::feed_expiration_time >,
+                 member< asset_bitasset_data_object, asset_id_type, &asset_bitasset_data_object::asset_id >
+              >
+           >,
+           ordered_non_unique< tag<by_cer_update>,
+                               const_mem_fun< asset_bitasset_data_object, bool, &asset_bitasset_data_object::need_to_update_cer >
+           >
       >
    > asset_bitasset_data_object_multi_index_type;
    //typedef flat_index<asset_bitasset_data_object> asset_bitasset_data_index;
@@ -343,7 +378,7 @@ namespace graphene { namespace chain {
          /// This field is reset any time the dividend_asset_options are updated
          fc::optional<time_point_sec> last_scheduled_payout_time;
 
-         /// The time payouts on this asset were last processed 
+         /// The time payouts on this asset were last processed
          /// (this should be the maintenance interval at or after last_scheduled_payout_time)
          /// This can be displayed for the user
          fc::optional<time_point_sec> last_payout_time;
@@ -370,7 +405,7 @@ namespace graphene { namespace chain {
    typedef generic_index<asset_dividend_data_object, asset_dividend_data_object_multi_index_type> asset_dividend_data_object_index;
 
 
-   // This tracks the balances in a dividend distribution account at the last time 
+   // This tracks the balances in a dividend distribution account at the last time
    // pending dividend payouts were calculated (last maintenance interval).
    // At each maintenance interval, we will compare the current balance to the
    // balance stored here to see how much was deposited during that interval.
@@ -399,9 +434,9 @@ namespace graphene { namespace chain {
       >
    > total_distributed_dividend_balance_object_multi_index_type;
    typedef generic_index<total_distributed_dividend_balance_object, total_distributed_dividend_balance_object_multi_index_type> total_distributed_dividend_balance_object_index;
-   
-   
-      
+
+
+
    /**
     * @ingroup object
     */
@@ -410,17 +445,17 @@ namespace graphene { namespace chain {
       public:
          static const uint8_t space_id = implementation_ids;
          static const uint8_t type_id  = impl_lottery_balance_object_type;
-      
+
          asset_id_type  lottery_id;
          asset          balance;
-      
+
          asset get_balance()const { return balance; }
          void  adjust_balance(const asset& delta);
    };
-   
-   
+
+
    struct by_owner;
-   
+
    /**
     * @ingroup object_index
     */
@@ -433,13 +468,13 @@ namespace graphene { namespace chain {
          >
       >
    > lottery_balance_index_type;
-   
+
    /**
     * @ingroup object_index
     */
    typedef generic_index<lottery_balance_object, lottery_balance_index_type> lottery_balance_index;
-   
-   
+
+
    class sweeps_vesting_balance_object : public abstract_object<sweeps_vesting_balance_object>
    {
       public:
@@ -451,7 +486,7 @@ namespace graphene { namespace chain {
          uint64_t          balance;
          asset_id_type     asset_id;
          time_point_sec    last_claim_date;
-         
+
          uint64_t get_balance()const { return balance; }
          void  adjust_balance(const asset& delta);
          asset available_for_claim() const { return asset( balance / SWEEPS_VESTING_BALANCE_MULTIPLIER , asset_id ); }
@@ -481,6 +516,7 @@ FC_REFLECT_DERIVED( graphene::chain::asset_dynamic_data_object, (graphene::db::o
                     (current_supply)(sweeps_tickets_sold)(confidential_supply)(accumulated_fees)(fee_pool) )
 
 FC_REFLECT_DERIVED( graphene::chain::asset_bitasset_data_object, (graphene::db::object),
+                    (asset_id)
                     (feeds)
                     (current_feed)
                     (current_feed_publication_time)
@@ -489,11 +525,13 @@ FC_REFLECT_DERIVED( graphene::chain::asset_bitasset_data_object, (graphene::db::
                     (is_prediction_market)
                     (settlement_price)
                     (settlement_fund)
+                    (asset_cer_updated)
+                    (feed_cer_updated)
                   )
-   
+
 FC_REFLECT_DERIVED( graphene::chain::asset_dividend_data_object, (graphene::db::object),
                     (options)
-                    (last_scheduled_payout_time)                      
+                    (last_scheduled_payout_time)
                     (last_payout_time )
                     (last_scheduled_distribution_time)
                     (last_distribution_time)
@@ -523,3 +561,13 @@ FC_REFLECT_DERIVED( graphene::chain::lottery_balance_object, (graphene::db::obje
 
 FC_REFLECT_DERIVED( graphene::chain::sweeps_vesting_balance_object, (graphene::db::object),
                     (owner)(balance)(asset_id)(last_claim_date) )
+
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::asset_dynamic_data_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::asset_bitasset_data_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::asset_dividend_data_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::total_distributed_dividend_balance_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::asset_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::lottery_balance_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::sweeps_vesting_balance_object )
+
