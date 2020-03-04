@@ -30,6 +30,8 @@ namespace graphene { namespace chain {
          static const uint8_t type_id  = impl_son_statistics_object_type;
 
          son_id_type  owner;
+         // Lifetime total transactions signed
+         uint64_t total_txs_signed = 0;
          // Transactions signed since the last son payouts
          uint64_t txs_signed = 0;
          // Total Downtime barring the current down time in seconds, used for stats to present to user
@@ -103,6 +105,7 @@ FC_REFLECT_DERIVED( graphene::chain::son_object, (graphene::db::object),
 FC_REFLECT_DERIVED( graphene::chain::son_statistics_object,
                     (graphene::db::object),
                     (owner)
+                    (total_txs_signed)
                     (txs_signed)
                     (total_downtime)
                     (current_interval_downtime)

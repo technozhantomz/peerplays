@@ -513,6 +513,9 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
       // Check if the signed transaction statistics are reset for both SONs
       BOOST_REQUIRE_EQUAL(son_stats_obj1->txs_signed, 0);
       BOOST_REQUIRE_EQUAL(son_stats_obj2->txs_signed, 0);
+
+      BOOST_REQUIRE_EQUAL(son_stats_obj1->total_txs_signed, 2);
+      BOOST_REQUIRE_EQUAL(son_stats_obj2->total_txs_signed, 3);
       // Check that Alice and Bob are paid for signing the transactions in the previous day/cycle
       BOOST_REQUIRE_EQUAL(db.get_balance(obj1->son_account, asset_id_type()).amount.value, 80+obj1_balance);
       BOOST_REQUIRE_EQUAL(db.get_balance(obj2->son_account, asset_id_type()).amount.value, 120+obj2_balance);

@@ -75,6 +75,10 @@ object_id_type bitcoin_transaction_sign_evaluator::do_apply(const bitcoin_transa
          po.proposed_transaction.operations[0] = bitcoin_transaction_send_op;
       });
 
+      db().modify( son_obj->statistics( db() ), [&]( son_statistics_object& sso ) {
+         sso.txs_signed += 1;
+      } );
+
       update_proposal(op);
    }
    FC_CAPTURE_AND_RETHROW((op))

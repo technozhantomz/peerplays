@@ -296,6 +296,12 @@ BOOST_AUTO_TEST_CASE(bitcoin_transaction_send_test)
 
       BOOST_REQUIRE(btobj->processed == false);
 
+      auto stats1 = son_obj1->statistics( db );
+      auto stats2 = son_obj2->statistics( db );
+
+      BOOST_REQUIRE(stats1.txs_signed == 1);
+      BOOST_REQUIRE(stats2.txs_signed == 1);
+
       auto sigs = btobj->signatures;
 
       BOOST_REQUIRE(sigs[son_obj1->id][0] == a1);

@@ -153,6 +153,7 @@ void database::pay_sons()
             //Reset the tx counter in each son statistics object
             modify( s, [&]( son_statistics_object& _s)
             {
+               _s.total_txs_signed += _s.txs_signed;
                _s.txs_signed = 0;
             });
          }
