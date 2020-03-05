@@ -150,6 +150,7 @@ struct proposal_operation_hardfork_visitor
 
    void operator()(const son_maintenance_operation &v) const {
       FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_maintenance_operation not allowed yet!" );
+   }
 
    void operator()(const vesting_balance_create_operation &vbco) const {
       if(block_time < HARDFORK_GPOS_TIME)

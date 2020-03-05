@@ -250,6 +250,8 @@ bool database::is_son_dereg_valid( son_id_type son_id )
    bool ret = ( son->status == son_status::in_maintenance &&
                 (head_block_time() - son->statistics(*this).last_down_timestamp >= fc::seconds(get_global_properties().parameters.son_deregister_time())));
    return ret;
+}
+
 const account_statistics_object& database::get_account_stats_by_owner( account_id_type owner )const
 {
    auto& idx = get_index_type<account_stats_index>().indices().get<by_owner>();

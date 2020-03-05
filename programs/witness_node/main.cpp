@@ -44,11 +44,8 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/property_tree/ptree.hpp>
-<<<<<<< HEAD
 #include <boost/container/flat_set.hpp>
 #include <boost/algorithm/string.hpp>
-=======
->>>>>>> 24e7610bceb97ab361fe003622c80a79bdecf730
 
 #include <graphene/utilities/git_revision.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -199,10 +196,6 @@ int main(int argc, char** argv) {
       elog("Exiting with error:\n${e}", ("e", unhandled_exception->to_detail_string()));
       node->shutdown();
       delete node;
-<<<<<<< HEAD
       return EXIT_FAILURE;
-=======
-      return 1;
->>>>>>> 24e7610bceb97ab361fe003622c80a79bdecf730
    }
 }

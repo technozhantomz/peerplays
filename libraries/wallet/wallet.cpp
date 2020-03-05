@@ -2094,13 +2094,16 @@ public:
          return swi.son_id;
       });
       std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
-      vector<account_id_type> owners;
+      vector<std::string> owners;
       for(auto obj: son_objects)
       {
          if (obj)
-            owners.push_back(obj->son_account);
+         {
+            std::string acc_id = account_id_to_string(obj->son_account);
+            owners.push_back(acc_id);
+         }            
       }
-      vector<fc::optional<account_object>> accs = _remote_db->get_accounts(owners);
+      vector< optional< account_object> > accs = _remote_db->get_accounts(owners);
       std::remove_if(son_objects.begin(), son_objects.end(),
                      [](const fc::optional<son_object>& obj) -> bool { return obj.valid(); });
       map<string, son_id_type> result;
@@ -2383,13 +2386,14 @@ public:
                                      vesting_balance_type vesting_type,
                                      bool broadcast /* = false */)
    { try {
-      account_object son_account = get_account(owner_account);
+      FC_ASSERT( !is_locked() );
+      account_object user_account = get_account(owner_account);
       fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
       FC_ASSERT(asset_obj, "Invalid asset symbol {asst}", ("asst", asset_symbol));
 
       vesting_balance_create_operation op;
-      op.creator = son_account.get_id();
-      op.owner = son_account.get_id();
+      op.creator = user_account.get_id();
+      op.owner = user_account.get_id();
       op.amount = asset_obj->amount_from_string(amount);
       op.balance_type = vesting_type;
       if (op.balance_type == vesting_balance_type::son)
@@ -6668,41 +6672,6 @@ signed_transaction wallet_api::rps_throw(game_id_type game_id,
    tx.validate();
 
    return my->sign_transaction( tx, broadcast );
-}
-
-signed_transaction wallet_api::create_vesting_balance(string owner,
-                                                      string amount,
-                                                      string asset_symbol,
-                                                      bool is_gpos,
-                                                      bool broadcast)
-{
-   FC_ASSERT( !is_locked() );
-   //Can be deleted after GPOS hardfork time
-   time_point_sec now = time_point::now();
-   if(is_gpos && now < HARDFORK_GPOS_TIME)
-      FC_THROW("GPOS related functionality is not avaiable until next Spring");
-
-   account_object owner_account = get_account(owner);
-   account_id_type owner_id = owner_account.id;
-
-   fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
-
-   auto type = vesting_balance_type::normal;
-   if(is_gpos)
-      type = vesting_balance_type::gpos;
-
-   vesting_balance_create_operation op;
-   op.creator = owner_id;
-   op.owner = owner_id;
-   op.amount = asset_obj->amount_from_string(amount);
-   op.balance_type = type;
-
-   signed_transaction trx;
-   trx.operations.push_back(op);
-   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
-   trx.validate();
-
-   return my->sign_transaction( trx, broadcast );
 }
 
 // default ctor necessary for FC_REFLECT
