@@ -1942,7 +1942,7 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account)(broadcast) ) }
 
-   signed_transaction start_son_maintenance(string owner_account,
+   signed_transaction request_son_maintenance(string owner_account,
                                            bool broadcast)
    { try {
          son_object son = get_son(owner_account);
@@ -1950,6 +1950,7 @@ public:
          son_maintenance_operation op;
          op.owner_account = son.son_account;
          op.son_id = son.id;
+         op.request_type = son_maintenance_request_type::request_maintenance;
 
          signed_transaction tx;
          tx.operations.push_back( op );
@@ -1959,7 +1960,7 @@ public:
          return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account) ) }
 
-   signed_transaction stop_son_maintenance(string owner_account,
+   signed_transaction cancel_request_son_maintenance(string owner_account,
                                            bool broadcast)
    { try {
          son_object son = get_son(owner_account);
@@ -1967,6 +1968,7 @@ public:
          son_maintenance_operation op;
          op.owner_account = son.son_account;
          op.son_id = son.id;
+         op.request_type = son_maintenance_request_type::cancel_request_maintenance;
 
          signed_transaction tx;
          tx.operations.push_back( op );
@@ -4463,14 +4465,14 @@ signed_transaction wallet_api::delete_son(string owner_account,
    return my->delete_son(owner_account, broadcast);
 }
 
-signed_transaction wallet_api::start_son_maintenance(string owner_account, bool broadcast)
+signed_transaction wallet_api::request_son_maintenance(string owner_account, bool broadcast)
 {
-   return my->start_son_maintenance(owner_account, broadcast);
+   return my->request_son_maintenance(owner_account, broadcast);
 }
 
-signed_transaction wallet_api::stop_son_maintenance(string owner_account, bool broadcast)
+signed_transaction wallet_api::cancel_request_son_maintenance(string owner_account, bool broadcast)
 {
-   return my->stop_son_maintenance(owner_account, broadcast);
+   return my->cancel_request_son_maintenance(owner_account, broadcast);
 }
 
 map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_t limit)

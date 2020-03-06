@@ -1356,7 +1356,7 @@ class wallet_api
        * @param broadcast true to broadcast the transaction on the network
        * @returns the signed transaction
        */
-      signed_transaction start_son_maintenance(string owner_account,
+      signed_transaction request_son_maintenance(string owner_account,
                                               bool broadcast = false);
 
       /** Modify status of the SON owned by the given account back to active.
@@ -1365,7 +1365,7 @@ class wallet_api
        * @param broadcast true to broadcast the transaction on the network
        * @returns the signed transaction
        */
-      signed_transaction stop_son_maintenance(string owner_account,
+      signed_transaction cancel_request_son_maintenance(string owner_account,
                                               bool broadcast = false);
 
       /** Lists all SONs in the blockchain.
@@ -2237,8 +2237,8 @@ FC_API( graphene::wallet::wallet_api,
         (delete_son)
         (list_sons)
         (list_active_sons)
-        (start_son_maintenance)
-        (stop_son_maintenance)
+        (request_son_maintenance)
+        (cancel_request_son_maintenance)
         (get_active_son_wallet)
         (get_son_wallet_by_time_point)
         (get_son_wallets)
