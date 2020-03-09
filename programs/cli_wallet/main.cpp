@@ -113,10 +113,12 @@ int main( int argc, char** argv )
       cfg.appenders.push_back(fc::appender_config( "rpc", "file", fc::variant(ac, 5)));
 
       cfg.loggers = { fc::logger_config("default"), fc::logger_config( "rpc") };
-      cfg.loggers.front().level = fc::log_level::info;
+      cfg.loggers.front().level = fc::log_level::warn;
       cfg.loggers.front().appenders = {"default"};
-      cfg.loggers.back().level = fc::log_level::debug;
+      cfg.loggers.back().level = fc::log_level::info;
       cfg.loggers.back().appenders = {"rpc"};
+
+      fc::configure_logging( cfg );
 
       fc::ecc::private_key committee_private_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")));
 
