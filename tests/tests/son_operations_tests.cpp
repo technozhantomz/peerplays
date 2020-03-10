@@ -553,6 +553,7 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          son_maintenance_operation op;
          op.owner_account = alice_id;
          op.son_id = son_id_type(0);
+         op.request_type = son_maintenance_request_type::request_maintenance;
 
          trx.operations.push_back(op);
          set_expiration(db, trx);
@@ -586,10 +587,11 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
 
       {
          generate_block();
-         // Put SON in maintenance
+         // Request SON Maintenance
          son_maintenance_operation op;
          op.owner_account = alice_id;
          op.son_id = son_id_type(0);
+         op.request_type = son_maintenance_request_type::request_maintenance;
 
          trx.operations.push_back(op);
          set_expiration(db, trx);
@@ -598,6 +600,23 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          generate_block();
          trx.clear();
          BOOST_CHECK( obj->status == son_status::request_maintenance);
+      }
+
+      {
+         generate_block();
+         // Cancel SON Maintenance request
+         son_maintenance_operation op;
+         op.owner_account = alice_id;
+         op.son_id = son_id_type(0);
+         op.request_type = son_maintenance_request_type::cancel_request_maintenance;
+
+         trx.operations.push_back(op);
+         set_expiration(db, trx);
+         sign(trx, alice_private_key);
+         PUSH_TX( db, trx, ~0);
+         generate_block();
+         trx.clear();
+         BOOST_CHECK( obj->status == son_status::active);
       }
 
       // Modify SON's status to in_maintenance

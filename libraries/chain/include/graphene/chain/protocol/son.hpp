@@ -77,6 +77,12 @@ namespace graphene { namespace chain {
         share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
     };
 
+    enum class son_maintenance_request_type
+    {
+        request_maintenance,
+        cancel_request_maintenance
+    };
+
     struct son_maintenance_operation : public base_operation
     {
         struct fee_parameters_type { uint64_t fee = 0; };
@@ -84,6 +90,7 @@ namespace graphene { namespace chain {
         asset fee;
         son_id_type son_id;
         account_id_type owner_account;
+        son_maintenance_request_type request_type = son_maintenance_request_type::request_maintenance;
 
         account_id_type fee_payer()const { return owner_account; }
         share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
@@ -108,5 +115,6 @@ FC_REFLECT(graphene::chain::son_heartbeat_operation, (fee)(son_id)(owner_account
 FC_REFLECT(graphene::chain::son_report_down_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_report_down_operation, (fee)(son_id)(payer)(down_ts) )
 
+FC_REFLECT_ENUM( graphene::chain::son_maintenance_request_type, (request_maintenance)(cancel_request_maintenance) )
 FC_REFLECT(graphene::chain::son_maintenance_operation::fee_parameters_type, (fee) )
-FC_REFLECT(graphene::chain::son_maintenance_operation, (fee)(son_id)(owner_account) )
+FC_REFLECT(graphene::chain::son_maintenance_operation, (fee)(son_id)(owner_account)(request_type) )

@@ -66,9 +66,6 @@ object_id_type update_son_evaluator::do_apply(const son_update_operation& op)
 void_result delete_son_evaluator::do_evaluate(const son_delete_operation& op)
 { try {
     FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON_HARDFORK"); // can be removed after HF date pass
-    // Get the current block witness signatory
-    witness_id_type wit_id = db().get_scheduled_witness(1);
-    const witness_object& current_witness = wit_id(db());
     // Either owner can remove or consensus son account
     FC_ASSERT(op.payer == db().get(op.son_id).son_account || (db().is_son_dereg_valid(op.son_id) && op.payer == GRAPHENE_SON_ACCOUNT));
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
@@ -204,7 +201,13 @@ void_result son_maintenance_evaluator::do_evaluate(const son_maintenance_operati
     auto itr = idx.find(op.son_id);
     FC_ASSERT( itr != idx.end() );
     // Inactive SONs can't go to maintenance, toggle between active and request_maintenance states
-    FC_ASSERT(itr->status == son_status::active || itr->status == son_status::request_maintenance, "Inactive SONs can't go to maintenance");
+    if(op.request_type == son_maintenance_request_type::request_maintenance) {
+        FC_ASSERT(itr->status == son_status::active, "Inactive SONs can't request for maintenance");
+    } else if(op.request_type == son_maintenance_request_type::cancel_request_maintenance) {
+        FC_ASSERT(itr->status == son_status::request_maintenance, "Only maintenance requested SONs can cancel the request");
+    } else {
+        FC_ASSERT(false, "Invalid maintenance operation");
+    }
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -214,11 +217,11 @@ object_id_type son_maintenance_evaluator::do_apply(const son_maintenance_operati
     auto itr = idx.find(op.son_id);
     if(itr != idx.end())
     {
-        if(itr->status == son_status::active) {
+        if(itr->status == son_status::active && op.request_type == son_maintenance_request_type::request_maintenance) {
             db().modify(*itr, [](son_object &so) {
                 so.status = son_status::request_maintenance;
             });
-        } else if(itr->status == son_status::request_maintenance) {
+        } else if(itr->status == son_status::request_maintenance && op.request_type == son_maintenance_request_type::cancel_request_maintenance) {
             db().modify(*itr, [](son_object &so) {
                 so.status = son_status::active;
             });

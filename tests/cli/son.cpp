@@ -699,7 +699,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       BOOST_CHECK(son_obj.status == son_status::active);
 
       // put SON in maintenance mode
-      con.wallet_api_ptr->start_son_maintenance(name, true);
+      con.wallet_api_ptr->request_son_maintenance(name, true);
       BOOST_CHECK(generate_block());
 
       // check SON is in request_maintenance
@@ -707,7 +707,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       BOOST_CHECK(son_obj.status == son_status::request_maintenance);
 
       // restore SON activity
-      con.wallet_api_ptr->stop_son_maintenance(name, true);
+      con.wallet_api_ptr->cancel_request_son_maintenance(name, true);
       BOOST_CHECK(generate_block());
 
       // check SON is active
@@ -715,7 +715,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       BOOST_CHECK(son_obj.status == son_status::active);
 
       // put SON in maintenance mode
-      con.wallet_api_ptr->start_son_maintenance(name, true);
+      con.wallet_api_ptr->request_son_maintenance(name, true);
       BOOST_CHECK(generate_block());
 
       // check SON is in request_maintenance
