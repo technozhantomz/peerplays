@@ -52,7 +52,6 @@ void_result process_son_wallet_deposit_evaluator::do_evaluate(const son_wallet_d
    const auto& idx = db().get_index_type<son_wallet_deposit_index>().indices().get<by_id>();
    const auto& itr = idx.find(op.son_wallet_deposit_id);
    FC_ASSERT(itr != idx.end(), "Son wallet transfer not found");
-   //FC_ASSERT(itr->processed == false, "Son wallet transfer is already processed");
 
    const database& d = db();
 
