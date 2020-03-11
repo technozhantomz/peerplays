@@ -123,7 +123,7 @@ void database::pay_sons()
    time_point_sec now = head_block_time();
    const dynamic_global_property_object& dpo = get_dynamic_global_properties();
    // Current requirement is that we have to pay every 24 hours, so the following check
-   if( dpo.son_budget.value > 0 && now - dpo.last_son_payout_time >= fc::days(1)) {
+   if( dpo.son_budget.value > 0 && ((now - dpo.last_son_payout_time) >= fc::seconds(get_global_properties().parameters.son_pay_time()))) {
       uint64_t total_txs_signed = 0;
       share_type son_budget = dpo.son_budget;
       get_index_type<son_stats_index>().inspect_all_objects([this, &total_txs_signed](const object& o) {

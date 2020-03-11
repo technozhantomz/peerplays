@@ -535,18 +535,22 @@ std::vector<zmq::message_t> zmq_listener::receive_multipart() {
 }
 
 void zmq_listener::handle_zmq() {
+   int linger = 0;
    socket.setsockopt(ZMQ_SUBSCRIBE, "hashblock", 9);
+   socket.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
    //socket.setsockopt( ZMQ_SUBSCRIBE, "hashtx", 6 );
    //socket.setsockopt( ZMQ_SUBSCRIBE, "rawblock", 8 );
    //socket.setsockopt( ZMQ_SUBSCRIBE, "rawtx", 5 );
    socket.connect("tcp://" + ip + ":" + std::to_string(zmq_port));
 
    while (true) {
-      auto msg = receive_multipart();
-      const auto header = std::string(static_cast<char *>(msg[0].data()), msg[0].size());
-      const auto block_hash = boost::algorithm::hex(std::string(static_cast<char *>(msg[1].data()), msg[1].size()));
-
-      event_received(block_hash);
+      try {
+         auto msg = receive_multipart();
+         const auto header = std::string(static_cast<char *>(msg[0].data()), msg[0].size());
+         const auto block_hash = boost::algorithm::hex(std::string(static_cast<char *>(msg[1].data()), msg[1].size()));
+         event_received(block_hash);
+      } catch (zmq::error_t& e) {
+      }
    }
 }
 
