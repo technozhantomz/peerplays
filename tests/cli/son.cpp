@@ -213,6 +213,7 @@ BOOST_AUTO_TEST_CASE( son_voting )
       son2_obj = con.wallet_api_ptr->get_son("son2account");
       son2_start_votes = son2_obj.total_votes;
 
+      con.wallet_api_ptr->create_vesting_balance("nathan", "1000", "1.3.0", vesting_balance_type::gpos, true);
       // Vote for a son1account
       BOOST_TEST_MESSAGE("Voting for son1account");
       vote_son1_tx = con.wallet_api_ptr->vote_for_son("nathan", "son1account", true, true);
@@ -449,6 +450,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        rejected.clear();
        accepted.push_back("son1account");
        accepted.push_back("son2account");
+       con.wallet_api_ptr->create_vesting_balance("nathan", "1000", "1.3.0", vesting_balance_type::gpos, true);
        update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
                                                               rejected, 2, true);
        BOOST_CHECK(generate_block());
@@ -469,6 +471,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        accepted.clear();
        rejected.clear();
        rejected.push_back("son1account");
+       con.wallet_api_ptr->create_vesting_balance("nathan", "1000", "1.3.0", vesting_balance_type::gpos, true);
        update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
                                                               rejected, 1, true);
        BOOST_CHECK(generate_maintenance_block());
@@ -619,6 +622,9 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,
                          false);
+          con.wallet_api_ptr->transfer(
+              "nathan", "sonaccount" + fc::to_pretty_string(i), "1000", "1.3.0", "Here are some CORE token for your new account", true );
+          con.wallet_api_ptr->create_vesting_balance("sonaccount" + fc::to_pretty_string(i), "500", "1.3.0", vesting_balance_type::gpos, true);
       }
       BOOST_CHECK(generate_maintenance_block());
 
