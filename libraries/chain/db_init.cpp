@@ -482,7 +482,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }).get_id() == GRAPHENE_RAKE_FEE_ACCOUNT_ID);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "son-account";
-       a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+       a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+                        s.owner = a.id;
+                        s.name = a.name;
+                     }).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 0;
        a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_SON_ACCOUNT;
