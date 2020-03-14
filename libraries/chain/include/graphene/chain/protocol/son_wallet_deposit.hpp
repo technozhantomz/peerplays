@@ -12,6 +12,7 @@ namespace graphene { namespace chain {
         asset fee;
         account_id_type payer;
 
+        son_id_type son_id;
         fc::time_point_sec timestamp;
         peerplays_sidechain::sidechain_type sidechain;
         std::string sidechain_uid;
@@ -45,7 +46,7 @@ namespace graphene { namespace chain {
 
 FC_REFLECT(graphene::chain::son_wallet_deposit_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_wallet_deposit_create_operation, (fee)(payer)
-      (timestamp) (sidechain) (sidechain_uid) (sidechain_transaction_id) (sidechain_from) (sidechain_to) (sidechain_currency) (sidechain_amount) (peerplays_from) (peerplays_to) (peerplays_asset))
+      (son_id) (timestamp) (sidechain) (sidechain_uid) (sidechain_transaction_id) (sidechain_from) (sidechain_to) (sidechain_currency) (sidechain_amount) (peerplays_from) (peerplays_to) (peerplays_asset))
 FC_REFLECT(graphene::chain::son_wallet_deposit_process_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_wallet_deposit_process_operation, (fee)(payer)
       (son_wallet_deposit_id))

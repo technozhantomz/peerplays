@@ -42,6 +42,10 @@ namespace graphene { namespace chain {
          fc::time_point_sec last_down_timestamp;
          // Last Active heartbeat timestamp
          fc::time_point_sec last_active_timestamp;
+         // Total sidechain transactions reported by SON network while SON was active
+         uint64_t total_sidechain_txs_reported = 0;
+         // Sidechain transactions reported by this SON
+         uint64_t sidechain_txs_reported = 0;
    };
 
    /**
@@ -87,14 +91,20 @@ namespace graphene { namespace chain {
    >;
    using son_index = generic_index<son_object, son_multi_index_type>;
 
+   struct by_owner;
    using son_stats_multi_index_type = multi_index_container<
       son_statistics_object,
       indexed_by<
-         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >
+         ordered_unique< tag<by_id>,
+            member<object, object_id_type, &object::id>
+         >,
+         ordered_unique< tag<by_owner>,
+            member<son_statistics_object, son_id_type, &son_statistics_object::owner>
+         >
       >
    >;
-
    using son_stats_index = generic_index<son_statistics_object, son_stats_multi_index_type>;
+
 } } // graphene::chain
 
 FC_REFLECT_ENUM(graphene::chain::son_status, (inactive)(active)(request_maintenance)(in_maintenance)(deregistered) )
@@ -111,4 +121,6 @@ FC_REFLECT_DERIVED( graphene::chain::son_statistics_object,
                     (current_interval_downtime)
                     (last_down_timestamp)
                     (last_active_timestamp)
+                    (total_sidechain_txs_reported)
+                    (sidechain_txs_reported)
                   )

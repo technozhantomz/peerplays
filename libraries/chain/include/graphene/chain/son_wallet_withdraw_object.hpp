@@ -18,7 +18,6 @@ namespace graphene { namespace chain {
 
          time_point_sec timestamp;
          peerplays_sidechain::sidechain_type sidechain;
-         int64_t confirmations;
          std::string peerplays_uid;
          std::string peerplays_transaction_id;
          chain::account_id_type peerplays_from;
@@ -27,6 +26,10 @@ namespace graphene { namespace chain {
          std::string withdraw_address;
          std::string withdraw_currency;
          safe<int64_t> withdraw_amount;
+
+         std::set<son_id_type> expected_reports;
+         std::set<son_id_type> received_reports;
+
          bool processed;
    };
 
@@ -61,7 +64,8 @@ namespace graphene { namespace chain {
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::son_wallet_withdraw_object, (graphene::db::object),
-                    (timestamp) (sidechain) (confirmations)
+                    (timestamp) (sidechain)
                     (peerplays_uid) (peerplays_transaction_id) (peerplays_from) (peerplays_asset)
                     (withdraw_sidechain) (withdraw_address) (withdraw_currency) (withdraw_amount)
+                    (expected_reports) (received_reports)
                     (processed) )

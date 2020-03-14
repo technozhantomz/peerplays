@@ -74,6 +74,7 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
    if ((sed.peerplays_to == GRAPHENE_SON_ACCOUNT) && (sed.sidechain_currency.compare("1.3.0") != 0)) {
       son_wallet_deposit_create_operation op;
       op.payer = GRAPHENE_SON_ACCOUNT;
+      //op.son_id = ; // to be filled for each son
       op.timestamp = sed.timestamp;
       op.sidechain = sed.sidechain;
       op.sidechain_uid = sed.sidechain_uid;
@@ -88,6 +89,9 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 
       for (son_id_type son_id : plugin.get_sons()) {
          if (plugin.is_active_son(son_id)) {
+
+            op.son_id = son_id;
+
             proposal_create_operation proposal_op;
             proposal_op.fee_paying_account = plugin.get_son_object(son_id).son_account;
             proposal_op.proposed_ops.emplace_back(op_wrapper(op));
@@ -117,6 +121,7 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 
       son_wallet_withdraw_create_operation op;
       op.payer = GRAPHENE_SON_ACCOUNT;
+      //op.son_id = ; // to be filled for each son
       op.timestamp = sed.timestamp;
       op.sidechain = sed.sidechain;
       op.peerplays_uid = sed.sidechain_uid;
@@ -130,6 +135,9 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 
       for (son_id_type son_id : plugin.get_sons()) {
          if (plugin.is_active_son(son_id)) {
+
+            op.son_id = son_id;
+
             proposal_create_operation proposal_op;
             proposal_op.fee_paying_account = plugin.get_son_object(son_id).son_account;
             proposal_op.proposed_ops.emplace_back(op_wrapper(op));
