@@ -304,7 +304,6 @@ namespace graphene { namespace chain {
          std::set<son_id_type>                  get_sons_to_be_deregistered();
          fc::optional<operation>                create_son_deregister_proposal( son_id_type son_id, account_id_type paying_son );
          signed_transaction                     create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op );
-         void                                   remove_son_proposal( const proposal_object& proposal );
          bool                                   is_son_dereg_valid( son_id_type son_id );
 
          time_point_sec   head_block_time()const;
@@ -549,6 +548,11 @@ namespace graphene { namespace chain {
          void update_active_committee_members();
          void update_son_metrics();
          void update_active_sons();
+         void remove_son_proposal( const proposal_object& proposal );
+         void remove_inactive_son_down_proposals( const vector<son_id_type>& son_ids_to_remove );
+         void remove_inactive_son_proposals( const vector<son_id_type>& son_ids_to_remove );
+         void update_son_statuses( const vector<son_info>& cur_active_sons, const vector<son_info>& new_active_sons );
+         void update_son_wallet( const vector<son_info>& new_active_sons );
          void update_worker_votes();
       
          template<class... Types>

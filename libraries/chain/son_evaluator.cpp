@@ -96,10 +96,10 @@ void_result delete_son_evaluator::do_apply(const son_delete_operation& op)
 void_result son_heartbeat_evaluator::do_evaluate(const son_heartbeat_operation& op)
 { try {
     FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK"); // can be removed after HF date pass
-    FC_ASSERT(db().get(op.son_id).son_account == op.owner_account);
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
-    FC_ASSERT( idx.find(op.son_id) != idx.end() );
     auto itr = idx.find(op.son_id);
+    FC_ASSERT( itr != idx.end() );
+    FC_ASSERT(itr->son_account == op.owner_account);
     auto stats = itr->statistics( db() );
     // Inactive SONs need not send heartbeats
     FC_ASSERT((itr->status == son_status::active) || (itr->status == son_status::in_maintenance) || (itr->status == son_status::request_maintenance), "Inactive SONs need not send heartbeats");

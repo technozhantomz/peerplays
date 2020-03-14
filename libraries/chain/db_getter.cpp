@@ -222,21 +222,6 @@ signed_transaction database::create_signed_transaction( const fc::ecc::private_k
    return processed_trx;
 }
 
-void database::remove_son_proposal( const proposal_object& proposal )
-{ try {
-   if( proposal.proposed_transaction.operations.size() == 1 &&
-     ( proposal.proposed_transaction.operations.back().which() == operation::tag<son_delete_operation>::value ||
-       proposal.proposed_transaction.operations.back().which() == operation::tag<son_report_down_operation>::value) )
-   {
-      const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get<by_proposal>();
-      auto son_proposal_itr = son_proposal_idx.find( proposal.id );
-      if( son_proposal_itr == son_proposal_idx.end() ) {
-         return;
-      }
-      remove( *son_proposal_itr );
-   }
-} FC_CAPTURE_AND_RETHROW( (proposal) ) }
-
 bool database::is_son_dereg_valid( son_id_type son_id )
 {
    const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
