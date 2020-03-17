@@ -558,96 +558,100 @@ void database::update_active_sons()
       }
    }
 
-   if (son_sets_equal) {
-      ilog( "Active SONs set NOT CHANGED" );
-   } else {
-      ilog( "Active SONs set CHANGED" );
+   //restrict below code snippet to sons functionality
+   if(cur_active_sons.size() || new_active_sons.size())
+   {
+      if (son_sets_equal) {
+         ilog( "Active SONs set NOT CHANGED" );
+      } else {
+         ilog( "Active SONs set CHANGED" );
 
-      bool should_recreate_pw = true;
+         bool should_recreate_pw = true;
 
-      // Expire for current son_wallet_object wallet, if exists
-      const auto& idx_swi = get_index_type<son_wallet_index>().indices().get<by_id>();
-      auto obj = idx_swi.rbegin();
-      if (obj != idx_swi.rend()) {
-         // Compare current wallet SONs and to-be lists of active sons
-         auto cur_wallet_sons = (*obj).sons;
+         // Expire for current son_wallet_object wallet, if exists
+         const auto& idx_swi = get_index_type<son_wallet_index>().indices().get<by_id>();
+         auto obj = idx_swi.rbegin();
+         if (obj != idx_swi.rend()) {
+            // Compare current wallet SONs and to-be lists of active sons
+            auto cur_wallet_sons = (*obj).sons;
 
-         bool wallet_son_sets_equal = (cur_wallet_sons.size() == new_active_sons.size());
-         if (wallet_son_sets_equal) {
-            for( size_t i = 0; i < cur_wallet_sons.size(); i++ ) {
-               wallet_son_sets_equal = wallet_son_sets_equal && cur_wallet_sons.at(i) == new_active_sons.at(i);
+            bool wallet_son_sets_equal = (cur_wallet_sons.size() == new_active_sons.size());
+            if (wallet_son_sets_equal) {
+               for( size_t i = 0; i < cur_wallet_sons.size(); i++ ) {
+                  wallet_son_sets_equal = wallet_son_sets_equal && cur_wallet_sons.at(i) == new_active_sons.at(i);
+               }
+            }
+
+            should_recreate_pw = !wallet_son_sets_equal;
+
+            if (should_recreate_pw) {
+               modify(*obj, [&, obj](son_wallet_object &swo) {
+                  swo.expires = head_block_time();
+               });
             }
          }
 
-         should_recreate_pw = !wallet_son_sets_equal;
-
          if (should_recreate_pw) {
-            modify(*obj, [&, obj](son_wallet_object &swo) {
-               swo.expires = head_block_time();
+            // Create new son_wallet_object, to initiate wallet recreation
+            create<son_wallet_object>( [&]( son_wallet_object& obj ) {
+               obj.valid_from = head_block_time();
+               obj.expires = time_point_sec::maximum();
+               obj.sons.insert(obj.sons.end(), new_active_sons.begin(), new_active_sons.end());
             });
          }
-      }
 
-      if (should_recreate_pw) {
-         // Create new son_wallet_object, to initiate wallet recreation
-         create<son_wallet_object>( [&]( son_wallet_object& obj ) {
-            obj.valid_from = head_block_time();
-            obj.expires = time_point_sec::maximum();
-            obj.sons.insert(obj.sons.end(), new_active_sons.begin(), new_active_sons.end());
-         });
-      }
-
-      vector<son_info> sons_to_remove;
-      // find all cur_active_sons members that is not in new_active_sons
-      for_each(cur_active_sons.begin(), cur_active_sons.end(),
-               [&sons_to_remove, &new_active_sons](const son_info& si)
-               {
-                  if(std::find(new_active_sons.begin(), new_active_sons.end(), si) ==
-                        new_active_sons.end())
+         vector<son_info> sons_to_remove;
+         // find all cur_active_sons members that is not in new_active_sons
+         for_each(cur_active_sons.begin(), cur_active_sons.end(),
+                  [&sons_to_remove, &new_active_sons](const son_info& si)
                   {
-                     sons_to_remove.push_back(si);
+                     if(std::find(new_active_sons.begin(), new_active_sons.end(), si) ==
+                           new_active_sons.end())
+                     {
+                        sons_to_remove.push_back(si);
+                     }
                   }
-               }
-      );
-      const auto& idx = get_index_type<son_index>().indices().get<by_id>();
-      for( const son_info& si : sons_to_remove )
-      {
-         auto son = idx.find( si.son_id );
-         if(son == idx.end()) // SON is deleted already
-            continue;
-         // keep maintenance status for nodes becoming inactive
-         if(son->status == son_status::active)
+         );
+         const auto& idx = get_index_type<son_index>().indices().get<by_id>();
+         for( const son_info& si : sons_to_remove )
          {
-            modify( *son, [&]( son_object& obj ){
-                    obj.status = son_status::inactive;
-                    });
+            auto son = idx.find( si.son_id );
+            if(son == idx.end()) // SON is deleted already
+               continue;
+            // keep maintenance status for nodes becoming inactive
+            if(son->status == son_status::active)
+            {
+               modify( *son, [&]( son_object& obj ){
+                     obj.status = son_status::inactive;
+                     });
+            }
+         }
+         vector<son_info> sons_to_add;
+         // find all new_active_sons members that is not in cur_active_sons
+         for_each(new_active_sons.begin(), new_active_sons.end(),
+                  [&sons_to_add, &cur_active_sons](const son_info& si)
+                  {
+                     if(std::find(cur_active_sons.begin(), cur_active_sons.end(), si) ==
+                           cur_active_sons.end())
+                     {
+                        sons_to_add.push_back(si);
+                     }
+                  }
+         );
+         for( const son_info& si : sons_to_add )
+         {
+            auto son = idx.find( si.son_id );
+            FC_ASSERT(son != idx.end(), "Invalid SON in active list, id={sonid}.", ("sonid", si.son_id));
+            // keep maintenance status for new nodes
+            if(son->status == son_status::inactive)
+            {
+               modify( *son, [&]( son_object& obj ){
+                     obj.status = son_status::active;
+                     });
+            }
          }
       }
-      vector<son_info> sons_to_add;
-      // find all new_active_sons members that is not in cur_active_sons
-      for_each(new_active_sons.begin(), new_active_sons.end(),
-               [&sons_to_add, &cur_active_sons](const son_info& si)
-               {
-                  if(std::find(cur_active_sons.begin(), cur_active_sons.end(), si) ==
-                        cur_active_sons.end())
-                  {
-                     sons_to_add.push_back(si);
-                  }
-               }
-      );
-      for( const son_info& si : sons_to_add )
-      {
-         auto son = idx.find( si.son_id );
-         FC_ASSERT(son != idx.end(), "Invalid SON in active list, id={sonid}.", ("sonid", si.son_id));
-         // keep maintenance status for new nodes
-         if(son->status == son_status::inactive)
-         {
-            modify( *son, [&]( son_object& obj ){
-                    obj.status = son_status::active;
-                    });
-         }
-      }
-   }
+   }  
 
    modify(gpo, [&]( global_property_object& gp ){
       gp.active_sons.clear();
