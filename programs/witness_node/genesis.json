@@ -352,7 +352,15 @@
     "maximum_tournament_start_time_in_future": 2419200,
     "maximum_tournament_start_delay": 604800,
     "maximum_tournament_number_of_wins": 100,
-    "extensions": {}
+    "extensions": {
+       "son_vesting_amount": 5000000,
+       "son_vesting_period": 172800,
+       "son_pay_daily_max": 20000000,
+       "son_pay_time": 86400,
+       "son_deregister_time": 43200,
+       "son_heartbeat_frequency": 180,
+       "son_down_time": 360
+    }
   },
   "initial_bts_accounts": [],
   "initial_accounts": [{
