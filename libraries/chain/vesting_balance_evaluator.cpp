@@ -42,9 +42,6 @@ void_result vesting_balance_create_evaluator::do_evaluate( const vesting_balance
    FC_ASSERT( d.get_balance( creator_account.id, op.amount.asset_id ) >= op.amount );
    FC_ASSERT( !op.amount.asset_id(d).is_transfer_restricted() );
 
-   if(d.head_block_time() < HARDFORK_SON_TIME) // Todo: can be removed after gpos hf time pass
-      FC_ASSERT( op.balance_type == vesting_balance_type::normal);
-
    if(d.head_block_time() >= HARDFORK_SON_TIME && op.balance_type == vesting_balance_type::son) // Todo: hf check can be removed after pass
       FC_ASSERT( op.amount.amount >= d.get_global_properties().parameters.son_vesting_amount() );
 
