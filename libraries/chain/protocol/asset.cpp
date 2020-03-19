@@ -24,6 +24,7 @@
 #include <graphene/chain/protocol/asset.hpp>
 #include <boost/rational.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
+#include <fc/io/raw.hpp>
 
 namespace graphene { namespace chain {
       typedef boost::multiprecision::uint128_t uint128_t;
@@ -130,7 +131,11 @@ namespace graphene { namespace chain {
          return ~(asset( cp.numerator().convert_to<int64_t>(), debt.asset_id ) / asset( cp.denominator().convert_to<int64_t>(), collateral.asset_id ));
       } FC_CAPTURE_AND_RETHROW( (debt)(collateral)(collateral_ratio) ) }
 
-      bool price::is_null() const { return *this == price(); }
+      bool price::is_null() const
+      {
+         // Effectively same as "return *this == price();" but perhaps faster
+         return ( base.asset_id == asset_id_type() && quote.asset_id == asset_id_type() );
+      }
 
       void price::validate() const
       { try {
@@ -202,3 +207,7 @@ const int64_t scaled_precision_lut[19] =
 };
 
 } } // graphene::chain
+
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::price )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::price_feed )

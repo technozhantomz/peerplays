@@ -63,6 +63,7 @@ BOOST_AUTO_TEST_CASE( two_node_network )
       app1.register_plugin<graphene::market_history::market_history_plugin>();
       boost::program_options::variables_map cfg;
       cfg.emplace("p2p-endpoint", boost::program_options::variable_value(string("127.0.0.1:0"), false));
+      cfg.emplace("plugins", boost::program_options::variable_value(string(" "), false));
       app1.initialize(app_dir.path(), cfg);
       cfg.emplace("genesis-json", boost::program_options::variable_value(create_genesis_file(app_dir), false));
 

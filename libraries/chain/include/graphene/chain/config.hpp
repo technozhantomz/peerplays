@@ -153,7 +153,7 @@
 #define GRAPHENE_RECENTLY_MISSED_COUNT_INCREMENT             4
 #define GRAPHENE_RECENTLY_MISSED_COUNT_DECREMENT             3
 
-#define GRAPHENE_CURRENT_DB_VERSION                          "PPY2.2"
+#define GRAPHENE_CURRENT_DB_VERSION                          "PPY2.3"
 
 #define GRAPHENE_IRREVERSIBLE_THRESHOLD                      (70 * GRAPHENE_1_PERCENT)
 
@@ -243,3 +243,6 @@
 #define SWEEPS_DEFAULT_DISTRIBUTION_ASSET                   (graphene::chain::asset_id_type(0))
 #define SWEEPS_VESTING_BALANCE_MULTIPLIER                   100000000
 #define SWEEPS_ACCUMULATOR_ACCOUNT                          (graphene::chain::account_id_type(0))
+#define GPOS_PERIOD                                         (60*60*24*30*6) // 6 months
+#define GPOS_SUBPERIOD                                      (60*60*24*30) // 1 month
+#define GPOS_VESTING_LOCKIN_PERIOD                          (60*60*24*30) // 1 month

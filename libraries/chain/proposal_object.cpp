@@ -37,7 +37,7 @@ bool proposal_object::is_authorized_to_execute(database& db) const
                         [&]( account_id_type id ){ return &id(db).active; },
                         [&]( account_id_type id ){ return &id(db).owner;  },
                         db.get_global_properties().parameters.max_authority_depth,
-                        true, /* allow committeee */
+                        true, /* allow committee */
                         available_active_approvals,
                         available_owner_approvals );
    } 
@@ -90,3 +90,5 @@ void required_approval_index::object_removed( const object& obj )
 }
 
 } } // graphene::chain
+
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::proposal_object )

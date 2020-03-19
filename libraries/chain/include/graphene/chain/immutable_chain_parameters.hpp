@@ -23,11 +23,8 @@
  */
 #pragma once
 
-#include <fc/reflect/reflect.hpp>
-
-#include <cstdint>
-
 #include <graphene/chain/config.hpp>
+#include <graphene/chain/protocol/types.hpp>
 
 namespace graphene { namespace chain {
 
@@ -49,3 +46,5 @@ FC_REFLECT( graphene::chain::immutable_chain_parameters,
    (num_special_accounts)
    (num_special_assets)
 )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::immutable_chain_parameters )

@@ -191,3 +191,5 @@ namespace graphene { namespace chain {
 
 FC_REFLECT_TYPENAME( graphene::chain::operation )
 FC_REFLECT( graphene::chain::op_wrapper, (op) )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::op_wrapper )
