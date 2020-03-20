@@ -333,7 +333,7 @@ void database::initialize_indexes()
    add_index< primary_index<asset_dividend_data_object_index              > >();
    add_index< primary_index<simple_index<global_property_object          >> >();
    add_index< primary_index<simple_index<dynamic_global_property_object  >> >();
-   add_index< primary_index<simple_index<account_statistics_object       >> >();
+   add_index< primary_index<account_stats_index                           > >();
    add_index< primary_index<simple_index<asset_dynamic_data_object       >> >();
    add_index< primary_index<flat_index<  block_summary_object            >> >();
    add_index< primary_index<simple_index<chain_property_object          > > >();
@@ -395,12 +395,19 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          n.owner.weight_threshold = 1;
          n.active.weight_threshold = 1;
          n.name = "committee-account";
-         n.statistics = create<account_statistics_object>( [&](account_statistics_object& s){ s.owner = n.id; }).id;
+         n.statistics = create<account_statistics_object>( [&n](account_statistics_object& s){
+                           s.owner = n.id;
+                           s.name = n.name;
+                           s.core_in_balance = GRAPHENE_MAX_SHARE_SUPPLY;
+                        }).id;
       });
    FC_ASSERT(committee_account.get_id() == GRAPHENE_COMMITTEE_ACCOUNT);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "witness-account";
-       a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+       a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+                         s.owner = a.id;
+                         s.name = a.name;
+                      }).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 1;
        a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_WITNESS_ACCOUNT;
@@ -410,7 +417,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }).get_id() == GRAPHENE_WITNESS_ACCOUNT);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "relaxed-committee-account";
-       a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+       a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+                         s.owner = a.id;
+                         s.name = a.name;
+                      }).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 1;
        a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_RELAXED_COMMITTEE_ACCOUNT;
@@ -420,7 +430,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }).get_id() == GRAPHENE_RELAXED_COMMITTEE_ACCOUNT);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "null-account";
-       a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+       a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+                         s.owner = a.id;
+                         s.name = a.name;
+                      }).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 1;
        a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_NULL_ACCOUNT;
@@ -430,7 +443,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }).get_id() == GRAPHENE_NULL_ACCOUNT);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "temp-account";
-       a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+       a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+                         s.owner = a.id;
+                         s.name = a.name;
+                      }).id;
        a.owner.weight_threshold = 0;
        a.active.weight_threshold = 0;
        a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_TEMP_ACCOUNT;
@@ -440,7 +456,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }).get_id() == GRAPHENE_TEMP_ACCOUNT);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "proxy-to-self";
-       a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+       a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+                         s.owner = a.id;
+                         s.name = a.name;
+                      }).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 1;
        a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_NULL_ACCOUNT;
@@ -450,7 +469,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }).get_id() == GRAPHENE_PROXY_TO_SELF_ACCOUNT);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "default-dividend-distribution";
-       a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+       a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+                        s.owner = a.id;
+                        s.name = a.name;
+                     }).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 1;
        a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_PROXY_TO_SELF_ACCOUNT;
@@ -460,7 +482,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }).get_id() == GRAPHENE_RAKE_FEE_ACCOUNT_ID);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "son-account";
-       a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+       a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+                        s.owner = a.id;
+                        s.name = a.name;
+                     }).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 0;
        a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_SON_ACCOUNT;
@@ -474,9 +499,12 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       uint64_t id = get_index<account_object>().get_next_id().instance();
       if( id >= genesis_state.immutable_parameters.num_special_accounts )
          break;
-      const account_object& acct = create<account_object>([&](account_object& a) {
+      const account_object& acct = create<account_object>([this,id](account_object& a) {
           a.name = "special-account-" + std::to_string(id);
-          a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+          a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+                            s.owner = a.id;
+                            s.name = a.name;
+                         }).id;
           a.owner.weight_threshold = 1;
           a.active.weight_threshold = 1;
           a.registrar = a.lifetime_referrer = a.referrer = account_id_type(id);
@@ -490,12 +518,12 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
    // Create core asset
    const asset_dynamic_data_object& dyn_asset =
-      create<asset_dynamic_data_object>([&](asset_dynamic_data_object& a) {
+      create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
          a.current_supply = GRAPHENE_MAX_SHARE_SUPPLY;
       });
 
    const asset_dividend_data_object& div_asset =
-      create<asset_dividend_data_object>([&](asset_dividend_data_object& a) {
+      create<asset_dividend_data_object>([&genesis_state](asset_dividend_data_object& a) {
            a.options.minimum_distribution_interval = 3*24*60*60;
            a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
            a.options.next_payout_time = genesis_state.initial_timestamp + fc::days(1);
@@ -504,7 +532,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       });
 
    const asset_object& core_asset =
-     create<asset_object>( [&]( asset_object& a ) {
+     create<asset_object>( [&genesis_state,&div_asset,&dyn_asset]( asset_object& a ) {
          a.symbol = GRAPHENE_SYMBOL;
          a.options.max_supply = genesis_state.max_core_supply;
          a.precision = GRAPHENE_BLOCKCHAIN_PRECISION_DIGITS;
@@ -517,9 +545,12 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.options.core_exchange_rate.quote.asset_id = asset_id_type(0);
          a.dynamic_asset_data_id = dyn_asset.id;
          a.dividend_data_id = div_asset.id;
-   });
-   assert( asset_id_type(core_asset.id) == asset().asset_id );
-   assert( get_balance(account_id_type(), asset_id_type()) == asset(dyn_asset.current_supply) );
+      });
+   FC_ASSERT( dyn_asset.id == asset_dynamic_data_id_type() );
+   FC_ASSERT( asset_id_type(core_asset.id) == asset().asset_id );
+   FC_ASSERT( get_balance(account_id_type(), asset_id_type()) == asset(dyn_asset.current_supply) );
+   _p_core_asset_obj = &core_asset;
+   _p_core_dynamic_data_obj = &dyn_asset;
 
 #ifdef _DEFAULT_DIVIDEND_ASSET
    // Create default dividend asset
@@ -552,7 +583,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.dynamic_asset_data_id = dyn_asset1.id;
          a.dividend_data_id = div_asset1.id;
       });
-   assert( default_asset.id == asset_id_type(1) );
+   FC_ASSERT( default_asset.id == asset_id_type(1) );
 #endif
 
    // Create more special assets
@@ -562,10 +593,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       if( id >= genesis_state.immutable_parameters.num_special_assets )
          break;
       const asset_dynamic_data_object& dyn_asset =
-         create<asset_dynamic_data_object>([&](asset_dynamic_data_object& a) {
+         create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
             a.current_supply = 0;
          });
-      const asset_object& asset_obj = create<asset_object>( [&]( asset_object& a ) {
+      const asset_object& asset_obj = create<asset_object>( [id,&dyn_asset]( asset_object& a ) {
          a.symbol = "SPECIAL" + std::to_string( id );
          a.options.max_supply = 0;
          a.precision = GRAPHENE_BLOCKCHAIN_PRECISION_DIGITS;
@@ -585,14 +616,14 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    chain_id_type chain_id = genesis_state.compute_chain_id();
 
    // Create global properties
-   create<global_property_object>([&](global_property_object& p) {
+   _p_global_prop_obj = & create<global_property_object>([&genesis_state](global_property_object& p) {
        p.parameters = genesis_state.initial_parameters;
        // Set fees to zero initially, so that genesis initialization needs not pay them
        // We'll fix it at the end of the function
        p.parameters.current_fees->zero_all_fees();
 
    });
-   create<dynamic_global_property_object>([&](dynamic_global_property_object& p) {
+   _p_dyn_global_prop_obj = & create<dynamic_global_property_object>([&genesis_state](dynamic_global_property_object& p) {
       p.time = genesis_state.initial_timestamp;
       p.dynamic_flags = 0;
       p.witness_budget = 0;
@@ -605,7 +636,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    FC_ASSERT( (genesis_state.immutable_parameters.min_witness_count & 1) == 1, "min_witness_count must be odd" );
    FC_ASSERT( (genesis_state.immutable_parameters.min_committee_member_count & 1) == 1, "min_committee_member_count must be odd" );
 
-   create<chain_property_object>([&](chain_property_object& p)
+   _p_chain_property_obj = & create<chain_property_object>([chain_id,&genesis_state](chain_property_object& p)
    {
       p.chain_id = chain_id;
       p.immutable_parameters = genesis_state.immutable_parameters;
@@ -729,7 +760,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
             cop.active = cop.owner;
             account_id_type owner_account_id = apply_operation(genesis_eval_state, cop).get<object_id_type>();
 
-            modify( owner_account_id(*this).statistics(*this), [&]( account_statistics_object& o ) {
+            modify( owner_account_id(*this).statistics(*this), [&collateral_rec]( account_statistics_object& o ) {
                     o.total_core_in_orders = collateral_rec.collateral;
                     });
 
@@ -945,7 +976,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    });
 
    // Set active witnesses
-   modify(get_global_properties(), [&](global_property_object& p) {
+   modify(get_global_properties(), [&genesis_state](global_property_object& p) {
       for( uint32_t i = 1; i <= genesis_state.initial_active_witnesses; ++i )
       {
          p.active_witnesses.insert(witness_id_type(i));
@@ -953,10 +984,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    });
 
    // Initialize witness schedule
-#ifndef NDEBUG
-   const witness_schedule_object& wso =
-#endif
-   create<witness_schedule_object>([&](witness_schedule_object& _wso)
+   _p_witness_schedule_obj = & create<witness_schedule_object>([this](witness_schedule_object& _wso)
    {
       // for scheduled
       memset(_wso.rng_seed.begin(), 0, _wso.rng_seed.size());
@@ -980,7 +1008,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       for( const witness_id_type& wid : get_global_properties().active_witnesses )
          _wso.current_shuffled_witnesses.push_back( wid );
    });
-   assert( wso.id == witness_schedule_id_type() );
+   FC_ASSERT( _p_witness_schedule_obj->id == witness_schedule_id_type() );
 
       // Initialize witness schedule
 #ifndef NDEBUG
@@ -1010,12 +1038,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       p.parameters.current_fees = genesis_state.initial_parameters.current_fees;
    });
 
-   // Create witness scheduler
-   //create<witness_schedule_object>([&]( witness_schedule_object& wso )
-   //{
-   //   for( const witness_id_type& wid : get_global_properties().active_witnesses )
-   //      wso.current_shuffled_witnesses.push_back( wid );
-   //});
 
    // Create FBA counters
    create<fba_accumulator_object>([&]( fba_accumulator_object& acc )

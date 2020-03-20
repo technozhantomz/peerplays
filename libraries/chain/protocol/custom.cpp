@@ -23,6 +23,8 @@
  */
 #include <graphene/chain/protocol/custom.hpp>
 
+#include <fc/io/raw.hpp>
+
 namespace graphene { namespace chain {
 
 void custom_operation::validate()const
@@ -35,3 +37,6 @@ share_type custom_operation::calculate_fee(const fee_parameters_type& k)const
 }
 
 } }
+
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::custom_operation::fee_parameters_type )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::custom_operation )

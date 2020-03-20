@@ -25,8 +25,11 @@
 #include <graphene/app/config_util.hpp>
 
 #include <graphene/witness/witness.hpp>
+#include <graphene/debug_witness/debug_witness.hpp>
 #include <graphene/account_history/account_history_plugin.hpp>
 #include <graphene/accounts_list/accounts_list_plugin.hpp>
+#include <graphene/elasticsearch/elasticsearch_plugin.hpp>
+#include <graphene/es_objects/es_objects.hpp>
 #include <graphene/market_history/market_history_plugin.hpp>
 //#include <graphene/generate_genesis/generate_genesis_plugin.hpp>
 //#include <graphene/generate_uia_sharedrop_genesis/generate_uia_sharedrop_genesis.hpp>
@@ -34,7 +37,7 @@
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/peerplays_sidechain/peerplays_sidechain_plugin.hpp>
 #include <graphene/utilities/git_revision.hpp>
-//#include <graphene/snapshot/snapshot.hpp>
+#include <graphene/snapshot/snapshot.hpp>
 
 #include <fc/thread/thread.hpp>
 #include <fc/interprocess/signals.hpp>
@@ -84,7 +87,10 @@ int main(int argc, char** argv) {
                "Space-separated list of plugins to activate");
 
       auto witness_plug = node->register_plugin<witness_plugin::witness_plugin>();
+      auto debug_witness_plug = node->register_plugin<debug_witness_plugin::debug_witness_plugin>();
       auto history_plug = node->register_plugin<account_history::account_history_plugin>();
+      auto elasticsearch_plug = node->register_plugin<elasticsearch::elasticsearch_plugin>();
+      auto es_objects_plug = node->register_plugin<es_objects::es_objects_plugin>();
       auto market_history_plug = node->register_plugin<market_history::market_history_plugin>();
       //auto generate_genesis_plug = node->register_plugin<generate_genesis_plugin::generate_genesis_plugin>();
       //auto generate_uia_sharedrop_genesis_plug = node->register_plugin<generate_uia_sharedrop_genesis::generate_uia_sharedrop_genesis_plugin>();
@@ -92,7 +98,7 @@ int main(int argc, char** argv) {
       auto affiliate_stats_plug = node->register_plugin<affiliate_stats::affiliate_stats_plugin>();
       auto bookie_plug = node->register_plugin<bookie::bookie_plugin>();
       auto peerplays_sidechain = node->register_plugin<peerplays_sidechain::peerplays_sidechain_plugin>();
-//      auto snapshot_plug = node->register_plugin<snapshot_plugin::snapshot_plugin>();
+      auto snapshot_plug = node->register_plugin<snapshot_plugin::snapshot_plugin>();
 
       // add plugin options to config
       try
@@ -171,7 +177,7 @@ int main(int argc, char** argv) {
          exit_promise->set_value(signal);
       }, SIGTERM);
 
-      ilog("Started witness node on a chain with ${h} blocks.", ("h", node->chain_database()->head_block_num()));
+      ilog("Started Peerplays node on a chain with ${h} blocks.", ("h", node->chain_database()->head_block_num()));
       ilog("Chain ID is ${id}", ("id", node->chain_database()->get_chain_id()) );
 
       int signal = exit_promise->wait();

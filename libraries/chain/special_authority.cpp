@@ -25,6 +25,8 @@
 #include <graphene/chain/protocol/special_authority.hpp>
 #include <graphene/chain/database.hpp>
 
+#include <fc/io/raw.hpp>
+
 namespace graphene { namespace chain {
 
 struct special_authority_validate_visitor
@@ -68,3 +70,6 @@ void evaluate_special_authority( const database& db, const special_authority& a 
 }
 
 } } // graphene::chain
+
+
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::top_holders_special_authority )
