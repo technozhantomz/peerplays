@@ -56,6 +56,3 @@ namespace graphene { namespace chain {
 
 FC_REFLECT( graphene::chain::custom_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::custom_operation, (fee)(payer)(required_auths)(id)(data) )
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::custom_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::custom_operation )

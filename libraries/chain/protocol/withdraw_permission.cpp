@@ -23,8 +23,6 @@
  */
 #include <graphene/chain/protocol/withdraw_permission.hpp>
 
-#include <fc/io/raw.hpp>
-
 namespace graphene { namespace chain {
 
 void withdraw_permission_update_operation::validate()const
@@ -67,13 +65,6 @@ void withdraw_permission_delete_operation::validate() const
    FC_ASSERT( withdraw_from_account != authorized_account );
 }
 
+
 } } // graphene::chain
 
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::withdraw_permission_create_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::withdraw_permission_update_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::withdraw_permission_claim_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::withdraw_permission_delete_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::withdraw_permission_create_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::withdraw_permission_update_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::withdraw_permission_claim_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::withdraw_permission_delete_operation )

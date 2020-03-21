@@ -38,27 +38,22 @@ namespace graphene { namespace chain {
 
 const asset_object& database::get_core_asset() const
 {
-   return *_p_core_asset_obj;
-}
-
-const asset_dynamic_data_object& database::get_core_dynamic_data() const
-{
-   return *_p_core_dynamic_data_obj;
+   return get(asset_id_type());
 }
 
 const global_property_object& database::get_global_properties()const
 {
-   return *_p_global_prop_obj;
+   return get( global_property_id_type() );
 }
 
 const chain_property_object& database::get_chain_properties()const
 {
-   return *_p_chain_property_obj;
+   return get( chain_property_id_type() );
 }
 
 const dynamic_global_property_object& database::get_dynamic_global_properties() const
 {
-   return *_p_dyn_global_prop_obj;
+   return get( dynamic_global_property_id_type() );
 }
 
 const fee_schedule&  database::current_fee_schedule()const
@@ -68,17 +63,17 @@ const fee_schedule&  database::current_fee_schedule()const
 
 time_point_sec database::head_block_time()const
 {
-   return get_dynamic_global_properties().time;
+   return get( dynamic_global_property_id_type() ).time;
 }
 
 uint32_t database::head_block_num()const
 {
-   return get_dynamic_global_properties().head_block_number;
+   return get( dynamic_global_property_id_type() ).head_block_number;
 }
 
 block_id_type database::head_block_id()const
 {
-   return get_dynamic_global_properties().head_block_id;
+   return get( dynamic_global_property_id_type() ).head_block_id;
 }
 
 decltype( chain_parameters::block_interval ) database::block_interval( )const
@@ -235,19 +230,6 @@ bool database::is_son_dereg_valid( son_id_type son_id )
    bool ret = ( son->status == son_status::in_maintenance &&
                 (head_block_time() - son->statistics(*this).last_down_timestamp >= fc::seconds(get_global_properties().parameters.son_deregister_time())));
    return ret;
-}
-
-const account_statistics_object& database::get_account_stats_by_owner( account_id_type owner )const
-{
-   auto& idx = get_index_type<account_stats_index>().indices().get<by_owner>();
-   auto itr = idx.find( owner );
-   FC_ASSERT( itr != idx.end(), "Can not find account statistics object for owner ${a}", ("a",owner) );
-   return *itr;
-}
-
-const witness_schedule_object& database::get_witness_schedule_object()const
-{
-   return *_p_witness_schedule_obj;
 }
 
 } }

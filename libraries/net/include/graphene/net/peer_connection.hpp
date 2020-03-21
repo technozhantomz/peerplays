@@ -26,6 +26,7 @@
 #include <graphene/net/node.hpp>
 #include <graphene/net/peer_database.hpp>
 #include <graphene/net/message_oriented_connection.hpp>
+#include <graphene/net/stcp_socket.hpp>
 #include <graphene/net/config.hpp>
 
 #include <boost/tuple/tuple.hpp>
@@ -34,7 +35,9 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/member.hpp>
+#include <boost/multi_index/random_access_index.hpp>
 #include <boost/multi_index/tag.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 
 #include <queue>
@@ -261,13 +264,13 @@ namespace graphene { namespace net
       fc::future<void> accept_or_connect_task_done;
 
       firewall_check_state_data *firewall_check_state = nullptr;
-
-    private:
 #ifndef NDEBUG
+    private:
       fc::thread* _thread = nullptr;
       unsigned _send_message_queue_tasks_running = 0; // temporary debugging
 #endif
       bool _currently_handling_message = false; // true while we're in the middle of handling a message from the remote system
+    private:
       peer_connection(peer_connection_delegate* delegate);
       void destroy();
     public:

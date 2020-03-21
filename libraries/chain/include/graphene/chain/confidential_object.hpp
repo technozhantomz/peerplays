@@ -26,6 +26,7 @@
 #include <graphene/chain/protocol/authority.hpp>
 #include <graphene/chain/protocol/types.hpp>
 
+#include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 
 #include <fc/crypto/elliptic.hpp>
@@ -49,6 +50,8 @@ class blinded_balance_object : public graphene::db::abstract_object<blinded_bala
       authority                               owner;
 };
 
+struct by_asset;
+struct by_owner;
 struct by_commitment;
 
 /**
@@ -65,8 +68,4 @@ typedef generic_index<blinded_balance_object, blinded_balance_object_multi_index
 
 } } // graphene::chain
 
-
-FC_REFLECT_DERIVED( graphene::chain::blinded_balance_object, (graphene::db::object),
-                                (commitment)(asset_id)(owner) )
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::blinded_balance_object )
+FC_REFLECT_DERIVED( graphene::chain::blinded_balance_object, (graphene::db::object), (commitment)(asset_id)(owner) )

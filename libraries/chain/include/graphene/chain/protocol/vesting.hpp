@@ -23,23 +23,10 @@
  */
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
-#include <graphene/chain/protocol/asset.hpp>
 
 namespace graphene { namespace chain {
 
    enum class vesting_balance_type { normal, gpos, son };
-
-   inline std::string get_vesting_balance_type(vesting_balance_type type) {
-      switch (type) {
-         case vesting_balance_type::normal:
-            return "NORMAL";
-         case vesting_balance_type::son:
-            return "SON";   
-         case vesting_balance_type::gpos:
-         default:
-            return "GPOS";
-      }
-   }
 
    struct linear_vesting_policy_initializer
    {
@@ -137,9 +124,4 @@ FC_REFLECT(graphene::chain::cdd_vesting_policy_initializer, (start_claim)(vestin
 FC_REFLECT(graphene::chain::dormant_vesting_policy_initializer,  )
 FC_REFLECT_TYPENAME( graphene::chain::vesting_policy_initializer )
 
-FC_REFLECT_ENUM( graphene::chain::vesting_balance_type, (normal)(gpos)(son))
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vesting_balance_create_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vesting_balance_withdraw_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vesting_balance_create_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vesting_balance_withdraw_operation )
+FC_REFLECT_ENUM( graphene::chain::vesting_balance_type, (normal)(gpos)(son) )

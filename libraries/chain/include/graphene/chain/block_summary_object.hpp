@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <graphene/chain/protocol/types.hpp>
 #include <graphene/db/object.hpp>
 
 namespace graphene { namespace chain {
@@ -48,7 +47,4 @@ namespace graphene { namespace chain {
 
 } }
 
-
 FC_REFLECT_DERIVED( graphene::chain::block_summary_object, (graphene::db::object), (block_id) )
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::block_summary_object )

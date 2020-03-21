@@ -104,10 +104,3 @@ FC_REFLECT( graphene::chain::committee_member_create_operation,
 FC_REFLECT( graphene::chain::committee_member_update_operation,
             (fee)(committee_member)(committee_member_account)(new_url) )
 FC_REFLECT( graphene::chain::committee_member_update_global_parameters_operation, (fee)(new_parameters) );
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::committee_member_create_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::committee_member_update_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::committee_member_update_global_parameters_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::committee_member_create_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::committee_member_update_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::committee_member_update_global_parameters_operation )

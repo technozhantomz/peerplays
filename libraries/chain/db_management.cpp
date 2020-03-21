@@ -24,9 +24,6 @@
 
 #include <graphene/chain/database.hpp>
 
-#include <graphene/chain/chain_property_object.hpp>
-#include <graphene/chain/witness_schedule_object.hpp>
-#include <graphene/chain/special_authority_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -180,7 +177,7 @@ void database::wipe(const fc::path& data_dir, bool include_blocks)
 {
    ilog("Wiping database", ("include_blocks", include_blocks));
    if (_opened) {
-     close(false);
+     close();
    }
    object_database::wipe(data_dir);
    if( include_blocks )
@@ -218,15 +215,6 @@ void database::open(
 
       if( !find(global_property_id_type()) )
          init_genesis(genesis_loader());
-      else
-      {
-         _p_core_asset_obj = &get( asset_id_type() );
-         _p_core_dynamic_data_obj = &get( asset_dynamic_data_id_type() );
-         _p_global_prop_obj = &get( global_property_id_type() );
-         _p_chain_property_obj = &get( chain_property_id_type() );
-         _p_dyn_global_prop_obj = &get( dynamic_global_property_id_type() );
-         _p_witness_schedule_obj = &get( witness_schedule_id_type() );
-      }
 
       fc::optional<block_id_type> last_block = _block_id_to_block.last_id();
       if( last_block.valid() )

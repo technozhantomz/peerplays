@@ -27,6 +27,7 @@
 
 #include <fc/crypto/base58.hpp>
 #include <fc/io/raw.hpp>
+#include <fc/crypto/elliptic.hpp>
 
 namespace graphene { namespace chain {
 
@@ -140,6 +141,9 @@ share_type blind_transfer_operation::calculate_fee( const fee_parameters_type& k
     return k.fee + outputs.size() * k.price_per_output;
 }
 
+
+
+
 /**
  *  Packs *this then encodes as base58 encoded string.
  */
@@ -155,11 +159,6 @@ stealth_confirmation::stealth_confirmation( const std::string& base58 )
    *this = fc::raw::unpack<stealth_confirmation>( fc::from_base58( base58 ) );
 }
 
-} } // graphene::chain
 
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::transfer_to_blind_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::transfer_from_blind_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::blind_transfer_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::transfer_to_blind_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::transfer_from_blind_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::blind_transfer_operation )
+
+} } // graphene::chain

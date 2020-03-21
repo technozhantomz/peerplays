@@ -24,7 +24,6 @@
 #pragma once
 
 #include <fc/io/varint.hpp>
-#include <fc/io/raw_fwd.hpp>
 #include <fc/reflect/reflect.hpp>
 
 namespace graphene { namespace chain {

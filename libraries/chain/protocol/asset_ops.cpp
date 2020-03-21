@@ -24,8 +24,6 @@
 #include <graphene/chain/protocol/asset_ops.hpp>
 #include <graphene/chain/database.hpp>
 
-#include <fc/io/raw.hpp>
-
 namespace graphene { namespace chain {
 
 /**
@@ -290,30 +288,3 @@ void lottery_asset_options::validate() const
 }
 
 } } // namespace graphene::chain
-
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_options )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::bitasset_options )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_create_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_global_settle_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_settle_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_fund_fee_pool_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_claim_fees_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_update_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_update_bitasset_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_update_feed_producers_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_publish_feed_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_issue_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_reserve_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_create_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_global_settle_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_settle_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_settle_cancel_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_fund_fee_pool_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_claim_fees_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_dividend_distribution_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_update_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_update_bitasset_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_update_feed_producers_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_publish_feed_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_issue_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_reserve_operation )

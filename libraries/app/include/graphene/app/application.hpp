@@ -56,8 +56,8 @@ namespace graphene { namespace app {
             auto plug = std::make_shared<PluginType>();
             plug->plugin_set_app(this);
 
-            boost::program_options::options_description plugin_cli_options(plug->plugin_name() + " plugin. " + plug->plugin_description() + "\nOptions"), plugin_cfg_options;
-            //boost::program_options::options_description plugin_cli_options("Options for plugin " + plug->plugin_name()), plugin_cfg_options;
+            string cli_plugin_desc = plug->plugin_name() + " plugin. " + plug->plugin_description() + "\nOptions";
+            boost::program_options::options_description plugin_cli_options( cli_plugin_desc ), plugin_cfg_options;
             plug->plugin_set_program_options(plugin_cli_options, plugin_cfg_options);
             if( !plugin_cli_options.options().empty() )
                _cli_options.add(plugin_cli_options);
@@ -99,9 +99,7 @@ namespace graphene { namespace app {
 
          bool is_plugin_enabled(const string& name) const;
 
-         std::shared_ptr<fc::thread> elasticsearch_thread;
-
-   private:
+      private:
          void add_available_plugin( std::shared_ptr<abstract_plugin> p );
          std::shared_ptr<detail::application_impl> my;
 

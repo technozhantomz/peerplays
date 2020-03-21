@@ -24,9 +24,6 @@
 #include <graphene/chain/protocol/account.hpp>
 #include <graphene/chain/hardfork.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-
-#include <fc/io/raw.hpp>
-
 namespace graphene { namespace chain {
 
 /**
@@ -284,7 +281,6 @@ void account_update_operation::validate()const
       || new_options.valid()
       || extensions.value.owner_special_authority.valid()
       || extensions.value.active_special_authority.valid()
-      || extensions.value.update_last_voting_time.valid()
       );
 
    FC_ASSERT( has_action );
@@ -330,15 +326,3 @@ void account_transfer_operation::validate()const
 
 
 } } // graphene::chain
-
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_options )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_create_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_whitelist_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_update_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_upgrade_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_transfer_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_create_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_whitelist_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_update_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_upgrade_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_transfer_operation )

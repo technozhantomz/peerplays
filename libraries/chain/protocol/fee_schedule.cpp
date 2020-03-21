@@ -35,8 +35,6 @@ namespace fc
    //template const graphene::chain::fee_schedule& smart_ref<graphene::chain::fee_schedule>::operator*() const;
 }
 
-#include <fc/io/raw.hpp>
-
 #define MAX_FEE_STABILIZATION_ITERATION 4
 
 namespace graphene { namespace chain {
@@ -210,5 +208,3 @@ namespace graphene { namespace chain {
    }
 
 } } // graphene::chain
-
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::fee_schedule )

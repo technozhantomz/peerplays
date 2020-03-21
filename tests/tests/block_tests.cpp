@@ -745,8 +745,6 @@ BOOST_FIXTURE_TEST_CASE( maintenance_interval, database_fixture )
          PUSH_TX( db, trx, ~0 );
          trx.operations.clear();
       }
-
-      generate_block();
       transfer(account_id_type()(db), nathan, asset(5000));
 
       generate_blocks(maintenence_time - initial_properties.parameters.block_interval);
@@ -961,23 +959,18 @@ BOOST_FIXTURE_TEST_CASE( pop_block_twice, database_fixture )
       processed_transaction ptx;
 
       account_object committee_account_object = committee_account(db);
-      generate_block(skip_flags);
       // transfer from committee account to Sam account
       transfer(committee_account_object, sam_account_object, core.amount(100000));
 
       generate_block(skip_flags);
 
-      private_key_type charlie_key = generate_private_key("charlie");
-      create_account("charlie", charlie_key);
+      create_account("alice");
       generate_block(skip_flags);
+      create_account("bob");
       generate_block(skip_flags);
-      private_key_type bob_key = generate_private_key("bob");
-      create_account("bob", bob_key);
-      generate_block(skip_flags);
-                 
+
       db.pop_block();
       db.pop_block();
-      
    } catch(const fc::exception& e) {
       edump( (e.to_detail_string()) );
       throw;
