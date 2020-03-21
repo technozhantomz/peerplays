@@ -68,5 +68,3 @@ FC_REFLECT_DERIVED(
    (graphene::db::object),
    (account)
 )
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::special_authority_object )

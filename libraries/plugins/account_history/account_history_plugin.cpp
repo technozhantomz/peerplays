@@ -24,7 +24,7 @@
 
 #include <graphene/account_history/account_history_plugin.hpp>
 
-#include <graphene/chain/impacted.hpp>
+#include <graphene/app/impacted.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/account_object.hpp>
@@ -128,8 +128,8 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
       if( op.op.which() == operation::tag< account_create_operation >::value )
          impacted.insert( op.result.get<object_id_type>() );
       else
-         graphene::chain::operation_get_impacted_accounts( op.op, impacted );
-      if( op.op.which() == operation::tag< lottery_end_operation >::value )
+         graphene::app::operation_get_impacted_accounts( op.op, impacted );
+      if( op.op.which() == operation::tag< lottery_end_operation >::value ) 
       {
          auto lop = op.op.get< lottery_end_operation >();
          auto asset_object = lop.lottery( db );
@@ -137,7 +137,6 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
          for( auto benefactor : asset_object.lottery_options->benefactors )
             impacted.insert( benefactor.id );
       }
-
       for( auto& a : other )
          for( auto& item : a.account_auths )
             impacted.insert( item.first );

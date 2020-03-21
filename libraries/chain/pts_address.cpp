@@ -27,7 +27,6 @@
 #include <fc/crypto/base58.hpp>
 #include <fc/crypto/elliptic.hpp>
 #include <fc/crypto/ripemd160.hpp>
-#include <fc/io/raw.hpp>
 #include <algorithm>
 
 namespace graphene { namespace chain {
@@ -98,12 +97,4 @@ namespace fc
    {
         vo = graphene::chain::pts_address( var.as_string() );
    }
-
-namespace raw {
-   template void pack( datastream<size_t>& s, const graphene::chain::pts_address& tx,
-                       uint32_t _max_depth=FC_PACK_MAX_DEPTH );
-   template void pack( datastream<char*>& s, const graphene::chain::pts_address& tx,
-                       uint32_t _max_depth=FC_PACK_MAX_DEPTH );
-   template void unpack( datastream<const char*>& s, graphene::chain::pts_address& tx,
-                         uint32_t _max_depth=FC_PACK_MAX_DEPTH );
-} } // fc::raw
+}

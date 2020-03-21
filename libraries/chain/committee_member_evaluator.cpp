@@ -77,7 +77,15 @@ void_result committee_member_update_evaluator::do_apply( const committee_member_
 void_result committee_member_update_global_parameters_evaluator::do_evaluate(const committee_member_update_global_parameters_operation& o)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
-   
+
+   if( db().head_block_time() < HARDFORK_1000_TIME ) // TODO: remove after hf
+      FC_ASSERT( !o.new_parameters.extensions.value.min_bet_multiplier.valid()
+                 && !o.new_parameters.extensions.value.max_bet_multiplier.valid()
+                 && !o.new_parameters.extensions.value.betting_rake_fee_percentage.valid()
+                 && !o.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
+                 && !o.new_parameters.extensions.value.live_betting_delay_time.valid(),
+                 "Parameter extensions are not allowed yet!" );
+
    dgpo = &db().get_global_properties();
    if( o.new_parameters.extensions.value.min_bet_multiplier.valid()
         && !o.new_parameters.extensions.value.max_bet_multiplier.valid() )

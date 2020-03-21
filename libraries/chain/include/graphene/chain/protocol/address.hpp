@@ -25,10 +25,14 @@
 
 #include <graphene/chain/config.hpp>
 #include <graphene/chain/pts_address.hpp>
-#include <graphene/chain/protocol/types.hpp>
 
+#include <fc/array.hpp>
 #include <fc/crypto/ripemd160.hpp>
-#include <fc/reflect/typename.hpp>
+
+namespace fc { namespace ecc {
+    class public_key;
+    typedef fc::array<char,33>  public_key_data;
+} } // fc::ecc
 
 namespace graphene { namespace chain {
 
@@ -47,7 +51,7 @@ namespace graphene { namespace chain {
    class address
    {
       public:
-       address(){} ///< constructs empty / null address
+       address(); ///< constructs empty / null address
        explicit address( const std::string& base58str );   ///< converts to binary, validates checksum
        address( const fc::ecc::public_key& pub ); ///< converts to binary
        explicit address( const fc::ecc::public_key_data& pub ); ///< converts to binary
@@ -93,5 +97,3 @@ namespace std
 
 #include <fc/reflect/reflect.hpp>
 FC_REFLECT( graphene::chain::address, (addr) )
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::address )

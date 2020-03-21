@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #include <graphene/chain/protocol/worker.hpp>
-#include <fc/io/raw.hpp>
 
 namespace graphene { namespace chain {
 
@@ -37,6 +36,3 @@ void worker_create_operation::validate() const
 }
 
 } }
-
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::worker_create_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::worker_create_operation )

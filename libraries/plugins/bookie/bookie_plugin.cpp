@@ -24,7 +24,7 @@
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/bookie/bookie_objects.hpp>
 
-#include <graphene/chain/impacted.hpp>
+#include <graphene/app/impacted.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/account_object.hpp>
@@ -370,8 +370,8 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
          assert(bet_iter != persistent_bets_by_bet_id.end());
          if (bet_iter != persistent_bets_by_bet_id.end())
          {
-            // ilog("Adding bet_canceled_operation ${canceled_id} to bet ${bet_id}'s associated operations", 
-            //     ("canceled_id", op.id)("bet_id", bet_canceled_op.bet_id));
+            ilog("Adding bet_canceled_operation ${canceled_id} to bet ${bet_id}'s associated operations", 
+                 ("canceled_id", op.id)("bet_id", bet_canceled_op.bet_id));
             if (is_operation_history_object_stored(op.id))
                db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
                   obj.associated_operations.emplace_back(op.id);
@@ -386,8 +386,8 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
          assert(bet_iter != persistent_bets_by_bet_id.end());
          if (bet_iter != persistent_bets_by_bet_id.end())
          {
-            // ilog("Adding bet_adjusted_operation ${adjusted_id} to bet ${bet_id}'s associated operations", 
-            //     ("adjusted_id", op.id)("bet_id", bet_adjusted_op.bet_id));
+            ilog("Adding bet_adjusted_operation ${adjusted_id} to bet ${bet_id}'s associated operations", 
+                 ("adjusted_id", op.id)("bet_id", bet_adjusted_op.bet_id));
             if (is_operation_history_object_stored(op.id))
                db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
                   obj.associated_operations.emplace_back(op.id);

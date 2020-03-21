@@ -25,8 +25,6 @@
 #include <fstream>
 #include <graphene/chain/protocol/block.hpp>
 
-#include <fc/filesystem.hpp>
-
 namespace graphene { namespace chain {
    class index_entry;
 

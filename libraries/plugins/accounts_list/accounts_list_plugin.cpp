@@ -24,7 +24,7 @@
 
 #include <graphene/accounts_list/accounts_list_plugin.hpp>
 
-#include <graphene/chain/impacted.hpp>
+#include <graphene/app/impacted.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/account_object.hpp>

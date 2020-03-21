@@ -426,16 +426,14 @@ bool database::fill_order(const force_settlement_object& settle, const asset& pa
  *
  *  @return true if a margin call was executed.
  */
-bool database::check_call_orders( const asset_object& mia, bool enable_black_swan, bool for_new_limit_order,
-                                  const asset_bitasset_data_object* bitasset_ptr )
+bool database::check_call_orders(const asset_object& mia, bool enable_black_swan)
 { try {
     if( !mia.is_market_issued() ) return false;
 
-    const asset_bitasset_data_object& bitasset = ( bitasset_ptr ? *bitasset_ptr : mia.bitasset_data(*this) );
-
-    if( check_for_blackswan( mia, enable_black_swan, &bitasset ) )
+    if( check_for_blackswan( mia, enable_black_swan ) ) 
        return false;
 
+    const asset_bitasset_data_object& bitasset = mia.bitasset_data(*this);
     if( bitasset.is_prediction_market ) return false;
     if( bitasset.current_feed.settlement_price.is_null() ) return false;
 
@@ -466,12 +464,7 @@ bool database::check_call_orders( const asset_object& mia, bool enable_black_swa
     bool filled_limit = false;
     bool margin_called = false;
 
-    auto head_time = head_block_time();
-    auto head_num = head_block_num();
-
-    bool after_hardfork_436 = ( head_time > HARDFORK_436_TIME );
-
-    while( !check_for_blackswan( mia, enable_black_swan, &bitasset ) && call_itr != call_end )
+    while( !check_for_blackswan( mia, enable_black_swan ) && call_itr != call_end )
     {
        bool  filled_call      = false;
        price match_price;
@@ -488,7 +481,7 @@ bool database::check_call_orders( const asset_object& mia, bool enable_black_swa
 
        // would be margin called, but there is no matching order #436
        bool feed_protected = ( bitasset.current_feed.settlement_price > ~call_itr->call_price );
-       if( feed_protected && after_hardfork_436 )
+       if( feed_protected && (head_block_time() > HARDFORK_436_TIME) )
           return margin_called;
 
        // would be margin called, but there is no matching order
@@ -513,8 +506,7 @@ bool database::check_call_orders( const asset_object& mia, bool enable_black_swa
 
        if( usd_to_buy * match_price > call_itr->get_collateral() )
        {
-          elog( "black swan detected on asset ${symbol} (${id}) at block ${b}",
-                ("id",mia.id)("symbol",mia.symbol)("b",head_num) );
+          elog( "black swan detected" ); 
           edump((enable_black_swan));
           FC_ASSERT( enable_black_swan );
           globally_settle_asset(mia, bitasset.current_feed.settlement_price );

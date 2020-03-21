@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <fc/smart_ref_fwd.hpp>
 #include <graphene/chain/protocol/operations.hpp>
 
 namespace graphene { namespace chain {
@@ -86,5 +85,3 @@ namespace graphene { namespace chain {
 
 FC_REFLECT_TYPENAME( graphene::chain::fee_parameters )
 FC_REFLECT( graphene::chain::fee_schedule, (parameters)(scale) )
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::fee_schedule )

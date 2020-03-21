@@ -162,39 +162,33 @@ object_id_type account_create_evaluator::do_apply( const account_create_operatio
       if( referrer_percent > GRAPHENE_100_PERCENT )
          referrer_percent = GRAPHENE_100_PERCENT;
    }
-   const auto& global_properties = d.get_global_properties();
 
-   const auto& new_acnt_object = d.create<account_object>( [&o,&d,&global_properties,referrer_percent]( account_object& obj )
-   {
-      obj.registrar = o.registrar;
-      obj.referrer = o.referrer;
-      obj.lifetime_referrer = o.referrer(d).lifetime_referrer;
+   const auto& new_acnt_object = db().create<account_object>( [&]( account_object& obj ){
+         obj.registrar = o.registrar;
+         obj.referrer = o.referrer;
+         obj.lifetime_referrer = o.referrer(db()).lifetime_referrer;
 
-      const auto& params = global_properties.parameters;
-      obj.network_fee_percentage = params.network_percent_of_fee;
-      obj.lifetime_referrer_fee_percentage = params.lifetime_referrer_percent_of_fee;
-      obj.referrer_rewards_percentage = referrer_percent;
+         auto& params = db().get_global_properties().parameters;
+         obj.network_fee_percentage = params.network_percent_of_fee;
+         obj.lifetime_referrer_fee_percentage = params.lifetime_referrer_percent_of_fee;
+         obj.referrer_rewards_percentage = referrer_percent;
 
-      obj.name             = o.name;
-      obj.owner            = o.owner;
-      obj.active           = o.active;
-      obj.options          = o.options;
-      obj.statistics = d.create<account_statistics_object>([&obj](account_statistics_object& s){
-                           s.owner = obj.id;
-                           s.name = obj.name;
-                           s.is_voting = obj.options.is_voting();
-                        }).id;
+         obj.name             = o.name;
+         obj.owner            = o.owner;
+         obj.active           = o.active;
+         obj.options          = o.options;
+         obj.statistics = db().create<account_statistics_object>([&](account_statistics_object& s){s.owner = obj.id;}).id;
 
-      if( o.extensions.value.owner_special_authority.valid() )
-         obj.owner_special_authority = *(o.extensions.value.owner_special_authority);
-      if( o.extensions.value.active_special_authority.valid() )
-         obj.active_special_authority = *(o.extensions.value.active_special_authority);
-      if( o.extensions.value.buyback_options.valid() )
-      {
-         obj.allowed_assets = o.extensions.value.buyback_options->markets;
-         obj.allowed_assets->emplace( o.extensions.value.buyback_options->asset_to_buy );
-      }
-      obj.affiliate_distributions = o.extensions.value.affiliate_distributions;
+         if( o.extensions.value.owner_special_authority.valid() )
+            obj.owner_special_authority = *(o.extensions.value.owner_special_authority);
+         if( o.extensions.value.active_special_authority.valid() )
+            obj.active_special_authority = *(o.extensions.value.active_special_authority);
+         if( o.extensions.value.buyback_options.valid() )
+         {
+            obj.allowed_assets = o.extensions.value.buyback_options->markets;
+            obj.allowed_assets->emplace( o.extensions.value.buyback_options->asset_to_buy );
+         }
+         obj.affiliate_distributions = o.extensions.value.affiliate_distributions;
    });
 
    if( has_small_percent )
@@ -206,18 +200,17 @@ object_id_type account_create_evaluator::do_apply( const account_create_operatio
       wlog( "Affected account object is ${o}", ("o", new_acnt_object) );
    }
 
-   const auto& dynamic_properties = d.get_dynamic_global_properties();
-   d.modify(dynamic_properties, [](dynamic_global_property_object& p) {
+   const auto& dynamic_properties = db().get_dynamic_global_properties();
+   db().modify(dynamic_properties, [](dynamic_global_property_object& p) {
       ++p.accounts_registered_this_interval;
    });
 
-   if( dynamic_properties.accounts_registered_this_interval % global_properties.parameters.accounts_per_fee_scale == 0
-         && global_properties.parameters.account_fee_scale_bitshifts != 0 )
-   {
-      d.modify(global_properties, [&dynamic_properties](global_property_object& p) {
+   const auto& global_properties = db().get_global_properties();
+   if( dynamic_properties.accounts_registered_this_interval %
+       global_properties.parameters.accounts_per_fee_scale == 0 )
+      db().modify(global_properties, [&dynamic_properties](global_property_object& p) {
          p.parameters.current_fees->get<account_create_operation>().basic_fee <<= p.parameters.account_fee_scale_bitshifts;
       });
-   }
 
    if(    o.extensions.value.owner_special_authority.valid()
        || o.extensions.value.active_special_authority.valid() )
@@ -287,26 +280,18 @@ void_result account_update_evaluator::do_apply( const account_update_operation& 
 { try {
    database& d = db();
 
-   bool sa_before = acnt->has_special_authority();
-
-   // update account statistics
    if( o.new_options.valid() )
    {
       d.modify( acnt->statistics( d ), [&]( account_statistics_object& aso )
       {
-         fc::optional< bool > flag = o.extensions.value.update_last_voting_time;
          if((o.new_options->votes != acnt->options.votes ||
-             o.new_options->voting_account != acnt->options.voting_account) ||
-             (flag.valid() && *flag))
+             o.new_options->voting_account != acnt->options.voting_account))
             aso.last_vote_time = d.head_block_time();
-        
-         if(o.new_options->is_voting() != acnt->options.is_voting())
-            aso.is_voting = !aso.is_voting;
       } );
    }
 
-   // update account object
-   d.modify( *acnt, [&o](account_object& a){
+   bool sa_before, sa_after;
+   d.modify( *acnt, [&](account_object& a){
       if( o.owner )
       {
          a.owner = *o.owner;
@@ -318,6 +303,7 @@ void_result account_update_evaluator::do_apply( const account_update_operation& 
          a.top_n_control_flags = 0;
       }
       if( o.new_options ) a.options = *o.new_options;
+      sa_before = a.has_special_authority();
       if( o.extensions.value.owner_special_authority.valid() )
       {
          a.owner_special_authority = *(o.extensions.value.owner_special_authority);
@@ -328,9 +314,8 @@ void_result account_update_evaluator::do_apply( const account_update_operation& 
          a.active_special_authority = *(o.extensions.value.active_special_authority);
          a.top_n_control_flags = 0;
       }
+      sa_after = a.has_special_authority();
    });
-
-   bool sa_after = acnt->has_special_authority();
 
    if( sa_before & (!sa_after) )
    {

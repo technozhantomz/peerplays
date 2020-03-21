@@ -24,8 +24,9 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/database.hpp>
 
-#include <fc/io/raw.hpp>
 #include <fc/uint128.hpp>
+
+#include <cmath>
 
 using namespace graphene::chain;
 
@@ -60,15 +61,12 @@ void asset_bitasset_data_object::update_median_feeds(time_point_sec current_time
    if( current_feeds.size() < options.minimum_feeds )
    {
       //... don't calculate a median, and set a null feed
-      feed_cer_updated = false; // new median cer is null, won't update asset_object anyway, set to false for better performance
       current_feed_publication_time = current_time;
       current_feed = price_feed();
       return;
    }
    if( current_feeds.size() == 1 )
    {
-      if( current_feed.core_exchange_rate != current_feeds.front().get().core_exchange_rate )
-         feed_cer_updated = true;
       current_feed = std::move(current_feeds.front());
       return;
    }
@@ -87,8 +85,6 @@ void asset_bitasset_data_object::update_median_feeds(time_point_sec current_time
 #undef CALCULATE_MEDIAN_VALUE
    // *** End Median Calculations ***
 
-   if( current_feed.core_exchange_rate != median_feed.core_exchange_rate )
-      feed_cer_updated = true;
    current_feed = median_feed;
 }
 
@@ -295,11 +291,3 @@ void sweeps_vesting_balance_object::adjust_balance( const asset& delta )
    FC_ASSERT( delta.asset_id == asset_id );
    balance += delta.amount.value;
 }
-
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_dynamic_data_object )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_bitasset_data_object )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_dividend_data_object )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::total_distributed_dividend_balance_object )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::asset_object )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::lottery_balance_object )
-GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::sweeps_vesting_balance_object )

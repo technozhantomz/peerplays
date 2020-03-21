@@ -59,12 +59,6 @@ namespace graphene { namespace chain {
       /// account's balance of core asset.
       flat_set<vote_id_type> votes;
       extensions_type        extensions;
-      
-      /// Whether this account is voting
-      inline bool is_voting() const
-      {
-         return ( voting_account != GRAPHENE_PROXY_TO_SELF_ACCOUNT || !votes.empty() );
-      }
 
       void validate()const;
    };
@@ -149,7 +143,6 @@ namespace graphene { namespace chain {
          optional< void_t >            null_ext;
          optional< special_authority > owner_special_authority;
          optional< special_authority > active_special_authority;
-         optional< bool >              update_last_voting_time;
       };
 
       struct fee_parameters_type
@@ -305,7 +298,7 @@ FC_REFLECT( graphene::chain::account_create_operation,
             (name)(owner)(active)(options)(extensions)
           )
 
-FC_REFLECT(graphene::chain::account_update_operation::ext, (null_ext)(owner_special_authority)(active_special_authority)(update_last_voting_time) )
+FC_REFLECT(graphene::chain::account_update_operation::ext, (null_ext)(owner_special_authority)(active_special_authority) )
 FC_REFLECT( graphene::chain::account_update_operation,
             (fee)(account)(owner)(active)(new_options)(extensions)
           )
@@ -320,16 +313,5 @@ FC_REFLECT( graphene::chain::account_whitelist_operation::fee_parameters_type, (
 FC_REFLECT( graphene::chain::account_update_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::account_upgrade_operation::fee_parameters_type, (membership_annual_fee)(membership_lifetime_fee) )
 FC_REFLECT( graphene::chain::account_transfer_operation::fee_parameters_type, (fee) )
-FC_REFLECT( graphene::chain::account_transfer_operation, (fee)(account_id)(new_owner)(extensions) )
 
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_options )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_create_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_whitelist_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_update_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_upgrade_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_transfer_operation::fee_parameters_type )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_create_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_whitelist_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_update_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_upgrade_operation )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::account_transfer_operation )
+FC_REFLECT( graphene::chain::account_transfer_operation, (fee)(account_id)(new_owner)(extensions) )

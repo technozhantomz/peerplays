@@ -291,13 +291,11 @@ namespace graphene { namespace chain {
 
          const chain_id_type&                   get_chain_id()const;
          const asset_object&                    get_core_asset()const;
-         const asset_dynamic_data_object&       get_core_dynamic_data()const;
          const chain_property_object&           get_chain_properties()const;
          const global_property_object&          get_global_properties()const;
          const dynamic_global_property_object&  get_dynamic_global_properties()const;
          const node_property_object&            get_node_properties()const;
          const fee_schedule&                    current_fee_schedule()const;
-         const account_statistics_object&       get_account_stats_by_owner( account_id_type owner )const;
          const std::vector<uint32_t>            get_winner_numbers( asset_id_type for_asset, uint32_t count_members, uint8_t count_winners ) const;
          std::vector<uint32_t>                  get_seeds( asset_id_type for_asset, uint8_t count_winners )const;
          uint64_t                               get_random_bits( uint64_t bound );
@@ -307,7 +305,6 @@ namespace graphene { namespace chain {
          fc::optional<operation>                create_son_deregister_proposal( son_id_type son_id, account_id_type paying_son );
          signed_transaction                     create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op );
          bool                                   is_son_dereg_valid( son_id_type son_id );
-         const witness_schedule_object&         get_witness_schedule_object()const;
 
          time_point_sec   head_block_time()const;
          uint32_t         head_block_num()const;
@@ -465,8 +462,7 @@ namespace graphene { namespace chain {
          bool fill_order( const call_order_object& order, const asset& pays, const asset& receives );
          bool fill_order( const force_settlement_object& settle, const asset& pays, const asset& receives );
 
-         bool check_call_orders( const asset_object& mia, bool enable_black_swan = true, bool for_new_limit_order = false,
-                                 const asset_bitasset_data_object* bitasset_ptr = nullptr );
+         bool check_call_orders( const asset_object& mia, bool enable_black_swan = true );
 
          // helpers to fill_order
          void pay_order( const account_object& receiver, const asset& receives, const asset& pays );
@@ -475,7 +471,7 @@ namespace graphene { namespace chain {
          asset pay_market_fees( const asset_object& recv_asset, const asset& receives );
 
 
-         ///@{
+         ///@}
          /**
           *  This method validates transactions without adding it to the pending state.
           *  @return true if the transaction would validate
@@ -490,13 +486,9 @@ namespace graphene { namespace chain {
          /**
           * @}
           */
-         /// Enable or disable tracking of votes of standby witnesses and committee members
-         inline void enable_standby_votes_tracking(bool enable)  { _track_standby_votes = enable; }
    protected:
          //Mark pop_undo() as protected -- we do not want outside calling pop_undo(); it should call pop_block() instead
          void pop_undo() { object_database::pop_undo(); }
-         void notify_applied_block( const signed_block& block );
-         void notify_on_pending_transaction( const signed_transaction& tx );
          void notify_changed_objects();
 
       private:
@@ -522,8 +514,6 @@ namespace graphene { namespace chain {
 
          const witness_object& validate_block_header( uint32_t skip, const signed_block& next_block )const;
          const witness_object& _validate_block_header( const signed_block& next_block )const;
-         void verify_signing_witness( const signed_block& new_block, const fork_item& fork_entry )const;
-         void update_witnesses( fork_item& fork_entry )const;
          void create_block_summary(const signed_block& next_block);
 
          //////////////////// db_witness_schedule.cpp ////////////////////
@@ -538,13 +528,11 @@ namespace graphene { namespace chain {
          void clear_expired_proposals();
          void clear_expired_orders();
          void update_expired_feeds();
-         void update_core_exchange_rates();
          void update_maintenance_flag( bool new_maintenance_flag );
          void update_withdraw_permissions();
          void update_tournaments();
          void update_betting_markets(fc::time_point_sec current_block_time);
-         bool check_for_blackswan( const asset_object& mia, bool enable_black_swan = true,
-                                   const asset_bitasset_data_object* bitasset_ptr = nullptr );
+         bool check_for_blackswan( const asset_object& mia, bool enable_black_swan = true );
 
          ///Steps performed only at maintenance intervals
          ///@{
@@ -566,13 +554,9 @@ namespace graphene { namespace chain {
          void update_son_statuses( const vector<son_info>& cur_active_sons, const vector<son_info>& new_active_sons );
          void update_son_wallet( const vector<son_info>& new_active_sons );
          void update_worker_votes();
-
-         public:
-            double calculate_vesting_factor(const account_object& stake_account);
-            uint32_t get_gpos_current_subperiod();
-
-         template<class Type>
-         void perform_account_maintenance(Type tally_helper);
+      
+         template<class... Types>
+         void perform_account_maintenance(std::tuple<Types...> helpers);
          ///@}
          ///@}
 
@@ -612,11 +596,6 @@ namespace graphene { namespace chain {
          flat_map<uint32_t,block_id_type>  _checkpoints;
 
          node_property_object              _node_property_object;
-
-         /// Whether to update votes of standby witnesses and committee members when performing chain maintenance.
-         /// Set it to true to provide accurate data to API clients, set to false to have better performance.
-         bool                              _track_standby_votes = true;
-
          fc::hash_ctr_rng<secret_hash_type, 20> _random_number_generator;
          bool                              _slow_replays = false;
 
@@ -635,18 +614,6 @@ namespace graphene { namespace chain {
           void initialize_db_sidechain();
       protected:
       private:
-         /// Tracks assets affected by bitshares-core issue #453 before hard fork #615 in one block
-         flat_set<asset_id_type>           _issue_453_affected_assets;
-
-         /// Pointers to core asset object and global objects who will have immutable addresses after created
-         ///@{
-         const asset_object*                    _p_core_asset_obj          = nullptr;
-         const asset_dynamic_data_object*       _p_core_dynamic_data_obj   = nullptr;
-         const global_property_object*          _p_global_prop_obj         = nullptr;
-         const dynamic_global_property_object*  _p_dyn_global_prop_obj     = nullptr;
-         const chain_property_object*           _p_chain_property_obj      = nullptr;
-         const witness_schedule_object*         _p_witness_schedule_obj    = nullptr;
-         ///@}
    };
 
    namespace detail

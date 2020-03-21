@@ -51,11 +51,6 @@ namespace graphene { namespace chain {
       bool                  invalid = false;
       block_id_type         id;
       signed_block          data;
-
-      // contains witness block signing keys scheduled *after* the block has been applied
-      shared_ptr< vector< pair< witness_id_type, public_key_type > > > scheduled_witnesses;
-      uint64_t                                                         next_block_aslot = 0;
-      fc::time_point_sec                                               next_block_time;
    };
    typedef shared_ptr<fork_item> item_ptr;
 

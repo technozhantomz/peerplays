@@ -153,6 +153,3 @@ FC_REFLECT_DERIVED(
    (recent_slots_filled)
    (current_shuffled_sons)
 )
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::witness_scheduler )
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::witness_schedule_object )

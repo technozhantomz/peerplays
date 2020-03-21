@@ -88,7 +88,6 @@ BOOST_AUTO_TEST_CASE( cli_vote_for_2_witnesses )
       witness_object init1_obj = con.wallet_api_ptr->get_witness("init1");
       int init1_start_votes = init1_obj.total_votes;
       // Vote for a witness
-      con.wallet_api_ptr->create_vesting_balance("nathan", "10000", "1.3.0", vesting_balance_type::gpos, true);
       signed_transaction vote_witness1_tx = con.wallet_api_ptr->vote_for_witness("nathan", "init1", true, true);
 
       // generate a block to get things started

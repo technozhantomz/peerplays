@@ -230,8 +230,3 @@ FC_REFLECT( graphene::chain::transaction, (ref_block_num)(ref_block_prefix)(expi
 // Note: not reflecting signees field for backward compatibility; in addition, it should not be in p2p messages
 FC_REFLECT_DERIVED( graphene::chain::signed_transaction, (graphene::chain::transaction), (signatures) )
 FC_REFLECT_DERIVED( graphene::chain::processed_transaction, (graphene::chain::signed_transaction), (operation_results) )
-
-
-GRAPHENE_EXTERNAL_SERIALIZATION(extern, graphene::chain::transaction)
-GRAPHENE_EXTERNAL_SERIALIZATION(extern, graphene::chain::signed_transaction)
-GRAPHENE_EXTERNAL_SERIALIZATION(extern, graphene::chain::processed_transaction)

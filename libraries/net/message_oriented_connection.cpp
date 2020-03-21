@@ -62,8 +62,7 @@ namespace graphene { namespace net {
       fc::time_point _last_message_received_time;
       fc::time_point _last_message_sent_time;
 
-      std::atomic_bool _send_message_in_progress;
-      std::atomic_bool _read_loop_in_progress;
+      bool _send_message_in_progress;
 #ifndef NDEBUG
       fc::thread* _thread;
 #endif
@@ -99,8 +98,7 @@ namespace graphene { namespace net {
       _delegate(delegate),
       _bytes_received(0),
       _bytes_sent(0),
-      _send_message_in_progress(false),
-      _read_loop_in_progress(false)
+      _send_message_in_progress(false)
 #ifndef NDEBUG
       ,_thread(&fc::thread::current())
 #endif
@@ -140,21 +138,6 @@ namespace graphene { namespace net {
       _sock.bind(local_endpoint);
     }
 
-    class no_parallel_execution_guard final
-    {
-      std::atomic_bool* _flag;
-    public:
-      explicit no_parallel_execution_guard(std::atomic_bool* flag) : _flag(flag)
-      {
-          bool expected = false;
-          FC_ASSERT( flag->compare_exchange_strong( expected, true ), "Only one thread at time can visit it");
-      }
-      ~no_parallel_execution_guard()
-      {
-          *_flag = false;
-      }
-    };
-
     void message_oriented_connection_impl::read_loop()
     {
       VERIFY_CORRECT_THREAD();
@@ -162,7 +145,6 @@ namespace graphene { namespace net {
       const int LEFTOVER = BUFFER_SIZE - sizeof(message_header);
       static_assert(BUFFER_SIZE >= sizeof(message_header), "insufficient buffer");
 
-      no_parallel_execution_guard guard( &_read_loop_in_progress );
       _connected_time = fc::time_point::now();
 
       fc::oexception exception_to_rethrow;
@@ -259,7 +241,17 @@ namespace graphene { namespace net {
       } send_message_scope_logger(remote_endpoint);
 #endif
 #endif
-      no_parallel_execution_guard guard( &_send_message_in_progress );
+      struct verify_no_send_in_progress {
+        bool& var;
+        verify_no_send_in_progress(bool& var) : var(var)
+        {
+          if (var)
+            elog("Error: two tasks are calling message_oriented_connection::send_message() at the same time");
+          assert(!var);
+          var = true;
+        }
+        ~verify_no_send_in_progress() { var = false; }
+      } _verify_no_send_in_progress(_send_message_in_progress);
 
       try
       {

@@ -11,7 +11,6 @@ moc_*
 hardfork.hpp
 build_xc
 data
-CMakeDoxyfile.in
 
 build
 

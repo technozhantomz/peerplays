@@ -22,9 +22,8 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <graphene/chain/protocol/types.hpp>
+#include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
-#include <graphene/chain/protocol/vote.hpp>
 
 namespace graphene { namespace chain {
 
@@ -176,5 +175,3 @@ FC_REFLECT_DERIVED( graphene::chain::worker_object, (graphene::db::object),
                     (name)
                     (url)
                   )
-
-GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::worker_object )

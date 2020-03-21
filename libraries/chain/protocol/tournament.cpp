@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #include <graphene/chain/protocol/tournament.hpp>
-#include <fc/io/raw.hpp>
 
 namespace graphene { namespace chain {
 
