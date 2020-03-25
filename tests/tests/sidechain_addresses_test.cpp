@@ -4,7 +4,7 @@
 
 #include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/sidechain_address_object.hpp>
-#include <graphene/peerplays_sidechain/defs.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 
 using namespace graphene::chain;
 using namespace graphene::chain::test;

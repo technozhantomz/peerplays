@@ -1,5 +1,6 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 
 #include <fc/safe.hpp>
 
@@ -14,12 +15,12 @@ namespace graphene { namespace chain {
 
         son_id_type son_id;
         fc::time_point_sec timestamp;
-        peerplays_sidechain::sidechain_type sidechain;
+        sidechain_type sidechain;
         std::string peerplays_uid;
         std::string peerplays_transaction_id;
         chain::account_id_type peerplays_from;
         chain::asset peerplays_asset;
-        peerplays_sidechain::sidechain_type withdraw_sidechain;
+        sidechain_type withdraw_sidechain;
         std::string withdraw_address;
         std::string withdraw_currency;
         safe<int64_t> withdraw_amount;
@@ -45,7 +46,10 @@ namespace graphene { namespace chain {
 
 FC_REFLECT(graphene::chain::son_wallet_withdraw_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_wallet_withdraw_create_operation, (fee)(payer)
-      (son_id) (timestamp) (sidechain) (peerplays_uid) (peerplays_transaction_id) (peerplays_from) (peerplays_asset) (withdraw_sidechain) (withdraw_address) (withdraw_currency) (withdraw_amount) )
+      (son_id) (timestamp) (sidechain)
+      (peerplays_uid) (peerplays_transaction_id) (peerplays_from) (peerplays_asset)
+      (withdraw_sidechain) (withdraw_address) (withdraw_currency) (withdraw_amount) )
+
 FC_REFLECT(graphene::chain::son_wallet_withdraw_process_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_wallet_withdraw_process_operation, (fee)(payer)
-      (son_wallet_withdraw_id))
+      (son_wallet_withdraw_id) )

@@ -269,9 +269,9 @@ void database::initialize_evaluators()
    register_evaluator<add_sidechain_address_evaluator>();
    register_evaluator<update_sidechain_address_evaluator>();
    register_evaluator<delete_sidechain_address_evaluator>();
-   register_evaluator<bitcoin_transaction_send_evaluator>();
-   register_evaluator<bitcoin_transaction_sign_evaluator>();
-   register_evaluator<bitcoin_send_transaction_process_evaluator>();
+   register_evaluator<sidechain_transaction_create_evaluator>();
+   register_evaluator<sidechain_transaction_sign_evaluator>();
+   register_evaluator<sidechain_transaction_send_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -321,7 +321,7 @@ void database::initialize_indexes()
    add_index< primary_index<son_wallet_withdraw_index> >();
 
    add_index< primary_index<sidechain_address_index> >();
-   add_index< primary_index<bitcoin_transaction_index> >();
+   add_index< primary_index<sidechain_transaction_index> >();
 
    //Implementation object indexes
    add_index< primary_index<transaction_index                             > >();

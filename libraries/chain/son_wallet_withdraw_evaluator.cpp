@@ -73,6 +73,7 @@ void_result process_son_wallet_withdraw_evaluator::do_evaluate(const son_wallet_
    const auto& idx = db().get_index_type<son_wallet_withdraw_index>().indices().get<by_id>();
    const auto& itr = idx.find(op.son_wallet_withdraw_id);
    FC_ASSERT(itr != idx.end(), "Son wallet withdraw not found");
+   FC_ASSERT(!itr->processed, "Son wallet withdraw is already processed");
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -82,11 +83,9 @@ object_id_type process_son_wallet_withdraw_evaluator::do_apply(const son_wallet_
    auto itr = idx.find(op.son_wallet_withdraw_id);
    if(itr != idx.end())
    {
-       if (itr->processed == false) {
-          db().modify(*itr, [&op](son_wallet_withdraw_object &swto) {
-             swto.processed = true;
-          });
-       }
+      db().modify(*itr, [&op](son_wallet_withdraw_object &swwo) {
+         swwo.processed = true;
+      });
    }
    return op.son_wallet_withdraw_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }

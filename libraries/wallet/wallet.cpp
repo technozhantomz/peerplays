@@ -73,7 +73,7 @@
 #include <graphene/chain/rock_paper_scissors.hpp>
 
 #include <graphene/bookie/bookie_api.hpp>
-#include <graphene/peerplays_sidechain/defs.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/utilities/git_revision.hpp>

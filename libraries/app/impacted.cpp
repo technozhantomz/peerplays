@@ -343,13 +343,13 @@ struct get_impacted_account_visitor
    void operator()( const sidechain_address_delete_operation& op ){
       _impacted.insert( op.sidechain_address_account );
    }
-   void operator()( const bitcoin_transaction_send_operation& op ){
+   void operator()( const sidechain_transaction_create_operation& op ){
       _impacted.insert( op.payer );
    }
-   void operator()( const bitcoin_transaction_sign_operation& op ){
+   void operator()( const sidechain_transaction_sign_operation& op ){
       _impacted.insert( op.payer );
    }
-   void operator()( const bitcoin_send_transaction_process_operation& op ){
+   void operator()( const sidechain_transaction_send_operation& op ){
       _impacted.insert( op.payer );
    }
 };

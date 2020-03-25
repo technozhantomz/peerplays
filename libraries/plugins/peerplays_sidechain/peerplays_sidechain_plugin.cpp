@@ -33,8 +33,9 @@ public:
    void plugin_startup();
 
    std::set<chain::son_id_type> &get_sons();
-   son_id_type &get_current_son_id();
-   son_object get_son_object(son_id_type son_id);
+   const son_id_type get_current_son_id();
+   const son_object get_current_son_object();
+   const son_object get_son_object(son_id_type son_id);
    bool is_active_son(son_id_type son_id);
    fc::ecc::private_key get_private_key(son_id_type son_id);
    fc::ecc::private_key get_private_key(chain::public_key_type public_key);
@@ -49,6 +50,8 @@ public:
    void recreate_primary_wallet();
    void process_deposits();
    void process_withdrawals();
+   void process_sidechain_transactions();
+   void send_sidechain_transactions();
 
 private:
    peerplays_sidechain_plugin &plugin;
@@ -67,6 +70,7 @@ private:
    fc::future<void> _heartbeat_task;
    fc::future<void> _son_processing_task;
 
+   bool first_block_skipped;
    void on_applied_block(const signed_block &b);
 };
 
@@ -76,7 +80,8 @@ peerplays_sidechain_plugin_impl::peerplays_sidechain_plugin_impl(peerplays_sidec
       config_ready_bitcoin(false),
       config_ready_peerplays(false),
       current_son_id(son_id_type(std::numeric_limits<uint32_t>().max())),
-      net_manager(nullptr) {
+      net_manager(nullptr),
+      first_block_skipped(false) {
 }
 
 peerplays_sidechain_plugin_impl::~peerplays_sidechain_plugin_impl() {
@@ -110,9 +115,9 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("son-ids", bpo::value<string>(), ("IDs of multiple SONs controlled by this node (e.g. [" + son_id_example + ", " + son_id_example2 + "], quotes are required)").c_str());
    cli.add_options()("peerplays-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair(chain::public_key_type(default_priv_key.get_public_key()), graphene::utilities::key_to_wif(default_priv_key))),
                      "Tuple of [PublicKey, WIF private key] (may specify multiple times)");
-   cli.add_options()("bitcoin-node-ip", bpo::value<string>()->default_value("99.79.189.95"), "IP address of Bitcoin node");
+   cli.add_options()("bitcoin-node-ip", bpo::value<string>()->default_value("127.0.0.1"), "IP address of Bitcoin node");
    cli.add_options()("bitcoin-node-zmq-port", bpo::value<uint32_t>()->default_value(11111), "ZMQ port of Bitcoin node");
-   cli.add_options()("bitcoin-node-rpc-port", bpo::value<uint32_t>()->default_value(22222), "RPC port of Bitcoin node");
+   cli.add_options()("bitcoin-node-rpc-port", bpo::value<uint32_t>()->default_value(8332), "RPC port of Bitcoin node");
    cli.add_options()("bitcoin-node-rpc-user", bpo::value<string>()->default_value("1"), "Bitcoin RPC user");
    cli.add_options()("bitcoin-node-rpc-password", bpo::value<string>()->default_value("1"), "Bitcoin RPC password");
    cli.add_options()("bitcoin-wallet", bpo::value<string>(), "Bitcoin wallet");
@@ -222,11 +227,15 @@ std::set<chain::son_id_type> &peerplays_sidechain_plugin_impl::get_sons() {
    return sons;
 }
 
-son_id_type &peerplays_sidechain_plugin_impl::get_current_son_id() {
+const son_id_type peerplays_sidechain_plugin_impl::get_current_son_id() {
    return current_son_id;
 }
 
-son_object peerplays_sidechain_plugin_impl::get_son_object(son_id_type son_id) {
+const son_object peerplays_sidechain_plugin_impl::get_current_son_object() {
+   return get_son_object(current_son_id);
+}
+
+const son_object peerplays_sidechain_plugin_impl::get_son_object(son_id_type son_id) {
    const auto &idx = plugin.database().get_index_type<chain::son_index>().indices().get<by_id>();
    auto son_obj = idx.find(son_id);
    if (son_obj == idx.end())
@@ -285,7 +294,7 @@ void peerplays_sidechain_plugin_impl::heartbeat_loop() {
    for (son_id_type son_id : sons) {
       if (is_active_son(son_id) || get_son_object(son_id).status == chain::son_status::in_maintenance) {
 
-         ilog("peerplays_sidechain_plugin:  sending heartbeat for SON ${son}", ("son", son_id));
+         ilog("Sending heartbeat for SON ${son}", ("son", son_id));
          chain::son_heartbeat_operation op;
          op.owner_account = get_son_object(son_id).son_account;
          op.son_id = son_id;
@@ -298,7 +307,7 @@ void peerplays_sidechain_plugin_impl::heartbeat_loop() {
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
                return true;
             } catch (fc::exception e) {
-               ilog("peerplays_sidechain_plugin_impl:  sending heartbeat failed with exception ${e}", ("e", e.what()));
+               elog("Sending heartbeat failed with exception ${e}", ("e", e.what()));
                return false;
             }
          });
@@ -324,34 +333,56 @@ void peerplays_sidechain_plugin_impl::son_processing() {
       return;
    }
 
-   chain::son_id_type next_son_id = plugin.database().get_scheduled_son(1);
-   ilog("peerplays_sidechain_plugin_impl:  Scheduled SON ${son}", ("son", next_son_id));
+   fc::time_point now_fine = fc::time_point::now();
+   fc::time_point_sec now = now_fine + fc::microseconds(500000);
+   if (plugin.database().get_slot_time(1) < now) {
+      return; // Not synced
+   }
 
-   // Tasks that are executed by all active SONs, no matter if scheduled
-   // E.g. sending approvals and signing
-   approve_proposals();
+   chain::son_id_type scheduled_son_id = plugin.database().get_scheduled_son(1);
+   ilog("Scheduled SON: ${scheduled_son_id} Now: ${now} ",
+        ("scheduled_son_id", scheduled_son_id)("now", now));
 
-   // Tasks that are executed by scheduled and active SON
-   if (sons.find(next_son_id) != sons.end()) {
+   for (son_id_type son_id : plugin.get_sons()) {
 
-      current_son_id = next_son_id;
+      if (plugin.is_active_son(son_id)) {
 
-      create_son_down_proposals();
+         current_son_id = son_id;
 
-      create_son_deregister_proposals();
+         // Tasks that are executed by all active SONs, no matter if scheduled
+         // E.g. sending approvals and signing (only signing that can be done in parallel)
+         approve_proposals();
 
-      recreate_primary_wallet();
+         // Tasks that are executed by scheduled and active SON
+         if (current_son_id == scheduled_son_id) {
 
-      process_deposits();
+            create_son_down_proposals();
 
-      process_withdrawals();
+            create_son_deregister_proposals();
+
+            recreate_primary_wallet();
+
+            process_deposits();
+
+            process_withdrawals();
+
+            process_sidechain_transactions();
+
+            send_sidechain_transactions();
+         }
+      } else {
+         // Tasks that are executed by previously active SONs
+         // E.g. sending approvals and signing that SON was required to do while it was active
+         //approve_leftover_proposals(); ???
+         //process_leftover_sidechain_transactions(); ???
+      }
    }
 }
 
 void peerplays_sidechain_plugin_impl::approve_proposals() {
 
    auto approve_proposal = [&](const chain::son_id_type &son_id, const chain::proposal_id_type &proposal_id) {
-      ilog("peerplays_sidechain_plugin:  sending approval for ${p} from ${s}", ("p", proposal_id)("s", son_id));
+      ilog("Sending approval for ${p} from ${s}", ("p", proposal_id)("s", son_id));
       chain::proposal_update_operation puo;
       puo.fee_paying_account = get_son_object(son_id).son_account;
       puo.proposal = proposal_id;
@@ -364,7 +395,7 @@ void peerplays_sidechain_plugin_impl::approve_proposals() {
                plugin.app().p2p_node()->broadcast(net::trx_message(trx));
             return true;
          } catch (fc::exception e) {
-            ilog("peerplays_sidechain_plugin_impl:  sending approval failed with exception ${e}", ("e", e.what()));
+            elog("Sending approval failed with exception ${e}", ("e", e.what()));
             return false;
          }
       });
@@ -378,57 +409,71 @@ void peerplays_sidechain_plugin_impl::approve_proposals() {
    }
 
    for (const auto proposal_id : proposals) {
-      for (son_id_type son_id : sons) {
-         if (!is_active_son(son_id)) {
+
+      const object *obj = plugin.database().find_object(proposal_id);
+      const chain::proposal_object *proposal_ptr = dynamic_cast<const chain::proposal_object *>(obj);
+      if (proposal_ptr == nullptr) {
+         continue;
+      }
+      const proposal_object proposal = *proposal_ptr;
+
+      if (proposal.available_active_approvals.find(get_current_son_object().son_account) != proposal.available_active_approvals.end()) {
+         continue;
+      }
+
+      if (proposal.proposed_transaction.operations.size() == 1) {
+         int32_t op_idx_0 = proposal.proposed_transaction.operations[0].which();
+
+         if (op_idx_0 == chain::operation::tag<chain::son_report_down_operation>::value) {
+            approve_proposal(get_current_son_id(), proposal.id);
             continue;
          }
 
-         const object *obj = plugin.database().find_object(proposal_id);
-         const chain::proposal_object *proposal_ptr = dynamic_cast<const chain::proposal_object *>(obj);
-         if (proposal_ptr == nullptr) {
-            continue;
-         }
-         const proposal_object proposal = *proposal_ptr;
-
-         if (proposal.available_active_approvals.find(get_son_object(son_id).son_account) != proposal.available_active_approvals.end()) {
+         if (op_idx_0 == chain::operation::tag<chain::son_delete_operation>::value) {
+            approve_proposal(get_current_son_id(), proposal.id);
             continue;
          }
 
-         if (proposal.proposed_transaction.operations.size() == 1 && proposal.proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_report_down_operation>::value) {
-            approve_proposal(son_id, proposal.id);
+         if (op_idx_0 == chain::operation::tag<chain::son_wallet_update_operation>::value) {
+            approve_proposal(get_current_son_id(), proposal.id);
             continue;
          }
 
-         if (proposal.proposed_transaction.operations.size() == 1 && proposal.proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_delete_operation>::value) {
-            approve_proposal(son_id, proposal.id);
+         if (op_idx_0 == chain::operation::tag<chain::son_wallet_deposit_create_operation>::value) {
+            approve_proposal(get_current_son_id(), proposal.id);
             continue;
          }
 
-         if (proposal.proposed_transaction.operations.size() == 1 && proposal.proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_update_operation>::value) {
-            approve_proposal(son_id, proposal.id);
+         if (op_idx_0 == chain::operation::tag<chain::son_wallet_withdraw_create_operation>::value) {
+            approve_proposal(get_current_son_id(), proposal.id);
             continue;
          }
 
-         if (proposal.proposed_transaction.operations.size() == 1 && proposal.proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_deposit_create_operation>::value) {
-            approve_proposal(son_id, proposal.id);
+         if (op_idx_0 == chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value) {
+            approve_proposal(get_current_son_id(), proposal.id);
             continue;
          }
 
-         if (proposal.proposed_transaction.operations.size() == 1 && proposal.proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_deposit_process_operation>::value) {
-            approve_proposal(son_id, proposal.id);
-            continue;
-         }
-
-         if (proposal.proposed_transaction.operations.size() == 1 && proposal.proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_withdraw_create_operation>::value) {
-            approve_proposal(son_id, proposal.id);
-            continue;
-         }
-
-         if (proposal.proposed_transaction.operations.size() == 1 && proposal.proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value) {
-            approve_proposal(son_id, proposal.id);
+         if (op_idx_0 == chain::operation::tag<chain::sidechain_transaction_create_operation>::value) {
+            approve_proposal(get_current_son_id(), proposal.id);
             continue;
          }
       }
+
+      if (proposal.proposed_transaction.operations.size() == 2) {
+         int32_t op_idx_0 = proposal.proposed_transaction.operations[0].which();
+         int32_t op_idx_1 = proposal.proposed_transaction.operations[1].which();
+
+         if ((op_idx_0 == chain::operation::tag<chain::son_wallet_deposit_process_operation>::value) &&
+             (op_idx_1 == chain::operation::tag<chain::transfer_operation>::value)) {
+            approve_proposal(get_current_son_id(), proposal.id);
+            continue;
+         }
+      }
+
+      ilog("==================================================");
+      ilog("Proposal not approved ${proposal}", ("proposal", proposal));
+      ilog("==================================================");
    }
 }
 
@@ -443,8 +488,8 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals() {
       son_down_op.down_ts = last_active_ts;
 
       proposal_create_operation proposal_op;
-      proposal_op.fee_paying_account = get_son_object(plugin.get_current_son_id()).son_account;
-      proposal_op.proposed_ops.push_back(op_wrapper(son_down_op));
+      proposal_op.fee_paying_account = get_current_son_object().son_account;
+      proposal_op.proposed_ops.emplace_back(op_wrapper(son_down_op));
       uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
       proposal_op.expiration_time = time_point_sec(d.head_block_time().sec_since_epoch() + lifetime);
       return proposal_op;
@@ -467,7 +512,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals() {
       int64_t down_threshold = gpo.parameters.son_down_time();
       if (((son_obj->status == chain::son_status::active) || (son_obj->status == chain::son_status::request_maintenance)) &&
           ((fc::time_point::now() - last_active_ts) > fc::seconds(down_threshold))) {
-         ilog("peerplays_sidechain_plugin:  sending son down proposal for ${t} from ${s}", ("t", std::string(object_id_type(son_obj->id)))("s", std::string(object_id_type(my_son_id))));
+         ilog("Sending son down proposal for ${t} from ${s}", ("t", std::string(object_id_type(son_obj->id)))("s", std::string(object_id_type(my_son_id))));
          chain::proposal_create_operation op = create_son_down_proposal(son_inf.son_id, last_active_ts);
          chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(get_son_object(my_son_id).signing_key), op);
          fc::future<bool> fut = fc::async([&]() {
@@ -477,7 +522,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals() {
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
                return true;
             } catch (fc::exception e) {
-               ilog("peerplays_sidechain_plugin_impl:  sending son down proposal failed with exception ${e}", ("e", e.what()));
+               elog("Sending son down proposal failed with exception ${e}", ("e", e.what()));
                return false;
             }
          });
@@ -502,7 +547,7 @@ void peerplays_sidechain_plugin_impl::create_son_deregister_proposals() {
             auto op = d.create_son_deregister_proposal(son, get_son_object(my_son_id).son_account);
             if (op.valid()) {
                // Signing and pushing into the txs to be included in the block
-               ilog("peerplays_sidechain_plugin:  sending son deregister proposal for ${p} from ${s}", ("p", son)("s", my_son_id));
+               ilog("Sending son deregister proposal for ${p} from ${s}", ("p", son)("s", my_son_id));
                chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(get_son_object(my_son_id).signing_key), *op);
                fc::future<bool> fut = fc::async([&]() {
                   try {
@@ -511,7 +556,7 @@ void peerplays_sidechain_plugin_impl::create_son_deregister_proposals() {
                         plugin.app().p2p_node()->broadcast(net::trx_message(trx));
                      return true;
                   } catch (fc::exception e) {
-                     ilog("peerplays_sidechain_plugin_impl:  sending son dereg proposal failed with exception ${e}", ("e", e.what()));
+                     elog("Sending son deregister proposal failed with exception ${e}", ("e", e.what()));
                      return false;
                   }
                });
@@ -534,11 +579,23 @@ void peerplays_sidechain_plugin_impl::process_withdrawals() {
    net_manager->process_withdrawals();
 }
 
-void peerplays_sidechain_plugin_impl::on_applied_block(const signed_block &b) {
-   schedule_son_processing();
+void peerplays_sidechain_plugin_impl::process_sidechain_transactions() {
+   net_manager->process_sidechain_transactions();
 }
 
-} // end namespace detail
+void peerplays_sidechain_plugin_impl::send_sidechain_transactions() {
+   net_manager->send_sidechain_transactions();
+}
+
+void peerplays_sidechain_plugin_impl::on_applied_block(const signed_block &b) {
+   if (first_block_skipped) {
+      schedule_son_processing();
+   } else {
+      first_block_skipped = true;
+   }
+}
+
+} // namespace detail
 
 peerplays_sidechain_plugin::peerplays_sidechain_plugin() :
       my(new detail::peerplays_sidechain_plugin_impl(*this)) {
@@ -559,24 +616,30 @@ void peerplays_sidechain_plugin::plugin_set_program_options(
 }
 
 void peerplays_sidechain_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
-   ilog("peerplays sidechain plugin:  plugin_initialize()");
+   ilog("peerplays sidechain plugin:  plugin_initialize() begin");
    my->plugin_initialize(options);
+   ilog("peerplays sidechain plugin:  plugin_initialize() end");
 }
 
 void peerplays_sidechain_plugin::plugin_startup() {
-   ilog("peerplays sidechain plugin:  plugin_startup()");
+   ilog("peerplays sidechain plugin:  plugin_startup() begin");
    my->plugin_startup();
+   ilog("peerplays sidechain plugin:  plugin_startup() end");
 }
 
 std::set<chain::son_id_type> &peerplays_sidechain_plugin::get_sons() {
    return my->get_sons();
 }
 
-son_id_type &peerplays_sidechain_plugin::get_current_son_id() {
+const son_id_type peerplays_sidechain_plugin::get_current_son_id() {
    return my->get_current_son_id();
 }
 
-son_object peerplays_sidechain_plugin::get_son_object(son_id_type son_id) {
+const son_object peerplays_sidechain_plugin::get_current_son_object() {
+   return my->get_current_son_object();
+}
+
+const son_object peerplays_sidechain_plugin::get_son_object(son_id_type son_id) {
    return my->get_son_object(son_id);
 }
 

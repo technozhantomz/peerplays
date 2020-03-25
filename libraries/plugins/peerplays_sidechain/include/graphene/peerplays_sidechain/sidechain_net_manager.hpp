@@ -1,6 +1,6 @@
 #pragma once
 
-#include <graphene/peerplays_sidechain/defs.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 #include <graphene/peerplays_sidechain/peerplays_sidechain_plugin.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
@@ -15,10 +15,12 @@ public:
    sidechain_net_manager(peerplays_sidechain_plugin &_plugin);
    virtual ~sidechain_net_manager();
 
-   bool create_handler(peerplays_sidechain::sidechain_type sidechain, const boost::program_options::variables_map &options);
+   bool create_handler(sidechain_type sidechain, const boost::program_options::variables_map &options);
    void recreate_primary_wallet();
    void process_deposits();
    void process_withdrawals();
+   void process_sidechain_transactions();
+   void send_sidechain_transactions();
 
 private:
    peerplays_sidechain_plugin &plugin;

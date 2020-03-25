@@ -2,7 +2,7 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
-#include <graphene/peerplays_sidechain/defs.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 
 namespace graphene { namespace chain {
    using namespace graphene::db;

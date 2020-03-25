@@ -7,8 +7,6 @@
 
 #include <fc/network/http/connection.hpp>
 #include <fc/signals.hpp>
-#include <graphene/chain/son_wallet_deposit_object.hpp>
-#include <graphene/chain/son_wallet_withdraw_object.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
@@ -22,23 +20,27 @@ public:
 class bitcoin_rpc_client {
 public:
    bitcoin_rpc_client(std::string _ip, uint32_t _rpc, std::string _user, std::string _password, std::string _wallet, std::string _wallet_password);
-   bool connection_is_not_defined() const;
 
-   std::string addmultisigaddress(const std::vector<std::string> public_keys);
+   std::string addmultisigaddress(const uint32_t nrequired, const std::vector<std::string> public_keys);
+   std::string createpsbt(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs);
    std::string createrawtransaction(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs);
    std::string createwallet(const std::string &wallet_name);
+   std::string decodepsbt(std::string const &tx_psbt);
+   std::string decoderawtransaction(std::string const &tx_hex);
    std::string encryptwallet(const std::string &passphrase);
    uint64_t estimatesmartfee();
+   std::string finalizepsbt(std::string const &tx_psbt);
+   std::string getaddressinfo(const std::string &address);
    std::string getblock(const std::string &block_hash, int32_t verbosity = 2);
    void importaddress(const std::string &address_or_script);
    std::vector<btc_txout> listunspent();
    std::vector<btc_txout> listunspent_by_address_and_amount(const std::string &address, double transfer_amount);
    std::string loadwallet(const std::string &filename);
-   void sendrawtransaction(const std::string &tx_hex);
-   std::string signrawtransactionwithkey(const std::string &tx_hash, const std::string &private_key);
+   bool sendrawtransaction(const std::string &tx_hex);
    std::string signrawtransactionwithwallet(const std::string &tx_hash);
    std::string unloadwallet(const std::string &filename);
    std::string walletlock();
+   std::string walletprocesspsbt(std::string const &tx_psbt);
    bool walletpassphrase(const std::string &passphrase, uint32_t timeout = 60);
 
 private:
@@ -59,9 +61,6 @@ private:
 class zmq_listener {
 public:
    zmq_listener(std::string _ip, uint32_t _zmq);
-   bool connection_is_not_defined() const {
-      return zmq_port == 0;
-   }
 
    fc::signal<void(const std::string &)> event_received;
 
@@ -84,8 +83,10 @@ public:
    virtual ~sidechain_net_handler_bitcoin();
 
    void recreate_primary_wallet();
-   void process_deposit(const son_wallet_deposit_object &swdo);
-   void process_withdrawal(const son_wallet_withdraw_object &swwo);
+   bool process_deposit(const son_wallet_deposit_object &swdo);
+   bool process_withdrawal(const son_wallet_withdraw_object &swwo);
+   std::string process_sidechain_transaction(const sidechain_transaction_object &sto, bool &complete);
+   bool send_sidechain_transaction(const sidechain_transaction_object &sto);
 
 private:
    std::string ip;
@@ -99,17 +100,24 @@ private:
    std::unique_ptr<bitcoin_rpc_client> bitcoin_client;
    std::unique_ptr<zmq_listener> listener;
 
-   std::string create_multisignature_wallet(const std::vector<std::string> public_keys);
-   std::string transfer(const std::string &from, const std::string &to, const uint64_t amount);
-   std::string sign_transaction(const std::string &transaction);
-   std::string send_transaction(const std::string &transaction);
-   std::string sign_and_send_transaction_with_wallet(const std::string &tx_json);
-   std::string transfer_all_btc(const std::string &from_address, const std::string &to_address);
-   std::string transfer_deposit_to_primary_wallet(const son_wallet_deposit_object &swdo);
-   std::string transfer_withdrawal_from_primary_wallet(const son_wallet_withdraw_object &swwo);
+   fc::future<void> on_changed_objects_task;
+
+   std::string create_transaction(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs);
+   std::string sign_transaction(const std::string &tx, bool &complete);
+   bool send_transaction(const std::string &tx);
+
+   std::string create_transaction_raw(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs);
+   std::string create_transaction_psbt(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs);
+   std::string create_transaction_standalone(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs);
+
+   std::string sign_transaction_raw(const std::string &tx, bool &complete);
+   std::string sign_transaction_psbt(const std::string &tx, bool &complete);
+   std::string sign_transaction_standalone(const std::string &tx, bool &complete);
 
    void handle_event(const std::string &event_data);
    std::vector<info_for_vin> extract_info_from_block(const std::string &_block);
+   void on_changed_objects(const vector<object_id_type> &ids, const flat_set<account_id_type> &accounts);
+   void on_changed_objects_cb(const vector<object_id_type> &ids, const flat_set<account_id_type> &accounts);
 };
 
 }} // namespace graphene::peerplays_sidechain

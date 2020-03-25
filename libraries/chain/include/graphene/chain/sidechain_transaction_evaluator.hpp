@@ -4,32 +4,31 @@
 
 namespace graphene { namespace chain {
 
-class bitcoin_transaction_send_evaluator : public evaluator<bitcoin_transaction_send_evaluator>
+class sidechain_transaction_create_evaluator : public evaluator<sidechain_transaction_create_evaluator>
 {
 public:
-    typedef bitcoin_transaction_send_operation operation_type;
+    typedef sidechain_transaction_create_operation operation_type;
 
-    void_result do_evaluate(const bitcoin_transaction_send_operation& o);
-    object_id_type do_apply(const bitcoin_transaction_send_operation& o);
+    void_result do_evaluate(const sidechain_transaction_create_operation& o);
+    object_id_type do_apply(const sidechain_transaction_create_operation& o);
 };
 
-class bitcoin_transaction_sign_evaluator : public evaluator<bitcoin_transaction_sign_evaluator>
+class sidechain_transaction_sign_evaluator : public evaluator<sidechain_transaction_sign_evaluator>
 {
 public:
-    typedef bitcoin_transaction_sign_operation operation_type;
+    typedef sidechain_transaction_sign_operation operation_type;
 
-    void_result do_evaluate(const bitcoin_transaction_sign_operation& o);
-    object_id_type do_apply(const bitcoin_transaction_sign_operation& o);
-    void update_proposal( const bitcoin_transaction_sign_operation& o );
+    void_result do_evaluate(const sidechain_transaction_sign_operation& o);
+    object_id_type do_apply(const sidechain_transaction_sign_operation& o);
 };
 
-class bitcoin_send_transaction_process_evaluator : public evaluator<bitcoin_send_transaction_process_evaluator>
+class sidechain_transaction_send_evaluator : public evaluator<sidechain_transaction_send_evaluator>
 {
 public:
-    typedef bitcoin_send_transaction_process_operation operation_type;
+    typedef sidechain_transaction_send_operation operation_type;
 
-    void_result do_evaluate(const bitcoin_send_transaction_process_operation& o);
-    object_id_type do_apply(const bitcoin_send_transaction_process_operation& o);
+    void_result do_evaluate(const sidechain_transaction_send_operation& o);
+    object_id_type do_apply(const sidechain_transaction_send_operation& o);
 };
 
 } } // namespace graphene::chain

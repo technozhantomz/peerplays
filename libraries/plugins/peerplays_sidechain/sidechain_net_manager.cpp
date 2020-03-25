@@ -15,7 +15,7 @@ sidechain_net_manager::sidechain_net_manager(peerplays_sidechain_plugin &_plugin
 sidechain_net_manager::~sidechain_net_manager() {
 }
 
-bool sidechain_net_manager::create_handler(peerplays_sidechain::sidechain_type sidechain, const boost::program_options::variables_map &options) {
+bool sidechain_net_manager::create_handler(sidechain_type sidechain, const boost::program_options::variables_map &options) {
 
    bool ret_val = false;
 
@@ -54,6 +54,18 @@ void sidechain_net_manager::process_deposits() {
 void sidechain_net_manager::process_withdrawals() {
    for (size_t i = 0; i < net_handlers.size(); i++) {
       net_handlers.at(i)->process_withdrawals();
+   }
+}
+
+void sidechain_net_manager::process_sidechain_transactions() {
+   for (size_t i = 0; i < net_handlers.size(); i++) {
+      net_handlers.at(i)->process_sidechain_transactions();
+   }
+}
+
+void sidechain_net_manager::send_sidechain_transactions() {
+   for (size_t i = 0; i < net_handlers.size(); i++) {
+      net_handlers.at(i)->send_sidechain_transactions();
    }
 }
 

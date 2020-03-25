@@ -330,13 +330,13 @@ struct get_impacted_account_visitor
    void operator()( const sidechain_address_delete_operation& op ) {
       _impacted.insert( op.sidechain_address_account );
    }
-   void operator()( const bitcoin_transaction_send_operation& op ) {
+   void operator()( const sidechain_transaction_create_operation& op ) {
       _impacted.insert( op.payer );
    }
-   void operator()( const bitcoin_transaction_sign_operation& op ) {
+   void operator()( const sidechain_transaction_sign_operation& op ) {
       _impacted.insert( op.payer );
    }
-   void operator()( const bitcoin_send_transaction_process_operation& op ) {
+   void operator()( const sidechain_transaction_send_operation& op ) {
       _impacted.insert( op.payer );
    }
 };
@@ -442,6 +442,8 @@ void get_relevant_accounts( const object* obj, flat_set<account_id_type>& accoun
            const auto& aobj = dynamic_cast<const sidechain_address_object*>(obj);
            assert( aobj != nullptr );
            accounts.insert( aobj->sidechain_address_account );
+           break;
+        } case sidechain_transaction_object_type:{
            break;
         }
       }

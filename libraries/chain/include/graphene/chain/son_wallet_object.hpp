@@ -1,7 +1,7 @@
 #pragma once
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/son_info.hpp>
-#include <graphene/peerplays_sidechain/defs.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 
 namespace graphene { namespace chain {
    using namespace graphene::db;
@@ -20,7 +20,7 @@ namespace graphene { namespace chain {
          time_point_sec valid_from;
          time_point_sec expires;
 
-         flat_map<peerplays_sidechain::sidechain_type, string> addresses;
+         flat_map<sidechain_type, string> addresses;
          vector<son_info> sons;
    };
 

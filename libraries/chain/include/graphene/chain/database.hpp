@@ -40,7 +40,7 @@
 
 #include <graphene/chain/protocol/protocol.hpp>
 
-#include <graphene/peerplays_sidechain/defs.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 
 #include <fc/log/logger.hpp>
 

@@ -1,10 +1,7 @@
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
-#include <graphene/chain/sidechain_address_object.hpp>
-#include <graphene/chain/son_wallet_deposit_object.hpp>
-#include <graphene/chain/son_wallet_withdraw_object.hpp>
-
 #include <fc/log/logger.hpp>
+#include <fc/smart_ref_fwd.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
@@ -16,7 +13,7 @@ sidechain_net_handler::sidechain_net_handler(peerplays_sidechain_plugin &_plugin
 sidechain_net_handler::~sidechain_net_handler() {
 }
 
-graphene::peerplays_sidechain::sidechain_type sidechain_net_handler::get_sidechain() {
+sidechain_type sidechain_net_handler::get_sidechain() {
    return sidechain;
 }
 
@@ -94,17 +91,17 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 
             proposal_create_operation proposal_op;
             proposal_op.fee_paying_account = plugin.get_son_object(son_id).son_account;
-            proposal_op.proposed_ops.emplace_back(op_wrapper(op));
+            proposal_op.proposed_ops.emplace_back(op);
             uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
             proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
-            signed_transaction trx = plugin.database().create_signed_transaction(plugin.get_private_key(son_id), proposal_op);
+            signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(son_id), proposal_op);
             try {
                database.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
             } catch (fc::exception e) {
-               ilog("sidechain_net_handler:  sending proposal for son wallet deposit create operation by ${son} failed with exception ${e}", ("son", son_id)("e", e.what()));
+               elog("Sending proposal for son wallet deposit create operation by ${son} failed with exception ${e}", ("son", son_id)("e", e.what()));
             }
          }
       }
@@ -140,17 +137,17 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 
             proposal_create_operation proposal_op;
             proposal_op.fee_paying_account = plugin.get_son_object(son_id).son_account;
-            proposal_op.proposed_ops.emplace_back(op_wrapper(op));
+            proposal_op.proposed_ops.emplace_back(op);
             uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
             proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
-            signed_transaction trx = plugin.database().create_signed_transaction(plugin.get_private_key(son_id), proposal_op);
+            signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(son_id), proposal_op);
             try {
                database.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
             } catch (fc::exception e) {
-               ilog("sidechain_net_handler:  sending proposal for son wallet withdraw create operation by ${son} failed with exception ${e}", ("son", son_id)("e", e.what()));
+               elog("Sending proposal for son wallet withdraw create operation by ${son} failed with exception ${e}", ("son", son_id)("e", e.what()));
             }
          }
       }
@@ -161,83 +158,170 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 }
 
 void sidechain_net_handler::process_deposits() {
-   const auto &idx = plugin.database().get_index_type<son_wallet_deposit_index>().indices().get<by_sidechain_and_processed>();
+   const auto &idx = database.get_index_type<son_wallet_deposit_index>().indices().get<by_sidechain_and_processed>();
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, false));
 
-   std::for_each(idx_range.first, idx_range.second,
-                 [&](const son_wallet_deposit_object &swdo) {
-                    ilog("Deposit to process: ${swdo}", ("swdo", swdo));
+   std::for_each(idx_range.first, idx_range.second, [&](const son_wallet_deposit_object &swdo) {
+      ilog("Deposit to process: ${swdo}", ("swdo", swdo));
 
-                    process_deposit(swdo);
+      bool process_deposit_result = process_deposit(swdo);
 
-                    const chain::global_property_object &gpo = plugin.database().get_global_properties();
+      if (!process_deposit_result) {
+         wlog("Deposit not processed: ${swdo}", ("swdo", swdo));
+         return;
+      }
 
-                    son_wallet_deposit_process_operation p_op;
-                    p_op.payer = gpo.parameters.son_account();
-                    p_op.son_wallet_deposit_id = swdo.id;
+      const chain::global_property_object &gpo = database.get_global_properties();
 
-                    proposal_create_operation proposal_op;
-                    proposal_op.fee_paying_account = plugin.get_son_object(plugin.get_current_son_id()).son_account;
-                    proposal_op.proposed_ops.emplace_back(op_wrapper(p_op));
-                    uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
-                    proposal_op.expiration_time = time_point_sec(plugin.database().head_block_time().sec_since_epoch() + lifetime);
+      son_wallet_deposit_process_operation swdp_op;
+      swdp_op.payer = gpo.parameters.son_account();
+      swdp_op.son_wallet_deposit_id = swdo.id;
 
-                    signed_transaction trx = plugin.database().create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
-                    trx.validate();
-                    try {
-                       plugin.database().push_transaction(trx, database::validation_steps::skip_block_size_check);
-                       if (plugin.app().p2p_node())
-                          plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-                    } catch (fc::exception e) {
-                       ilog("sidechain_net_handler:  sending proposal for transfer operation failed with exception ${e}", ("e", e.what()));
-                    }
-                 });
+      transfer_operation t_op;
+      t_op.fee = asset(2000000);
+      t_op.from = swdo.peerplays_to; // gpo.parameters.son_account()
+      t_op.to = swdo.peerplays_from;
+      t_op.amount = swdo.peerplays_asset;
+
+      proposal_create_operation proposal_op;
+      proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+      proposal_op.proposed_ops.emplace_back(swdp_op);
+      proposal_op.proposed_ops.emplace_back(t_op);
+      uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
+      proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
+
+      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+      trx.validate();
+      try {
+         database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+         if (plugin.app().p2p_node())
+            plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+      } catch (fc::exception e) {
+         elog("Sending proposal for deposit sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
+      }
+   });
 }
 
 void sidechain_net_handler::process_withdrawals() {
-   const auto &idx = plugin.database().get_index_type<son_wallet_withdraw_index>().indices().get<by_withdraw_sidechain_and_processed>();
+   const auto &idx = database.get_index_type<son_wallet_withdraw_index>().indices().get<by_withdraw_sidechain_and_processed>();
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, false));
 
-   std::for_each(idx_range.first, idx_range.second,
-                 [&](const son_wallet_withdraw_object &swwo) {
-                    ilog("Withdraw to process: ${swwo}", ("swwo", swwo));
+   std::for_each(idx_range.first, idx_range.second, [&](const son_wallet_withdraw_object &swwo) {
+      ilog("Withdraw to process: ${swwo}", ("swwo", swwo));
 
-                    process_withdrawal(swwo);
+      bool process_withdrawal_result = process_withdrawal(swwo);
 
-                    const chain::global_property_object &gpo = plugin.database().get_global_properties();
+      if (!process_withdrawal_result) {
+         wlog("Withdraw not processed: ${swwo}", ("swwo", swwo));
+         return;
+      }
 
-                    son_wallet_withdraw_process_operation p_op;
-                    p_op.payer = gpo.parameters.son_account();
-                    p_op.son_wallet_withdraw_id = swwo.id;
+      const chain::global_property_object &gpo = database.get_global_properties();
 
-                    proposal_create_operation proposal_op;
-                    proposal_op.fee_paying_account = plugin.get_son_object(plugin.get_current_son_id()).son_account;
-                    proposal_op.proposed_ops.emplace_back(op_wrapper(p_op));
-                    uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
-                    proposal_op.expiration_time = time_point_sec(plugin.database().head_block_time().sec_since_epoch() + lifetime);
+      son_wallet_withdraw_process_operation swwp_op;
+      swwp_op.payer = gpo.parameters.son_account();
+      swwp_op.son_wallet_withdraw_id = swwo.id;
 
-                    signed_transaction trx = plugin.database().create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
-                    trx.validate();
-                    try {
-                       plugin.database().push_transaction(trx, database::validation_steps::skip_block_size_check);
-                       if (plugin.app().p2p_node())
-                          plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-                    } catch (fc::exception e) {
-                       ilog("sidechain_net_handler:  sending proposal for transfer operation failed with exception ${e}", ("e", e.what()));
-                    }
-                 });
+      proposal_create_operation proposal_op;
+      proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+      proposal_op.proposed_ops.emplace_back(swwp_op);
+      uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
+      proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
+
+      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+      trx.validate();
+      try {
+         database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+         if (plugin.app().p2p_node())
+            plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+      } catch (fc::exception e) {
+         elog("Sending proposal for withdraw sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
+      }
+   });
+}
+
+void sidechain_net_handler::process_sidechain_transactions() {
+   const auto &idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_sidechain_and_complete>();
+   const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, false));
+
+   std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
+      ilog("Sidechain transaction to process: ${sto}", ("sto", sto));
+
+      bool complete = false;
+      std::string processed_sidechain_tx = process_sidechain_transaction(sto, complete);
+
+      if (processed_sidechain_tx.empty()) {
+         wlog("Sidechain transaction not processed: ${sto}", ("sto", sto));
+         return;
+      }
+
+      sidechain_transaction_sign_operation sts_op;
+      sts_op.payer = plugin.get_current_son_object().son_account;
+      sts_op.sidechain_transaction_id = sto.id;
+      sts_op.transaction = processed_sidechain_tx;
+      sts_op.block = sto.block;
+      sts_op.complete = complete;
+
+      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), sts_op);
+      trx.validate();
+      try {
+         database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+         if (plugin.app().p2p_node())
+            plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+      } catch (fc::exception e) {
+         elog("Sending proposal for sidechain transaction sign operation failed with exception ${e}", ("e", e.what()));
+      }
+   });
+}
+
+void sidechain_net_handler::send_sidechain_transactions() {
+   const auto &idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_sidechain_and_complete_and_sent>();
+   const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
+
+   std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
+      ilog("Sidechain transaction to send: ${sto}", ("sto", sto));
+
+      bool sent = send_sidechain_transaction(sto);
+
+      if (!sent) {
+         wlog("Sidechain transaction not sent: ${sto}", ("sto", sto));
+         return;
+      }
+
+      sidechain_transaction_send_operation sts_op;
+      sts_op.payer = plugin.get_current_son_object().son_account;
+      sts_op.sidechain_transaction_id = sto.id;
+
+      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), sts_op);
+      trx.validate();
+      try {
+         database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+         if (plugin.app().p2p_node())
+            plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+      } catch (fc::exception e) {
+         elog("Sending proposal for sidechain transaction send operation failed with exception ${e}", ("e", e.what()));
+      }
+   });
 }
 
 void sidechain_net_handler::recreate_primary_wallet() {
    FC_ASSERT(false, "recreate_primary_wallet not implemented");
 }
 
-void sidechain_net_handler::process_deposit(const son_wallet_deposit_object &swdo) {
+bool sidechain_net_handler::process_deposit(const son_wallet_deposit_object &swdo) {
    FC_ASSERT(false, "process_deposit not implemented");
 }
 
-void sidechain_net_handler::process_withdrawal(const son_wallet_withdraw_object &swwo) {
+bool sidechain_net_handler::process_withdrawal(const son_wallet_withdraw_object &swwo) {
    FC_ASSERT(false, "process_withdrawal not implemented");
+}
+
+std::string sidechain_net_handler::process_sidechain_transaction(const sidechain_transaction_object &sto, bool &complete) {
+   FC_ASSERT(false, "process_sidechain_transaction not implemented");
+}
+
+bool sidechain_net_handler::send_sidechain_transaction(const sidechain_transaction_object &sto) {
+   FC_ASSERT(false, "send_sidechain_transaction not implemented");
 }
 
 }} // namespace graphene::peerplays_sidechain

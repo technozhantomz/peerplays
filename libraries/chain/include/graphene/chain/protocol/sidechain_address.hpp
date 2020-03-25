@@ -1,7 +1,7 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
 
-#include <graphene/peerplays_sidechain/defs.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 
 namespace graphene { namespace chain {
 
