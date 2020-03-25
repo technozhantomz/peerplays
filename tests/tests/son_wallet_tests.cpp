@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE( son_wallet_recreate_test ) {
 
       son_wallet_recreate_operation op;
 
-      op.payer = GRAPHENE_SON_ACCOUNT;
+      op.payer = db.get_global_properties().parameters.son_account();
 
       {
          son_info si;
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE( son_wallet_update_test ) {
 
       son_wallet_update_operation op;
 
-      op.payer = GRAPHENE_SON_ACCOUNT;
+      op.payer = db.get_global_properties().parameters.son_account();
       op.son_wallet_id = son_wallet_id_type(0);
       op.sidechain = graphene::peerplays_sidechain::sidechain_type::bitcoin;
       op.address = "bitcoin address";

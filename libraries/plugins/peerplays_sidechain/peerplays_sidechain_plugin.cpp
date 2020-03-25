@@ -438,7 +438,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals() {
       const chain::global_property_object &gpo = d.get_global_properties();
 
       chain::son_report_down_operation son_down_op;
-      son_down_op.payer = GRAPHENE_SON_ACCOUNT;
+      son_down_op.payer = d.get_global_properties().parameters.son_account();
       son_down_op.son_id = son_id;
       son_down_op.down_ts = last_active_ts;
 

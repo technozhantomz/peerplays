@@ -10,7 +10,7 @@ namespace graphene { namespace chain {
 void_result create_son_wallet_withdraw_evaluator::do_evaluate(const son_wallet_withdraw_create_operation& op)
 { try{
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
-   FC_ASSERT( op.payer == GRAPHENE_SON_ACCOUNT, "SON paying account must be set as payer." );
+   FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
 
    const auto &idx = db().get_index_type<son_stats_index>().indices().get<by_owner>();
    FC_ASSERT(idx.find(op.son_id) != idx.end(), "Statistic object for a given SON ID does not exists");
@@ -68,7 +68,7 @@ object_id_type create_son_wallet_withdraw_evaluator::do_apply(const son_wallet_w
 void_result process_son_wallet_withdraw_evaluator::do_evaluate(const son_wallet_withdraw_process_operation& op)
 { try{
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
-   FC_ASSERT( op.payer == GRAPHENE_SON_ACCOUNT, "SON paying account must be set as payer." );
+   FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
 
    const auto& idx = db().get_index_type<son_wallet_withdraw_index>().indices().get<by_id>();
    const auto& itr = idx.find(op.son_wallet_withdraw_id);

@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(bitcoin_transaction_send_test)
       generate_block();
 
       const auto& acc_idx = db.get_index_type<account_index>().indices().get<by_id>();
-      auto acc_itr = acc_idx.find(GRAPHENE_SON_ACCOUNT);
+      auto acc_itr = acc_idx.find(db.get_global_properties().parameters.son_account());
       BOOST_REQUIRE(acc_itr != acc_idx.end());
       db.modify(*acc_itr, [&](account_object &obj) {
          obj.active.account_auths.clear();
@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_CASE(bitcoin_transaction_send_test)
 
          bitcoin_transaction_send_operation send_op;
 
-         send_op.payer = GRAPHENE_SON_ACCOUNT;
+         send_op.payer = gpo.parameters.son_account();
 
          proposal_create_operation proposal_op;
          proposal_op.fee_paying_account = alice_id;
@@ -317,7 +317,7 @@ BOOST_AUTO_TEST_CASE(bitcoin_transaction_send_test)
 
          bitcoin_send_transaction_process_operation process_op;
          process_op.bitcoin_transaction_id = bitcoin_transaction_id_type(0);
-         process_op.payer = GRAPHENE_SON_ACCOUNT;
+         process_op.payer = db.get_global_properties().parameters.son_account();
 
          proposal_create_operation proposal_op;
          proposal_op.fee_paying_account = alice_id;

@@ -138,7 +138,8 @@ void database::pay_sons()
          if(s.txs_signed > 0){
             auto son_params = get_global_properties().parameters;
             share_type pay = (s.txs_signed * son_budget.value)/total_txs_signed;
-
+            // TODO: Remove me after QA
+            ilog( "pay ${p} to ${s} for ${t} transactions signed", ("p", pay.value)("s", s.id)("t",s.txs_signed) );
             const auto& idx = get_index_type<son_index>().indices().get<by_id>();
             auto son_obj = idx.find( s.owner );
             modify( *son_obj, [&]( son_object& _son_obj)
@@ -166,16 +167,30 @@ void database::pay_sons()
    }
 }
 
-void database::update_son_metrics()
+void database::update_son_metrics(const vector<son_info>& curr_active_sons)
 {
+   vector<son_id_type> current_sons;
+
+   current_sons.reserve(curr_active_sons.size());
+   std::transform(curr_active_sons.begin(), curr_active_sons.end(),
+                  std::inserter(current_sons, current_sons.end()),
+                  [](const son_info &swi) {
+                     return swi.son_id;
+                  });
+
    const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
    for( auto& son : son_idx )
    {
       auto& stats = son.statistics(*this);
-      modify( stats, [&]( son_statistics_object& _stats)
+      bool is_active_son = (std::find(current_sons.begin(), current_sons.end(), son.id) != current_sons.end());
+      modify( stats, [&]( son_statistics_object& _stats )
       {
          _stats.total_downtime += _stats.current_interval_downtime;
          _stats.current_interval_downtime = 0;
+         if(is_active_son)
+         {
+            _stats.total_voted_time = _stats.total_voted_time + get_global_properties().parameters.maintenance_interval;
+         }
       });
    }
 }
@@ -555,44 +570,48 @@ void database::update_active_sons()
    }
 
    // Update SON authority
-   modify( get(GRAPHENE_SON_ACCOUNT), [&]( account_object& a )
+   if( gpo.parameters.son_account() != GRAPHENE_NULL_ACCOUNT )
    {
-      if( head_block_time() < HARDFORK_533_TIME )
+      modify( get(gpo.parameters.son_account()), [&]( account_object& a )
       {
-         uint64_t total_votes = 0;
-         map<account_id_type, uint64_t> weights;
-         a.active.weight_threshold = 0;
-         a.active.account_auths.clear();
-
-         for( const son_object& son : sons )
+         if( head_block_time() < HARDFORK_533_TIME )
          {
-            weights.emplace(son.son_account, _vote_tally_buffer[son.vote_id]);
-            total_votes += _vote_tally_buffer[son.vote_id];
-         }
+            uint64_t total_votes = 0;
+            map<account_id_type, uint64_t> weights;
+            a.active.weight_threshold = 0;
+            a.active.account_auths.clear();
 
-         // total_votes is 64 bits. Subtract the number of leading low bits from 64 to get the number of useful bits,
-         // then I want to keep the most significant 16 bits of what's left.
-         int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
-         for( const auto& weight : weights )
-         {
-            // Ensure that everyone has at least one vote. Zero weights aren't allowed.
-            uint16_t votes = std::max((weight.second >> bits_to_drop), uint64_t(1) );
-            a.active.account_auths[weight.first] += votes;
-            a.active.weight_threshold += votes;
+            for( const son_object& son : sons )
+            {
+               weights.emplace(son.son_account, _vote_tally_buffer[son.vote_id]);
+               total_votes += _vote_tally_buffer[son.vote_id];
+            }
+
+            // total_votes is 64 bits. Subtract the number of leading low bits from 64 to get the number of useful bits,
+            // then I want to keep the most significant 16 bits of what's left.
+            int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
+            for( const auto& weight : weights )
+            {
+               // Ensure that everyone has at least one vote. Zero weights aren't allowed.
+               uint16_t votes = std::max((weight.second >> bits_to_drop), uint64_t(1) );
+               a.active.account_auths[weight.first] += votes;
+               a.active.weight_threshold += votes;
+            }
+
+            a.active.weight_threshold *= 2;
+            a.active.weight_threshold /= 3;
+            a.active.weight_threshold += 1;
          }
+         else
+         {
+            vote_counter vc;
+            for( const son_object& son : sons )
+               vc.add( son.son_account, std::max(_vote_tally_buffer[son.vote_id], UINT64_C(1)) );
+            vc.finish_2_3( a.active );
+         }
+      } );
+   }
    
-         a.active.weight_threshold *= 2;
-         a.active.weight_threshold /= 3;
-         a.active.weight_threshold += 1;
-      }
-      else
-      {
-         vote_counter vc;
-         for( const son_object& son : sons )
-            vc.add( son.son_account, std::max(_vote_tally_buffer[son.vote_id], UINT64_C(1)) );
-         vc.finish_2_3( a.active );
-      }
-   } );
 
    // Compare current and to-be lists of active sons
    auto cur_active_sons = gpo.active_sons;
@@ -622,6 +641,9 @@ void database::update_active_sons()
       update_son_statuses(cur_active_sons, new_active_sons);
    }
 
+   // Update son performance metrics
+   update_son_metrics(cur_active_sons);
+
    modify(gpo, [&]( global_property_object& gp ){
       gp.active_sons.clear();
       gp.active_sons.reserve(new_active_sons.size());
@@ -640,9 +662,6 @@ void database::update_active_sons()
       });
       _sso.scheduler.update(active_sons);
    });
-
-   update_son_metrics();
-
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::initialize_budget_record( fc::time_point_sec now, budget_record& rec )const
@@ -1558,6 +1577,30 @@ void process_dividend_assets(database& db)
       }
 } FC_CAPTURE_AND_RETHROW() }
 
+void perform_son_tasks(database& db)
+{
+   const global_property_object& gpo = db.get_global_properties();
+   if(gpo.parameters.son_account() == GRAPHENE_NULL_ACCOUNT && db.head_block_time() >= HARDFORK_SON_TIME)
+   {
+      const auto& son_account = db.create<account_object>([&](account_object& a) {
+         a.name = "son-account";
+         a.statistics = db.create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+         a.owner.weight_threshold = 1;
+         a.active.weight_threshold = 0;
+         a.registrar = a.lifetime_referrer = a.referrer = a.id;
+         a.membership_expiration_date = time_point_sec::maximum();
+         a.network_fee_percentage = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
+         a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT - GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
+      });
+
+      db.modify( gpo, [&]( global_property_object& gpo ) {
+            gpo.parameters.extensions.value.son_account = son_account.get_id();
+            if( gpo.pending_parameters )
+               gpo.pending_parameters->extensions.value.son_account = son_account.get_id();
+      });
+   }
+}
+
 void database::perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props)
 { try {
    const auto& gpo = get_global_properties();
@@ -1566,6 +1609,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    create_buyback_orders(*this);
 
    process_dividend_assets(*this);
+   perform_son_tasks(*this);
 
    struct vote_tally_helper {
       database& d;

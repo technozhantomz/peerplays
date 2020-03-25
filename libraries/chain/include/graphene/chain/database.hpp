@@ -546,7 +546,7 @@ namespace graphene { namespace chain {
          void perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props);
          void update_active_witnesses();
          void update_active_committee_members();
-         void update_son_metrics();
+         void update_son_metrics( const vector<son_info>& curr_active_sons );
          void update_active_sons();
          void remove_son_proposal( const proposal_object& proposal );
          void remove_inactive_son_down_proposals( const vector<son_id_type>& son_ids_to_remove );

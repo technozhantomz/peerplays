@@ -16,7 +16,7 @@ void_result bitcoin_transaction_send_evaluator::do_evaluate(const bitcoin_transa
    try
    {
       FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
-      FC_ASSERT( op.payer == GRAPHENE_SON_ACCOUNT, "SON paying account must be set as payer." );
+      FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
       return void_result();
    }
    FC_CAPTURE_AND_RETHROW((op))
@@ -109,7 +109,7 @@ void_result bitcoin_send_transaction_process_evaluator::do_evaluate(const bitcoi
    try
    {
       FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
-      FC_ASSERT( op.payer == GRAPHENE_SON_ACCOUNT, "SON paying account must be set as payer." );
+      FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
       const auto& btidx = db().get_index_type<bitcoin_transaction_index>().indices().get<by_id>();
       const auto btobj = btidx.find(op.bitcoin_transaction_id);
       FC_ASSERT(btobj != btidx.end(), "Bitcoin Transaction Object not found");

@@ -34,6 +34,8 @@ namespace graphene { namespace chain {
          uint64_t total_txs_signed = 0;
          // Transactions signed since the last son payouts
          uint64_t txs_signed = 0;
+         // Total Voted Active time i.e. duration selected as part of voted active SONs
+         uint64_t total_voted_time = 0;
          // Total Downtime barring the current down time in seconds, used for stats to present to user
          uint64_t total_downtime = 0;
          // Current Interval Downtime since last maintenance
@@ -117,6 +119,7 @@ FC_REFLECT_DERIVED( graphene::chain::son_statistics_object,
                     (owner)
                     (total_txs_signed)
                     (txs_signed)
+                    (total_voted_time)
                     (total_downtime)
                     (current_interval_downtime)
                     (last_down_timestamp)

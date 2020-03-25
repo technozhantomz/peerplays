@@ -62,7 +62,7 @@ void sidechain_net_handler_peerplays::on_applied_block(const signed_block &b) {
          operation_index = operation_index + 1;
          if (op.which() == operation::tag<transfer_operation>::value) {
             transfer_operation transfer_op = op.get<transfer_operation>();
-            if (transfer_op.to != GRAPHENE_SON_ACCOUNT) {
+            if (transfer_op.to != plugin.database().get_global_properties().parameters.son_account()) {
                continue;
             }
 

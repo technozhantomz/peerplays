@@ -50,6 +50,7 @@ namespace graphene { namespace chain {
       optional < uint32_t >           son_deregister_time;
       optional < uint32_t >           son_heartbeat_frequency;
       optional < uint32_t >           son_down_time;
+      optional < account_id_type >    son_account;
    };
 
    struct chain_parameters
@@ -154,6 +155,9 @@ namespace graphene { namespace chain {
       inline uint16_t son_down_time()const {
          return extensions.value.son_down_time.valid() ? *extensions.value.son_down_time : SON_DOWN_TIME;
       }
+      inline account_id_type son_account() const {
+         return extensions.value.son_account.valid() ? *extensions.value.son_account : GRAPHENE_NULL_ACCOUNT;
+      }
    };
 
 } }  // graphene::chain
@@ -175,6 +179,7 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (son_deregister_time)
    (son_heartbeat_frequency)
    (son_down_time)
+   (son_account)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,

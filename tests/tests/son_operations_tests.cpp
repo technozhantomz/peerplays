@@ -220,7 +220,7 @@ try {
       son_delete_operation op;
       op.owner_account = alice_id;
       op.son_id = son_id_type(0);
-      op.payer = GRAPHENE_SON_ACCOUNT;
+      op.payer = db.get_global_properties().parameters.son_account();
 
       trx.operations.push_back(op);
       sign(trx, bob_private_key);
@@ -729,7 +729,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          generate_block();
          // Send Report Down Operation for an active status SON
          son_report_down_operation op;
-         op.payer = GRAPHENE_SON_ACCOUNT;
+         op.payer = db.get_global_properties().parameters.son_account();
          op.son_id = son_id_type(0);
          op.down_ts = fc::time_point_sec(son_stats_obj->last_active_timestamp - fc::seconds(1));
 
@@ -742,7 +742,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
       }
 
       {
-         // Check that transaction fails if payer is not GRAPHENE_SON_ACCOUNT.
+         // Check that transaction fails if payer is not db.get_global_properties().parameters.son_account().
          generate_block();
          // Send Report Down Operation for an active status SON
          son_report_down_operation op;
@@ -759,11 +759,11 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
       }
 
       {
-         // Check that transaction succeeds after getting enough approvals on GRAPHENE_SON_ACCOUNT.
+         // Check that transaction succeeds after getting enough approvals on db.get_global_properties().parameters.son_account().
          generate_block();
          // Send Report Down Operation for an active status SON
          son_report_down_operation op;
-         op.payer = GRAPHENE_SON_ACCOUNT;
+         op.payer = db.get_global_properties().parameters.son_account();
          op.son_id = son_id_type(0);
          op.down_ts = son_stats_obj->last_active_timestamp;
 
@@ -783,7 +783,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          generate_block();
          // Send Report Down Operation for an active status SON
          son_report_down_operation op;
-         op.payer = GRAPHENE_SON_ACCOUNT;
+         op.payer = db.get_global_properties().parameters.son_account();
          op.son_id = son_id_type(0);
          op.down_ts = son_stats_obj->last_active_timestamp;
 

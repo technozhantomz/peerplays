@@ -67,7 +67,7 @@ void_result delete_son_evaluator::do_evaluate(const son_delete_operation& op)
 { try {
     FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON_HARDFORK"); // can be removed after HF date pass
     // Either owner can remove or consensus son account
-    FC_ASSERT(op.payer == db().get(op.son_id).son_account || (db().is_son_dereg_valid(op.son_id) && op.payer == GRAPHENE_SON_ACCOUNT));
+    FC_ASSERT(op.payer == db().get(op.son_id).son_account || (db().is_son_dereg_valid(op.son_id) && op.payer == db().get_global_properties().parameters.son_account()));
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
     FC_ASSERT( idx.find(op.son_id) != idx.end() );
     return void_result();
@@ -167,7 +167,7 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
 void_result son_report_down_evaluator::do_evaluate(const son_report_down_operation& op)
 { try {
     FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK"); // can be removed after HF date pass
-    FC_ASSERT(op.payer == GRAPHENE_SON_ACCOUNT, "SON paying account must be set as payer.");
+    FC_ASSERT(op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer.");
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
     FC_ASSERT( idx.find(op.son_id) != idx.end() );
     auto itr = idx.find(op.son_id);
