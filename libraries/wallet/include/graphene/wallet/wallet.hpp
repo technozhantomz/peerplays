@@ -1336,7 +1336,7 @@ class wallet_api
                                     string url,
                                     vesting_balance_id_type deposit_id,
                                     vesting_balance_id_type pay_vb_id,
-                                    flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
+                                    flat_map<sidechain_type, string> sidechain_public_keys,
                                     bool broadcast = false);
 
       /**
@@ -1351,7 +1351,7 @@ class wallet_api
       signed_transaction update_son(string owner_account,
                                     string url,
                                     string block_signing_key,
-                                    flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
+                                    flat_map<sidechain_type, string> sidechain_public_keys,
                                     bool broadcast = false);
 
 
@@ -1438,7 +1438,7 @@ class wallet_api
        * @returns the signed transaction adding sidechain address
        */
       signed_transaction add_sidechain_address(string account,
-                                          peerplays_sidechain::sidechain_type sidechain,
+                                          sidechain_type sidechain,
                                           string deposit_address,
                                           string withdraw_address,
                                           bool broadcast = false);
@@ -1455,7 +1455,7 @@ class wallet_api
        * @returns the signed transaction updating sidechain address
        */
       signed_transaction update_sidechain_address(string account,
-                                          peerplays_sidechain::sidechain_type sidechain,
+                                          sidechain_type sidechain,
                                           string deposit_address,
                                           string withdraw_address,
                                           bool broadcast = false);
@@ -1468,7 +1468,7 @@ class wallet_api
        * @returns the signed transaction updating sidechain address
        */
       signed_transaction delete_sidechain_address(string account,
-                                          peerplays_sidechain::sidechain_type sidechain,
+                                          sidechain_type sidechain,
                                           bool broadcast = false);
 
       /** Retrieves all sidechain addresses owned by given account.
@@ -1483,7 +1483,7 @@ class wallet_api
        * @param sidechain the name of the sidechain
        * @returns the list of all sidechain addresses registered for a given sidechain.
        */
-      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(peerplays_sidechain::sidechain_type sidechain);
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(sidechain_type sidechain);
 
       /** Retrieves sidechain address owned by given account for a given sidechain.
        *
@@ -1491,7 +1491,7 @@ class wallet_api
        * @param sidechain the name of the sidechain
        * @returns the sidechain address owned by given account for a given sidechain.
        */
-      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(string account, peerplays_sidechain::sidechain_type sidechain);
+      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(string account, sidechain_type sidechain);
 
       /** Retrieves the total number of sidechain addresses registered in the system.
        *

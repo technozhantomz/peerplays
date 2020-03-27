@@ -684,10 +684,11 @@ void database::update_active_sons()
    // Compare current and to-be lists of active sons
    auto cur_active_sons = gpo.active_sons;
    vector<son_info> new_active_sons;
+   const auto &acc = get(gpo.parameters.son_account());
    for( const son_object& son : sons ) {
       son_info swi;
       swi.son_id = son.id;
-      swi.total_votes = son.total_votes;
+      swi.weight = acc.active.account_auths.at(son.son_account);
       swi.signing_key = son.signing_key;
       swi.sidechain_public_keys = son.sidechain_public_keys;
       new_active_sons.push_back(swi);

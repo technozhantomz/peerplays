@@ -14,6 +14,8 @@
 
 namespace graphene { namespace peerplays_sidechain {
 
+using namespace graphene::chain;
+
 using bytes = std::vector<unsigned char>;
 
 struct prev_out {
@@ -64,9 +66,9 @@ struct sidechain_event_data {
    std::string sidechain_to;
    std::string sidechain_currency;
    fc::safe<int64_t> sidechain_amount;
-   chain::account_id_type peerplays_from;
-   chain::account_id_type peerplays_to;
-   chain::asset peerplays_asset;
+   account_id_type peerplays_from;
+   account_id_type peerplays_to;
+   asset peerplays_asset;
 };
 
 }} // namespace graphene::peerplays_sidechain

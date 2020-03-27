@@ -83,8 +83,8 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
 
    // alice became son
    {
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin address";
+      flat_map<sidechain_type, string> sidechain_public_keys;
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin address";
 
       son_create_operation op;
       op.owner_account = alice_id;
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
    BOOST_REQUIRE( obj != idx.end() );
    BOOST_CHECK( obj->url == test_url );
    BOOST_CHECK( obj->signing_key == alice_public_key );
-   BOOST_CHECK( obj->sidechain_public_keys.at(graphene::peerplays_sidechain::sidechain_type::bitcoin) == "bitcoin address" );
+   BOOST_CHECK( obj->sidechain_public_keys.at(sidechain_type::bitcoin) == "bitcoin address" );
    BOOST_CHECK( obj->deposit.instance == deposit.instance.value );
    BOOST_CHECK( obj->pay_vb.instance == payment.instance.value );
 }
@@ -118,8 +118,8 @@ BOOST_AUTO_TEST_CASE( update_son_test ) {
    std::string new_url = "https://anewurl.com";
 
    {
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "new bitcoin address";
+      flat_map<sidechain_type, string> sidechain_public_keys;
+      sidechain_public_keys[sidechain_type::bitcoin] = "new bitcoin address";
 
       son_update_operation op;
       op.son_id = son_id_type(0);
@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE( update_son_test ) {
    auto obj = idx.find( alice_id );
    BOOST_REQUIRE( obj != idx.end() );
    BOOST_CHECK( obj->url == new_url );
-   BOOST_CHECK( obj->sidechain_public_keys.at(graphene::peerplays_sidechain::sidechain_type::bitcoin) == "new bitcoin address" );
+   BOOST_CHECK( obj->sidechain_public_keys.at(sidechain_type::bitcoin) == "new bitcoin address" );
 }
 
 BOOST_AUTO_TEST_CASE( delete_son_test ) {

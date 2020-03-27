@@ -71,8 +71,8 @@ BOOST_AUTO_TEST_CASE( son_wallet_recreate_test ) {
 
    // alice becomes son
    {
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin address";
+      flat_map<sidechain_type, string> sidechain_public_keys;
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin address";
 
       son_create_operation op;
       op.owner_account = alice_id;
@@ -126,8 +126,8 @@ BOOST_AUTO_TEST_CASE( son_wallet_recreate_test ) {
 
    // bob becomes son
    {
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin address";
+      flat_map<sidechain_type, string> sidechain_public_keys;
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin address";
 
       son_create_operation op;
       op.owner_account = bob_id;
@@ -157,18 +157,18 @@ BOOST_AUTO_TEST_CASE( son_wallet_recreate_test ) {
       {
          son_info si;
          si.son_id = son_id_type(0);
-         si.total_votes = 1000;
+         si.weight = 1000;
          si.signing_key = alice_public_key;
-         si.sidechain_public_keys[peerplays_sidechain::sidechain_type::bitcoin] = "";
+         si.sidechain_public_keys[sidechain_type::bitcoin] = "";
          op.sons.push_back(si);
       }
 
       {
          son_info si;
          si.son_id = son_id_type(1);
-         si.total_votes = 1000;
+         si.weight = 1000;
          si.signing_key = bob_public_key;
-         si.sidechain_public_keys[peerplays_sidechain::sidechain_type::bitcoin] = "";
+         si.sidechain_public_keys[sidechain_type::bitcoin] = "";
          op.sons.push_back(si);
       }
 
@@ -201,7 +201,7 @@ BOOST_AUTO_TEST_CASE( son_wallet_update_test ) {
 
       op.payer = db.get_global_properties().parameters.son_account();
       op.son_wallet_id = son_wallet_id_type(0);
-      op.sidechain = graphene::peerplays_sidechain::sidechain_type::bitcoin;
+      op.sidechain = sidechain_type::bitcoin;
       op.address = "bitcoin address";
 
       trx.operations.push_back(op);
@@ -217,7 +217,7 @@ BOOST_AUTO_TEST_CASE( son_wallet_update_test ) {
       BOOST_REQUIRE( idx.size() == 1 );
       auto obj = idx.find(son_wallet_id_type(0));
       BOOST_REQUIRE( obj != idx.end() );
-      BOOST_REQUIRE( obj->addresses.at(graphene::peerplays_sidechain::sidechain_type::bitcoin) == "bitcoin address" );
+      BOOST_REQUIRE( obj->addresses.at(sidechain_type::bitcoin) == "bitcoin address" );
    }
 
 }

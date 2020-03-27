@@ -40,7 +40,7 @@ public:
     }
 
     void create_son(const std::string& account_name, const std::string& son_url,
-                    flat_map<graphene::peerplays_sidechain::sidechain_type, string>& sidechain_public_keys,
+                    flat_map<sidechain_type, string>& sidechain_public_keys,
                     bool generate_maintenance = true)
     {
         graphene::wallet::brain_key_info bki;
@@ -112,16 +112,16 @@ BOOST_AUTO_TEST_CASE( create_sons )
    BOOST_TEST_MESSAGE("SON cli wallet tests begin");
    try
    {
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       son_test_helper sth(*this);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 1";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 2";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       auto son1_obj = con.wallet_api_ptr->get_son("son1account");
@@ -146,10 +146,10 @@ BOOST_AUTO_TEST_CASE( cli_update_son )
    {
       BOOST_TEST_MESSAGE("Cli get_son and update_son Test");
 
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 1";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
 
       son_test_helper sth(*this);
       sth.create_son("sonmember", "http://sonmember", sidechain_public_keys);
@@ -163,7 +163,7 @@ BOOST_AUTO_TEST_CASE( cli_update_son )
 
       // update SON
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 2";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
 
       con.wallet_api_ptr->update_son("sonmember", "http://sonmember_updated", "", sidechain_public_keys, true);
       son_data = con.wallet_api_ptr->get_son("sonmember");
@@ -187,16 +187,16 @@ BOOST_AUTO_TEST_CASE( son_voting )
    BOOST_TEST_MESSAGE("SON Vote cli wallet tests begin");
    try
    {
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       son_test_helper sth(*this);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 1";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 2";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       BOOST_TEST_MESSAGE("Voting for SONs");
@@ -267,16 +267,16 @@ BOOST_AUTO_TEST_CASE( delete_son )
    BOOST_TEST_MESSAGE("SON delete cli wallet tests begin");
    try
    {
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       son_test_helper sth(*this);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 1";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 2";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
        BOOST_TEST_MESSAGE("Deleting SONs");
@@ -315,13 +315,13 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
       gpo = con.wallet_api_ptr->get_global_properties();
       unsigned int son_number = gpo.parameters.maximum_son_count;
 
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       // create son accounts
       for(unsigned int i = 0; i < son_number + 1; i++)
       {
           sidechain_public_keys.clear();
-          sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
           sth.create_son("sonaccount" + fc::to_pretty_string(i),
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,
@@ -390,16 +390,16 @@ BOOST_AUTO_TEST_CASE( list_son )
    BOOST_TEST_MESSAGE("List SONs cli wallet tests begin");
    try
    {
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       son_test_helper sth(*this);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 1";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 2";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       auto res = con.wallet_api_ptr->list_sons("", 100);
@@ -420,16 +420,16 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
     BOOST_TEST_MESSAGE("SON update_son_votes cli wallet tests begin");
     try
     {
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       son_test_helper sth(*this);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 1";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 2";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
        BOOST_TEST_MESSAGE("Vote for 2 accounts with update_son_votes");
@@ -579,16 +579,16 @@ BOOST_AUTO_TEST_CASE( related_functions )
       global_property_object gpo = con.wallet_api_ptr->get_global_properties();
       BOOST_CHECK(gpo.active_sons.size() == 0);
 
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       son_test_helper sth(*this);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 1";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
-      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address 2";
+      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       gpo = con.wallet_api_ptr->get_global_properties();
@@ -615,13 +615,13 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
       gpo = con.wallet_api_ptr->get_global_properties();
       unsigned int son_number = gpo.parameters.maximum_son_count;
 
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       // create son accounts
       for(unsigned int i = 0; i < son_number + 1; i++)
       {
           sidechain_public_keys.clear();
-          sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
           sth.create_son("sonaccount" + fc::to_pretty_string(i),
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,
@@ -684,13 +684,13 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       gpo = con.wallet_api_ptr->get_global_properties();
       unsigned int son_number = gpo.parameters.maximum_son_count;
 
-      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       // create son accounts
       for(unsigned int i = 0; i < son_number + 1; i++)
       {
           sidechain_public_keys.clear();
-          sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
           sth.create_son("sonaccount" + fc::to_pretty_string(i),
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,

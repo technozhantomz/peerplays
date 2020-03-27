@@ -25,7 +25,7 @@ namespace graphene { namespace chain {
         account_id_type payer;
 
         son_wallet_id_type son_wallet_id;
-        graphene::peerplays_sidechain::sidechain_type sidechain;
+        sidechain_type sidechain;
         string address;
 
         account_id_type fee_payer()const { return payer; }

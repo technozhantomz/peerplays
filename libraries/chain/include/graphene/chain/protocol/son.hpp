@@ -13,7 +13,7 @@ namespace graphene { namespace chain {
         std::string url;
         vesting_balance_id_type deposit;
         public_key_type signing_key;
-        flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+        flat_map<sidechain_type, string> sidechain_public_keys;
         vesting_balance_id_type pay_vb;
 
         account_id_type fee_payer()const { return owner_account; }
@@ -30,7 +30,7 @@ namespace graphene { namespace chain {
          optional<std::string> new_url;
          optional<vesting_balance_id_type> new_deposit;
          optional<public_key_type> new_signing_key;
-         optional<flat_map<peerplays_sidechain::sidechain_type, string>> new_sidechain_public_keys;
+         optional<flat_map<sidechain_type, string>> new_sidechain_public_keys;
          optional<vesting_balance_id_type> new_pay_vb;
 
          account_id_type fee_payer()const { return owner_account; }

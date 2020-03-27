@@ -70,7 +70,7 @@ namespace graphene { namespace chain {
          vesting_balance_id_type pay_vb;
          son_statistics_id_type statistics;
          son_status status = son_status::inactive;
-         flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+         flat_map<sidechain_type, string> sidechain_public_keys;
 
          void pay_son_fee(share_type pay, database& db);
    };

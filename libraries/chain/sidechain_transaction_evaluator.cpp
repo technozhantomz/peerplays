@@ -36,7 +36,7 @@ object_id_type sidechain_transaction_create_evaluator::do_apply(const sidechain_
          return std::make_pair(si.son_id, std::string());
       });
       for (const auto &si : op.signers) {
-         sto.total_weight = sto.total_weight + si.total_votes;
+         sto.total_weight = sto.total_weight + si.weight;
       }
       sto.sidechain_transaction = "";
       sto.current_weight = 0;
@@ -91,7 +91,7 @@ object_id_type sidechain_transaction_sign_evaluator::do_apply(const sidechain_tr
       }
       for (size_t i = 0; i < sto.signers.size(); i++) {
          if (sto.signers.at(i).son_id == son_obj->id) {
-             sto.current_weight = sto.current_weight + sto.signers.at(i).total_votes;
+             sto.current_weight = sto.current_weight + sto.signers.at(i).weight;
          }
       }
       sto.complete = op.complete;

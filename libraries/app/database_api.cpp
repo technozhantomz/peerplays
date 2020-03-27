@@ -170,8 +170,8 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       // Sidechain addresses
       vector<optional<sidechain_address_object>> get_sidechain_addresses(const vector<sidechain_address_id_type>& sidechain_address_ids)const;
       vector<optional<sidechain_address_object>> get_sidechain_addresses_by_account(account_id_type account)const;
-      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(peerplays_sidechain::sidechain_type sidechain)const;
-      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(account_id_type account, peerplays_sidechain::sidechain_type sidechain)const;
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(sidechain_type sidechain)const;
+      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(account_id_type account, sidechain_type sidechain)const;
       uint64_t get_sidechain_addresses_count()const;
 
       // Votes
@@ -1943,12 +1943,12 @@ vector<optional<sidechain_address_object>> database_api_impl::get_sidechain_addr
    return result;
 }
 
-vector<optional<sidechain_address_object>> database_api::get_sidechain_addresses_by_sidechain(peerplays_sidechain::sidechain_type sidechain)const
+vector<optional<sidechain_address_object>> database_api::get_sidechain_addresses_by_sidechain(sidechain_type sidechain)const
 {
    return my->get_sidechain_addresses_by_sidechain( sidechain );
 }
 
-vector<optional<sidechain_address_object>> database_api_impl::get_sidechain_addresses_by_sidechain(peerplays_sidechain::sidechain_type sidechain)const
+vector<optional<sidechain_address_object>> database_api_impl::get_sidechain_addresses_by_sidechain(sidechain_type sidechain)const
 {
    vector<optional<sidechain_address_object>> result;
    const auto& sidechain_addresses_range = _db.get_index_type<sidechain_address_index>().indices().get<by_sidechain>().equal_range(sidechain);
@@ -1959,12 +1959,12 @@ vector<optional<sidechain_address_object>> database_api_impl::get_sidechain_addr
    return result;
 }
 
-fc::optional<sidechain_address_object> database_api::get_sidechain_address_by_account_and_sidechain(account_id_type account, peerplays_sidechain::sidechain_type sidechain)const
+fc::optional<sidechain_address_object> database_api::get_sidechain_address_by_account_and_sidechain(account_id_type account, sidechain_type sidechain)const
 {
    return my->get_sidechain_address_by_account_and_sidechain( account, sidechain );
 }
 
-fc::optional<sidechain_address_object> database_api_impl::get_sidechain_address_by_account_and_sidechain(account_id_type account, peerplays_sidechain::sidechain_type sidechain)const
+fc::optional<sidechain_address_object> database_api_impl::get_sidechain_address_by_account_and_sidechain(account_id_type account, sidechain_type sidechain)const
 {
    const auto& idx = _db.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain>();
    auto itr = idx.find( boost::make_tuple( account, sidechain ) );

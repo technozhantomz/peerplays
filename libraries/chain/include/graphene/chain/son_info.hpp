@@ -12,14 +12,14 @@ namespace graphene { namespace chain {
     */
    struct son_info {
       son_id_type son_id;
-      uint64_t total_votes = 0;
+      weight_type weight = 0;
       public_key_type signing_key;
-      flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      flat_map<sidechain_type, string> sidechain_public_keys;
 
       bool operator==(const son_info& rhs) {
          bool son_sets_equal =
                (son_id == rhs.son_id) &&
-               (total_votes == rhs.total_votes) &&
+               (weight == rhs.weight) &&
                (signing_key == rhs.signing_key) &&
                (sidechain_public_keys.size() == rhs.sidechain_public_keys.size());
 
@@ -33,4 +33,7 @@ namespace graphene { namespace chain {
 } }
 
 FC_REFLECT( graphene::chain::son_info,
-      (son_id)(total_votes)(signing_key)(sidechain_public_keys) )
+      (son_id)
+      (weight)
+      (signing_key)
+      (sidechain_public_keys) )

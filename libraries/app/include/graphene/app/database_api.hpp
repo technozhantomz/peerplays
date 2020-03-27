@@ -679,7 +679,7 @@ class database_api
        * @param sidechain Sidechain for which addresses should be retrieved
        * @return The sidechain addresses objects, or null if the sidechain does not have any addresses
        */
-      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(peerplays_sidechain::sidechain_type sidechain)const;
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(sidechain_type sidechain)const;
 
       /**
        * @brief Get the sidechain addresses for a given account and sidechain
@@ -687,7 +687,7 @@ class database_api
        * @param sidechain Sidechain for which address should be retrieved
        * @return The sidechain addresses objects, or null if the account does not have a sidechain addresses for a given sidechain
        */
-      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(account_id_type account, peerplays_sidechain::sidechain_type sidechain)const;
+      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(account_id_type account, sidechain_type sidechain)const;
 
       /**
        * @brief Get the total number of sidechain addresses registered with the blockchain

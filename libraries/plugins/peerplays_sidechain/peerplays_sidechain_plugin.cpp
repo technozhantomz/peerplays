@@ -442,16 +442,6 @@ void peerplays_sidechain_plugin_impl::approve_proposals() {
             continue;
          }
 
-         if (op_idx_0 == chain::operation::tag<chain::son_wallet_deposit_create_operation>::value) {
-            approve_proposal(get_current_son_id(), proposal.id);
-            continue;
-         }
-
-         if (op_idx_0 == chain::operation::tag<chain::son_wallet_withdraw_create_operation>::value) {
-            approve_proposal(get_current_son_id(), proposal.id);
-            continue;
-         }
-
          if (op_idx_0 == chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value) {
             approve_proposal(get_current_son_id(), proposal.id);
             continue;

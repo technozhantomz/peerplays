@@ -5,6 +5,7 @@
 namespace graphene { namespace chain {
 
 enum class sidechain_type {
+   unknown,
    bitcoin,
    ethereum,
    eos,
@@ -13,13 +14,8 @@ enum class sidechain_type {
 
 } }
 
-namespace graphene { namespace peerplays_sidechain {
-
-using sidechain_type = graphene::chain::sidechain_type;
-
-} }
-
 FC_REFLECT_ENUM(graphene::chain::sidechain_type,
+        (unknown)
         (bitcoin)
         (ethereum)
         (eos)

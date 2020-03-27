@@ -18,7 +18,7 @@ namespace graphene { namespace chain {
          static const uint8_t type_id  = son_wallet_deposit_object_type;
 
          time_point_sec timestamp;
-         sidechain_type sidechain;
+         sidechain_type sidechain = sidechain_type::unknown;
          std::string sidechain_uid;
          std::string sidechain_transaction_id;
          std::string sidechain_from;
@@ -29,34 +29,29 @@ namespace graphene { namespace chain {
          chain::account_id_type peerplays_to;
          chain::asset peerplays_asset;
 
-         std::set<son_id_type> expected_reports;
+         std::map<son_id_type, weight_type> expected_reports;
          std::set<son_id_type> received_reports;
 
-         bool processed;
+         bool confirmed = false;
+
+         bool processed = false;
    };
 
-   struct by_sidechain;
    struct by_sidechain_uid;
-   struct by_processed;
-   struct by_sidechain_and_processed;
+   struct by_sidechain_and_confirmed_and_processed;
    using son_wallet_deposit_multi_index_type = multi_index_container<
       son_wallet_deposit_object,
       indexed_by<
          ordered_unique< tag<by_id>,
             member<object, object_id_type, &object::id>
          >,
-         ordered_non_unique< tag<by_sidechain>,
-            member<son_wallet_deposit_object, sidechain_type, &son_wallet_deposit_object::sidechain>
-         >,
          ordered_unique< tag<by_sidechain_uid>,
             member<son_wallet_deposit_object, std::string, &son_wallet_deposit_object::sidechain_uid>
          >,
-         ordered_non_unique< tag<by_processed>,
-            member<son_wallet_deposit_object, bool, &son_wallet_deposit_object::processed>
-         >,
-         ordered_non_unique< tag<by_sidechain_and_processed>,
+         ordered_non_unique< tag<by_sidechain_and_confirmed_and_processed>,
             composite_key<son_wallet_deposit_object,
                member<son_wallet_deposit_object, sidechain_type, &son_wallet_deposit_object::sidechain>,
+               member<son_wallet_deposit_object, bool, &son_wallet_deposit_object::confirmed>,
                member<son_wallet_deposit_object, bool, &son_wallet_deposit_object::processed>
             >
          >
@@ -70,4 +65,4 @@ FC_REFLECT_DERIVED( graphene::chain::son_wallet_deposit_object, (graphene::db::o
                     (sidechain_uid) (sidechain_transaction_id) (sidechain_from) (sidechain_to) (sidechain_currency) (sidechain_amount)
                     (peerplays_from) (peerplays_to) (peerplays_asset)
                     (expected_reports) (received_reports)
-                    (processed) )
+                    (confirmed) (processed) )
