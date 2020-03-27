@@ -188,7 +188,6 @@ struct wallet_data
    //    incomplete account regs
    map<string, vector<string> > pending_account_registrations;
    map<string, string> pending_witness_registrations;
-   map<string, string> pending_son_registrations;
 
    key_label_index_type                                              labeled_keys;
    blind_receipt_index_type                                          blind_receipts;
@@ -2121,7 +2120,7 @@ FC_REFLECT( graphene::wallet::wallet_data,
             (my_accounts)
             (cipher_keys)
             (extra_keys)
-            (pending_account_registrations)(pending_witness_registrations)(pending_son_registrations)
+            (pending_account_registrations)(pending_witness_registrations)
             (labeled_keys)
             (blind_receipts)
             (committed_game_moves)
