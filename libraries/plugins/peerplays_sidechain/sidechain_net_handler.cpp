@@ -258,8 +258,7 @@ void sidechain_net_handler::process_sidechain_transactions() {
       sidechain_transaction_sign_operation sts_op;
       sts_op.payer = plugin.get_current_son_object().son_account;
       sts_op.sidechain_transaction_id = sto.id;
-      sts_op.transaction = processed_sidechain_tx;
-      sts_op.block = sto.block;
+      sts_op.signature = processed_sidechain_tx;
       sts_op.complete = complete;
 
       signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), sts_op);
@@ -281,7 +280,8 @@ void sidechain_net_handler::send_sidechain_transactions() {
    std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
       ilog("Sidechain transaction to send: ${sto}", ("sto", sto));
 
-      bool sent = send_sidechain_transaction(sto);
+      std::string sidechain_transaction = "";
+      bool sent = send_sidechain_transaction(sto, sidechain_transaction);
 
       if (!sent) {
          wlog("Sidechain transaction not sent: ${sto}", ("sto", sto));
@@ -291,6 +291,7 @@ void sidechain_net_handler::send_sidechain_transactions() {
       sidechain_transaction_send_operation sts_op;
       sts_op.payer = plugin.get_current_son_object().son_account;
       sts_op.sidechain_transaction_id = sto.id;
+      sts_op.sidechain_transaction = sidechain_transaction;
 
       signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), sts_op);
       trx.validate();
@@ -320,7 +321,7 @@ std::string sidechain_net_handler::process_sidechain_transaction(const sidechain
    FC_ASSERT(false, "process_sidechain_transaction not implemented");
 }
 
-bool sidechain_net_handler::send_sidechain_transaction(const sidechain_transaction_object &sto) {
+bool sidechain_net_handler::send_sidechain_transaction(const sidechain_transaction_object &sto, std::string &sidechain_transaction) {
    FC_ASSERT(false, "send_sidechain_transaction not implemented");
 }
 

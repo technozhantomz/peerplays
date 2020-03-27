@@ -20,9 +20,13 @@ namespace graphene { namespace chain {
          sidechain_type sidechain;
          object_id_type object_id;
          std::string transaction;
-         std::vector<std::pair<son_id_type, bool>> signers;
+         std::vector<son_info> signers;
+         std::vector<std::pair<son_id_type, std::string>> signatures;
+         std::string sidechain_transaction;
 
-         block_id_type block;
+         uint32_t total_weight = 0;
+         uint32_t current_weight = 0;
+         uint32_t threshold = 0;
          bool valid = false;
          bool complete = false;
          bool sent = false;
@@ -63,7 +67,11 @@ FC_REFLECT_DERIVED( graphene::chain::sidechain_transaction_object, (graphene::db
                     (object_id)
                     (transaction)
                     (signers)
-                    (block)
+                    (signatures)
+                    (sidechain_transaction)
+                    (total_weight)
+                    (current_weight)
+                    (threshold)
                     (valid)
                     (complete)
                     (sent) )

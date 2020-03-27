@@ -20,6 +20,7 @@ void_result sidechain_transaction_create_evaluator::do_evaluate(const sidechain_
    FC_ASSERT(sto_obj == sto_idx.end(), "Sidechain transaction for a given object is already created");
 
    FC_ASSERT(!op.transaction.empty(), "Sidechain transaction data not set");
+   FC_ASSERT(op.signers.size() > 0, "Sidechain transaction signers not set");
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( ( op ) ) }
@@ -30,10 +31,16 @@ object_id_type sidechain_transaction_create_evaluator::do_apply(const sidechain_
       sto.sidechain = op.sidechain;
       sto.object_id = op.object_id;
       sto.transaction = op.transaction;
-      std::transform(op.signers.begin(), op.signers.end(), std::inserter(sto.signers, sto.signers.end()), [](const son_id_type son_id) {
-         return std::make_pair(son_id, false);
+      sto.signers = op.signers;
+      std::transform(op.signers.begin(), op.signers.end(), std::inserter(sto.signatures, sto.signatures.end()), [](const son_info &si) {
+         return std::make_pair(si.son_id, std::string());
       });
-      sto.block = db().head_block_id();
+      for (const auto &si : op.signers) {
+         sto.total_weight = sto.total_weight + si.total_votes;
+      }
+      sto.sidechain_transaction = "";
+      sto.current_weight = 0;
+      sto.threshold = sto.total_weight * 2 / 3 + 1;
       sto.valid = true;
       sto.complete = false;
       sto.sent = false;
@@ -54,14 +61,12 @@ void_result sidechain_transaction_sign_evaluator::do_evaluate(const sidechain_tr
    FC_ASSERT(son_obj != son_idx.end(), "SON object not found");
 
    bool expected = false;
-   for (auto signer : sto_obj->signers) {
-      if (signer.first == son_obj->id) {
-          expected = !signer.second;
+   for (auto signature : sto_obj->signatures) {
+      if (signature.first == son_obj->id) {
+          expected = signature.second.empty();
       }
    }
    FC_ASSERT(expected, "Signer not expected");
-
-   FC_ASSERT(sto_obj->block == op.block, "Sidechain transaction already signed in this block");
 
    FC_ASSERT(sto_obj->valid, "Transaction not valid");
    FC_ASSERT(!sto_obj->complete, "Transaction signing completed");
@@ -79,14 +84,17 @@ object_id_type sidechain_transaction_sign_evaluator::do_apply(const sidechain_tr
    auto son_obj = son_idx.find(op.payer);
 
    db().modify(*sto_obj, [&](sidechain_transaction_object &sto) {
-      sto.transaction = op.transaction;
-      sto.block = db().head_block_id();
-      sto.complete = op.complete;
-      for (size_t i = 0; i < sto.signers.size(); i++) {
-         if (sto.signers.at(i).first == son_obj->id) {
-             sto.signers.at(i).second = true;
-        }
+      for (size_t i = 0; i < sto.signatures.size(); i++) {
+         if (sto.signatures.at(i).first == son_obj->id) {
+             sto.signatures.at(i).second = op.signature;
+         }
       }
+      for (size_t i = 0; i < sto.signers.size(); i++) {
+         if (sto.signers.at(i).son_id == son_obj->id) {
+             sto.current_weight = sto.current_weight + sto.signers.at(i).total_votes;
+         }
+      }
+      sto.complete = op.complete;
    });
 
    db().modify(son_obj->statistics(db()), [&](son_statistics_object& sso) {
@@ -117,7 +125,7 @@ object_id_type sidechain_transaction_send_evaluator::do_apply(const sidechain_tr
    auto sto_obj = sto_idx.find(op.sidechain_transaction_id);
 
    db().modify(*sto_obj, [&](sidechain_transaction_object &sto) {
-      sto.block = db().head_block_id();
+      sto.sidechain_transaction = op.sidechain_transaction;
       sto.sent = true;
    });
 

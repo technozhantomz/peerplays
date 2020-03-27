@@ -45,7 +45,7 @@ std::string bitcoin_rpc_client::addmultisigaddress(const uint32_t nrequired, con
    params = params + pubkeys + std::string("]");
    body = body + params + std::string("] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -57,6 +57,40 @@ std::string bitcoin_rpc_client::addmultisigaddress(const uint32_t nrequired, con
    boost::property_tree::read_json(ss, json);
 
    if (reply.status == 200) {
+      return ss.str();
+   }
+
+   if (json.count("error") && !json.get_child("error").empty()) {
+      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
+   }
+   return "";
+}
+
+std::string bitcoin_rpc_client::combinepsbt(const vector<std::string> &psbts) {
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"combinepsbt\", \"method\": "
+                                  "\"combinepsbt\", \"params\": [[");
+   std::string params = "";
+   for (std::string psbt : psbts) {
+      if (!params.empty()) {
+         params = params + ",";
+      }
+      params = params + std::string("\"") + psbt + std::string("\"");
+   }
+   body = body + params + std::string("]] }");
+   const auto reply = send_post_request(body);
+
+   if (reply.body.empty()) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
+      return "";
+   }
+
+   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (reply.status == 200) {
+      std::stringstream ss;
+      boost::property_tree::json_parser::write_json(ss, json);
       return ss.str();
    }
 
@@ -87,7 +121,7 @@ std::string bitcoin_rpc_client::createpsbt(const std::vector<btc_txout> &ins, co
    }
    body += std::string("]] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -131,7 +165,7 @@ std::string bitcoin_rpc_client::createrawtransaction(const std::vector<btc_txout
    }
    body += std::string("]] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -273,7 +307,7 @@ uint64_t bitcoin_rpc_client::estimatesmartfee() {
                                  "\"method\": \"estimatesmartfee\", \"params\": [") +
                      std::to_string(confirmation_target_blocks) + std::string("] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -310,7 +344,7 @@ std::string bitcoin_rpc_client::finalizepsbt(std::string const &tx_psbt) {
                                   "\"finalizepsbt\", \"params\": [\"" +
                                   tx_psbt + "\"] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -392,7 +426,7 @@ void bitcoin_rpc_client::importaddress(const std::string &address_or_script) {
                                  "\"method\": \"importaddress\", \"params\": [") +
                      std::string("\"") + address_or_script + std::string("\"") + std::string("] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -513,7 +547,7 @@ bool bitcoin_rpc_client::sendrawtransaction(const std::string &tx_hex) {
                                  "\"method\": \"sendrawtransaction\", \"params\": [") +
                      std::string("\"") + tx_hex + std::string("\"") + std::string("] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -541,7 +575,7 @@ std::string bitcoin_rpc_client::signrawtransactionwithwallet(const std::string &
    std::string params = "\"" + tx_hash + "\"";
    body = body + params + std::string("]}");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -622,7 +656,7 @@ std::string bitcoin_rpc_client::walletprocesspsbt(std::string const &tx_psbt) {
                                   "\"walletprocesspsbt\", \"params\": [\"" +
                                   tx_psbt + "\"] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -901,18 +935,12 @@ void sidechain_net_handler_bitcoin::recreate_primary_wallet() {
 
                if (!tx_str.empty()) {
 
-                  auto signer_sons = prev_sw->sons;
-                  std::vector<son_id_type> signers;
-                  for (const son_info &si : signer_sons) {
-                     signers.push_back(si.son_id);
-                  }
-
                   sidechain_transaction_create_operation stc_op;
                   stc_op.payer = gpo.parameters.son_account();
                   stc_op.object_id = prev_sw->id;
                   stc_op.sidechain = sidechain;
                   stc_op.transaction = tx_str;
-                  stc_op.signers = signers;
+                  stc_op.signers = prev_sw->sons;
 
                   proposal_create_operation proposal_op;
                   proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
@@ -977,18 +1005,12 @@ bool sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_obj
    if (!tx_str.empty()) {
       const chain::global_property_object &gpo = database.get_global_properties();
 
-      auto active_sons = gpo.active_sons;
-      std::vector<son_id_type> signers;
-      for (const son_info &si : active_sons) {
-         signers.push_back(si.son_id);
-      }
-
       sidechain_transaction_create_operation stc_op;
       stc_op.payer = gpo.parameters.son_account();
       stc_op.object_id = swdo.id;
       stc_op.sidechain = sidechain;
       stc_op.transaction = tx_str;
-      stc_op.signers = signers;
+      stc_op.signers = gpo.active_sons;
 
       proposal_create_operation proposal_op;
       proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
@@ -1059,18 +1081,12 @@ bool sidechain_net_handler_bitcoin::process_withdrawal(const son_wallet_withdraw
    if (!tx_str.empty()) {
       const chain::global_property_object &gpo = database.get_global_properties();
 
-      auto active_sons = gpo.active_sons;
-      std::vector<son_id_type> signers;
-      for (const son_info &si : active_sons) {
-         signers.push_back(si.son_id);
-      }
-
       sidechain_transaction_create_operation stc_op;
       stc_op.payer = gpo.parameters.son_account();
       stc_op.object_id = swwo.id;
       stc_op.sidechain = sidechain;
       stc_op.transaction = tx_str;
-      stc_op.signers = signers;
+      stc_op.signers = gpo.active_sons;
 
       proposal_create_operation proposal_op;
       proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
@@ -1094,6 +1110,7 @@ bool sidechain_net_handler_bitcoin::process_withdrawal(const son_wallet_withdraw
 }
 
 std::string sidechain_net_handler_bitcoin::process_sidechain_transaction(const sidechain_transaction_object &sto, bool &complete) {
+   complete = false;
 
    //// Uncomment to get signing in order from sto.signers
    //son_id_type invalid_signer = son_id_type(0xFFFFFFFF);
@@ -1109,11 +1126,13 @@ std::string sidechain_net_handler_bitcoin::process_sidechain_transaction(const s
    //   return "";
    //}
 
-   return sign_transaction(sto.transaction, complete);
+   return sign_transaction(sto, complete);
 }
 
-bool sidechain_net_handler_bitcoin::send_sidechain_transaction(const sidechain_transaction_object &sto) {
-   return send_transaction(sto.transaction);
+bool sidechain_net_handler_bitcoin::send_sidechain_transaction(const sidechain_transaction_object &sto, std::string &sidechain_transaction) {
+   sidechain_transaction = "";
+
+   return send_transaction(sto, sidechain_transaction);
 }
 
 // Creates transaction in any format
@@ -1128,16 +1147,19 @@ std::string sidechain_net_handler_bitcoin::create_transaction(const std::vector<
 
 // Adds signature to transaction
 // Function to actually add signature should return transaction with added signature string, or empty string in case of failure
-std::string sidechain_net_handler_bitcoin::sign_transaction(const std::string &tx_str, bool &complete) {
+std::string sidechain_net_handler_bitcoin::sign_transaction(const sidechain_transaction_object &sto, bool &complete) {
+   complete = false;
    std::string new_tx = "";
-   //new_tx = sign_transaction_raw(tx, complete);
-   new_tx = sign_transaction_psbt(tx_str, complete);
-   //new_tx = sign_transaction_standalone(tx, complete);
+   //new_tx = sign_transaction_raw(sto, complete);
+   new_tx = sign_transaction_psbt(sto, complete);
+   //new_tx = sign_transaction_standalone(sto, complete);
    return new_tx;
 }
 
-bool sidechain_net_handler_bitcoin::send_transaction(const std::string &tx_str) {
-   return bitcoin_client->sendrawtransaction(tx_str);
+bool sidechain_net_handler_bitcoin::send_transaction(const sidechain_transaction_object &sto, std::string &sidechain_transaction) {
+   sidechain_transaction = "";
+   //return send_transaction_raw(sto, sidechain_transaction);
+   return send_transaction_psbt(sto, sidechain_transaction);
 }
 
 std::string sidechain_net_handler_bitcoin::create_transaction_raw(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs) {
@@ -1209,8 +1231,10 @@ std::string sidechain_net_handler_bitcoin::create_transaction_standalone(const s
    return "";
 }
 
-std::string sidechain_net_handler_bitcoin::sign_transaction_raw(const std::string &tx_str, bool &complete) {
-   if (tx_str.empty()) {
+std::string sidechain_net_handler_bitcoin::sign_transaction_raw(const sidechain_transaction_object &sto, bool &complete) {
+   complete = false;
+
+   if (sto.transaction.empty()) {
       elog("Signing failed, tx string is empty");
       return "";
    }
@@ -1219,7 +1243,7 @@ std::string sidechain_net_handler_bitcoin::sign_transaction_raw(const std::strin
       bitcoin_client->walletpassphrase(wallet_password, 5);
    }
 
-   std::string reply_str = bitcoin_client->signrawtransactionwithwallet(tx_str);
+   std::string reply_str = bitcoin_client->signrawtransactionwithwallet(sto.transaction);
 
    std::stringstream ss(reply_str);
    boost::property_tree::ptree json;
@@ -1227,7 +1251,7 @@ std::string sidechain_net_handler_bitcoin::sign_transaction_raw(const std::strin
    boost::property_tree::ptree json_res = json.get_child("result");
 
    if ((json_res.count("hex") == 0) || (json_res.count("complete") == 0)) {
-      elog("Failed to process raw transaction ${tx}", ("tx", tx_str));
+      elog("Failed to process raw transaction ${tx}", ("tx", sto.transaction));
       return "";
    }
 
@@ -1241,8 +1265,10 @@ std::string sidechain_net_handler_bitcoin::sign_transaction_raw(const std::strin
    return new_tx_raw;
 }
 
-std::string sidechain_net_handler_bitcoin::sign_transaction_psbt(const std::string &tx_str, bool &complete) {
-   if (tx_str.empty()) {
+std::string sidechain_net_handler_bitcoin::sign_transaction_psbt(const sidechain_transaction_object &sto, bool &complete) {
+   complete = false;
+
+   if (sto.transaction.empty()) {
       elog("Signing failed, tx string is empty");
       return "";
    }
@@ -1251,7 +1277,7 @@ std::string sidechain_net_handler_bitcoin::sign_transaction_psbt(const std::stri
       bitcoin_client->walletpassphrase(wallet_password, 5);
    }
 
-   std::string reply_str = bitcoin_client->walletprocesspsbt(tx_str);
+   std::string reply_str = bitcoin_client->walletprocesspsbt(sto.transaction);
 
    std::stringstream ss(reply_str);
    boost::property_tree::ptree json;
@@ -1259,41 +1285,104 @@ std::string sidechain_net_handler_bitcoin::sign_transaction_psbt(const std::stri
    boost::property_tree::ptree json_res = json.get_child("result");
 
    if ((json_res.count("psbt") == 0) || (json_res.count("complete") == 0)) {
-      elog("Failed to process psbt transaction ${tx}", ("tx", tx_str));
+      elog("Failed to process psbt transaction ${tx}", ("tx", sto.transaction));
       return "";
    }
 
    std::string new_tx_psbt = json_res.get<std::string>("psbt");
    bool complete_psbt = json_res.get<bool>("complete");
 
-   if (complete_psbt) {
-      std::string reply_str = bitcoin_client->finalizepsbt(new_tx_psbt);
+   if (!complete_psbt) {
+      // Try to combine and finalize
+      vector<std::string> psbts;
+      for (auto signature : sto.signatures) {
+         if (!signature.second.empty()) {
+            psbts.push_back(signature.second);
+         }
+      }
+      psbts.push_back(new_tx_psbt);
+
+      std::string reply_str = bitcoin_client->combinepsbt(psbts);
 
       std::stringstream ss(reply_str);
       boost::property_tree::ptree json;
       boost::property_tree::read_json(ss, json);
-      boost::property_tree::ptree json_res = json.get_child("result");
+      if (json.count("error") && json.get_child("error").empty()) {
 
-      if ((json_res.count("hex") == 0) || (json_res.count("complete") == 0)) {
-         elog("Failed to finalize psbt transaction ${tx}", ("tx", tx_str));
-         return "";
-      }
+         std::string new_tx_psbt = json.get<std::string>("result");
 
-      std::string new_tx_raw = json_res.get<std::string>("hex");
-      bool complete_raw = json_res.get<bool>("complete");
+         std::string reply_str_fin = bitcoin_client->finalizepsbt(new_tx_psbt);
+         std::stringstream ss_fin(reply_str_fin);
+         boost::property_tree::ptree json_fin;
+         boost::property_tree::read_json(ss_fin, json_fin);
+         boost::property_tree::ptree json_res = json_fin.get_child("result");
 
-      if (complete_raw) {
-         complete = true;
-         return new_tx_raw;
+         if (json_res.count("hex") && json_res.count("complete")) {
+            complete_psbt = json_res.get<bool>("complete");
+         }
       }
    }
+
+   complete = complete_psbt;
    return new_tx_psbt;
 }
 
-std::string sidechain_net_handler_bitcoin::sign_transaction_standalone(const std::string &tx_str, bool &complete) {
+std::string sidechain_net_handler_bitcoin::sign_transaction_standalone(const sidechain_transaction_object &sto, bool &complete) {
+   complete = false;
+
    complete = true;
    return "";
 }
+
+bool sidechain_net_handler_bitcoin::send_transaction_raw(const sidechain_transaction_object &sto, std::string &sidechain_transaction) {
+   sidechain_transaction = "";
+
+   return bitcoin_client->sendrawtransaction(sto.transaction);
+}
+
+bool sidechain_net_handler_bitcoin::send_transaction_psbt(const sidechain_transaction_object &sto, std::string &sidechain_transaction) {
+   sidechain_transaction = "";
+
+   vector<std::string> psbts;
+   for (auto signature : sto.signatures) {
+      if (!signature.second.empty()) {
+         psbts.push_back(signature.second);
+      }
+   }
+
+   std::string reply_str = bitcoin_client->combinepsbt(psbts);
+
+   std::stringstream ss(reply_str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (json.count("error") && !json.get_child("error").empty()) {
+      elog("Failed to combine psbt transactions from ${sto}", ("sto", sto));
+      return false;
+   }
+
+   std::string new_tx_psbt = json.get<std::string>("result");
+
+   std::string reply_str_fin = bitcoin_client->finalizepsbt(new_tx_psbt);
+   std::stringstream ss_fin(reply_str_fin);
+   boost::property_tree::ptree json_fin;
+   boost::property_tree::read_json(ss_fin, json_fin);
+   boost::property_tree::ptree json_res = json_fin.get_child("result");
+
+   if ((json_res.count("hex") == 0) || (json_res.count("complete") == 0)) {
+      elog("Failed to finalize psbt transaction ${tx}", ("tx", new_tx_psbt));
+      return false;
+   }
+
+   std::string new_tx_raw = json_res.get<std::string>("hex");
+   bool complete_raw = json_res.get<bool>("complete");
+
+   if (complete_raw) {
+      return bitcoin_client->sendrawtransaction(new_tx_raw);
+   }
+
+   return false;
+} // namespace peerplays_sidechain
 
 void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) {
    std::string block = bitcoin_client->getblock(event_data);

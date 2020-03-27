@@ -352,8 +352,9 @@ void peerplays_sidechain_plugin_impl::son_processing() {
          // Tasks that are executed by all active SONs, no matter if scheduled
          // E.g. sending approvals and signing (only signing that can be done in parallel)
          approve_proposals();
+         process_sidechain_transactions();
 
-         // Tasks that are executed by scheduled and active SON
+         // Tasks that are executed by scheduled and active SON only
          if (current_son_id == scheduled_son_id) {
 
             create_son_down_proposals();
@@ -375,6 +376,8 @@ void peerplays_sidechain_plugin_impl::son_processing() {
          // E.g. sending approvals and signing that SON was required to do while it was active
          //approve_leftover_proposals(); ???
          //process_leftover_sidechain_transactions(); ???
+         approve_proposals();
+         process_sidechain_transactions();
       }
    }
 }

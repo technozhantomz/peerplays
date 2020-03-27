@@ -46,7 +46,8 @@ std::string sidechain_net_handler_peerplays::process_sidechain_transaction(const
    return sto.transaction;
 }
 
-bool sidechain_net_handler_peerplays::send_sidechain_transaction(const sidechain_transaction_object &sto) {
+bool sidechain_net_handler_peerplays::send_sidechain_transaction(const sidechain_transaction_object &sto, std::string &sidechain_transaction) {
+   sidechain_transaction = "";
    return true;
 }
 
