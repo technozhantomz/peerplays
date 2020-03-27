@@ -37,6 +37,9 @@ public:
    const son_object get_current_son_object();
    const son_object get_son_object(son_id_type son_id);
    bool is_active_son(son_id_type son_id);
+   bool is_son_delete_op_valid(const chain::operation &op);
+   bool is_son_down_op_valid(const chain::operation &op);
+   bool is_valid_son_proposal(const chain::proposal_object &proposal);
    fc::ecc::private_key get_private_key(son_id_type son_id);
    fc::ecc::private_key get_private_key(chain::public_key_type public_key);
 
@@ -263,6 +266,32 @@ bool peerplays_sidechain_plugin_impl::is_active_son(son_id_type son_id) {
    return (it != active_son_ids.end());
 }
 
+bool peerplays_sidechain_plugin_impl::is_son_delete_op_valid(const chain::operation &op) {
+   son_delete_operation delete_op = op.get<son_delete_operation>();
+   return plugin.database().is_son_dereg_valid(delete_op.son_id);
+}
+
+bool peerplays_sidechain_plugin_impl::is_son_down_op_valid(const chain::operation &op) {
+   chain::database &d = plugin.database();
+   const chain::global_property_object &gpo = d.get_global_properties();
+   const chain::dynamic_global_property_object &dgpo = d.get_dynamic_global_properties();
+   const auto &idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
+   son_report_down_operation down_op = op.get<son_report_down_operation>();
+   auto son_obj = idx.find(down_op.son_id);
+   if (son_obj == idx.end()) {
+      return false;
+   }
+   auto stats = son_obj->statistics(d);
+   fc::time_point_sec last_maintenance_time = dgpo.next_maintenance_time - gpo.parameters.maintenance_interval;
+   fc::time_point_sec last_active_ts = ((stats.last_active_timestamp > last_maintenance_time) ? stats.last_active_timestamp : last_maintenance_time);
+   int64_t down_threshold = gpo.parameters.son_down_time();
+   if (((son_obj->status == chain::son_status::active) || (son_obj->status == chain::son_status::request_maintenance)) &&
+       ((fc::time_point::now() - last_active_ts) > fc::seconds(down_threshold))) {
+      return true;
+   }
+   return false;
+}
+
 fc::ecc::private_key peerplays_sidechain_plugin_impl::get_private_key(son_id_type son_id) {
    return get_private_key(get_son_object(son_id).signing_key);
 }
@@ -382,13 +411,56 @@ void peerplays_sidechain_plugin_impl::son_processing() {
    }
 }
 
+bool peerplays_sidechain_plugin_impl::is_valid_son_proposal(const chain::proposal_object &proposal) {
+   if (proposal.proposed_transaction.operations.size() == 1) {
+      int32_t op_idx_0 = proposal.proposed_transaction.operations[0].which();
+      chain::operation op = proposal.proposed_transaction.operations[0];
+
+      if (op_idx_0 == chain::operation::tag<chain::son_report_down_operation>::value) {
+         return is_son_down_op_valid(op);
+      }
+
+      if (op_idx_0 == chain::operation::tag<chain::son_delete_operation>::value) {
+         return is_son_delete_op_valid(op);
+      }
+
+      if (op_idx_0 == chain::operation::tag<chain::son_wallet_update_operation>::value) {
+         return true;
+      }
+
+      if (op_idx_0 == chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value) {
+         return true;
+      }
+
+      if (op_idx_0 == chain::operation::tag<chain::sidechain_transaction_create_operation>::value) {
+         return true;
+      }
+   } else if (proposal.proposed_transaction.operations.size() == 2) {
+      int32_t op_idx_0 = proposal.proposed_transaction.operations[0].which();
+      int32_t op_idx_1 = proposal.proposed_transaction.operations[1].which();
+
+      if ((op_idx_0 == chain::operation::tag<chain::son_wallet_deposit_process_operation>::value) &&
+          (op_idx_1 == chain::operation::tag<chain::transfer_operation>::value)) {
+         return true;
+      }
+   }
+
+   ilog("==================================================");
+   ilog("Proposal not approved ${proposal}", ("proposal", proposal));
+   ilog("==================================================");
+   return false;
+}
+
 void peerplays_sidechain_plugin_impl::approve_proposals() {
 
-   auto approve_proposal = [&](const chain::son_id_type &son_id, const chain::proposal_id_type &proposal_id) {
-      ilog("Sending approval for ${p} from ${s}", ("p", proposal_id)("s", son_id));
+   auto check_approve_proposal = [&](const chain::son_id_type &son_id, const chain::proposal_object &proposal) {
+      if (!is_valid_son_proposal(proposal)) {
+         return;
+      }
+      ilog("Sending approval for ${p} from ${s}", ("p", proposal.id)("s", son_id));
       chain::proposal_update_operation puo;
       puo.fee_paying_account = get_son_object(son_id).son_account;
-      puo.proposal = proposal_id;
+      puo.proposal = proposal.id;
       puo.active_approvals_to_add = {get_son_object(son_id).son_account};
       chain::signed_transaction trx = plugin.database().create_signed_transaction(plugin.get_private_key(son_id), puo);
       fc::future<bool> fut = fc::async([&]() {
@@ -424,49 +496,7 @@ void peerplays_sidechain_plugin_impl::approve_proposals() {
          continue;
       }
 
-      if (proposal.proposed_transaction.operations.size() == 1) {
-         int32_t op_idx_0 = proposal.proposed_transaction.operations[0].which();
-
-         if (op_idx_0 == chain::operation::tag<chain::son_report_down_operation>::value) {
-            approve_proposal(get_current_son_id(), proposal.id);
-            continue;
-         }
-
-         if (op_idx_0 == chain::operation::tag<chain::son_delete_operation>::value) {
-            approve_proposal(get_current_son_id(), proposal.id);
-            continue;
-         }
-
-         if (op_idx_0 == chain::operation::tag<chain::son_wallet_update_operation>::value) {
-            approve_proposal(get_current_son_id(), proposal.id);
-            continue;
-         }
-
-         if (op_idx_0 == chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value) {
-            approve_proposal(get_current_son_id(), proposal.id);
-            continue;
-         }
-
-         if (op_idx_0 == chain::operation::tag<chain::sidechain_transaction_create_operation>::value) {
-            approve_proposal(get_current_son_id(), proposal.id);
-            continue;
-         }
-      }
-
-      if (proposal.proposed_transaction.operations.size() == 2) {
-         int32_t op_idx_0 = proposal.proposed_transaction.operations[0].which();
-         int32_t op_idx_1 = proposal.proposed_transaction.operations[1].which();
-
-         if ((op_idx_0 == chain::operation::tag<chain::son_wallet_deposit_process_operation>::value) &&
-             (op_idx_1 == chain::operation::tag<chain::transfer_operation>::value)) {
-            approve_proposal(get_current_son_id(), proposal.id);
-            continue;
-         }
-      }
-
-      ilog("==================================================");
-      ilog("Proposal not approved ${proposal}", ("proposal", proposal));
-      ilog("==================================================");
+      check_approve_proposal(get_current_son_id(), proposal);
    }
 }
 
