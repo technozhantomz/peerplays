@@ -23,6 +23,8 @@
  */
 #include <graphene/chain/protocol/transfer.hpp>
 
+#include <fc/io/raw.hpp>
+
 namespace graphene { namespace chain {
 
 share_type transfer_operation::calculate_fee( const fee_parameters_type& schedule )const
@@ -61,3 +63,8 @@ void override_transfer_operation::validate()const
 }
 
 } } // graphene::chain
+
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::transfer_operation::fee_parameters_type )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::override_transfer_operation::fee_parameters_type )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::transfer_operation )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::override_transfer_operation )

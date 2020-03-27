@@ -226,7 +226,7 @@ namespace detail {
 
       void new_connection( const fc::http::websocket_connection_ptr& c )
       {
-         auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(c, GRAPHENE_MAX_NESTED_OBJECTS);
+         auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c, GRAPHENE_MAX_NESTED_OBJECTS);
          auto login = std::make_shared<graphene::app::login_api>( std::ref(*_self) );
          login->enable_api("database_api");
 
@@ -375,6 +375,11 @@ namespace detail {
          }
          _chain_db->add_checkpoints( loaded_checkpoints );
 
+         if( _options->count("enable-standby-votes-tracking") )
+         {
+            _chain_db->enable_standby_votes_tracking( _options->at("enable-standby-votes-tracking").as<bool>() );
+         }
+         
          bool replay = false;
          std::string replay_reason = "reason not provided";
 
@@ -926,6 +931,9 @@ void application::set_program_options(boost::program_options::options_descriptio
          ("genesis-json", bpo::value<boost::filesystem::path>(), "File to read Genesis State from")
          ("dbg-init-key", bpo::value<string>(), "Block signing key to use for init witnesses, overrides genesis file")
          ("api-access", bpo::value<boost::filesystem::path>(), "JSON file specifying API permissions")
+         ("enable-standby-votes-tracking", bpo::value<bool>()->implicit_value(true),
+          "Whether to enable tracking of votes of standby witnesses and committee members. "
+          "Set it to true to provide accurate data to API clients, set to false for slightly better performance.")
          ;
    command_line_options.add(configuration_file_options);
    command_line_options.add_options()
@@ -982,9 +990,20 @@ void application::initialize(const fc::path& data_dir, const boost::program_opti
       wanted.push_back("witness");
       wanted.push_back("account_history");
       wanted.push_back("market_history");
+      wanted.push_back("bookie");
    }
+   int es_ah_conflict_counter = 0;
    for (auto& it : wanted)
    {
+      if(it == "account_history")
+         ++es_ah_conflict_counter;
+      if(it == "elasticsearch")
+         ++es_ah_conflict_counter;
+
+      if(es_ah_conflict_counter > 1) {
+         elog("Can't start program with elasticsearch and account_history plugin at the same time");
+         std::exit(EXIT_FAILURE);
+      }
       if (!it.empty()) enable_plugin(it);
    }
 }
@@ -1009,9 +1028,7 @@ std::shared_ptr<abstract_plugin> application::get_plugin(const string& name) con
 
 bool application::is_plugin_enabled(const string& name) const
 {
-   if(my->_active_plugins.find(name) == my->_active_plugins.end())
-      return false;
-   return true;
+   return !(my->_active_plugins.find(name) == my->_active_plugins.end());
 }
 
 net::node_ptr application::p2p_node()
@@ -1051,7 +1068,8 @@ void graphene::app::application::enable_plugin(const string& name)
    my->_active_plugins[name]->plugin_set_app(this);
 }
 
-void graphene::app::application::add_available_plugin(std::shared_ptr<graphene::app::abstract_plugin> p) {
+void graphene::app::application::add_available_plugin(std::shared_ptr<graphene::app::abstract_plugin> p)
+{
    my->_available_plugins[p->plugin_name()] = p;
 }
 
