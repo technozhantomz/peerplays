@@ -1339,6 +1339,25 @@ class wallet_api
                                     flat_map<sidechain_type, string> sidechain_public_keys,
                                     bool broadcast = false);
 
+      /** Creates a SON object owned by the given account.
+       *
+       * Tries to create a SON object owned by the given account using
+       * existing vesting balances, fails if can't quess matching
+       * vesting balance objects. If several vesting balance objects matches
+       * this function uses the recent one.
+       *
+       * @param owner_account the name or id of the account which is creating the SON
+       * @param url a URL to include in the SON record in the blockchain.  Clients may
+       *            display this when showing a list of SONs.  May be blank.
+       * @param sidechain_public_keys The new set of sidechain public keys.
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction registering a SON
+       */
+      signed_transaction try_create_son(string owner_account,
+                                    string url,
+                                    flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
+                                    bool broadcast = false);
+
       /**
        * Update a SON object owned by the given account.
        *
@@ -2298,6 +2317,7 @@ FC_API( graphene::wallet::wallet_api,
         (list_witnesses)
         (list_committee_members)
         (create_son)
+        (try_create_son)
         (update_son)
         (delete_son)
         (list_sons)

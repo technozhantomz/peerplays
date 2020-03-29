@@ -4727,6 +4727,37 @@ signed_transaction wallet_api::create_son(string owner_account,
    return my->create_son(owner_account, url, deposit_id, pay_vb_id, sidechain_public_keys, broadcast);
 }
 
+signed_transaction wallet_api::try_create_son(string owner_account,
+                              string url,
+                              flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
+                              bool broadcast /* = false */)
+{
+   vesting_balance_id_type deposit_id;
+   bool deposit_found = false;
+   vesting_balance_id_type pay_vb_id;
+   bool pay_vb_found = false;
+   vector<vesting_balance_object_with_info> vbs = get_vesting_balances(owner_account);
+   for(const auto& vb: vbs)
+   {
+      if ((vb.balance_type == vesting_balance_type::son) &&
+          (vb.get_asset_amount() >= my->get_global_properties().parameters.son_vesting_amount()) &&
+          (vb.policy.which() == vesting_policy::tag<dormant_vesting_policy>::value))
+      {
+         deposit_found = true;
+         deposit_id = vb.id;
+      }
+      if ((vb.balance_type == vesting_balance_type::normal) &&
+          (vb.policy.which() == vesting_policy::tag<linear_vesting_policy>::value))
+      {
+         pay_vb_found = true;
+         pay_vb_id = vb.id;
+      }
+   }
+   if (!deposit_found || !pay_vb_found)
+      FC_THROW("Failed to find vesting balance objects");
+   return my->create_son(owner_account, url, deposit_id, pay_vb_id, sidechain_public_keys, broadcast);
+}
+
 signed_transaction wallet_api::update_son(string owner_account,
                                           string url,
                                           string block_signing_key,
