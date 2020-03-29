@@ -1355,7 +1355,7 @@ class wallet_api
        */
       signed_transaction try_create_son(string owner_account,
                                     string url,
-                                    flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
+                                    flat_map<sidechain_type, string> sidechain_public_keys,
                                     bool broadcast = false);
 
       /**

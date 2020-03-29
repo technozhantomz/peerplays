@@ -4729,7 +4729,7 @@ signed_transaction wallet_api::create_son(string owner_account,
 
 signed_transaction wallet_api::try_create_son(string owner_account,
                               string url,
-                              flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
+                              flat_map<sidechain_type, string> sidechain_public_keys,
                               bool broadcast /* = false */)
 {
    vesting_balance_id_type deposit_id;
