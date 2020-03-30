@@ -1844,7 +1844,10 @@ void perform_son_tasks(database& db)
    {
       const auto& son_account = db.create<account_object>([&](account_object& a) {
          a.name = "son-account";
-         a.statistics = db.create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+         a.statistics = db.create<account_statistics_object>([&a](account_statistics_object& s){
+            s.owner = a.id;
+            s.name = a.name;
+         }).id;
          a.owner.weight_threshold = 1;
          a.active.weight_threshold = 0;
          a.registrar = a.lifetime_referrer = a.referrer = a.id;
