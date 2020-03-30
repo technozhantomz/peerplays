@@ -205,8 +205,8 @@ BOOST_AUTO_TEST_CASE( son_voting )
       son_object son2_obj;
       signed_transaction vote_son1_tx;
       signed_transaction vote_son2_tx;
-      int son1_start_votes, son1_end_votes;
-      int son2_start_votes, son2_end_votes;
+      uint64_t son1_start_votes, son1_end_votes;
+      uint64_t son2_start_votes, son2_end_votes;
 
       son1_obj = con.wallet_api_ptr->get_son("son1account");
       son1_start_votes = son1_obj.total_votes;
@@ -436,8 +436,8 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
 
        son_object son1_obj;
        son_object son2_obj;
-       int son1_start_votes, son1_end_votes;
-       int son2_start_votes, son2_end_votes;
+       uint64_t son1_start_votes, son1_end_votes;
+       uint64_t son2_start_votes, son2_end_votes;
 
        // Get votes at start
        son1_obj = con.wallet_api_ptr->get_son("son1account");
@@ -488,7 +488,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        son2_obj = con.wallet_api_ptr->get_son("son2account");
        // voice distribution changed, SON2 now has all voices
        son2_end_votes = son2_obj.total_votes;
-       BOOST_CHECK(son2_end_votes > son2_start_votes);
+       BOOST_CHECK((son2_end_votes > 0) && (son2_end_votes <= son2_start_votes)); // nathan spent funds for vb, it has different voting power
        son2_start_votes = son2_end_votes;
 
        // Try to reject incorrect SON

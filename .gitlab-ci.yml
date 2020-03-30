@@ -8,16 +8,20 @@ stages:
 build:
   stage: build
   script:
+    - rm -rf .git/modules/* ./docs ./libraries/fc
     - git submodule sync
     - git submodule update --init --recursive
-    - cmake .
+    - rm -rf build
+    - mkdir build
+    - cd build
+    - cmake ..
     - make -j$(nproc)
   artifacts:
     untracked: true
     paths:
-      - libraries/
-      - programs/
-      - tests/
+      - build/libraries/
+      - build/programs/
+      - build/tests/
   tags:
     - builder
 
@@ -26,9 +30,9 @@ test:
   dependencies:
     - build
   script:
-    - ./tests/betting_test --log_level=message
-    - ./tests/chain_test --log_level=message
-    - ./tests/cli_test --log_level=message
+    - ./build/tests/betting_test --log_level=message
+    - ./build/tests/chain_test --log_level=message
+    - ./build/tests/cli_test --log_level=message
   tags:
     - builder
 
