@@ -231,7 +231,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_history_api) {
          create_bitasset("USD", account_id_type()); // create op 0
          const account_object& dan = create_account("dan"); // create op 1
          create_bitasset("CNY", dan.id); // create op 2
-         create_bitasset("BTC", account_id_type()); // create op 3
+         create_bitasset("BTCTEST", account_id_type()); // create op 3
          create_bitasset("XMR", dan.id); // create op 4
          create_bitasset("EUR", account_id_type()); // create op 5
          create_bitasset("OIL", dan.id); // create op 6

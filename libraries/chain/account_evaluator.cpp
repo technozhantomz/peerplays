@@ -110,6 +110,8 @@ void_result account_create_evaluator::do_evaluate( const account_create_operatio
    }
    if( d.head_block_time() < HARDFORK_999_TIME )
       FC_ASSERT( !op.extensions.value.affiliate_distributions.valid(), "Affiliate reward distributions not allowed yet" );
+   if (d.head_block_time() < HARDFORK_SON_TIME)
+      FC_ASSERT(op.name != "son-account", "Son account creation before SON hardfork");
 
    FC_ASSERT( fee_paying_account->is_lifetime_member(), "Only Lifetime members may register an account." );
    FC_ASSERT( op.referrer(d).is_member(d.head_block_time()), "The referrer must be either a lifetime or annual subscriber." );

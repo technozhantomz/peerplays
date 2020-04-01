@@ -1856,10 +1856,38 @@ void perform_son_tasks(database& db)
          a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT - GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
       });
 
-      db.modify( gpo, [&]( global_property_object& gpo ) {
+      db.modify( gpo, [&son_account]( global_property_object& gpo ) {
             gpo.parameters.extensions.value.son_account = son_account.get_id();
             if( gpo.pending_parameters )
                gpo.pending_parameters->extensions.value.son_account = son_account.get_id();
+      });
+   }
+   // create BTC asset here because son_account is the issuer of the BTC
+   if (gpo.parameters.btc_asset() == asset_id_type()  && db.head_block_time() >= HARDFORK_SON_TIME)
+   {
+      const asset_dynamic_data_object& dyn_asset =
+         db.create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
+            a.current_supply = 0;
+         });
+
+      const asset_object& btc_asset =
+         db.create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
+            a.symbol = "BTC";
+            a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+            a.precision = 8;
+            a.options.flags = 0;
+            a.options.issuer_permissions = 0;
+            a.issuer = gpo.parameters.son_account();
+            a.options.core_exchange_rate.base.amount = 1;
+            a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
+            a.options.core_exchange_rate.quote.amount = 1;
+            a.options.core_exchange_rate.quote.asset_id = asset_id_type(0);
+            a.dynamic_asset_data_id = dyn_asset.id;
+         });
+      db.modify( gpo, [&btc_asset]( global_property_object& gpo ) {
+            gpo.parameters.extensions.value.btc_asset = btc_asset.get_id();
+            if( gpo.pending_parameters )
+               gpo.pending_parameters->extensions.value.btc_asset = btc_asset.get_id();
       });
    }
 }
