@@ -143,6 +143,10 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 }
 
 void sidechain_net_handler::process_deposits() {
+   if (database.get_global_properties().active_sons.size() < database.get_chain_properties().immutable_parameters.min_son_count) {
+      return;
+   }
+
    const auto &idx = database.get_index_type<son_wallet_deposit_index>().indices().get<by_sidechain_and_confirmed_and_processed>();
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
 
@@ -188,6 +192,10 @@ void sidechain_net_handler::process_deposits() {
 }
 
 void sidechain_net_handler::process_withdrawals() {
+   if (database.get_global_properties().active_sons.size() < database.get_chain_properties().immutable_parameters.min_son_count) {
+      return;
+   }
+
    const auto &idx = database.get_index_type<son_wallet_withdraw_index>().indices().get<by_withdraw_sidechain_and_confirmed_and_processed>();
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
 

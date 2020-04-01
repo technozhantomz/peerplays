@@ -170,8 +170,6 @@ void database::pay_sons()
          if(s.txs_signed > 0){
             auto son_params = get_global_properties().parameters;
             share_type pay = (s.txs_signed * son_budget.value)/total_txs_signed;
-            // TODO: Remove me after QA
-            ilog( "pay ${p} to ${s} for ${t} transactions signed", ("p", pay.value)("s", s.id)("t",s.txs_signed) );
             const auto& idx = get_index_type<son_index>().indices().get<by_id>();
             auto son_obj = idx.find( s.owner );
             modify( *son_obj, [&]( son_object& _son_obj)
@@ -338,6 +336,8 @@ void database::update_son_wallet(const vector<son_info>& new_active_sons)
          });
       }
    }
+
+   should_recreate_pw = should_recreate_pw && (new_active_sons.size() >= get_chain_properties().immutable_parameters.min_son_count);
 
    if (should_recreate_pw) {
       // Create new son_wallet_object, to initiate wallet recreation
@@ -830,7 +830,7 @@ void database::process_budget()
          pay_sons();
          rec.leftover_son_funds = dpo.son_budget;
          available_funds += rec.leftover_son_funds;
-         son_budget = gpo.parameters.son_pay_daily_max();
+         son_budget = gpo.parameters.son_pay_max();
          son_budget = std::min(son_budget, available_funds);
          rec.son_budget = son_budget;
          available_funds -= son_budget;

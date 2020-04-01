@@ -1,6 +1,7 @@
 #include <graphene/chain/son_wallet_deposit_evaluator.hpp>
 
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/chain_property_object.hpp>
 #include <graphene/chain/is_authorized_asset.hpp>
 #include <graphene/chain/son_object.hpp>
 #include <graphene/chain/son_wallet_deposit_object.hpp>
@@ -130,6 +131,7 @@ void_result process_son_wallet_deposit_evaluator::do_evaluate(const son_wallet_d
 { try{
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
    FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
+   FC_ASSERT(db().get_global_properties().active_sons.size() >= db().get_chain_properties().immutable_parameters.min_son_count, "Min required voted SONs not present");
 
    const auto& idx = db().get_index_type<son_wallet_deposit_index>().indices().get<by_id>();
    const auto& itr = idx.find(op.son_wallet_deposit_id);

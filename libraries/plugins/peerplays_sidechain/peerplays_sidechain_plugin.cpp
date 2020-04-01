@@ -445,9 +445,6 @@ bool peerplays_sidechain_plugin_impl::is_valid_son_proposal(const chain::proposa
       }
    }
 
-   ilog("==================================================");
-   ilog("Proposal not approved ${proposal}", ("proposal", proposal));
-   ilog("==================================================");
    return false;
 }
 

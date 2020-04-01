@@ -141,8 +141,6 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
             {
                 sso.current_interval_downtime += op.ts.sec_since_epoch() - sso.last_down_timestamp.sec_since_epoch();
                 sso.last_active_timestamp = op.ts;
-                // TODO: Remove me after sidechain tx signing is finished
-                sso.txs_signed = sso.txs_signed + 1;
             } );
 
             db().modify(*itr, [&is_son_active](son_object &so) {
@@ -156,8 +154,6 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
             db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
             {
                 sso.last_active_timestamp = op.ts;
-                // TODO: Remove me after sidechain tx signing is finished
-                sso.txs_signed = sso.txs_signed + 1;
             } );
         }
     }

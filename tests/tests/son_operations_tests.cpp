@@ -329,7 +329,7 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
       // Make witness budget zero so that amount can be allocated to SON
       db.modify( db.get_global_properties(), [&]( global_property_object& _gpo )
       {
-         _gpo.parameters.extensions.value.son_pay_daily_max = 200;
+         _gpo.parameters.extensions.value.son_pay_max = 200;
          _gpo.parameters.witness_pay_per_block = 0;
       } );
       // Upgrades pay fee and this goes to reserve

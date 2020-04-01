@@ -6,6 +6,7 @@
 
 #include <fc/signals.hpp>
 #include <graphene/chain/global_property_object.hpp>
+#include <graphene/chain/chain_property_object.hpp>
 #include <graphene/chain/sidechain_address_object.hpp>
 #include <graphene/chain/sidechain_transaction_object.hpp>
 #include <graphene/chain/son_wallet_deposit_object.hpp>
