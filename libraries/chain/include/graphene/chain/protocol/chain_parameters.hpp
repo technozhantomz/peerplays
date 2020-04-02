@@ -50,13 +50,14 @@ namespace graphene { namespace chain {
       optional < uint32_t >           gpos_period_start                 = HARDFORK_GPOS_TIME.sec_since_epoch();
       optional < uint32_t >           gpos_vesting_lockin_period        = GPOS_VESTING_LOCKIN_PERIOD;
 
-      optional < uint32_t >           son_vesting_amount;
-      optional < uint32_t >           son_vesting_period;
-      optional < uint32_t >           son_pay_max;
-      optional < uint32_t >           son_pay_time;
-      optional < uint32_t >           son_deregister_time;
-      optional < uint32_t >           son_heartbeat_frequency;
-      optional < uint32_t >           son_down_time;
+      optional < uint32_t >           son_vesting_amount                = SON_VESTING_AMOUNT;
+      optional < uint32_t >           son_vesting_period                = SON_VESTING_PERIOD;
+      optional < uint32_t >           son_pay_max                       = SON_PAY_MAX;
+      optional < uint32_t >           son_pay_time                      = SON_PAY_TIME;
+      optional < uint32_t >           son_deregister_time               = SON_DEREGISTER_TIME;
+      optional < uint32_t >           son_heartbeat_frequency           = SON_HEARTBEAT_FREQUENCY;
+      optional < uint32_t >           son_down_time                     = SON_DOWN_TIME;
+
       optional < account_id_type >    son_account;
       optional < asset_id_type >      btc_asset;
    };
@@ -109,7 +110,7 @@ namespace graphene { namespace chain {
       uint32_t                maximum_tournament_start_time_in_future = TOURNAMENT_MAX_START_TIME_IN_FUTURE;
       uint32_t                maximum_tournament_start_delay      = TOURNAMENT_MAX_START_DELAY;
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
-      
+
       extension<parameter_extension> extensions;
 
       /** defined in fee_schedule.cpp */
@@ -171,7 +172,7 @@ namespace graphene { namespace chain {
       }
       inline uint32_t gpos_vesting_lockin_period()const {
          return extensions.value.gpos_vesting_lockin_period.valid() ? *extensions.value.gpos_vesting_lockin_period : GPOS_VESTING_LOCKIN_PERIOD; /// GPOS vesting lockin period
-      }      
+      }
       inline account_id_type son_account() const {
          return extensions.value.son_account.valid() ? *extensions.value.son_account : GRAPHENE_NULL_ACCOUNT;
       }
