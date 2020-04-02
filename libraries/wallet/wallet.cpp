@@ -2414,8 +2414,8 @@ public:
 
       vesting_balance_object vbo = get_object< vesting_balance_object >( *vbid );
 
-      if(vbo.balance_type != vesting_balance_type::normal)
-         FC_THROW("Allowed to withdraw only Normal type vest balances with this method");
+      if(vbo.balance_type == vesting_balance_type::gpos)
+         FC_THROW("Allowed to withdraw only Normal and Son type vest balances with this method");
 
       vesting_balance_withdraw_operation vesting_balance_withdraw_op;
 
@@ -6729,7 +6729,8 @@ vesting_balance_object_with_info::vesting_balance_object_with_info( const vestin
    : vesting_balance_object( vbo )
 {
    allowed_withdraw = get_allowed_withdraw( now );
-   if(vbo.balance_type == vesting_balance_type::gpos)
+   if(vbo.balance_type == vesting_balance_type::gpos ||
+      ((vbo.balance_type == vesting_balance_type::son) && (vbo.policy.which() == vesting_policy::tag<linear_vesting_policy>::value)))
       allowed_withdraw_time = vbo.policy.get<linear_vesting_policy>().begin_timestamp + vbo.policy.get<linear_vesting_policy>().vesting_cliff_seconds;
    else
       allowed_withdraw_time = now;

@@ -139,7 +139,7 @@ void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balan
    const time_point_sec now = d.head_block_time();
 
    const vesting_balance_object& vbo = op.vesting_balance( d );
-   if(vbo.balance_type == vesting_balance_type::normal)
+   if(vbo.balance_type == vesting_balance_type::normal || vbo.balance_type == vesting_balance_type::son)
    {
       FC_ASSERT( op.owner == vbo.owner, "", ("op.owner", op.owner)("vbo.owner", vbo.owner) );
       FC_ASSERT( vbo.is_withdraw_allowed( now, op.amount ), "Account has insufficient ${balance_type} Vested Balance to withdraw",
@@ -179,7 +179,7 @@ void_result vesting_balance_withdraw_evaluator::do_apply( const vesting_balance_
    //Handling all GPOS withdrawls separately from normal and SONs(future extension).
    // One request/transaction would be sufficient to withdraw from multiple vesting balance ids
    const vesting_balance_object& vbo = op.vesting_balance( d );
-   if(vbo.balance_type == vesting_balance_type::normal)
+   if(vbo.balance_type == vesting_balance_type::normal || vbo.balance_type == vesting_balance_type::son)
    {
       // Allow zero balance objects to stick around, (1) to comply
       // with the chain's "objects live forever" design principle, (2)
