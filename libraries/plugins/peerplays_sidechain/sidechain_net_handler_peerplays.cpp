@@ -61,6 +61,9 @@ void sidechain_net_handler_peerplays::on_applied_block(const signed_block &b) {
             if (transfer_op.to != plugin.database().get_global_properties().parameters.son_account()) {
                continue;
             }
+            // only bitcoin withdraws acepted for now
+            if (transfer_op.amount.asset_id != plugin.database().get_global_properties().parameters.btc_asset())
+               continue;
 
             std::stringstream ss;
             ss << "peerplays"
@@ -78,8 +81,7 @@ void sidechain_net_handler_peerplays::on_applied_block(const signed_block &b) {
             sed.sidechain_amount = transfer_op.amount.amount;
             sed.peerplays_from = transfer_op.from;
             sed.peerplays_to = transfer_op.to;
-            // We should calculate exchange rate between CORE/TEST and other Peerplays asset
-            sed.peerplays_asset = asset(transfer_op.amount.amount / transfer_op.amount.asset_id(database).options.core_exchange_rate.quote.amount);
+            sed.peerplays_asset = transfer_op.amount;
             sidechain_event_data_received(sed);
          }
       }

@@ -428,10 +428,6 @@ bool peerplays_sidechain_plugin_impl::is_valid_son_proposal(const chain::proposa
          return true;
       }
 
-      if (op_idx_0 == chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value) {
-         return true;
-      }
-
       if (op_idx_0 == chain::operation::tag<chain::sidechain_transaction_create_operation>::value) {
          return true;
       }
@@ -440,9 +436,14 @@ bool peerplays_sidechain_plugin_impl::is_valid_son_proposal(const chain::proposa
       int32_t op_idx_1 = proposal.proposed_transaction.operations[1].which();
 
       if ((op_idx_0 == chain::operation::tag<chain::son_wallet_deposit_process_operation>::value) &&
-          (op_idx_1 == chain::operation::tag<chain::transfer_operation>::value)) {
+          (op_idx_1 == chain::operation::tag<chain::asset_issue_operation>::value)) {
          return true;
       }
+      if ((op_idx_0 == chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value) &&
+          (op_idx_1 == chain::operation::tag<chain::asset_reserve_operation>::value)) {
+         return true;
+      }
+
    }
 
    return false;
