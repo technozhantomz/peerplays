@@ -77,6 +77,32 @@ vector<std::reference_wrapper<const typename Index::object_type>> database::sort
    return refs;
 }
 
+template<>
+vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<son_index>(size_t count) const
+{
+   const auto& all_sons = get_index_type<son_index>().indices().get< by_id >();
+   std::vector<std::reference_wrapper<const son_object>> refs;
+   for( auto& son : all_sons )
+   {
+      if(son.has_valid_config())
+      {
+         refs.push_back(std::cref(son));
+      }
+   }
+   count = std::min(count, refs.size());
+   std::partial_sort(refs.begin(), refs.begin() + count, refs.end(),
+                   [this](const son_object& a, const son_object& b)->bool {
+      share_type oa_vote = _vote_tally_buffer[a.vote_id];
+      share_type ob_vote = _vote_tally_buffer[b.vote_id];
+      if( oa_vote != ob_vote )
+         return oa_vote > ob_vote;
+      return a.vote_id < b.vote_id;
+   });
+
+   refs.resize(count, refs.front());
+   return refs;
+}
+
 template<class Type>
 void database::perform_account_maintenance(Type tally_helper)
 {

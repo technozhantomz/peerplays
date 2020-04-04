@@ -73,6 +73,7 @@ namespace graphene { namespace chain {
          flat_map<sidechain_type, string> sidechain_public_keys;
 
          void pay_son_fee(share_type pay, database& db);
+         bool has_valid_config()const;
    };
 
    struct by_account;

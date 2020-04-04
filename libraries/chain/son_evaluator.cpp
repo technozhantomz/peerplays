@@ -76,6 +76,7 @@ void_result delete_son_evaluator::do_evaluate(const son_delete_operation& op)
 void_result delete_son_evaluator::do_apply(const son_delete_operation& op)
 { try {
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
+    const auto& ss_idx = db().get_index_type<son_stats_index>().indices().get<by_id>();
     auto son = idx.find(op.son_id);
     if(son != idx.end()) {
        vesting_balance_object deposit = son->deposit(db());
@@ -88,6 +89,9 @@ void_result delete_son_evaluator::do_apply(const son_delete_operation& op)
           vbo.policy = new_vesting_policy;
        });
 
+       auto stats_obj = ss_idx.find(son->statistics);
+       if(stats_obj != ss_idx.end())
+          db().remove(*stats_obj);
        db().remove(*son);
     }
     return void_result();
