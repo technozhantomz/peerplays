@@ -16,7 +16,8 @@ public:
    virtual ~sidechain_net_manager();
 
    bool create_handler(sidechain_type sidechain, const boost::program_options::variables_map &options);
-   void recreate_primary_wallet();
+   void process_proposals();
+   void process_active_sons_change();
    void process_deposits();
    void process_withdrawals();
    void process_sidechain_transactions();

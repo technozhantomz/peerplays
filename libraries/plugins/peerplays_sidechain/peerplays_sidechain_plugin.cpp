@@ -50,7 +50,9 @@ public:
    void approve_proposals();
    void create_son_down_proposals();
    void create_son_deregister_proposals();
-   void recreate_primary_wallet();
+
+   void process_proposals();
+   void process_active_sons_change();
    void process_deposits();
    void process_withdrawals();
    void process_sidechain_transactions();
@@ -373,16 +375,16 @@ void peerplays_sidechain_plugin_impl::son_processing() {
         ("scheduled_son_id", scheduled_son_id)("now", now));
 
    for (son_id_type son_id : plugin.get_sons()) {
+      current_son_id = son_id;
+
+      // These tasks are executed by
+      // - All active SONs, no matter if scheduled
+      // - All previously active SONs
+      approve_proposals();
+      process_proposals();
+      process_sidechain_transactions();
 
       if (plugin.is_active_son(son_id)) {
-
-         current_son_id = son_id;
-
-         // Tasks that are executed by all active SONs, no matter if scheduled
-         // E.g. sending approvals and signing (only signing that can be done in parallel)
-         approve_proposals();
-         process_sidechain_transactions();
-
          // Tasks that are executed by scheduled and active SON only
          if (current_son_id == scheduled_son_id) {
 
@@ -390,7 +392,7 @@ void peerplays_sidechain_plugin_impl::son_processing() {
 
             create_son_deregister_proposals();
 
-            recreate_primary_wallet();
+            process_active_sons_change();
 
             process_deposits();
 
@@ -400,13 +402,6 @@ void peerplays_sidechain_plugin_impl::son_processing() {
 
             send_sidechain_transactions();
          }
-      } else {
-         // Tasks that are executed by previously active SONs
-         // E.g. sending approvals and signing that SON was required to do while it was active
-         //approve_leftover_proposals(); ???
-         //process_leftover_sidechain_transactions(); ???
-         approve_proposals();
-         process_sidechain_transactions();
       }
    }
 }
@@ -423,27 +418,6 @@ bool peerplays_sidechain_plugin_impl::is_valid_son_proposal(const chain::proposa
       if (op_idx_0 == chain::operation::tag<chain::son_delete_operation>::value) {
          return is_son_delete_op_valid(op);
       }
-
-      if (op_idx_0 == chain::operation::tag<chain::son_wallet_update_operation>::value) {
-         return true;
-      }
-
-      if (op_idx_0 == chain::operation::tag<chain::sidechain_transaction_create_operation>::value) {
-         return true;
-      }
-   } else if (proposal.proposed_transaction.operations.size() == 2) {
-      int32_t op_idx_0 = proposal.proposed_transaction.operations[0].which();
-      int32_t op_idx_1 = proposal.proposed_transaction.operations[1].which();
-
-      if ((op_idx_0 == chain::operation::tag<chain::son_wallet_deposit_process_operation>::value) &&
-          (op_idx_1 == chain::operation::tag<chain::asset_issue_operation>::value)) {
-         return true;
-      }
-      if ((op_idx_0 == chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value) &&
-          (op_idx_1 == chain::operation::tag<chain::asset_reserve_operation>::value)) {
-         return true;
-      }
-
    }
 
    return false;
@@ -588,8 +562,12 @@ void peerplays_sidechain_plugin_impl::create_son_deregister_proposals() {
    }
 }
 
-void peerplays_sidechain_plugin_impl::recreate_primary_wallet() {
-   net_manager->recreate_primary_wallet();
+void peerplays_sidechain_plugin_impl::process_proposals() {
+   net_manager->process_proposals();
+}
+
+void peerplays_sidechain_plugin_impl::process_active_sons_change() {
+   net_manager->process_active_sons_change();
 }
 
 void peerplays_sidechain_plugin_impl::process_deposits() {

@@ -66,6 +66,7 @@ object_id_type create_son_wallet_deposit_evaluator::do_apply(const son_wallet_de
    if (itr == idx.end()) {
       const auto& new_son_wallet_deposit_object = db().create<son_wallet_deposit_object>( [&]( son_wallet_deposit_object& swdo ){
          swdo.timestamp = op.timestamp;
+         swdo.block_num = op.block_num;
          swdo.sidechain = op.sidechain;
          swdo.sidechain_uid = op.sidechain_uid;
          swdo.sidechain_transaction_id = op.sidechain_transaction_id;

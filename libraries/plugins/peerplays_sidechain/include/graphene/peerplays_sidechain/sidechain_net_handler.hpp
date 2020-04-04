@@ -5,8 +5,7 @@
 #include <boost/program_options.hpp>
 
 #include <fc/signals.hpp>
-#include <graphene/chain/global_property_object.hpp>
-#include <graphene/chain/chain_property_object.hpp>
+#include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/sidechain_address_object.hpp>
 #include <graphene/chain/sidechain_transaction_object.hpp>
 #include <graphene/chain/son_wallet_deposit_object.hpp>
@@ -26,13 +25,18 @@ public:
    std::vector<std::string> get_sidechain_withdraw_addresses();
    std::string get_private_key(std::string public_key);
 
+   bool approve_proposal(const proposal_id_type &proposal_id, const son_id_type &son_id);
    void sidechain_event_data_received(const sidechain_event_data &sed);
+
+   void process_proposals();
+   void process_active_sons_change();
    void process_deposits();
    void process_withdrawals();
    void process_sidechain_transactions();
    void send_sidechain_transactions();
 
-   virtual void recreate_primary_wallet() = 0;
+   virtual bool process_proposal(const proposal_object &po) = 0;
+   virtual void process_primary_wallet() = 0;
    virtual bool process_deposit(const son_wallet_deposit_object &swdo) = 0;
    virtual bool process_withdrawal(const son_wallet_withdraw_object &swwo) = 0;
    virtual std::string process_sidechain_transaction(const sidechain_transaction_object &sto, bool &complete) = 0;

@@ -29,13 +29,14 @@ public:
    std::string decodepsbt(std::string const &tx_psbt);
    std::string decoderawtransaction(std::string const &tx_hex);
    std::string encryptwallet(const std::string &passphrase);
-   uint64_t estimatesmartfee();
+   uint64_t estimatesmartfee(uint16_t conf_target = 128);
    std::string finalizepsbt(std::string const &tx_psbt);
    std::string getaddressinfo(const std::string &address);
    std::string getblock(const std::string &block_hash, int32_t verbosity = 2);
+   std::string gettransaction(const std::string &txid, const bool include_watch_only = false);
    void importaddress(const std::string &address_or_script);
-   std::vector<btc_txout> listunspent();
-   std::vector<btc_txout> listunspent_by_address_and_amount(const std::string &address, double transfer_amount);
+   std::vector<btc_txout> listunspent(const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
+   std::vector<btc_txout> listunspent_by_address_and_amount(const std::string &address, double transfer_amount, const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::string loadwallet(const std::string &filename);
    bool sendrawtransaction(const std::string &tx_hex);
    std::string signrawtransactionwithwallet(const std::string &tx_hash);
@@ -83,7 +84,8 @@ public:
    sidechain_net_handler_bitcoin(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options);
    virtual ~sidechain_net_handler_bitcoin();
 
-   void recreate_primary_wallet();
+   bool process_proposal(const proposal_object &po);
+   void process_primary_wallet();
    bool process_deposit(const son_wallet_deposit_object &swdo);
    bool process_withdrawal(const son_wallet_withdraw_object &swwo);
    std::string process_sidechain_transaction(const sidechain_transaction_object &sto, bool &complete);

@@ -2,6 +2,7 @@
 #include <boost/multi_index/composite_key.hpp>
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/sidechain_defs.hpp>
+#include <graphene/chain/son_info.hpp>
 
 namespace graphene { namespace chain {
    using namespace graphene::db;

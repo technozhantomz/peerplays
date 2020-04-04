@@ -300,14 +300,12 @@ std::string bitcoin_rpc_client::encryptwallet(const std::string &passphrase) {
    return "";
 }
 
-uint64_t bitcoin_rpc_client::estimatesmartfee() {
-   static const auto confirmation_target_blocks = 6;
-
+uint64_t bitcoin_rpc_client::estimatesmartfee(uint16_t conf_target) {
    const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"estimatesmartfee\", "
-                                 "\"method\": \"estimatesmartfee\", \"params\": [") +
-                     std::to_string(confirmation_target_blocks) + std::string("] }");
+                                 "\"method\": \"estimatesmartfee\", \"params\": [" +
+                                 std::to_string(conf_target) + std::string("] }"));
 
-   const auto reply = send_post_request(body);
+   const auto reply = send_post_request(body, true);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -421,10 +419,36 @@ std::string bitcoin_rpc_client::getblock(const std::string &block_hash, int32_t 
    return "";
 }
 
+std::string bitcoin_rpc_client::gettransaction(const std::string &txid, const bool include_watch_only) {
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"gettransaction\", \"method\": "
+                                  "\"gettransaction\", \"params\": [\"" +
+                                  txid + "\"] }");
+
+   const auto reply = send_post_request(body, true);
+
+   if (reply.body.empty()) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
+      return "";
+   }
+
+   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (reply.status == 200) {
+      return ss.str();
+   }
+
+   if (json.count("error") && !json.get_child("error").empty()) {
+      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
+   }
+   return "";
+}
+
 void bitcoin_rpc_client::importaddress(const std::string &address_or_script) {
    const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"importaddress\", "
-                                 "\"method\": \"importaddress\", \"params\": [") +
-                     std::string("\"") + address_or_script + std::string("\"") + std::string("] }");
+                                 "\"method\": \"importaddress\", \"params\": [" +
+                                 std::string("\"") + address_or_script + std::string("\"") + std::string("] }"));
 
    const auto reply = send_post_request(body);
 
@@ -444,9 +468,10 @@ void bitcoin_rpc_client::importaddress(const std::string &address_or_script) {
    }
 }
 
-std::vector<btc_txout> bitcoin_rpc_client::listunspent() {
+std::vector<btc_txout> bitcoin_rpc_client::listunspent(const uint32_t minconf, const uint32_t maxconf) {
    const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": "
-                                 "\"listunspent\", \"params\": [] }");
+                                 "\"listunspent\", \"params\": [" +
+                                 std::to_string(minconf) + "," + std::to_string(maxconf) + "] }");
 
    const auto reply = send_post_request(body);
 
@@ -477,14 +502,15 @@ std::vector<btc_txout> bitcoin_rpc_client::listunspent() {
    return result;
 }
 
-std::vector<btc_txout> bitcoin_rpc_client::listunspent_by_address_and_amount(const std::string &address, double minimum_amount) {
+std::vector<btc_txout> bitcoin_rpc_client::listunspent_by_address_and_amount(const std::string &address, double minimum_amount, const uint32_t minconf, const uint32_t maxconf) {
    std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": "
-                                  "\"listunspent\", \"params\": [");
-   body += std::string("1,999999,[\"");
+                                  "\"listunspent\", \"params\": [" +
+                                  std::to_string(minconf) + "," + std::to_string(maxconf) + ",");
+   body += std::string("[\"");
    body += address;
    body += std::string("\"],true,{\"minimumAmount\":");
    body += std::to_string(minimum_amount);
-   body += std::string("}] }");
+   body += std::string("} ] }");
 
    const auto reply = send_post_request(body);
 
@@ -840,7 +866,98 @@ sidechain_net_handler_bitcoin::~sidechain_net_handler_bitcoin() {
    }
 }
 
-void sidechain_net_handler_bitcoin::recreate_primary_wallet() {
+bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) {
+
+   ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id()));
+
+   bool should_approve = false;
+
+   const chain::global_property_object &gpo = database.get_global_properties();
+
+   int32_t op_idx_0 = -1;
+   chain::operation op_obj_idx_0;
+   //int32_t op_idx_1 = -1;
+   //chain::operation op_obj_idx_1;
+
+   if (po.proposed_transaction.operations.size() >= 1) {
+      op_idx_0 = po.proposed_transaction.operations[0].which();
+      op_obj_idx_0 = po.proposed_transaction.operations[0];
+   }
+
+   if (po.proposed_transaction.operations.size() >= 2) {
+      //op_idx_1 = po.proposed_transaction.operations[1].which();
+      //op_obj_idx_1 = po.proposed_transaction.operations[1];
+   }
+
+   switch (op_idx_0) {
+
+   case chain::operation::tag<chain::son_wallet_update_operation>::value: {
+      should_approve = true;
+      break;
+   }
+
+   case chain::operation::tag<chain::son_wallet_deposit_process_operation>::value: {
+      son_wallet_deposit_id_type swdo_id = op_obj_idx_0.get<son_wallet_deposit_process_operation>().son_wallet_deposit_id;
+      const auto &idx = database.get_index_type<son_wallet_deposit_index>().indices().get<by_id>();
+      const auto swdo = idx.find(swdo_id);
+      if (swdo != idx.end()) {
+
+         std::string swdo_txid = swdo->sidechain_transaction_id;
+         std::string swdo_address = swdo->sidechain_to;
+         uint64_t swdo_amount = swdo->sidechain_amount.value;
+         uint64_t swdo_vout = std::stoll(swdo->sidechain_uid.substr(swdo->sidechain_uid.find_last_of("-") + 1));
+
+         std::string tx_str = bitcoin_client->gettransaction(swdo_txid);
+         std::stringstream tx_ss(tx_str);
+         boost::property_tree::ptree tx_json;
+         boost::property_tree::read_json(tx_ss, tx_json);
+
+         if (tx_json.count("error") && tx_json.get_child("error").empty()) {
+
+            std::string tx_txid = tx_json.get<std::string>("result.txid");
+            uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
+            std::string tx_address = "";
+            uint64_t tx_amount = 0;
+            uint64_t tx_vout = 0;
+
+            for (auto &input : tx_json.get_child("result.details")) {
+               tx_address = input.second.get<std::string>("address");
+               std::string tx_amount_s = input.second.get<std::string>("amount");
+               tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
+               tx_amount = std::stoll(tx_amount_s);
+               std::string tx_vout_s = input.second.get<std::string>("vout");
+               tx_vout = std::stoll(tx_vout_s);
+               break;
+            }
+
+            should_approve = (swdo_txid == tx_txid) &&
+                             (swdo_address == tx_address) &&
+                             (swdo_amount == tx_amount) &&
+                             (swdo_vout == tx_vout) &&
+                             (gpo.parameters.son_bitcoin_min_tx_confirmations() <= tx_confirmations);
+         }
+      }
+      break;
+   }
+
+   case chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value: {
+      should_approve = true;
+      break;
+   }
+
+   case chain::operation::tag<chain::sidechain_transaction_create_operation>::value: {
+      should_approve = true;
+      break;
+   }
+
+   default:
+      should_approve = false;
+   }
+
+   return should_approve;
+}
+
+void sidechain_net_handler_bitcoin::process_primary_wallet() {
    const auto &swi = database.get_index_type<son_wallet_index>().indices().get<by_id>();
    const auto &active_sw = swi.rbegin();
    if (active_sw != swi.rend()) {
@@ -1403,6 +1520,7 @@ void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) 
 
          sidechain_event_data sed;
          sed.timestamp = database.head_block_time();
+         sed.block_num = database.head_block_num();
          sed.sidechain = addr_itr->sidechain;
          sed.sidechain_uid = sidechain_uid;
          sed.sidechain_transaction_id = v.out.hash_tx;
@@ -1410,11 +1528,10 @@ void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) 
          sed.sidechain_to = v.address;
          sed.sidechain_currency = "BTC";
          sed.sidechain_amount = v.out.amount;
-         sed.peerplays_from = database.get_global_properties().parameters.son_account();
-         sed.peerplays_to = addr_itr->sidechain_address_account;
-         asset_id_type btc_asset_id = database.get_global_properties().parameters.btc_asset();
-         asset_object btc_asset = btc_asset_id(database);
-         sed.peerplays_asset = btc_asset.amount(sed.sidechain_amount);
+         sed.peerplays_from = addr_itr->sidechain_address_account;
+         sed.peerplays_to = database.get_global_properties().parameters.son_account();
+         price btc_price = database.get<asset_object>(database.get_global_properties().parameters.btc_asset()).options.core_exchange_rate;
+         sed.peerplays_asset = asset(sed.sidechain_amount * btc_price.base.amount / btc_price.quote.amount);
          sidechain_event_data_received(sed);
       }
    }

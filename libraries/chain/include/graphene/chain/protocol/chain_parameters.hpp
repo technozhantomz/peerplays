@@ -57,6 +57,7 @@ namespace graphene { namespace chain {
       optional < uint32_t >           son_deregister_time               = SON_DEREGISTER_TIME;
       optional < uint32_t >           son_heartbeat_frequency           = SON_HEARTBEAT_FREQUENCY;
       optional < uint32_t >           son_down_time                     = SON_DOWN_TIME;
+      optional < uint16_t >           son_bitcoin_min_tx_confirmations  = SON_BITCOIN_MIN_TX_CONFIRMATIONS;
 
       optional < account_id_type >    son_account;
       optional < asset_id_type >      btc_asset;
@@ -161,6 +162,9 @@ namespace graphene { namespace chain {
       inline uint16_t son_down_time()const {
          return extensions.value.son_down_time.valid() ? *extensions.value.son_down_time : SON_DOWN_TIME;
       }
+      inline uint16_t son_bitcoin_min_tx_confirmations()const {
+         return extensions.value.son_bitcoin_min_tx_confirmations.valid() ? *extensions.value.son_bitcoin_min_tx_confirmations : SON_BITCOIN_MIN_TX_CONFIRMATIONS;
+      }
       inline uint32_t gpos_period()const {
          return extensions.value.gpos_period.valid() ? *extensions.value.gpos_period : GPOS_PERIOD; /// total seconds of current gpos period
       }
@@ -203,6 +207,7 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (son_deregister_time)
    (son_heartbeat_frequency)
    (son_down_time)
+   (son_bitcoin_min_tx_confirmations)
    (son_account)
    (btc_asset)
 )

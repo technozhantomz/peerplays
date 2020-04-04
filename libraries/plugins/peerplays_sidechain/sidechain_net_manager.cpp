@@ -39,9 +39,15 @@ bool sidechain_net_manager::create_handler(sidechain_type sidechain, const boost
    return ret_val;
 }
 
-void sidechain_net_manager::recreate_primary_wallet() {
+void sidechain_net_manager::process_proposals() {
    for (size_t i = 0; i < net_handlers.size(); i++) {
-      net_handlers.at(i)->recreate_primary_wallet();
+      net_handlers.at(i)->process_proposals();
+   }
+}
+
+void sidechain_net_manager::process_active_sons_change() {
+   for (size_t i = 0; i < net_handlers.size(); i++) {
+      net_handlers.at(i)->process_active_sons_change();
    }
 }
 

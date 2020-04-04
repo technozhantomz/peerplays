@@ -65,6 +65,7 @@ object_id_type create_son_wallet_withdraw_evaluator::do_apply(const son_wallet_w
    if (itr == idx.end()) {
       const auto& new_son_wallet_withdraw_object = db().create<son_wallet_withdraw_object>( [&]( son_wallet_withdraw_object& swwo ){
          swwo.timestamp = op.timestamp;
+         swwo.block_num = op.block_num;
          swwo.sidechain = op.sidechain;
          swwo.peerplays_uid = op.peerplays_uid;
          swwo.peerplays_transaction_id = op.peerplays_transaction_id;

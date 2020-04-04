@@ -1906,15 +1906,24 @@ void perform_son_tasks(database& db)
       const asset_object& btc_asset =
          db.create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
             a.symbol = "BTC";
-            a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
             a.precision = 8;
-            a.options.flags = 0;
-            a.options.issuer_permissions = 0;
             a.issuer = gpo.parameters.son_account();
-            a.options.core_exchange_rate.base.amount = 1;
+            a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+            a.options.market_fee_percent = 500; // 5%
+            a.options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
+            a.options.flags = asset_issuer_permission_flags::charge_market_fee |
+                              //asset_issuer_permission_flags::white_list |
+                              asset_issuer_permission_flags::override_authority |
+                              asset_issuer_permission_flags::transfer_restricted |
+                              asset_issuer_permission_flags::disable_confidential;
+            a.options.core_exchange_rate.base.amount = 100000;
             a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
-            a.options.core_exchange_rate.quote.amount = 1;
+            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
             a.options.core_exchange_rate.quote.asset_id = asset_id_type(0);
+            a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
+            a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
+            a.options.whitelist_markets.clear(); // might be traded with
+            a.options.blacklist_markets.clear(); // might not be traded with
             a.dynamic_asset_data_id = dyn_asset.id;
          });
       db.modify( gpo, [&btc_asset]( global_property_object& gpo ) {
@@ -2137,6 +2146,8 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.son_heartbeat_frequency = p.parameters.extensions.value.son_heartbeat_frequency;
          if( !p.pending_parameters->extensions.value.son_down_time.valid() )
             p.pending_parameters->extensions.value.son_down_time = p.parameters.extensions.value.son_down_time;
+         if( !p.pending_parameters->extensions.value.son_bitcoin_min_tx_confirmations.valid() )
+            p.pending_parameters->extensions.value.son_bitcoin_min_tx_confirmations = p.parameters.extensions.value.son_bitcoin_min_tx_confirmations;
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }

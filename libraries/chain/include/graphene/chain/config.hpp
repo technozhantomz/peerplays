@@ -234,6 +234,7 @@
 #define SON_DEREGISTER_TIME                                 (60*60*12) // 12 Hours in seconds
 #define SON_HEARTBEAT_FREQUENCY                             (60*3) // 3 minutes in seconds
 #define SON_DOWN_TIME                                       (60*3*2) // 2 Heartbeats in seconds
+#define SON_BITCOIN_MIN_TX_CONFIRMATIONS                    (1)
 #define SON_PAY_TIME                                        (60*60*24) // 1 day
 #define SON_PAY_MAX                                         (GRAPHENE_BLOCKCHAIN_PRECISION * int64_t(200))
 #define SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE              (2*GRAPHENE_1_PERCENT)

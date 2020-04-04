@@ -18,6 +18,7 @@ namespace graphene { namespace chain {
          static const uint8_t type_id  = son_wallet_withdraw_object_type;
 
          time_point_sec timestamp;
+         uint32_t block_num;
          sidechain_type sidechain = sidechain_type::unknown;
          std::string peerplays_uid;
          std::string peerplays_transaction_id;
@@ -60,7 +61,7 @@ namespace graphene { namespace chain {
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::son_wallet_withdraw_object, (graphene::db::object),
-                    (timestamp) (sidechain)
+                    (timestamp) (block_num) (sidechain)
                     (peerplays_uid) (peerplays_transaction_id) (peerplays_from) (peerplays_asset)
                     (withdraw_sidechain) (withdraw_address) (withdraw_currency) (withdraw_amount)
                     (expected_reports) (received_reports)

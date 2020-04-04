@@ -2,6 +2,8 @@
 
 #include <fc/log/logger.hpp>
 #include <fc/smart_ref_fwd.hpp>
+#include <graphene/chain/chain_property_object.hpp>
+#include <graphene/chain/proposal_object.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
@@ -51,9 +53,30 @@ std::string sidechain_net_handler::get_private_key(std::string public_key) {
    return std::string();
 }
 
+bool sidechain_net_handler::approve_proposal(const proposal_id_type &proposal_id, const son_id_type &son_id) {
+
+   proposal_update_operation op;
+   op.fee_paying_account = plugin.get_son_object(son_id).son_account;
+   op.proposal = proposal_id;
+   op.active_approvals_to_add = {plugin.get_son_object(son_id).son_account};
+
+   signed_transaction tx = database.create_signed_transaction(plugin.get_private_key(son_id), op);
+   try {
+      database.push_transaction(tx, database::validation_steps::skip_block_size_check);
+      if (plugin.app().p2p_node())
+         plugin.app().p2p_node()->broadcast(net::trx_message(tx));
+      return true;
+   } catch (fc::exception e) {
+      elog("Sending approval from ${son_id} for proposal ${proposal_id} failed with exception ${e}",
+           ("son_id", son_id)("proposal_id", proposal_id)("e", e.what()));
+      return false;
+   }
+}
+
 void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_data &sed) {
    ilog("sidechain_event_data:");
    ilog("  timestamp:                ${timestamp}", ("timestamp", sed.timestamp));
+   ilog("  block_num:                ${block_num}", ("block_num", sed.block_num));
    ilog("  sidechain:                ${sidechain}", ("sidechain", sed.sidechain));
    ilog("  sidechain_uid:            ${uid}", ("uid", sed.sidechain_uid));
    ilog("  sidechain_transaction_id: ${transaction_id}", ("transaction_id", sed.sidechain_transaction_id));
@@ -67,8 +90,13 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 
    const chain::global_property_object &gpo = database.get_global_properties();
 
+   asset_id_type btc_asset_id = database.get_global_properties().parameters.btc_asset();
+   std::string btc_asset_id_str = fc::to_string(btc_asset_id.space_id) + "." +
+                                  fc::to_string(btc_asset_id.type_id) + "." +
+                                  fc::to_string((uint64_t)btc_asset_id.instance);
+
    // Deposit request
-   if ((sed.peerplays_from == gpo.parameters.son_account()) && (sed.sidechain_currency != fc::variant(gpo.parameters.btc_asset(), 1).as<std::string>(1))) {
+   if ((sed.peerplays_to == gpo.parameters.son_account()) && (sed.sidechain_currency.compare(btc_asset_id_str) != 0)) {
 
       for (son_id_type son_id : plugin.get_sons()) {
          if (plugin.is_active_son(son_id)) {
@@ -77,6 +105,7 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
             op.payer = plugin.get_son_object(son_id).son_account;
             op.son_id = son_id;
             op.timestamp = sed.timestamp;
+            op.block_num = sed.block_num;
             op.sidechain = sed.sidechain;
             op.sidechain_uid = sed.sidechain_uid;
             op.sidechain_transaction_id = sed.sidechain_transaction_id;
@@ -102,7 +131,7 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
    }
 
    // Withdrawal request
-   if ((sed.peerplays_to == gpo.parameters.son_account()) && (sed.sidechain_currency == fc::variant(gpo.parameters.btc_asset(), 1).as<std::string>(1))) {
+   if ((sed.peerplays_to == gpo.parameters.son_account()) && (sed.sidechain_currency.compare(btc_asset_id_str) == 0)) {
       // BTC Payout only (for now)
       const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain>();
       const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sed.peerplays_from, sidechain_type::bitcoin));
@@ -116,15 +145,18 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
             op.payer = plugin.get_son_object(son_id).son_account;
             op.son_id = son_id;
             op.timestamp = sed.timestamp;
+            op.block_num = sed.block_num;
             op.sidechain = sed.sidechain;
             op.peerplays_uid = sed.sidechain_uid;
             op.peerplays_transaction_id = sed.sidechain_transaction_id;
             op.peerplays_from = sed.peerplays_from;
             op.peerplays_asset = sed.peerplays_asset;
-            op.withdraw_sidechain = sidechain_type::bitcoin;        // BTC payout only (for now)
-            op.withdraw_address = addr_itr->withdraw_address;       // BTC payout only (for now)
-            op.withdraw_currency = "BTC";                           // BTC payout only (for now)
-            op.withdraw_amount = sed.peerplays_asset.amount;        // BTC payout only (for now)
+            // BTC payout only (for now)
+            op.withdraw_sidechain = sidechain_type::bitcoin;
+            op.withdraw_address = addr_itr->withdraw_address;
+            op.withdraw_currency = "BTC";
+            price btc_price = database.get<asset_object>(database.get_global_properties().parameters.btc_asset()).options.core_exchange_rate;
+            op.withdraw_amount = sed.peerplays_asset.amount * btc_price.quote.amount / btc_price.base.amount;
 
             signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(son_id), op);
             try {
@@ -140,6 +172,100 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
    }
 
    FC_ASSERT(false, "Invalid sidechain event");
+}
+
+void sidechain_net_handler::process_proposals() {
+   const auto &idx = database.get_index_type<proposal_index>().indices().get<by_id>();
+   vector<proposal_id_type> proposals;
+   for (const auto &proposal : idx) {
+      proposals.push_back(proposal.id);
+   }
+
+   for (const auto proposal_id : proposals) {
+      const auto &idx = database.get_index_type<proposal_index>().indices().get<by_id>();
+      const auto po = idx.find(proposal_id);
+      if (po != idx.end()) {
+
+         ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", (*po).id)("son_id", plugin.get_current_son_id()));
+
+         if (po->available_active_approvals.find(plugin.get_current_son_object().son_account) != po->available_active_approvals.end()) {
+            continue;
+         }
+
+         bool should_process = false;
+
+         int32_t op_idx_0 = -1;
+         chain::operation op_obj_idx_0;
+         int32_t op_idx_1 = -1;
+         chain::operation op_obj_idx_1;
+
+         if (po->proposed_transaction.operations.size() >= 1) {
+            op_idx_0 = po->proposed_transaction.operations[0].which();
+            op_obj_idx_0 = po->proposed_transaction.operations[0];
+         }
+
+         if (po->proposed_transaction.operations.size() >= 2) {
+            op_idx_1 = po->proposed_transaction.operations[1].which();
+            op_obj_idx_1 = po->proposed_transaction.operations[1];
+         }
+
+         switch (op_idx_0) {
+         case chain::operation::tag<chain::son_wallet_update_operation>::value: {
+            should_process = true;
+            break;
+         }
+
+         case chain::operation::tag<chain::son_wallet_deposit_process_operation>::value: {
+            son_wallet_deposit_id_type swdo_id = op_obj_idx_0.get<son_wallet_deposit_process_operation>().son_wallet_deposit_id;
+            const auto &idx = database.get_index_type<son_wallet_deposit_index>().indices().get<by_id>();
+            const auto swdo = idx.find(swdo_id);
+            if (swdo != idx.end()) {
+               should_process = (swdo->sidechain == sidechain);
+            }
+            break;
+         }
+
+         case chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value: {
+            son_wallet_withdraw_id_type swwo_id = op_obj_idx_0.get<son_wallet_withdraw_process_operation>().son_wallet_withdraw_id;
+            const auto &idx = database.get_index_type<son_wallet_withdraw_index>().indices().get<by_id>();
+            const auto swwo = idx.find(swwo_id);
+            if (swwo != idx.end()) {
+               should_process = (swwo->sidechain == sidechain);
+            }
+            break;
+         }
+
+         case chain::operation::tag<chain::sidechain_transaction_create_operation>::value: {
+            sidechain_type sc = op_obj_idx_0.get<sidechain_transaction_create_operation>().sidechain;
+            should_process = (sc == sidechain);
+            break;
+         }
+
+         default:
+            should_process = false;
+            ilog("==================================================");
+            ilog("Proposal not processed ${po}", ("po", *po));
+            ilog("==================================================");
+         }
+
+         if (should_process) {
+            ilog("Proposal ${po} will be processed by sidechain handler ${sidechain}", ("po", (*po).id)("sidechain", sidechain));
+            bool should_approve = process_proposal(*po);
+            if (should_approve) {
+               ilog("Proposal ${po} will be approved", ("po", *po));
+               approve_proposal(po->id, plugin.get_current_son_id());
+            } else {
+               ilog("Proposal ${po} is not approved", ("po", (*po).id));
+            }
+         } else {
+            ilog("Proposal ${po} will not be processed by sidechain handler ${sidechain}", ("po", (*po).id)("sidechain", sidechain));
+         }
+      }
+   }
+}
+
+void sidechain_net_handler::process_active_sons_change() {
+   process_primary_wallet();
 }
 
 void sidechain_net_handler::process_deposits() {
@@ -166,16 +292,17 @@ void sidechain_net_handler::process_deposits() {
       swdp_op.payer = gpo.parameters.son_account();
       swdp_op.son_wallet_deposit_id = swdo.id;
 
-      asset_issue_operation i_op;
-      i_op.fee = asset(2001000);
-      i_op.issuer = gpo.parameters.son_account();
-      i_op.asset_to_issue = swdo.peerplays_asset;
-      i_op.issue_to_account = swdo.peerplays_to;
+      asset_issue_operation ai_op;
+      ai_op.fee = asset(2001000);
+      ai_op.issuer = gpo.parameters.son_account();
+      price btc_price = database.get<asset_object>(database.get_global_properties().parameters.btc_asset()).options.core_exchange_rate;
+      ai_op.asset_to_issue = asset(swdo.peerplays_asset.amount * btc_price.quote.amount / btc_price.base.amount, database.get_global_properties().parameters.btc_asset());
+      ai_op.issue_to_account = swdo.peerplays_from;
 
       proposal_create_operation proposal_op;
       proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
       proposal_op.proposed_ops.emplace_back(swdp_op);
-      proposal_op.proposed_ops.emplace_back(i_op);
+      proposal_op.proposed_ops.emplace_back(ai_op);
       uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
       proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -186,7 +313,7 @@ void sidechain_net_handler::process_deposits() {
          if (plugin.app().p2p_node())
             plugin.app().p2p_node()->broadcast(net::trx_message(trx));
       } catch (fc::exception e) {
-         elog("Sending proposal for deposit sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
+         elog("Sending proposal for son wallet deposit process operation failed with exception ${e}", ("e", e.what()));
       }
    });
 }
@@ -215,16 +342,15 @@ void sidechain_net_handler::process_withdrawals() {
       swwp_op.payer = gpo.parameters.son_account();
       swwp_op.son_wallet_withdraw_id = swwo.id;
 
-      asset_reserve_operation r_op;
-      r_op.fee = asset(2001000);
-      r_op.payer = gpo.parameters.son_account();
-      asset_object btc_asset_obj = gpo.parameters.btc_asset()(database);
-      r_op.amount_to_reserve = btc_asset_obj.amount(swwo.withdraw_amount);
+      asset_reserve_operation ar_op;
+      ar_op.fee = asset(2001000);
+      ar_op.payer = gpo.parameters.son_account();
+      ar_op.amount_to_reserve = asset(swwo.withdraw_amount, database.get_global_properties().parameters.btc_asset());
 
       proposal_create_operation proposal_op;
       proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
       proposal_op.proposed_ops.emplace_back(swwp_op);
-      proposal_op.proposed_ops.emplace_back(r_op);
+      proposal_op.proposed_ops.emplace_back(ar_op);
       uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
       proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -235,7 +361,7 @@ void sidechain_net_handler::process_withdrawals() {
          if (plugin.app().p2p_node())
             plugin.app().p2p_node()->broadcast(net::trx_message(trx));
       } catch (fc::exception e) {
-         elog("Sending proposal for withdraw sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
+         elog("Sending proposal for son wallet withdraw process operation failed with exception ${e}", ("e", e.what()));
       }
    });
 }
@@ -245,13 +371,13 @@ void sidechain_net_handler::process_sidechain_transactions() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
-      ilog("Sidechain transaction to process: ${sto}", ("sto", sto));
+      ilog("Sidechain transaction to process: ${sto}", ("sto", sto.id));
 
       bool complete = false;
       std::string processed_sidechain_tx = process_sidechain_transaction(sto, complete);
 
       if (processed_sidechain_tx.empty()) {
-         wlog("Sidechain transaction not processed: ${sto}", ("sto", sto));
+         wlog("Sidechain transaction not processed: ${sto}", ("sto", sto.id));
          return;
       }
 
@@ -278,13 +404,13 @@ void sidechain_net_handler::send_sidechain_transactions() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
-      ilog("Sidechain transaction to send: ${sto}", ("sto", sto));
+      ilog("Sidechain transaction to send: ${sto}", ("sto", sto.id));
 
       std::string sidechain_transaction = "";
       bool sent = send_sidechain_transaction(sto, sidechain_transaction);
 
       if (!sent) {
-         wlog("Sidechain transaction not sent: ${sto}", ("sto", sto));
+         wlog("Sidechain transaction not sent: ${sto}", ("sto", sto.id));
          return;
       }
 
@@ -305,8 +431,12 @@ void sidechain_net_handler::send_sidechain_transactions() {
    });
 }
 
-void sidechain_net_handler::recreate_primary_wallet() {
-   FC_ASSERT(false, "recreate_primary_wallet not implemented");
+bool sidechain_net_handler::process_proposal(const proposal_object &po) {
+   FC_ASSERT(false, "process_proposal not implemented");
+}
+
+void sidechain_net_handler::process_primary_wallet() {
+   FC_ASSERT(false, "process_primary_wallet not implemented");
 }
 
 bool sidechain_net_handler::process_deposit(const son_wallet_deposit_object &swdo) {
