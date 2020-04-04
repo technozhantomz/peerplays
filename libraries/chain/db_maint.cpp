@@ -730,6 +730,13 @@ void database::update_active_sons()
          return swi.son_id;
       });
       _sso.scheduler.update(active_sons);
+      // similar to witness, produce schedule for sons
+      if(cur_active_sons.size() == 0 && new_active_sons.size() > 0)
+      {
+         witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+         for( size_t i=0; i<new_active_sons.size(); ++i )
+            _sso.scheduler.produce_schedule(rng);
+      }
    });
 } FC_CAPTURE_AND_RETHROW() }
 
