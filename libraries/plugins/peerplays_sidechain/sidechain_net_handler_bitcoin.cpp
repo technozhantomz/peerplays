@@ -43,9 +43,9 @@ std::string bitcoin_rpc_client::addmultisigaddress(const uint32_t nrequired, con
       pubkeys = pubkeys + std::string("\"") + pubkey + std::string("\"");
    }
    params = params + pubkeys + std::string("]");
-   body = body + params + std::string("] }");
+   body = body + params + std::string(", null, \"p2sh-segwit\"] }");
 
-   const auto reply = send_post_request(body);
+   const auto reply = send_post_request(body, true);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -91,6 +91,41 @@ std::string bitcoin_rpc_client::combinepsbt(const vector<std::string> &psbts) {
    if (reply.status == 200) {
       std::stringstream ss;
       boost::property_tree::json_parser::write_json(ss, json);
+      return ss.str();
+   }
+
+   if (json.count("error") && !json.get_child("error").empty()) {
+      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
+   }
+   return "";
+}
+
+std::string bitcoin_rpc_client::createmultisig(const uint32_t nrequired, const std::vector<std::string> public_keys) {
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"createmultisig\", "
+                                  "\"method\": \"createmultisig\", \"params\": [");
+   std::string params = std::to_string(nrequired) + ", [";
+   std::string pubkeys = "";
+   for (std::string pubkey : public_keys) {
+      if (!pubkeys.empty()) {
+         pubkeys = pubkeys + ",";
+      }
+      pubkeys = pubkeys + std::string("\"") + pubkey + std::string("\"");
+   }
+   params = params + pubkeys + std::string("]");
+   body = body + params + std::string(", \"p2sh-segwit\" ] }");
+
+   const auto reply = send_post_request(body, true);
+
+   if (reply.body.empty()) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
+      return "";
+   }
+
+   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (reply.status == 200) {
       return ss.str();
    }
 
@@ -892,7 +927,42 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
    switch (op_idx_0) {
 
    case chain::operation::tag<chain::son_wallet_update_operation>::value: {
-      should_approve = true;
+      son_wallet_id_type swo_id = op_obj_idx_0.get<son_wallet_update_operation>().son_wallet_id;
+      const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+      const auto swo = idx.find(swo_id);
+      if (swo != idx.end()) {
+         auto active_sons = gpo.active_sons;
+         vector<son_info> wallet_sons = swo->sons;
+
+         bool son_sets_equal = (active_sons.size() == wallet_sons.size());
+
+         if (son_sets_equal) {
+            for (size_t i = 0; i < active_sons.size(); i++) {
+               son_sets_equal = son_sets_equal && active_sons.at(i) == wallet_sons.at(i);
+            }
+         }
+
+         if (son_sets_equal) {
+            auto active_sons = gpo.active_sons;
+            vector<string> son_pubkeys_bitcoin;
+            for (const son_info &si : active_sons) {
+               son_pubkeys_bitcoin.push_back(si.sidechain_public_keys.at(sidechain_type::bitcoin));
+            }
+
+            uint32_t nrequired = son_pubkeys_bitcoin.size() * 2 / 3 + 1;
+            string reply_str = bitcoin_client->createmultisig(nrequired, son_pubkeys_bitcoin);
+
+            std::stringstream active_pw_ss(reply_str);
+            boost::property_tree::ptree active_pw_pt;
+            boost::property_tree::read_json(active_pw_ss, active_pw_pt);
+            if (active_pw_pt.count("error") && active_pw_pt.get_child("error").empty()) {
+               std::stringstream res;
+               boost::property_tree::json_parser::write_json(res, active_pw_pt.get_child("result"));
+
+               should_approve = (op_obj_idx_0.get<son_wallet_update_operation>().address == res.str());
+            }
+         }
+      }
       break;
    }
 
@@ -952,6 +1022,9 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
 
    default:
       should_approve = false;
+      elog("==================================================");
+      elog("Proposal not considered for approval ${po}", ("po", po));
+      elog("==================================================");
    }
 
    return should_approve;
@@ -977,7 +1050,7 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
             bitcoin_client->walletpassphrase(wallet_password, 5);
          }
          uint32_t nrequired = son_pubkeys_bitcoin.size() * 2 / 3 + 1;
-         string reply_str = bitcoin_client->addmultisigaddress(nrequired, son_pubkeys_bitcoin);
+         string reply_str = bitcoin_client->createmultisig(nrequired, son_pubkeys_bitcoin);
 
          std::stringstream active_pw_ss(reply_str);
          boost::property_tree::ptree active_pw_pt;

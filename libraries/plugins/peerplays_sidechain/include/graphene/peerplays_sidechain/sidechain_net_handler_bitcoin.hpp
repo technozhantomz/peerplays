@@ -23,6 +23,7 @@ public:
 
    std::string addmultisigaddress(const uint32_t nrequired, const std::vector<std::string> public_keys);
    std::string combinepsbt(const vector<std::string> &psbts);
+   std::string createmultisig(const uint32_t nrequired, const std::vector<std::string> public_keys);
    std::string createpsbt(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs);
    std::string createrawtransaction(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs);
    std::string createwallet(const std::string &wallet_name);

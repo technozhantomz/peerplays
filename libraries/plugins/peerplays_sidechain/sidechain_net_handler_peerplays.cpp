@@ -128,6 +128,9 @@ bool sidechain_net_handler_peerplays::process_proposal(const proposal_object &po
 
    default:
       should_approve = false;
+      elog("==================================================");
+      elog("Proposal not considered for approval ${po}", ("po", po));
+      elog("==================================================");
    }
 
    return should_approve;

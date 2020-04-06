@@ -211,7 +211,7 @@ void sidechain_net_handler::process_proposals() {
 
          switch (op_idx_0) {
          case chain::operation::tag<chain::son_wallet_update_operation>::value: {
-            should_process = true;
+            should_process = (op_obj_idx_0.get<son_wallet_update_operation>().sidechain == sidechain);
             break;
          }
 
@@ -243,9 +243,9 @@ void sidechain_net_handler::process_proposals() {
 
          default:
             should_process = false;
-            ilog("==================================================");
-            ilog("Proposal not processed ${po}", ("po", *po));
-            ilog("==================================================");
+            elog("==================================================");
+            elog("Proposal not processed ${po}", ("po", *po));
+            elog("==================================================");
          }
 
          if (should_process) {
