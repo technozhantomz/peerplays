@@ -106,6 +106,10 @@ private:
 
    fc::future<void> on_changed_objects_task;
 
+   std::string create_primary_wallet_transaction();
+   std::string create_deposit_transaction(const son_wallet_deposit_object &swdo);
+   std::string create_withdrawal_transaction(const son_wallet_withdraw_object &swwo);
+
    std::string create_transaction(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs);
    std::string sign_transaction(const sidechain_transaction_object &sto, bool &complete);
    bool send_transaction(const sidechain_transaction_object &sto, std::string &sidechain_transaction);

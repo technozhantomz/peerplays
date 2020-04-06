@@ -39,23 +39,16 @@ bool sidechain_net_handler_peerplays::process_proposal(const proposal_object &po
 
    int32_t op_idx_0 = -1;
    chain::operation op_obj_idx_0;
-   //int32_t op_idx_1 = -1;
-   //chain::operation op_obj_idx_1;
 
    if (po.proposed_transaction.operations.size() >= 1) {
       op_idx_0 = po.proposed_transaction.operations[0].which();
       op_obj_idx_0 = po.proposed_transaction.operations[0];
    }
 
-   if (po.proposed_transaction.operations.size() >= 2) {
-      //op_idx_1 = po.proposed_transaction.operations[1].which();
-      //op_obj_idx_1 = po.proposed_transaction.operations[1];
-   }
-
    switch (op_idx_0) {
 
    case chain::operation::tag<chain::son_wallet_update_operation>::value: {
-      should_approve = true;
+      should_approve = false;
       break;
    }
 
@@ -122,7 +115,7 @@ bool sidechain_net_handler_peerplays::process_proposal(const proposal_object &po
    }
 
    case chain::operation::tag<chain::sidechain_transaction_create_operation>::value: {
-      should_approve = true;
+      should_approve = false;
       break;
    }
 

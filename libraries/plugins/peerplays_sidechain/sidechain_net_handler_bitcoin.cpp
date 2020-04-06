@@ -911,17 +911,10 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
 
    int32_t op_idx_0 = -1;
    chain::operation op_obj_idx_0;
-   //int32_t op_idx_1 = -1;
-   //chain::operation op_obj_idx_1;
 
    if (po.proposed_transaction.operations.size() >= 1) {
       op_idx_0 = po.proposed_transaction.operations[0].which();
       op_obj_idx_0 = po.proposed_transaction.operations[0];
-   }
-
-   if (po.proposed_transaction.operations.size() >= 2) {
-      //op_idx_1 = po.proposed_transaction.operations[1].which();
-      //op_obj_idx_1 = po.proposed_transaction.operations[1];
    }
 
    switch (op_idx_0) {
@@ -1011,12 +1004,46 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
    }
 
    case chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value: {
-      should_approve = true;
+      should_approve = false;
       break;
    }
 
    case chain::operation::tag<chain::sidechain_transaction_create_operation>::value: {
-      should_approve = true;
+      object_id_type object_id = op_obj_idx_0.get<sidechain_transaction_create_operation>().object_id;
+      std::string op_tx_str = op_obj_idx_0.get<sidechain_transaction_create_operation>().transaction;
+
+      const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
+      const auto st = st_idx.find(object_id);
+      if (st == st_idx.end()) {
+
+         std::string tx_str = "";
+
+         if (object_id.is<son_wallet_id_type>()) {
+            const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+            const auto swo = idx.find(object_id);
+            if (swo != idx.end()) {
+               tx_str = create_primary_wallet_transaction();
+            }
+         }
+
+         if (object_id.is<son_wallet_deposit_id_type>()) {
+            const auto &idx = database.get_index_type<son_wallet_deposit_index>().indices().get<by_id>();
+            const auto swdo = idx.find(object_id);
+            if (swdo != idx.end()) {
+               tx_str = create_deposit_transaction(*swdo);
+            }
+         }
+
+         if (object_id.is<son_wallet_withdraw_id_type>()) {
+            const auto &idx = database.get_index_type<son_wallet_withdraw_index>().indices().get<by_id>();
+            const auto swwo = idx.find(object_id);
+            if (swwo != idx.end()) {
+               tx_str = create_withdrawal_transaction(*swwo);
+            }
+         }
+
+         should_approve = (op_tx_str == tx_str);
+      }
       break;
    }
 
@@ -1082,46 +1109,12 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
                return;
             }
 
+            //========================================================================
+
             const auto &prev_sw = std::next(active_sw);
             if (prev_sw != swi.rend()) {
-               std::stringstream prev_sw_ss(prev_sw->addresses.at(sidechain_type::bitcoin));
-               boost::property_tree::ptree prev_sw_pt;
-               boost::property_tree::read_json(prev_sw_ss, prev_sw_pt);
 
-               std::string active_pw_address = active_pw_pt.get_child("result").get<std::string>("address");
-               std::string prev_pw_address = prev_sw_pt.get<std::string>("address");
-
-               if (prev_pw_address == active_pw_address) {
-                  elog("BTC previous and new primary wallet addresses are same. No funds moving needed [from ${prev_sw} to ${active_sw}]", ("prev_sw", prev_sw->id)("active_sw", active_sw->id));
-                  return;
-               }
-
-               uint64_t fee_rate = bitcoin_client->estimatesmartfee();
-               uint64_t min_fee_rate = 1000;
-               fee_rate = std::max(fee_rate, min_fee_rate);
-
-               double min_amount = ((double)fee_rate / 100000000.0); // Account only for relay fee for now
-               double total_amount = 0.0;
-               std::vector<btc_txout> inputs = bitcoin_client->listunspent_by_address_and_amount(prev_pw_address, 0);
-
-               if (inputs.size() == 0) {
-                  elog("Failed to find UTXOs to spend for ${pw}", ("pw", prev_pw_address));
-                  return;
-               } else {
-                  for (const auto &utx : inputs) {
-                     total_amount += utx.amount_;
-                  }
-
-                  if (min_amount >= total_amount) {
-                     elog("Failed not enough BTC to transfer from ${fa}", ("fa", prev_pw_address));
-                     return;
-                  }
-               }
-
-               fc::flat_map<std::string, double> outputs;
-               outputs[active_pw_address] = total_amount - min_amount;
-
-               std::string tx_str = create_transaction(inputs, outputs);
+               std::string tx_str = create_primary_wallet_transaction();
 
                if (!tx_str.empty()) {
 
@@ -1155,42 +1148,8 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
 }
 
 bool sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_object &swdo) {
-   const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
-   auto obj = idx.rbegin();
-   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
-      return false;
-   }
 
-   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
-
-   std::stringstream ss(pw_address_json);
-   boost::property_tree::ptree json;
-   boost::property_tree::read_json(ss, json);
-
-   std::string pw_address = json.get<std::string>("address");
-
-   std::string txid = swdo.sidechain_transaction_id;
-   std::string suid = swdo.sidechain_uid;
-   std::string nvout = suid.substr(suid.find_last_of("-") + 1);
-   uint64_t deposit_amount = swdo.sidechain_amount.value;
-   uint64_t fee_rate = bitcoin_client->estimatesmartfee();
-   uint64_t min_fee_rate = 1000;
-   fee_rate = std::max(fee_rate, min_fee_rate);
-   deposit_amount -= fee_rate; // Deduct minimum relay fee
-   double transfer_amount = (double)deposit_amount / 100000000.0;
-
-   std::vector<btc_txout> inputs;
-   fc::flat_map<std::string, double> outputs;
-
-   btc_txout utxo;
-   utxo.txid_ = txid;
-   utxo.out_num_ = std::stoul(nvout);
-
-   inputs.push_back(utxo);
-
-   outputs[pw_address] = transfer_amount;
-
-   std::string tx_str = create_transaction(inputs, outputs);
+   std::string tx_str = create_deposit_transaction(swdo);
 
    if (!tx_str.empty()) {
       const chain::global_property_object &gpo = database.get_global_properties();
@@ -1224,49 +1183,8 @@ bool sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_obj
 }
 
 bool sidechain_net_handler_bitcoin::process_withdrawal(const son_wallet_withdraw_object &swwo) {
-   const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
-   auto obj = idx.rbegin();
-   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
-      return false;
-   }
 
-   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
-
-   std::stringstream ss(pw_address_json);
-   boost::property_tree::ptree json;
-   boost::property_tree::read_json(ss, json);
-
-   std::string pw_address = json.get<std::string>("address");
-
-   uint64_t fee_rate = bitcoin_client->estimatesmartfee();
-   uint64_t min_fee_rate = 1000;
-   fee_rate = std::max(fee_rate, min_fee_rate);
-
-   double min_amount = ((double)(swwo.withdraw_amount.value + fee_rate) / 100000000.0); // Account only for relay fee for now
-   double total_amount = 0.0;
-   std::vector<btc_txout> inputs = bitcoin_client->listunspent_by_address_and_amount(pw_address, 0);
-
-   if (inputs.size() == 0) {
-      elog("Failed to find UTXOs to spend for ${pw}", ("pw", pw_address));
-      return "";
-   } else {
-      for (const auto &utx : inputs) {
-         total_amount += utx.amount_;
-      }
-
-      if (min_amount > total_amount) {
-         elog("Failed not enough BTC to spend for ${pw}", ("pw", pw_address));
-         return "";
-      }
-   }
-
-   fc::flat_map<std::string, double> outputs;
-   outputs[swwo.withdraw_address] = swwo.withdraw_amount.value / 100000000.0;
-   if ((total_amount - min_amount) > 0.0) {
-      outputs[pw_address] = total_amount - min_amount;
-   }
-
-   std::string tx_str = create_transaction(inputs, outputs);
+   std::string tx_str = create_withdrawal_transaction(swwo);
 
    if (!tx_str.empty()) {
       const chain::global_property_object &gpo = database.get_global_properties();
@@ -1323,6 +1241,146 @@ bool sidechain_net_handler_bitcoin::send_sidechain_transaction(const sidechain_t
    sidechain_transaction = "";
 
    return send_transaction(sto, sidechain_transaction);
+}
+
+std::string sidechain_net_handler_bitcoin::create_primary_wallet_transaction() {
+   const auto &swi = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+   const auto &active_sw = swi.rbegin();
+   if (active_sw == swi.rend() || active_sw->addresses.find(sidechain_type::bitcoin) == active_sw->addresses.end()) {
+      return "";
+   }
+
+   const auto &prev_sw = std::next(active_sw);
+   if (prev_sw == swi.rend()) {
+      return "";
+   }
+
+   std::stringstream active_pw_ss(active_sw->addresses.find(sidechain_type::bitcoin)->second);
+   boost::property_tree::ptree active_pw_pt;
+   boost::property_tree::read_json(active_pw_ss, active_pw_pt);
+   std::string active_pw_address = active_pw_pt.get_child("result").get<std::string>("address");
+
+   std::stringstream prev_sw_ss(prev_sw->addresses.find(sidechain_type::bitcoin)->second);
+   boost::property_tree::ptree prev_sw_pt;
+   boost::property_tree::read_json(prev_sw_ss, prev_sw_pt);
+   std::string prev_pw_address = prev_sw_pt.get_child("result").get<std::string>("address");
+
+   if (prev_pw_address == active_pw_address) {
+      wlog("BTC previous and new primary wallet addresses are same. No funds moving needed [from ${prev_sw} to ${active_sw}]", ("prev_sw", prev_sw->id)("active_sw", active_sw->id));
+      return "";
+   }
+
+   uint64_t fee_rate = bitcoin_client->estimatesmartfee();
+   uint64_t min_fee_rate = 1000;
+   fee_rate = std::max(fee_rate, min_fee_rate);
+
+   double min_amount = ((double)fee_rate / 100000000.0); // Account only for relay fee for now
+   double total_amount = 0.0;
+   std::vector<btc_txout> inputs = bitcoin_client->listunspent_by_address_and_amount(prev_pw_address, 0);
+
+   if (inputs.size() == 0) {
+      elog("Failed to find UTXOs to spend for ${pw}", ("pw", prev_pw_address));
+      return "";
+   } else {
+      for (const auto &utx : inputs) {
+         total_amount += utx.amount_;
+      }
+
+      if (min_amount >= total_amount) {
+         elog("Failed not enough BTC to transfer from ${fa}", ("fa", prev_pw_address));
+         return "";
+      }
+   }
+
+   fc::flat_map<std::string, double> outputs;
+   outputs[active_pw_address] = total_amount - min_amount;
+
+   return create_transaction(inputs, outputs);
+}
+
+std::string sidechain_net_handler_bitcoin::create_deposit_transaction(const son_wallet_deposit_object &swdo) {
+   const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+   auto obj = idx.rbegin();
+   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
+      return "";
+   }
+
+   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
+
+   std::stringstream ss(pw_address_json);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   std::string pw_address = json.get<std::string>("address");
+
+   std::string txid = swdo.sidechain_transaction_id;
+   std::string suid = swdo.sidechain_uid;
+   std::string nvout = suid.substr(suid.find_last_of("-") + 1);
+   uint64_t deposit_amount = swdo.sidechain_amount.value;
+   uint64_t fee_rate = bitcoin_client->estimatesmartfee();
+   uint64_t min_fee_rate = 1000;
+   fee_rate = std::max(fee_rate, min_fee_rate);
+   deposit_amount -= fee_rate; // Deduct minimum relay fee
+   double transfer_amount = (double)deposit_amount / 100000000.0;
+
+   std::vector<btc_txout> inputs;
+   fc::flat_map<std::string, double> outputs;
+
+   btc_txout utxo;
+   utxo.txid_ = txid;
+   utxo.out_num_ = std::stoul(nvout);
+
+   inputs.push_back(utxo);
+
+   outputs[pw_address] = transfer_amount;
+
+   return create_transaction(inputs, outputs);
+}
+
+std::string sidechain_net_handler_bitcoin::create_withdrawal_transaction(const son_wallet_withdraw_object &swwo) {
+   const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+   auto obj = idx.rbegin();
+   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
+      return "";
+   }
+
+   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
+
+   std::stringstream ss(pw_address_json);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   std::string pw_address = json.get<std::string>("address");
+
+   uint64_t fee_rate = bitcoin_client->estimatesmartfee();
+   uint64_t min_fee_rate = 1000;
+   fee_rate = std::max(fee_rate, min_fee_rate);
+
+   double min_amount = ((double)(swwo.withdraw_amount.value + fee_rate) / 100000000.0); // Account only for relay fee for now
+   double total_amount = 0.0;
+   std::vector<btc_txout> inputs = bitcoin_client->listunspent_by_address_and_amount(pw_address, 0);
+
+   if (inputs.size() == 0) {
+      elog("Failed to find UTXOs to spend for ${pw}", ("pw", pw_address));
+      return "";
+   } else {
+      for (const auto &utx : inputs) {
+         total_amount += utx.amount_;
+      }
+
+      if (min_amount > total_amount) {
+         elog("Failed not enough BTC to spend for ${pw}", ("pw", pw_address));
+         return "";
+      }
+   }
+
+   fc::flat_map<std::string, double> outputs;
+   outputs[swwo.withdraw_address] = swwo.withdraw_amount.value / 100000000.0;
+   if ((total_amount - min_amount) > 0.0) {
+      outputs[pw_address] = total_amount - min_amount;
+   }
+
+   return create_transaction(inputs, outputs);
 }
 
 // Creates transaction in any format
