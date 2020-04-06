@@ -89,10 +89,9 @@ public:
 
         // check deposits are here
         auto deposits = fixture_.con.wallet_api_ptr->get_vesting_balances(account_name);
-        BOOST_CHECK(deposits.size() == 2);
+        BOOST_CHECK(deposits.size() >= 2);
 
-        create_tx = fixture_.con.wallet_api_ptr->create_son(account_name, son_url,
-                                                            deposits[0].id, deposits[1].id,
+        create_tx = fixture_.con.wallet_api_ptr->try_create_son(account_name, son_url,
                                                             sidechain_public_keys,
                                                             true);
 
