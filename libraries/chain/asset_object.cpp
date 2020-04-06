@@ -23,6 +23,7 @@
  */
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/operation_history_object.hpp>
 
 #include <fc/io/raw.hpp>
 #include <fc/uint128.hpp>
@@ -185,6 +186,37 @@ vector<account_id_type> asset_object::get_holders( database& db ) const
    return holders;
 }
 
+vector<uint16_t> asset_object::get_ticket_ids( database& db ) const
+{
+   auto& asset_bal_idx = db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();
+   vector<uint16_t> ids;
+   const auto range = asset_bal_idx.equal_range( boost::make_tuple( get_id() ) );
+
+   for( const account_balance_object& bal : boost::make_iterator_range( range.first, range.second ) )
+   {
+      const auto& stats = bal.owner(db).statistics(db);
+      const account_transaction_history_object* ath = static_cast<const account_transaction_history_object*>(&stats.most_recent_op(db));
+      for( uint64_t balance = bal.balance.value; balance > 0; --balance)
+      {
+         if(ath != nullptr)
+         {
+            const operation_history_object& oho = db.get<operation_history_object>( ath->operation_id );
+            if( oho.op.which() == operation::tag<ticket_purchase_operation>::value )
+               ids.push_back( oho.id.instance());
+
+            if( ath->next == account_transaction_history_id_type() )
+            {
+               ids.insert(ids.end(), balance-1, oho.id.instance());
+               ath = nullptr;
+               break;
+            }
+            else ath = db.find(ath->next);
+         }
+      }
+   }
+   return ids;
+}
+
 void asset_object::distribute_benefactors_part( database& db )
 {
    transaction_evaluation_state eval( &db );
@@ -206,6 +238,7 @@ map< account_id_type, vector< uint16_t > > asset_object::distribute_winners_part
    transaction_evaluation_state eval( &db );
       
    auto holders = get_holders( db );
+   vector<uint16_t> ticket_ids = get_ticket_ids(db);
    FC_ASSERT( dynamic_data( db ).current_supply == holders.size() );
    map<account_id_type, vector<uint16_t> > structurized_participants;
    for( account_id_type holder : holders )
@@ -234,6 +267,12 @@ map< account_id_type, vector< uint16_t > > asset_object::distribute_winners_part
       reward_op.lottery = get_id();
       reward_op.is_benefactor_reward = false;
       reward_op.winner = holders[winner_num];
+      time_point_sec now = time_point::now();
+      if(now < HARDFORK_GPOS_TIME)
+      {
+         const static_variant<void_t, uint16_t> tkt_id = ticket_ids[winner_num];
+         reward_op.winner_ticket_id = tkt_id;
+      }
       reward_op.win_percentage = tickets[c];
       reward_op.amount = asset( jackpot * tickets[c] * ( 1. - sweeps_distribution_percentage / (double)GRAPHENE_100_PERCENT ) / GRAPHENE_100_PERCENT , db.get_balance(id).asset_id );
       db.apply_operation(eval, reward_op);
