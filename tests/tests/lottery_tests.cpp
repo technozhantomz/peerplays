@@ -525,20 +525,13 @@ BOOST_AUTO_TEST_CASE( lottery_winner_ticket_id_test )
       for( uint8_t win: test_asset.lottery_options->winning_tickets )
          winners_part += win;
        
-      auto participants = test_asset.distribute_winners_part( db );
-      test_asset.distribute_benefactors_part( db );
-      test_asset.distribute_sweeps_holders_part( db );
-      generate_block();
-      for( auto p: participants ) {
-         idump(( get_operation_history(p.first) ));
-      }
-      auto benefactor_history = get_operation_history( account_id_type() );
-      for( auto h: benefactor_history ) {
+      while( db.head_block_time() < ( test_asset.lottery_options->end_date ) )
+         generate_block();
+
+      auto op_history = get_operation_history( account_id_type(1) ); //Can observe operation 79 to verify winner ticket number
+      for( auto h: op_history ) {
          idump((h));
       }
-
-      while( db.head_block_time() < ( test_asset.lottery_options->end_date + fc::seconds(30) ) )
-         generate_block();
 
       BOOST_CHECK( db.get_balance( test_asset.get_id() ).amount.value == 0 );
       uint64_t creator_recieved = db.get_balance( account_id_type(), asset_id_type() ).amount.value - creator_balance_before_end;

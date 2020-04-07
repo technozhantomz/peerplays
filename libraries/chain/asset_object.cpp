@@ -207,7 +207,8 @@ vector<uint16_t> asset_object::get_ticket_ids( database& db ) const
 
             if( ath->next == account_transaction_history_id_type() )
             {
-               ids.insert(ids.end(), balance-1, oho.id.instance());
+               if(balance > 1 && oho.op.which() == operation::tag<ticket_purchase_operation>::value)
+                  ids.insert(ids.end(), balance-1, oho.id.instance());
                ath = nullptr;
                break;
             }
@@ -269,9 +270,9 @@ map< account_id_type, vector< uint16_t > > asset_object::distribute_winners_part
       reward_op.is_benefactor_reward = false;
       reward_op.winner = holders[winner_num];
       time_point_sec now = time_point::now();
-      if(now > HARDFORK_5050_1_TIME)
+      if(now > HARDFORK_5050_1_TIME && ticket_ids.size() >= winner_num)
       {
-         const static_variant<void_t, uint16_t> tkt_id = ticket_ids[winner_num];
+         const static_variant<uint16_t, void_t> tkt_id = ticket_ids[winner_num];
          reward_op.winner_ticket_id = tkt_id;
       }
       reward_op.win_percentage = tickets[c];
