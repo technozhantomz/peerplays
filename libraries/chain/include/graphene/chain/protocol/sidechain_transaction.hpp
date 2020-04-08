@@ -31,7 +31,6 @@ namespace graphene { namespace chain {
 
       sidechain_transaction_id_type sidechain_transaction_id;
       std::string signature;
-      bool complete;
 
       account_id_type   fee_payer()const { return payer; }
       share_type        calculate_fee( const fee_parameters_type& k )const { return 0; }
@@ -63,8 +62,7 @@ FC_REFLECT( graphene::chain::sidechain_transaction_create_operation, (fee)(payer
 FC_REFLECT( graphene::chain::sidechain_transaction_sign_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::sidechain_transaction_sign_operation, (fee)(payer)
         (sidechain_transaction_id)
-        (signature)
-        (complete) )
+        (signature) )
 
 FC_REFLECT( graphene::chain::sidechain_transaction_send_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::sidechain_transaction_send_operation, (fee)(payer)

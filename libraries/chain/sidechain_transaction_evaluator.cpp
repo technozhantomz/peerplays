@@ -94,7 +94,7 @@ object_id_type sidechain_transaction_sign_evaluator::do_apply(const sidechain_tr
              sto.current_weight = sto.current_weight + sto.signers.at(i).weight;
          }
       }
-      sto.complete = op.complete;
+      sto.complete = (sto.current_weight >= sto.threshold);
    });
 
    db().modify(son_obj->statistics(db()), [&](son_statistics_object& sso) {

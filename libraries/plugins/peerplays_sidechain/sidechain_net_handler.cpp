@@ -378,7 +378,6 @@ void sidechain_net_handler::process_sidechain_transactions() {
       sts_op.payer = plugin.get_current_son_object().son_account;
       sts_op.sidechain_transaction_id = sto.id;
       sts_op.signature = processed_sidechain_tx;
-      sts_op.complete = complete;
 
       signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), sts_op);
       trx.validate();
