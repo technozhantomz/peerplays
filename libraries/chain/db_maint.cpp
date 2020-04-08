@@ -1919,7 +1919,7 @@ void perform_son_tasks(database& db)
             a.options.core_exchange_rate.base.amount = 100000;
             a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
             a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
-            a.options.core_exchange_rate.quote.asset_id = asset_id_type(0);
+            a.options.core_exchange_rate.quote.asset_id = a.id;
             a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
             a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
             a.options.whitelist_markets.clear(); // might be traded with
