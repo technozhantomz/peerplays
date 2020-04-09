@@ -39,7 +39,7 @@ public:
    std::vector<btc_txout> listunspent(const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::vector<btc_txout> listunspent_by_address_and_amount(const std::string &address, double transfer_amount, const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::string loadwallet(const std::string &filename);
-   bool sendrawtransaction(const std::string &tx_hex);
+   std::string sendrawtransaction(const std::string &tx_hex);
    std::string signrawtransactionwithwallet(const std::string &tx_hash);
    std::string unloadwallet(const std::string &filename);
    std::string walletlock();
@@ -89,8 +89,8 @@ public:
    void process_primary_wallet();
    bool process_deposit(const son_wallet_deposit_object &swdo);
    bool process_withdrawal(const son_wallet_withdraw_object &swwo);
-   std::string process_sidechain_transaction(const sidechain_transaction_object &sto, bool &complete);
-   bool send_sidechain_transaction(const sidechain_transaction_object &sto, std::string &sidechain_transaction);
+   std::string process_sidechain_transaction(const sidechain_transaction_object &sto);
+   std::string send_sidechain_transaction(const sidechain_transaction_object &sto);
 
 private:
    std::string ip;
@@ -111,19 +111,19 @@ private:
    std::string create_withdrawal_transaction(const son_wallet_withdraw_object &swwo);
 
    std::string create_transaction(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs);
-   std::string sign_transaction(const sidechain_transaction_object &sto, bool &complete);
-   bool send_transaction(const sidechain_transaction_object &sto, std::string &sidechain_transaction);
+   std::string sign_transaction(const sidechain_transaction_object &sto);
+   std::string send_transaction(const sidechain_transaction_object &sto);
 
    std::string create_transaction_raw(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs);
    std::string create_transaction_psbt(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs);
    std::string create_transaction_standalone(const std::vector<btc_txout> &inputs, const fc::flat_map<std::string, double> outputs);
 
-   std::string sign_transaction_raw(const sidechain_transaction_object &sto, bool &complete);
-   std::string sign_transaction_psbt(const sidechain_transaction_object &sto, bool &complete);
-   std::string sign_transaction_standalone(const sidechain_transaction_object &sto, bool &complete);
+   std::string sign_transaction_raw(const sidechain_transaction_object &sto);
+   std::string sign_transaction_psbt(const sidechain_transaction_object &sto);
+   std::string sign_transaction_standalone(const sidechain_transaction_object &sto);
 
-   bool send_transaction_raw(const sidechain_transaction_object &sto, std::string &sidechain_transaction);
-   bool send_transaction_psbt(const sidechain_transaction_object &sto, std::string &sidechain_transaction);
+   std::string send_transaction_raw(const sidechain_transaction_object &sto);
+   std::string send_transaction_psbt(const sidechain_transaction_object &sto);
 
    void handle_event(const std::string &event_data);
    std::vector<info_for_vin> extract_info_from_block(const std::string &_block);

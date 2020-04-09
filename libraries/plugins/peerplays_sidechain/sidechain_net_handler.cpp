@@ -367,7 +367,7 @@ void sidechain_net_handler::process_sidechain_transactions() {
       ilog("Sidechain transaction to process: ${sto}", ("sto", sto.id));
 
       bool complete = false;
-      std::string processed_sidechain_tx = process_sidechain_transaction(sto, complete);
+      std::string processed_sidechain_tx = process_sidechain_transaction(sto);
 
       if (processed_sidechain_tx.empty()) {
          wlog("Sidechain transaction not processed: ${sto}", ("sto", sto.id));
@@ -398,10 +398,9 @@ void sidechain_net_handler::send_sidechain_transactions() {
    std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
       ilog("Sidechain transaction to send: ${sto}", ("sto", sto.id));
 
-      std::string sidechain_transaction = "";
-      bool sent = send_sidechain_transaction(sto, sidechain_transaction);
+      std::string sidechain_transaction = send_sidechain_transaction(sto);
 
-      if (!sent) {
+      if (sidechain_transaction.empty()) {
          wlog("Sidechain transaction not sent: ${sto}", ("sto", sto.id));
          return;
       }
@@ -439,11 +438,11 @@ bool sidechain_net_handler::process_withdrawal(const son_wallet_withdraw_object 
    FC_ASSERT(false, "process_withdrawal not implemented");
 }
 
-std::string sidechain_net_handler::process_sidechain_transaction(const sidechain_transaction_object &sto, bool &complete) {
+std::string sidechain_net_handler::process_sidechain_transaction(const sidechain_transaction_object &sto) {
    FC_ASSERT(false, "process_sidechain_transaction not implemented");
 }
 
-bool sidechain_net_handler::send_sidechain_transaction(const sidechain_transaction_object &sto, std::string &sidechain_transaction) {
+std::string sidechain_net_handler::send_sidechain_transaction(const sidechain_transaction_object &sto) {
    FC_ASSERT(false, "send_sidechain_transaction not implemented");
 }
 
