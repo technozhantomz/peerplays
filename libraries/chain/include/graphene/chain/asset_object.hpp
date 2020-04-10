@@ -134,6 +134,7 @@ namespace graphene { namespace chain {
          optional<lottery_asset_options> lottery_options;
          time_point_sec get_lottery_expiration() const;
          vector<account_id_type> get_holders( database& db ) const;
+         vector<uint64_t> get_ticket_ids( database& db ) const;
          void distribute_benefactors_part( database& db );
          map< account_id_type, vector< uint16_t > > distribute_winners_part( database& db );
          void distribute_sweeps_holders_part( database& db );
