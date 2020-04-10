@@ -197,18 +197,21 @@ vector<uint16_t> asset_object::get_ticket_ids( database& db ) const
    {
       const auto& stats = bal.owner(db).statistics(db);
       const account_transaction_history_object* ath = static_cast<const account_transaction_history_object*>(&stats.most_recent_op(db));
-      for( uint64_t balance = bal.balance.value; balance > 0; --balance)
+      for( uint64_t balance = bal.balance.value; balance > 0;)
       {
          if(ath != nullptr)
          {
             const operation_history_object& oho = db.get<operation_history_object>( ath->operation_id );
-            if( oho.op.which() == operation::tag<ticket_purchase_operation>::value )
-               ids.push_back( oho.id.instance());
+            if( oho.op.which() == operation::tag<ticket_purchase_operation>::value && get_id() == oho.op.get<ticket_purchase_operation>().lottery)
+            {
+               uint64_t tickets_count = oho.op.get<ticket_purchase_operation>().tickets_to_buy;
+               ids.insert(ids.end(), tickets_count, oho.id.instance());
+               balance -= tickets_count;
+               assert(balance >= 0);
+            }
 
             if( ath->next == account_transaction_history_id_type() )
             {
-               if(balance > 1 && oho.op.which() == operation::tag<ticket_purchase_operation>::value)
-                  ids.insert(ids.end(), balance-1, oho.id.instance());
                ath = nullptr;
                break;
             }
