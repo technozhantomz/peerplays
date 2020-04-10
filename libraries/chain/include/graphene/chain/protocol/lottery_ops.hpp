@@ -52,7 +52,7 @@ namespace graphene { namespace chain {
       share_type      calculate_fee( const fee_parameters_type& k )const;
    };
 
-   typedef static_variant<uint16_t, void_t> ticket_num;
+   typedef static_variant<uint64_t, void_t> ticket_num;
 
    /**
     * @ingroup operations

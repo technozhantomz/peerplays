@@ -187,10 +187,10 @@ vector<account_id_type> asset_object::get_holders( database& db ) const
    return holders;
 }
 
-vector<uint16_t> asset_object::get_ticket_ids( database& db ) const
+vector<uint64_t> asset_object::get_ticket_ids( database& db ) const
 {
    auto& asset_bal_idx = db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();
-   vector<uint16_t> ids;
+   vector<uint64_t> ids;
    const auto range = asset_bal_idx.equal_range( boost::make_tuple( get_id() ) );
 
    for( const account_balance_object& bal : boost::make_iterator_range( range.first, range.second ) )
@@ -243,7 +243,7 @@ map< account_id_type, vector< uint16_t > > asset_object::distribute_winners_part
    transaction_evaluation_state eval( &db );
       
    auto holders = get_holders( db );
-   vector<uint16_t> ticket_ids = get_ticket_ids(db);
+   vector<uint64_t> ticket_ids = get_ticket_ids(db);
    FC_ASSERT( dynamic_data( db ).current_supply == holders.size() );
    map<account_id_type, vector<uint16_t> > structurized_participants;
    for( account_id_type holder : holders )
@@ -274,7 +274,7 @@ map< account_id_type, vector< uint16_t > > asset_object::distribute_winners_part
       reward_op.winner = holders[winner_num];
       if(db.head_block_time() > HARDFORK_5050_1_TIME && ticket_ids.size() >= winner_num)
       {
-         const static_variant<uint16_t, void_t> tkt_id = ticket_ids[winner_num];
+         const static_variant<uint64_t, void_t> tkt_id = ticket_ids[winner_num];
          reward_op.winner_ticket_id = tkt_id;
       }
       reward_op.win_percentage = tickets[c];
