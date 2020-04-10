@@ -1,4 +1,4 @@
-// 5050_1 HARDFORK Sunday, 5 April 2020 15:00:00 GMT
+// 5050_1 HARDFORK Thursday, 16 April 2020 19:00:00 GMT
 #ifndef HARDFORK_5050_1_TIME
-#define HARDFORK_5050_1_TIME (fc::time_point_sec( 1586098800 ))
+#define HARDFORK_5050_1_TIME (fc::time_point_sec( 1587063600 ))
 #endif
