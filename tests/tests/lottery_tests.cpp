@@ -63,6 +63,7 @@ BOOST_AUTO_TEST_CASE( create_lottery_asset_test )
       lottery_options.end_date = db.head_block_time() + fc::minutes(5);
       lottery_options.ticket_price = asset(100);
       lottery_options.winning_tickets = { 5 * GRAPHENE_1_PERCENT, 5 * GRAPHENE_1_PERCENT, 5 * GRAPHENE_1_PERCENT, 10 * GRAPHENE_1_PERCENT, 10 * GRAPHENE_1_PERCENT, 10 * GRAPHENE_1_PERCENT, 10 * GRAPHENE_1_PERCENT, 10 * GRAPHENE_1_PERCENT, 10 * GRAPHENE_1_PERCENT };
+      //lottery_options.winning_tickets = { 75 * GRAPHENE_1_PERCENT };
       lottery_options.is_active = test_asset_id.instance.value % 2;
       lottery_options.ending_on_soldout = true;
 
@@ -477,6 +478,66 @@ BOOST_AUTO_TEST_CASE( try_to_end_empty_lottery_test )
       test_asset = test_asset_id(db);
       BOOST_CHECK( !test_asset.lottery_options->is_active );
    } catch( fc::exception& e ) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+
+BOOST_AUTO_TEST_CASE( lottery_winner_ticket_id_test )
+{
+    try {
+      asset_id_type test_asset_id = db.get_index<asset_object>().get_next_id();
+      INVOKE( create_lottery_asset_test );
+      auto test_asset = test_asset_id(db);
+      for( int i = 1; i < 4; ++i ) {
+         transfer(account_id_type(), account_id_type(i), asset(2000000));
+      }
+      for( int i = 1; i < 4; ++i ) {
+         if( i == 4 ) continue;
+         ticket_purchase_operation tpo;
+         tpo.buyer = account_id_type(i);
+         tpo.lottery = test_asset.id;
+         tpo.tickets_to_buy = 1;
+         tpo.amount = asset(100);
+         trx.operations.push_back(std::move(tpo));
+         graphene::chain::test::set_expiration(db, trx);
+         PUSH_TX( db, trx, ~0 );
+         trx.operations.clear();
+      }
+
+      for( int i = 1; i < 4; ++i ) {
+         if( i == 4 ) continue;
+         ticket_purchase_operation tpo;
+         tpo.buyer = account_id_type(i);
+         tpo.lottery = test_asset.id;
+         tpo.tickets_to_buy = 1;
+         tpo.amount = asset(100);
+         trx.operations.push_back(std::move(tpo));
+         graphene::chain::test::set_expiration(db, trx);
+         PUSH_TX( db, trx, ~0 );
+         trx.operations.clear();
+      }
+      generate_block();
+      test_asset = test_asset_id(db);
+      uint64_t creator_balance_before_end = db.get_balance( account_id_type(), asset_id_type() ).amount.value;
+      uint64_t jackpot = db.get_balance( test_asset.get_id() ).amount.value;
+      uint16_t winners_part = 0;
+      for( uint8_t win: test_asset.lottery_options->winning_tickets )
+         winners_part += win;
+       
+      while( db.head_block_time() < ( test_asset.lottery_options->end_date ) )
+         generate_block();
+
+      auto op_history = get_operation_history( account_id_type(1) ); //Can observe operation 79 to verify winner ticket number
+      for( auto h: op_history ) {
+         idump((h));
+      }
+
+      BOOST_CHECK( db.get_balance( test_asset.get_id() ).amount.value == 0 );
+      uint64_t creator_recieved = db.get_balance( account_id_type(), asset_id_type() ).amount.value - creator_balance_before_end;
+      test_asset = test_asset_id(db);
+      BOOST_CHECK(jackpot * test_asset.lottery_options->benefactors[0].share / GRAPHENE_100_PERCENT == creator_recieved);
+   } catch (fc::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
