@@ -2594,6 +2594,12 @@ public:
                                            bool broadcast /* = false */)
    { try {
       FC_ASSERT(sons_to_approve.size() || sons_to_reject.size(), "Both accepted and rejected lists can't be empty simultaneously");
+      std::vector<vesting_balance_object_with_info> vbo_info = get_vesting_balances(voting_account);
+      std::vector<vesting_balance_object_with_info>::iterator vbo_iter;
+      vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
+      if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
+         FC_THROW("Account ${account} has no core Token ${TOKEN} vested and will not be allowed to vote for the SON account", ("account", voting_account)("TOKEN", GRAPHENE_SYMBOL));
+
       account_object voting_account_object = get_account(voting_account);
       for (const std::string& son : sons_to_approve)
       {
