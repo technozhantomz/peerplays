@@ -487,7 +487,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        son2_obj = con.wallet_api_ptr->get_son("son2account");
        // voice distribution changed, SON2 now has all voices
        son2_end_votes = son2_obj.total_votes;
-       BOOST_CHECK((son2_end_votes > 0) && (son2_end_votes <= son2_start_votes)); // nathan spent funds for vb, it has different voting power
+       BOOST_CHECK((son2_end_votes > son2_start_votes)); // nathan spent funds for vb, it has different voting power
        son2_start_votes = son2_end_votes;
 
        // Try to reject incorrect SON

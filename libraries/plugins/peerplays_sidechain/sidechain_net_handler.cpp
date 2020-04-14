@@ -53,6 +53,62 @@ std::string sidechain_net_handler::get_private_key(std::string public_key) {
    return std::string();
 }
 
+bool sidechain_net_handler::proposal_exists(int32_t operation_tag, const object_id_type &object_id) {
+
+   bool result = false;
+
+   const auto &idx = database.get_index_type<proposal_index>().indices().get<by_id>();
+   vector<proposal_id_type> proposals;
+   for (const auto &proposal : idx) {
+      proposals.push_back(proposal.id);
+   }
+
+   for (const auto proposal_id : proposals) {
+      const auto &idx = database.get_index_type<proposal_index>().indices().get<by_id>();
+      const auto po = idx.find(proposal_id);
+      if (po != idx.end()) {
+
+         int32_t op_idx_0 = -1;
+         chain::operation op_obj_idx_0;
+
+         if (po->proposed_transaction.operations.size() >= 1) {
+            op_idx_0 = po->proposed_transaction.operations[0].which();
+            op_obj_idx_0 = po->proposed_transaction.operations[0];
+         }
+
+         switch (op_idx_0) {
+         case chain::operation::tag<chain::son_wallet_update_operation>::value: {
+            result = (op_obj_idx_0.get<son_wallet_update_operation>().son_wallet_id == object_id);
+            break;
+         }
+
+         case chain::operation::tag<chain::son_wallet_deposit_process_operation>::value: {
+            result = (op_obj_idx_0.get<son_wallet_deposit_process_operation>().son_wallet_deposit_id == object_id);
+            break;
+         }
+
+         case chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value: {
+            result = (op_obj_idx_0.get<son_wallet_withdraw_process_operation>().son_wallet_withdraw_id == object_id);
+            break;
+         }
+
+         case chain::operation::tag<chain::sidechain_transaction_create_operation>::value: {
+            result = (op_obj_idx_0.get<sidechain_transaction_create_operation>().object_id == object_id);
+            break;
+         }
+
+         default:
+            return false;
+         }
+      }
+
+      if (result) {
+         break;
+      }
+   }
+   return result;
+}
+
 bool sidechain_net_handler::approve_proposal(const proposal_id_type &proposal_id, const son_id_type &son_id) {
 
    proposal_update_operation op;

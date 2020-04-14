@@ -13,6 +13,7 @@
 
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/protocol/son_wallet.hpp>
+#include <graphene/chain/sidechain_transaction_object.hpp>
 #include <graphene/chain/son_info.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
 
@@ -45,7 +46,7 @@ std::string bitcoin_rpc_client::addmultisigaddress(const uint32_t nrequired, con
    params = params + pubkeys + std::string("]");
    body = body + params + std::string(", null, \"p2sh-segwit\"] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -114,7 +115,7 @@ std::string bitcoin_rpc_client::createmultisig(const uint32_t nrequired, const s
    params = params + pubkeys + std::string("]");
    body = body + params + std::string(", \"p2sh-segwit\" ] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -340,7 +341,7 @@ uint64_t bitcoin_rpc_client::estimatesmartfee(uint16_t conf_target) {
                                  "\"method\": \"estimatesmartfee\", \"params\": [" +
                                  std::to_string(conf_target) + std::string("] }"));
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -459,7 +460,7 @@ std::string bitcoin_rpc_client::gettransaction(const std::string &txid, const bo
                                   "\"gettransaction\", \"params\": [\"" +
                                   txid + "\"] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -608,7 +609,7 @@ std::string bitcoin_rpc_client::sendrawtransaction(const std::string &tx_hex) {
                                  "\"method\": \"sendrawtransaction\", \"params\": [") +
                      std::string("\"") + tx_hex + std::string("\"") + std::string("] }");
 
-   const auto reply = send_post_request(body, true);
+   const auto reply = send_post_request(body);
 
    if (reply.body.empty()) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -916,13 +917,25 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
       op_obj_idx_0 = po.proposed_transaction.operations[0];
    }
 
+   int32_t op_idx_1 = -1;
+   chain::operation op_obj_idx_1;
+
+   if (po.proposed_transaction.operations.size() >= 2) {
+      op_idx_1 = po.proposed_transaction.operations[1].which();
+      op_obj_idx_1 = po.proposed_transaction.operations[1];
+   }
+
    switch (op_idx_0) {
 
    case chain::operation::tag<chain::son_wallet_update_operation>::value: {
+      bool address_ok = false;
+      bool transaction_ok = false;
+      std::string new_pw_address = "";
       son_wallet_id_type swo_id = op_obj_idx_0.get<son_wallet_update_operation>().son_wallet_id;
       const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
       const auto swo = idx.find(swo_id);
       if (swo != idx.end()) {
+
          auto active_sons = gpo.active_sons;
          vector<son_info> wallet_sons = swo->sons;
 
@@ -950,11 +963,39 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
             if (active_pw_pt.count("error") && active_pw_pt.get_child("error").empty()) {
                std::stringstream res;
                boost::property_tree::json_parser::write_json(res, active_pw_pt.get_child("result"));
+               new_pw_address = active_pw_pt.get<std::string>("result.address");
 
-               should_approve = (op_obj_idx_0.get<son_wallet_update_operation>().address == res.str());
+               address_ok = (op_obj_idx_0.get<son_wallet_update_operation>().address == res.str());
             }
          }
+
+         if (po.proposed_transaction.operations.size() >= 2) {
+            object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
+            std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
+
+            const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
+            const auto st = st_idx.find(object_id);
+            if (st == st_idx.end()) {
+
+               std::string tx_str = "";
+
+               if (object_id.is<son_wallet_id_type>()) {
+                  const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+                  const auto swo = idx.find(object_id);
+                  if (swo != idx.end()) {
+                     tx_str = create_primary_wallet_transaction(*swo, new_pw_address);
+                  }
+               }
+
+               transaction_ok = (op_tx_str == tx_str);
+            }
+         } else {
+            transaction_ok = true;
+         }
       }
+
+      should_approve = address_ok &&
+                       transaction_ok;
       break;
    }
 
@@ -1017,14 +1058,6 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
 
          std::string tx_str = "";
 
-         if (object_id.is<son_wallet_id_type>()) {
-            const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
-            const auto swo = idx.find(object_id);
-            if (swo != idx.end()) {
-               tx_str = create_primary_wallet_transaction();
-            }
-         }
-
          if (object_id.is<son_wallet_deposit_id_type>()) {
             const auto &idx = database.get_index_type<son_wallet_deposit_index>().indices().get<by_id>();
             const auto swdo = idx.find(object_id);
@@ -1064,6 +1097,10 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
       if ((active_sw->addresses.find(sidechain_type::bitcoin) == active_sw->addresses.end()) ||
           (active_sw->addresses.at(sidechain_type::bitcoin).empty())) {
 
+         if (proposal_exists(chain::operation::tag<chain::son_wallet_update_operation>::value, active_sw->id)) {
+            return;
+         }
+
          const chain::global_property_object &gpo = database.get_global_properties();
 
          auto active_sons = gpo.active_sons;
@@ -1083,20 +1120,36 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
          boost::property_tree::read_json(active_pw_ss, active_pw_pt);
          if (active_pw_pt.count("error") && active_pw_pt.get_child("error").empty()) {
 
+            proposal_create_operation proposal_op;
+            proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+            uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
+            proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
+
             std::stringstream res;
             boost::property_tree::json_parser::write_json(res, active_pw_pt.get_child("result"));
 
-            son_wallet_update_operation op;
-            op.payer = gpo.parameters.son_account();
-            op.son_wallet_id = active_sw->id;
-            op.sidechain = sidechain_type::bitcoin;
-            op.address = res.str();
+            son_wallet_update_operation swu_op;
+            swu_op.payer = gpo.parameters.son_account();
+            swu_op.son_wallet_id = active_sw->id;
+            swu_op.sidechain = sidechain_type::bitcoin;
+            swu_op.address = res.str();
 
-            proposal_create_operation proposal_op;
-            proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
-            proposal_op.proposed_ops.emplace_back(op);
-            uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
-            proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
+            proposal_op.proposed_ops.emplace_back(swu_op);
+
+            const auto &prev_sw = std::next(active_sw);
+            if (prev_sw != swi.rend()) {
+               std::string new_pw_address = active_pw_pt.get<std::string>("result.address");
+               std::string tx_str = create_primary_wallet_transaction(*prev_sw, new_pw_address);
+               if (!tx_str.empty()) {
+                  sidechain_transaction_create_operation stc_op;
+                  stc_op.payer = gpo.parameters.son_account();
+                  stc_op.object_id = prev_sw->id;
+                  stc_op.sidechain = sidechain;
+                  stc_op.transaction = tx_str;
+                  stc_op.signers = prev_sw->sons;
+                  proposal_op.proposed_ops.emplace_back(stc_op);
+               }
+            }
 
             signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
             try {
@@ -1107,46 +1160,16 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
                elog("Sending proposal for son wallet update operation failed with exception ${e}", ("e", e.what()));
                return;
             }
-
-            //========================================================================
-
-            const auto &prev_sw = std::next(active_sw);
-            if (prev_sw != swi.rend()) {
-
-               std::string tx_str = create_primary_wallet_transaction();
-
-               if (!tx_str.empty()) {
-
-                  sidechain_transaction_create_operation stc_op;
-                  stc_op.payer = gpo.parameters.son_account();
-                  stc_op.object_id = prev_sw->id;
-                  stc_op.sidechain = sidechain;
-                  stc_op.transaction = tx_str;
-                  stc_op.signers = prev_sw->sons;
-
-                  proposal_create_operation proposal_op;
-                  proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
-                  proposal_op.proposed_ops.emplace_back(stc_op);
-                  uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
-                  proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
-
-                  signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
-                  trx.validate();
-                  try {
-                     database.push_transaction(trx, database::validation_steps::skip_block_size_check);
-                     if (plugin.app().p2p_node())
-                        plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-                  } catch (fc::exception e) {
-                     elog("Sending proposal for withdrawal sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
-                  }
-               }
-            }
          }
       }
    }
 }
 
 bool sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_object &swdo) {
+
+   if (proposal_exists(chain::operation::tag<chain::sidechain_transaction_create_operation>::value, swdo.id)) {
+      return false;
+   }
 
    std::string tx_str = create_deposit_transaction(swdo);
 
@@ -1182,6 +1205,10 @@ bool sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_obj
 }
 
 bool sidechain_net_handler_bitcoin::process_withdrawal(const son_wallet_withdraw_object &swwo) {
+
+   if (proposal_exists(chain::operation::tag<chain::sidechain_transaction_create_operation>::value, swwo.id)) {
+      return false;
+   }
 
    std::string tx_str = create_withdrawal_transaction(swwo);
 
@@ -1238,30 +1265,15 @@ std::string sidechain_net_handler_bitcoin::send_sidechain_transaction(const side
    return send_transaction(sto);
 }
 
-std::string sidechain_net_handler_bitcoin::create_primary_wallet_transaction() {
-   const auto &swi = database.get_index_type<son_wallet_index>().indices().get<by_id>();
-   const auto &active_sw = swi.rbegin();
-   if (active_sw == swi.rend() || active_sw->addresses.find(sidechain_type::bitcoin) == active_sw->addresses.end()) {
-      return "";
-   }
+std::string sidechain_net_handler_bitcoin::create_primary_wallet_transaction(const son_wallet_object &prev_swo, std::string new_sw_address) {
 
-   const auto &prev_sw = std::next(active_sw);
-   if (prev_sw == swi.rend()) {
-      return "";
-   }
-
-   std::stringstream active_pw_ss(active_sw->addresses.find(sidechain_type::bitcoin)->second);
-   boost::property_tree::ptree active_pw_pt;
-   boost::property_tree::read_json(active_pw_ss, active_pw_pt);
-   std::string active_pw_address = active_pw_pt.get_child("result").get<std::string>("address");
-
-   std::stringstream prev_sw_ss(prev_sw->addresses.find(sidechain_type::bitcoin)->second);
+   std::stringstream prev_sw_ss(prev_swo.addresses.find(sidechain_type::bitcoin)->second);
    boost::property_tree::ptree prev_sw_pt;
    boost::property_tree::read_json(prev_sw_ss, prev_sw_pt);
-   std::string prev_pw_address = prev_sw_pt.get_child("result").get<std::string>("address");
+   std::string prev_pw_address = prev_sw_pt.get<std::string>("address");
 
-   if (prev_pw_address == active_pw_address) {
-      wlog("BTC previous and new primary wallet addresses are same. No funds moving needed [from ${prev_sw} to ${active_sw}]", ("prev_sw", prev_sw->id)("active_sw", active_sw->id));
+   if (prev_pw_address == new_sw_address) {
+      wlog("BTC previous and new primary wallet addresses are same. No funds moving needed [from ${prev_sw} to ${new_sw_address}]", ("prev_swo", prev_swo.id)("active_sw", new_sw_address));
       return "";
    }
 
@@ -1288,7 +1300,7 @@ std::string sidechain_net_handler_bitcoin::create_primary_wallet_transaction() {
    }
 
    fc::flat_map<std::string, double> outputs;
-   outputs[active_pw_address] = total_amount - min_amount;
+   outputs[new_sw_address] = total_amount - min_amount;
 
    return create_transaction(inputs, outputs);
 }
