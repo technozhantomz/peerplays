@@ -1100,7 +1100,7 @@ public:
       if( wallet_filename == "" )
          wallet_filename = _wallet_filename;
 
-      wlog( "saving wallet to file ${fn}", ("fn", wallet_filename) );
+      ilog( "saving wallet to file ${fn}", ("fn", wallet_filename) );
 
       string data = fc::json::to_pretty_string( _wallet );
       try
@@ -1112,14 +1112,38 @@ public:
          //
          // http://en.wikipedia.org/wiki/Most_vexing_parse
          //
-         fc::ofstream outfile{ fc::path( wallet_filename ) };
+         std::string tmp_wallet_filename = wallet_filename + ".tmp";
+         fc::ofstream outfile{ fc::path( tmp_wallet_filename ) };
          outfile.write( data.c_str(), data.length() );
          outfile.flush();
          outfile.close();
+
+         ilog( "saved successfully wallet to tmp file ${fn}", ("fn", tmp_wallet_filename) );
+
+         std::string wallet_file_content;
+         fc::read_file_contents(tmp_wallet_filename, wallet_file_content);
+
+         if (wallet_file_content == data) {
+            dlog( "validated successfully tmp wallet file ${fn}", ("fn", tmp_wallet_filename) );
+            fc::rename( tmp_wallet_filename, wallet_filename );
+            dlog( "renamed successfully tmp wallet file ${fn}", ("fn", tmp_wallet_filename) );
+         } 
+         else 
+         {
+            FC_THROW("tmp wallet file cannot be validated ${fn}", ("fn", tmp_wallet_filename) );
+         }
+
+         ilog( "successfully saved wallet to file ${fn}", ("fn", wallet_filename) );
+
          disable_umask_protection();
       }
       catch(...)
       {
+         string ws_password = _wallet.ws_password;
+         _wallet.ws_password = "";
+         elog("wallet file content is: ${data}", ("data", fc::json::to_pretty_string( _wallet ) ) );
+         _wallet.ws_password = ws_password;
+
          disable_umask_protection();
          throw;
       }
@@ -2122,7 +2146,7 @@ public:
 
       asset_object asset_obj = get_asset( asset_symbol );
       vector< vesting_balance_object > vbos;
-       vesting_balance_object vbo;
+      vesting_balance_object vbo;
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>(account_name);
       if( !vbid )
       {

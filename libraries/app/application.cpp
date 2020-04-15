@@ -922,7 +922,8 @@ namespace detail {
       std::shared_ptr<fc::http::websocket_server>      _websocket_server;
       std::shared_ptr<fc::http::websocket_tls_server>  _websocket_tls_server;
 
-      std::map<string, std::shared_ptr<abstract_plugin>> _plugins;
+      std::map<string, std::shared_ptr<abstract_plugin>> _active_plugins;
+      std::map<string, std::shared_ptr<abstract_plugin>> _available_plugins;
 
       bool _is_finished_syncing = false;
    };
@@ -964,6 +965,7 @@ void application::set_program_options(boost::program_options::options_descriptio
          ("enable-standby-votes-tracking", bpo::value<bool>()->implicit_value(true),
           "Whether to enable tracking of votes of standby witnesses and committee members. "
           "Set it to true to provide accurate data to API clients, set to false for slightly better performance.")
+         ("plugins", bpo::value<string>(), "Space-separated list of plugins to activate")
          ;
    command_line_options.add(configuration_file_options);
    command_line_options.add_options()
@@ -1009,6 +1011,36 @@ void application::initialize(const fc::path& data_dir, const boost::program_opti
 
       std::exit(EXIT_SUCCESS);
    }
+
+   std::set<string> wanted;
+   if( options.count("plugins") )
+   {
+      boost::split(wanted, options.at("plugins").as<std::string>(), [](char c){return c == ' ';});
+   }
+   else
+   {      
+      wanted.insert("account_history");
+      wanted.insert("market_history");
+      wanted.insert("accounts_list");
+      wanted.insert("affiliate_stats");
+   }
+   wanted.insert("witness");
+   wanted.insert("bookie");
+
+   int es_ah_conflict_counter = 0;
+   for (auto& it : wanted)
+   {
+      if(it == "account_history")
+         ++es_ah_conflict_counter;
+      if(it == "elasticsearch")
+         ++es_ah_conflict_counter;
+
+      if(es_ah_conflict_counter > 1) {
+         elog("Can't start program with elasticsearch and account_history plugin at the same time");
+         std::exit(EXIT_FAILURE);
+      }
+      if (!it.empty()) enable_plugin(it);
+   }
 }
 
 void application::startup()
@@ -1026,7 +1058,12 @@ void application::startup()
 
 std::shared_ptr<abstract_plugin> application::get_plugin(const string& name) const
 {
-   return my->_plugins[name];
+   return my->_active_plugins[name];
+}
+
+bool application::is_plugin_enabled(const string& name) const
+{
+   return !(my->_active_plugins.find(name) == my->_active_plugins.end());
 }
 
 net::node_ptr application::p2p_node()
@@ -1059,14 +1096,21 @@ bool application::is_finished_syncing() const
    return my->_is_finished_syncing;
 }
 
-void graphene::app::application::add_plugin(const string& name, std::shared_ptr<graphene::app::abstract_plugin> p)
+void graphene::app::application::enable_plugin(const string& name)
 {
-   my->_plugins[name] = p;
+   FC_ASSERT(my->_available_plugins[name], "Unknown plugin '" + name + "'");
+   my->_active_plugins[name] = my->_available_plugins[name];
+   my->_active_plugins[name]->plugin_set_app(this);
+}
+
+void graphene::app::application::add_available_plugin(std::shared_ptr<graphene::app::abstract_plugin> p)
+{
+   my->_available_plugins[p->plugin_name()] = p;
 }
 
 void application::shutdown_plugins()
 {
-   for( auto& entry : my->_plugins )
+   for( auto& entry : my->_active_plugins )
       entry.second->plugin_shutdown();
    return;
 }
@@ -1080,14 +1124,14 @@ void application::shutdown()
 
 void application::initialize_plugins( const boost::program_options::variables_map& options )
 {
-   for( auto& entry : my->_plugins )
+   for( auto& entry : my->_active_plugins )
       entry.second->plugin_initialize( options );
    return;
 }
 
 void application::startup_plugins()
 {
-   for( auto& entry : my->_plugins )
+   for( auto& entry : my->_active_plugins )
       entry.second->plugin_startup();
    return;
 }

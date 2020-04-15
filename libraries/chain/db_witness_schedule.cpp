@@ -45,7 +45,7 @@ witness_id_type database::get_scheduled_witness( uint32_t slot_num )const
    if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM &&
        slot_num != 0 )
    {
-       const witness_schedule_object& wso = get_witness_schedule_object();;
+       const witness_schedule_object& wso = get_witness_schedule_object();
        // ask the near scheduler who goes in the given slot
        bool slot_is_near = wso.scheduler.get_slot(slot_num-1, wid);
        if(! slot_is_near)

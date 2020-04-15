@@ -467,6 +467,8 @@ namespace graphene { namespace chain {
    protected:
          //Mark pop_undo() as protected -- we do not want outside calling pop_undo(); it should call pop_block() instead
          void pop_undo() { object_database::pop_undo(); }
+         void notify_applied_block( const signed_block& block );
+         void notify_on_pending_transaction( const signed_transaction& tx );
          void notify_changed_objects();
 
       private:
@@ -492,6 +494,8 @@ namespace graphene { namespace chain {
 
          const witness_object& validate_block_header( uint32_t skip, const signed_block& next_block )const;
          const witness_object& _validate_block_header( const signed_block& next_block )const;
+         void verify_signing_witness( const signed_block& new_block, const fork_item& fork_entry )const;
+         void update_witnesses( fork_item& fork_entry )const;
          void create_block_summary(const signed_block& next_block);
 
          //////////////////// db_witness_schedule.cpp ////////////////////

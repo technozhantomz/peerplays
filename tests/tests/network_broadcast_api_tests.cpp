@@ -292,6 +292,7 @@ BOOST_AUTO_TEST_CASE( check_failes_for_duplicates_in_pending_transactions_list )
     try
     {
         ACTOR( alice );
+        generate_blocks( HARDFORK_1000_TIME + 15 );
 
         auto duplicate = make_sport_create_operation("SPORT1", "S1");
 
@@ -340,12 +341,12 @@ BOOST_AUTO_TEST_CASE( check_fails_for_several_transactions_with_duplicates_in_pe
         ACTORS((alice))
 
         fc::ecc::private_key committee_key = init_account_priv_key;
-
+        
         const account_object& moneyman = create_account("moneyman", init_account_pub_key);
         const asset_object& core = asset_id_type()(db);
 
         transfer(account_id_type()(db), moneyman, core.amount(1000000));
-
+        generate_blocks( HARDFORK_1000_TIME + 15 );
         auto duplicate = make_sport_create_operation("SPORT1", "S1");
         push_proposal(*this, moneyman, {make_sport_create_operation("SPORT2", "S2"), duplicate} );
 

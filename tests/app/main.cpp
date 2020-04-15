@@ -28,8 +28,12 @@
 
 #include <graphene/utilities/tempdir.hpp>
 
+#include <graphene/witness/witness.hpp>
 #include <graphene/account_history/account_history_plugin.hpp>
-
+#include <graphene/bookie/bookie_plugin.hpp>
+#include <graphene/accounts_list/accounts_list_plugin.hpp>
+#include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
+#include <graphene/market_history/market_history_plugin.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/smart_ref_impl.hpp>
 
@@ -56,7 +60,13 @@ BOOST_AUTO_TEST_CASE( two_node_network )
       BOOST_TEST_MESSAGE( "Creating and initializing app1" );
 
       graphene::app::application app1;
+      app1.register_plugin<graphene::witness_plugin::witness_plugin>();
       app1.register_plugin<graphene::account_history::account_history_plugin>();
+      app1.register_plugin<graphene::bookie::bookie_plugin>();
+      app1.register_plugin<graphene::accounts_list::accounts_list_plugin>();
+      app1.register_plugin<graphene::affiliate_stats::affiliate_stats_plugin>();
+      app1.register_plugin<graphene::market_history::market_history_plugin>();
+
       boost::program_options::variables_map cfg;
       cfg.emplace("p2p-endpoint", boost::program_options::variable_value(string("127.0.0.1:0"), false));
       app1.initialize(app_dir.path(), cfg);
@@ -71,7 +81,12 @@ BOOST_AUTO_TEST_CASE( two_node_network )
       auto cfg2 = cfg;
 
       graphene::app::application app2;
-      app2.register_plugin<account_history::account_history_plugin>();
+      app2.register_plugin<graphene::witness_plugin::witness_plugin>();
+      app2.register_plugin<graphene::account_history::account_history_plugin>();
+      app2.register_plugin<graphene::bookie::bookie_plugin>();
+      app2.register_plugin<graphene::accounts_list::accounts_list_plugin>();
+      app2.register_plugin<graphene::affiliate_stats::affiliate_stats_plugin>();
+      app2.register_plugin<graphene::market_history::market_history_plugin>();
       cfg2.erase("p2p-endpoint");
       cfg2.emplace("p2p-endpoint", boost::program_options::variable_value(string("127.0.0.1:0"), false));
       cfg2.emplace("seed-node", boost::program_options::variable_value(vector<string>{endpoint1}, false));

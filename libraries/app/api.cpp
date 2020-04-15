@@ -26,7 +26,6 @@
 #include <graphene/app/api.hpp>
 #include <graphene/app/api_access.hpp>
 #include <graphene/app/application.hpp>
-#include <graphene/app/impacted.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/get_config.hpp>
 #include <graphene/utilities/key_conversion.hpp>
@@ -580,6 +579,18 @@ namespace graphene { namespace app {
            if(start == operation_history_id_type() || start.instance.value > node.operation_id.instance.value)
               start = node.operation_id;
         } catch(...) { return result; }
+
+        if(_app.is_plugin_enabled("elasticsearch")) {
+           auto es = _app.get_plugin<elasticsearch::elasticsearch_plugin>("elasticsearch");
+           if(es.get()->get_running_mode() != elasticsearch::mode::only_save) {
+              if(!_app.elasticsearch_thread)
+                 _app.elasticsearch_thread= std::make_shared<fc::thread>("elasticsearch");
+
+              return _app.elasticsearch_thread->async([&es, &account, &stop, &limit, &start]() {
+                 return es->get_account_history(account, stop, limit, start);
+              }, "thread invoke for method " BOOST_PP_STRINGIZE(method_name)).wait();
+           }
+        }
 
         const auto& hist_idx = db.get_index_type<account_transaction_history_index>();
         const auto& by_op_idx = hist_idx.indices().get<by_op>();

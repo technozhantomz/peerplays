@@ -39,6 +39,7 @@
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/evaluator.hpp>
+#include <graphene/chain/witness_schedule_object.hpp>
 #include <fc/crypto/digest.hpp>
 
 #include <fc/smart_ref_impl.hpp>
@@ -133,82 +134,90 @@ bool database::push_block(const signed_block& new_block, uint32_t skip)
 bool database::_push_block(const signed_block& new_block)
 { try {
    uint32_t skip = get_node_properties().skip_flags;
-   if( !(skip&skip_fork_db) )
+   const auto now = fc::time_point::now().sec_since_epoch();
+
+   if( _fork_db.head() && new_block.timestamp.sec_since_epoch() > now - 86400 )
    {
-      /// TODO: if the block is greater than the head block and before the next maitenance interval
       // verify that the block signer is in the current set of active witnesses.
+      shared_ptr<fork_item> prev_block = _fork_db.fetch_block( new_block.previous );
+      GRAPHENE_ASSERT( prev_block, unlinkable_block_exception, "block does not link to known chain" );
+      if( prev_block->scheduled_witnesses && !(skip&(skip_witness_schedule_check|skip_witness_signature)) )
+         verify_signing_witness( new_block, *prev_block );
+   }
+   shared_ptr<fork_item> new_head = _fork_db.push_block(new_block);
 
-      shared_ptr<fork_item> new_head = _fork_db.push_block(new_block);
-      //If the head block from the longest chain does not build off of the current head, we need to switch forks.
-      if( new_head->data.previous != head_block_id() )
+   //If the head block from the longest chain does not build off of the current head, we need to switch forks.
+   if( new_head->data.previous != head_block_id() )
+   {
+      //If the newly pushed block is the same height as head, we get head back in new_head
+      //Only switch forks if new_head is actually higher than head
+      if( new_head->data.block_num() > head_block_num() )
       {
-         //If the newly pushed block is the same height as head, we get head back in new_head
-         //Only switch forks if new_head is actually higher than head
-         if( new_head->data.block_num() > head_block_num() )
+         wlog( "Switching to fork: ${id}", ("id",new_head->data.id()) );
+         auto branches = _fork_db.fetch_branch_from(new_head->data.id(), head_block_id());
+
+         // pop blocks until we hit the forked block
+         while( head_block_id() != branches.second.back()->data.previous )
          {
-            wlog( "Switching to fork: ${id}", ("id",new_head->data.id()) );
-            auto branches = _fork_db.fetch_branch_from(new_head->data.id(), head_block_id());
-
-            // pop blocks until we hit the forked block
-            while( head_block_id() != branches.second.back()->data.previous )
-            {
-               ilog( "popping block #${n} ${id}", ("n",head_block_num())("id",head_block_id()) );
-               pop_block();
-            }
-
-            // push all blocks on the new fork
-            for( auto ritr = branches.first.rbegin(); ritr != branches.first.rend(); ++ritr )
-            {
-                ilog( "pushing block from fork #${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->id) );
-                optional<fc::exception> except;
-                try {
-                   undo_database::session session = _undo_db.start_undo_session();
-                   apply_block( (*ritr)->data, skip );
-                   _block_id_to_block.store( (*ritr)->id, (*ritr)->data );
-                   session.commit();
-                }
-                catch ( const fc::exception& e ) { except = e; }
-                if( except )
-                {
-                   wlog( "exception thrown while switching forks ${e}", ("e",except->to_detail_string() ) );
-                   // remove the rest of branches.first from the fork_db, those blocks are invalid
-                   while( ritr != branches.first.rend() )
-                   {
-                      ilog( "removing block from fork_db #${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->id) );
-                      _fork_db.remove( (*ritr)->id );
-                      ++ritr;
-                   }
-                   _fork_db.set_head( branches.second.front() );
-
-                   // pop all blocks from the bad fork
-                   while( head_block_id() != branches.second.back()->data.previous )
-                   {
-                      ilog( "popping block #${n} ${id}", ("n",head_block_num())("id",head_block_id()) );
-                      pop_block();
-                   }
-
-                   ilog( "Switching back to fork: ${id}", ("id",branches.second.front()->data.id()) );
-                   // restore all blocks from the good fork
-                   for( auto ritr2 = branches.second.rbegin(); ritr2 != branches.second.rend(); ++ritr2 )
-                   {
-                      ilog( "pushing block #${n} ${id}", ("n",(*ritr2)->data.block_num())("id",(*ritr2)->id) );
-                      auto session = _undo_db.start_undo_session();
-                      apply_block( (*ritr2)->data, skip );
-                      _block_id_to_block.store( (*ritr2)->id, (*ritr2)->data );
-                      session.commit();
-                   }
-                   throw *except;
-                }
-            }
-            return true;
+            ilog( "popping block #${n} ${id}", ("n",head_block_num())("id",head_block_id()) );
+            pop_block();
          }
-         else return false;
+
+         // push all blocks on the new fork
+         for( auto ritr = branches.first.rbegin(); ritr != branches.first.rend(); ++ritr )
+         {
+               ilog( "pushing block from fork #${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->id) );
+               optional<fc::exception> except;
+               try {
+                  undo_database::session session = _undo_db.start_undo_session();
+                  apply_block( (*ritr)->data, skip );
+                  update_witnesses( **ritr );
+                  _block_id_to_block.store( (*ritr)->id, (*ritr)->data );
+                  session.commit();
+               }
+               catch ( const fc::exception& e ) { except = e; }
+               if( except )
+               {
+                  wlog( "exception thrown while switching forks ${e}", ("e",except->to_detail_string() ) );
+                  // remove the rest of branches.first from the fork_db, those blocks are invalid
+                  while( ritr != branches.first.rend() )
+                  {
+                     ilog( "removing block from fork_db #${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->id) );
+                     _fork_db.remove( (*ritr)->id );
+                     ++ritr;
+                  }
+                  _fork_db.set_head( branches.second.front() );
+
+                  // pop all blocks from the bad fork
+                  while( head_block_id() != branches.second.back()->data.previous )
+                  {
+                     ilog( "popping block #${n} ${id}", ("n",head_block_num())("id",head_block_id()) );
+                     pop_block();
+                  }
+
+                  ilog( "Switching back to fork: ${id}", ("id",branches.second.front()->data.id()) );
+                  // restore all blocks from the good fork
+                  for( auto ritr2 = branches.second.rbegin(); ritr2 != branches.second.rend(); ++ritr2 )
+                  {
+                     ilog( "pushing block #${n} ${id}", ("n",(*ritr2)->data.block_num())("id",(*ritr2)->id) );
+                     auto session = _undo_db.start_undo_session();
+                     apply_block( (*ritr2)->data, skip );
+                     _block_id_to_block.store( (*ritr2)->id, (*ritr2)->data );
+                     session.commit();
+                  }
+                  throw *except;
+               }
+         }
+         return true;
       }
+      else return false;
    }
 
    try {
       auto session = _undo_db.start_undo_session();
       apply_block(new_block, skip);
+      if( new_block.timestamp.sec_since_epoch() > now - 86400 )
+         update_witnesses( *new_head );
       _block_id_to_block.store(new_block.id(), new_block);
       session.commit();
    } catch ( const fc::exception& e ) {
@@ -219,6 +228,73 @@ bool database::_push_block(const signed_block& new_block)
 
    return false;
 } FC_CAPTURE_AND_RETHROW( (new_block) ) }
+
+void database::verify_signing_witness( const signed_block& new_block, const fork_item& fork_entry )const
+{
+   FC_ASSERT( new_block.timestamp >= fork_entry.next_block_time );
+   uint32_t slot_num = ( new_block.timestamp - fork_entry.next_block_time ).to_seconds() / block_interval();
+   const global_property_object& gpo = get_global_properties();
+
+   if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+   {
+      uint64_t index = ( fork_entry.next_block_aslot + slot_num ) % fork_entry.scheduled_witnesses->size();
+      const auto& scheduled_witness = (*fork_entry.scheduled_witnesses)[index];
+      FC_ASSERT( new_block.witness == scheduled_witness.first, "Witness produced block at wrong time",
+               ("block witness",new_block.witness)("scheduled",scheduled_witness)("slot_num",slot_num) );
+      FC_ASSERT( new_block.validate_signee( scheduled_witness.second ) );
+   }
+   if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM &&
+       slot_num != 0 )
+   {
+      witness_id_type wid;
+      const witness_schedule_object& wso = get_witness_schedule_object();
+      // ask the near scheduler who goes in the given slot
+      bool slot_is_near = wso.scheduler.get_slot(slot_num, wid);
+      if(! slot_is_near)
+      {
+         // if the near scheduler doesn't know, we have to extend it to
+         //   a far scheduler.
+         // n.b. instantiating it is slow, but block gaps long enough to
+         //   need it are likely pretty rare.
+
+         witness_scheduler_rng far_rng(wso.rng_seed.begin(), GRAPHENE_FAR_SCHEDULE_CTR_IV);
+
+         far_future_witness_scheduler far_scheduler =
+            far_future_witness_scheduler(wso.scheduler, far_rng);
+         if(!far_scheduler.get_slot(slot_num, wid))
+         {
+            // no scheduled witness -- somebody set up us the bomb
+            // n.b. this code path is impossible, the present
+            // implementation of far_future_witness_scheduler
+            // returns true unconditionally
+            assert( false );
+         }
+      }
+
+      FC_ASSERT( new_block.witness == wid, "Witness produced block at wrong time",
+               ("block witness",new_block.witness)("scheduled",wid)("slot_num",slot_num) );
+      FC_ASSERT( new_block.validate_signee( wid(*this).signing_key ) );
+   }   
+}
+
+void database::update_witnesses( fork_item& fork_entry )const
+{
+   if( fork_entry.scheduled_witnesses ) return;
+
+   const dynamic_global_property_object& dpo = get_dynamic_global_properties();
+   fork_entry.next_block_aslot = dpo.current_aslot + 1;
+   fork_entry.next_block_time = get_slot_time( 1 );
+
+   const witness_schedule_object& wso = get_witness_schedule_object();
+   fork_entry.scheduled_witnesses = std::make_shared< vector< pair< witness_id_type, public_key_type > > >();
+   fork_entry.scheduled_witnesses->reserve( wso.current_shuffled_witnesses.size() );
+   
+   for( size_t i = 0; i < wso.current_shuffled_witnesses.size(); ++i )
+   {
+      const auto& witness = wso.current_shuffled_witnesses[i](*this);
+      fork_entry.scheduled_witnesses->emplace_back( wso.current_shuffled_witnesses[i], witness.signing_key );
+   }
+}
 
 /**
  * Attempts to push the transaction into the pending queue
@@ -260,7 +336,7 @@ processed_transaction database::_push_transaction( const signed_transaction& trx
    temp_session.merge();
 
    // notify anyone listening to pending transactions
-   on_pending_transaction( trx );
+   notify_on_pending_transaction( trx );
    return processed_trx;
 }
 
@@ -594,7 +670,7 @@ void database::_apply_block( const signed_block& next_block )
       apply_debug_updates();
 
    // notify observers that the block has been applied
-   applied_block( next_block ); //emit
+   notify_applied_block( next_block ); //emit
    _applied_ops.clear();
 
    notify_changed_objects();
