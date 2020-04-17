@@ -326,6 +326,9 @@ void sidechain_net_handler::process_deposits() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const son_wallet_deposit_object &swdo) {
+      if(swdo.id == object_id_type(0, 0, 0))
+         return;
+
       ilog("Deposit to process: ${swdo}", ("swdo", swdo));
 
       bool process_deposit_result = process_deposit(swdo);
@@ -376,6 +379,9 @@ void sidechain_net_handler::process_withdrawals() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const son_wallet_withdraw_object &swwo) {
+      if(swwo.id == object_id_type(0, 0, 0))
+         return;
+
       ilog("Withdraw to process: ${swwo}", ("swwo", swwo));
 
       bool process_withdrawal_result = process_withdrawal(swwo);
@@ -420,6 +426,9 @@ void sidechain_net_handler::process_sidechain_transactions() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
+      if(sto.id == object_id_type(0, 0, 0))
+         return;
+
       ilog("Sidechain transaction to process: ${sto}", ("sto", sto.id));
 
       bool complete = false;
@@ -452,6 +461,9 @@ void sidechain_net_handler::send_sidechain_transactions() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
+      if(sto.id == object_id_type(0, 0, 0))
+         return;
+
       ilog("Sidechain transaction to send: ${sto}", ("sto", sto.id));
 
       std::string sidechain_transaction = send_sidechain_transaction(sto);
