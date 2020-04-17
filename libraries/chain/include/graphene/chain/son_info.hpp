@@ -24,7 +24,15 @@ namespace graphene { namespace chain {
                (sidechain_public_keys.size() == rhs.sidechain_public_keys.size());
 
          if (son_sets_equal) {
-            // Compare sidechain public keys
+            bool sidechain_public_keys_equal = true;
+            for (size_t i = 0; i < sidechain_public_keys.size(); i++) {
+                const auto lhs_scpk = sidechain_public_keys.nth(i);
+                const auto rhs_scpk = rhs.sidechain_public_keys.nth(i);
+                sidechain_public_keys_equal = sidechain_public_keys_equal &&
+                        (lhs_scpk->first == rhs_scpk->first) &&
+                        (lhs_scpk->second == rhs_scpk->second);
+            }
+            son_sets_equal = son_sets_equal && sidechain_public_keys_equal;
          }
          return son_sets_equal;
       }
