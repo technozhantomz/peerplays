@@ -27,10 +27,12 @@ BOOST_AUTO_TEST_CASE( sidechain_address_add_test ) {
       BOOST_TEST_MESSAGE("Send sidechain_address_add_operation");
 
       sidechain_address_add_operation op;
-
+      op.payer = alice_id;
       op.sidechain_address_account = alice_id;
       op.sidechain = sidechain_type::bitcoin;
+      op.deposit_public_key = "deposit_public_key";
       op.deposit_address = "deposit_address";
+      op.withdraw_public_key = "withdraw_public_key";
       op.withdraw_address = "withdraw_address";
 
       trx.operations.push_back(op);
@@ -47,7 +49,9 @@ BOOST_AUTO_TEST_CASE( sidechain_address_add_test ) {
    BOOST_REQUIRE( obj != idx.end() );
    BOOST_CHECK( obj->sidechain_address_account == alice_id );
    BOOST_CHECK( obj->sidechain == sidechain_type::bitcoin );
+   BOOST_CHECK( obj->deposit_public_key == "deposit_public_key" );
    BOOST_CHECK( obj->deposit_address == "deposit_address" );
+   BOOST_CHECK( obj->withdraw_public_key == "withdraw_public_key" );
    BOOST_CHECK( obj->withdraw_address == "withdraw_address" );
 }
 
@@ -64,17 +68,22 @@ BOOST_AUTO_TEST_CASE( sidechain_address_update_test ) {
    auto obj = idx.find( boost::make_tuple( alice_id, sidechain_type::bitcoin ) );
    BOOST_REQUIRE( obj != idx.end() );
 
+   std::string new_deposit_public_key = "new_deposit_public_key";
    std::string new_deposit_address = "new_deposit_address";
+   std::string new_withdraw_public_key = "new_withdraw_public_key";
    std::string new_withdraw_address = "new_withdraw_address";
 
    {
       BOOST_TEST_MESSAGE("Send sidechain_address_update_operation");
 
       sidechain_address_update_operation op;
+      op.payer = alice_id;
       op.sidechain_address_id = sidechain_address_id_type(0);
       op.sidechain_address_account = obj->sidechain_address_account;
       op.sidechain = obj->sidechain;
+      op.deposit_public_key = new_deposit_public_key;
       op.deposit_address = new_deposit_address;
+      op.withdraw_public_key = new_withdraw_public_key;
       op.withdraw_address = new_withdraw_address;
 
       trx.operations.push_back(op);
@@ -92,7 +101,9 @@ BOOST_AUTO_TEST_CASE( sidechain_address_update_test ) {
       BOOST_REQUIRE( obj != idx.end() );
       BOOST_CHECK( obj->sidechain_address_account == obj->sidechain_address_account );
       BOOST_CHECK( obj->sidechain == obj->sidechain );
+      BOOST_CHECK( obj->deposit_public_key == new_deposit_public_key );
       BOOST_CHECK( obj->deposit_address == new_deposit_address );
+      BOOST_CHECK( obj->withdraw_public_key == new_withdraw_public_key );
       BOOST_CHECK( obj->withdraw_address == new_withdraw_address );
    }
 }
@@ -114,8 +125,9 @@ BOOST_AUTO_TEST_CASE( sidechain_address_delete_test ) {
       BOOST_TEST_MESSAGE("Send sidechain_address_delete_operation");
 
       sidechain_address_delete_operation op;
+      op.payer = alice_id;
       op.sidechain_address_id = sidechain_address_id_type(0);
-      op.sidechain_address_account = obj->sidechain_address_account;
+      op.sidechain_address_account = alice_id;
       op.sidechain = obj->sidechain;
 
       trx.operations.push_back(op);

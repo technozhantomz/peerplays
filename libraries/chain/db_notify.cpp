@@ -330,13 +330,13 @@ struct get_impacted_account_visitor
       _impacted.insert( op.payer );
    }
    void operator()( const sidechain_address_add_operation& op ) {
-      _impacted.insert( op.sidechain_address_account );
+      _impacted.insert( op.payer );
    }
    void operator()( const sidechain_address_update_operation& op ) {
-       _impacted.insert( op.sidechain_address_account );
+       _impacted.insert( op.payer );
    }
    void operator()( const sidechain_address_delete_operation& op ) {
-      _impacted.insert( op.sidechain_address_account );
+      _impacted.insert( op.payer );
    }
    void operator()( const sidechain_transaction_create_operation& op ) {
       _impacted.insert( op.payer );

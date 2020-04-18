@@ -37,6 +37,7 @@ public:
    const son_object get_current_son_object();
    const son_object get_son_object(son_id_type son_id);
    bool is_active_son(son_id_type son_id);
+   bool is_son_deleted(son_id_type son_id);
    bool is_son_delete_op_valid(const chain::operation &op);
    bool is_son_down_op_valid(const chain::operation &op);
    bool is_valid_son_proposal(const chain::proposal_object &proposal);
@@ -268,6 +269,15 @@ bool peerplays_sidechain_plugin_impl::is_active_son(son_id_type son_id) {
    return (it != active_son_ids.end());
 }
 
+bool peerplays_sidechain_plugin_impl::is_son_deleted(son_id_type son_id) {
+   const auto &idx = plugin.database().get_index_type<chain::son_index>().indices().get<by_id>();
+   auto son_obj = idx.find(son_id);
+   if (son_obj == idx.end())
+      return true;
+
+   return false;
+}
+
 bool peerplays_sidechain_plugin_impl::is_son_delete_op_valid(const chain::operation &op) {
    son_delete_operation delete_op = op.get<son_delete_operation>();
    return plugin.database().is_son_dereg_valid(delete_op.son_id);
@@ -375,6 +385,9 @@ void peerplays_sidechain_plugin_impl::son_processing() {
         ("scheduled_son_id", scheduled_son_id)("now", now));
 
    for (son_id_type son_id : plugin.get_sons()) {
+      if (plugin.is_son_deleted(son_id)) {
+         continue;
+      }
       current_son_id = son_id;
 
       // These tasks are executed by
@@ -644,6 +657,10 @@ const son_object peerplays_sidechain_plugin::get_son_object(son_id_type son_id) 
 
 bool peerplays_sidechain_plugin::is_active_son(son_id_type son_id) {
    return my->is_active_son(son_id);
+}
+
+bool peerplays_sidechain_plugin::is_son_deleted(son_id_type son_id) {
+   return my->is_son_deleted(son_id);
 }
 
 fc::ecc::private_key peerplays_sidechain_plugin::get_private_key(son_id_type son_id) {

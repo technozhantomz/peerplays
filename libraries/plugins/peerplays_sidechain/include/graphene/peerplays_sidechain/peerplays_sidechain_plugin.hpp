@@ -31,6 +31,7 @@ public:
    const son_object get_current_son_object();
    const son_object get_son_object(son_id_type son_id);
    bool is_active_son(son_id_type son_id);
+   bool is_son_deleted(son_id_type son_id);
    fc::ecc::private_key get_private_key(son_id_type son_id);
    fc::ecc::private_key get_private_key(chain::public_key_type public_key);
 };

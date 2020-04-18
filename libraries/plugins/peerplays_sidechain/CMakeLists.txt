@@ -1,4 +1,4 @@
-file(GLOB HEADERS "include/graphene/peerplays_sidechain/*.hpp")
+file(GLOB_RECURSE HEADERS "include/graphene/peerplays_sidechain/*.hpp")
 
 add_library( peerplays_sidechain
              peerplays_sidechain_plugin.cpp
@@ -6,7 +6,13 @@ add_library( peerplays_sidechain
              sidechain_net_handler.cpp
              sidechain_net_handler_bitcoin.cpp
              sidechain_net_handler_peerplays.cpp
-             bitcoin_utils.cpp
+             bitcoin/bech32.cpp
+             bitcoin/bitcoin_address.cpp
+             bitcoin/bitcoin_script.cpp
+             bitcoin/bitcoin_transaction.cpp
+             bitcoin/segwit_addr.cpp
+             bitcoin/utils.cpp
+             bitcoin/sign_bitcoin_transaction.cpp
            )
 
 if (SUPPORT_MULTIPLE_SONS)

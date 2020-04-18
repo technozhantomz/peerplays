@@ -315,6 +315,7 @@ void sidechain_net_handler::process_proposals() {
 
 void sidechain_net_handler::process_active_sons_change() {
    process_primary_wallet();
+   process_sidechain_addresses();
 }
 
 void sidechain_net_handler::process_deposits() {
@@ -326,7 +327,7 @@ void sidechain_net_handler::process_deposits() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const son_wallet_deposit_object &swdo) {
-      if(swdo.id == object_id_type(0, 0, 0))
+      if (swdo.id == object_id_type(0, 0, 0))
          return;
 
       ilog("Deposit to process: ${swdo}", ("swdo", swdo));
@@ -379,7 +380,7 @@ void sidechain_net_handler::process_withdrawals() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const son_wallet_withdraw_object &swwo) {
-      if(swwo.id == object_id_type(0, 0, 0))
+      if (swwo.id == object_id_type(0, 0, 0))
          return;
 
       ilog("Withdraw to process: ${swwo}", ("swwo", swwo));
@@ -426,7 +427,7 @@ void sidechain_net_handler::process_sidechain_transactions() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
-      if(sto.id == object_id_type(0, 0, 0))
+      if (sto.id == object_id_type(0, 0, 0))
          return;
 
       ilog("Sidechain transaction to process: ${sto}", ("sto", sto.id));
@@ -461,7 +462,7 @@ void sidechain_net_handler::send_sidechain_transactions() {
    const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, true, false));
 
    std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
-      if(sto.id == object_id_type(0, 0, 0))
+      if (sto.id == object_id_type(0, 0, 0))
          return;
 
       ilog("Sidechain transaction to send: ${sto}", ("sto", sto.id));
@@ -488,30 +489,6 @@ void sidechain_net_handler::send_sidechain_transactions() {
          elog("Sending proposal for sidechain transaction send operation failed with exception ${e}", ("e", e.what()));
       }
    });
-}
-
-bool sidechain_net_handler::process_proposal(const proposal_object &po) {
-   FC_ASSERT(false, "process_proposal not implemented");
-}
-
-void sidechain_net_handler::process_primary_wallet() {
-   FC_ASSERT(false, "process_primary_wallet not implemented");
-}
-
-bool sidechain_net_handler::process_deposit(const son_wallet_deposit_object &swdo) {
-   FC_ASSERT(false, "process_deposit not implemented");
-}
-
-bool sidechain_net_handler::process_withdrawal(const son_wallet_withdraw_object &swwo) {
-   FC_ASSERT(false, "process_withdrawal not implemented");
-}
-
-std::string sidechain_net_handler::process_sidechain_transaction(const sidechain_transaction_object &sto) {
-   FC_ASSERT(false, "process_sidechain_transaction not implemented");
-}
-
-std::string sidechain_net_handler::send_sidechain_transaction(const sidechain_transaction_object &sto) {
-   FC_ASSERT(false, "send_sidechain_transaction not implemented");
 }
 
 }} // namespace graphene::peerplays_sidechain
