@@ -159,7 +159,8 @@ namespace graphene { namespace chain {
             sidechain_address_delete_operation,
             sidechain_transaction_create_operation,
             sidechain_transaction_sign_operation,
-            sidechain_transaction_send_operation
+            sidechain_transaction_send_operation,
+            sidechain_transaction_settle_operation
          > operation;
 
    /// @} // operations group

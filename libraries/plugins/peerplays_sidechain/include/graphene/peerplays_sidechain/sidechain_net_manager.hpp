@@ -22,6 +22,7 @@ public:
    void process_withdrawals();
    void process_sidechain_transactions();
    void send_sidechain_transactions();
+   void settle_sidechain_transactions();
 
 private:
    peerplays_sidechain_plugin &plugin;

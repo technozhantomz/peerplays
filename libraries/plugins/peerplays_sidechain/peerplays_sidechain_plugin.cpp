@@ -58,6 +58,7 @@ public:
    void process_withdrawals();
    void process_sidechain_transactions();
    void send_sidechain_transactions();
+   void settle_sidechain_transactions();
 
 private:
    peerplays_sidechain_plugin &plugin;
@@ -142,8 +143,10 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
          boost::insert(sons, fc::json::from_string(options.at("son-ids").as<string>()).as<vector<chain::son_id_type>>(5));
       config_ready_son = config_ready_son && !sons.empty();
 
-#ifndef SUPPORT_MULTIPLE_SONS
-      FC_ASSERT(sons.size() == 1, "Multiple SONs not supported");
+#ifndef ENABLE_MULTIPLE_SONS
+      if (sons.size() > 1) {
+         FC_THROW("Invalid configuration, multiple SON IDs provided");
+      }
 #endif
 
       if (options.count("peerplays-private-key")) {
@@ -343,6 +346,7 @@ void peerplays_sidechain_plugin_impl::heartbeat_loop() {
          chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(son_id), op);
          fc::future<bool> fut = fc::async([&]() {
             try {
+               trx.validate();
                d.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
@@ -414,6 +418,8 @@ void peerplays_sidechain_plugin_impl::son_processing() {
             process_sidechain_transactions();
 
             send_sidechain_transactions();
+
+            settle_sidechain_transactions();
          }
       }
    }
@@ -450,6 +456,7 @@ void peerplays_sidechain_plugin_impl::approve_proposals() {
       chain::signed_transaction trx = plugin.database().create_signed_transaction(plugin.get_private_key(son_id), puo);
       fc::future<bool> fut = fc::async([&]() {
          try {
+            trx.validate();
             plugin.database().push_transaction(trx, database::validation_steps::skip_block_size_check);
             if (plugin.app().p2p_node())
                plugin.app().p2p_node()->broadcast(net::trx_message(trx));
@@ -525,6 +532,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals() {
          chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(get_son_object(my_son_id).signing_key), op);
          fc::future<bool> fut = fc::async([&]() {
             try {
+               trx.validate();
                d.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
@@ -559,6 +567,7 @@ void peerplays_sidechain_plugin_impl::create_son_deregister_proposals() {
                chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(get_son_object(my_son_id).signing_key), *op);
                fc::future<bool> fut = fc::async([&]() {
                   try {
+                     trx.validate();
                      d.push_transaction(trx, database::validation_steps::skip_block_size_check);
                      if (plugin.app().p2p_node())
                         plugin.app().p2p_node()->broadcast(net::trx_message(trx));
@@ -597,6 +606,10 @@ void peerplays_sidechain_plugin_impl::process_sidechain_transactions() {
 
 void peerplays_sidechain_plugin_impl::send_sidechain_transactions() {
    net_manager->send_sidechain_transactions();
+}
+
+void peerplays_sidechain_plugin_impl::settle_sidechain_transactions() {
+   net_manager->settle_sidechain_transactions();
 }
 
 void peerplays_sidechain_plugin_impl::on_applied_block(const signed_block &b) {

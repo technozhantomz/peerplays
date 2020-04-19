@@ -50,6 +50,19 @@ namespace graphene { namespace chain {
       share_type        calculate_fee( const fee_parameters_type& k )const { return 0; }
    };
 
+   struct sidechain_transaction_settle_operation : public base_operation
+   {
+      struct fee_parameters_type { uint64_t fee = 0; };
+
+      asset fee;
+      account_id_type payer;
+
+      sidechain_transaction_id_type sidechain_transaction_id;
+
+      account_id_type   fee_payer()const { return payer; }
+      share_type        calculate_fee( const fee_parameters_type& k )const { return 0; }
+   };
+
 } } // graphene::chain
 
 FC_REFLECT( graphene::chain::sidechain_transaction_create_operation::fee_parameters_type, (fee) )
@@ -68,3 +81,7 @@ FC_REFLECT( graphene::chain::sidechain_transaction_send_operation::fee_parameter
 FC_REFLECT( graphene::chain::sidechain_transaction_send_operation, (fee)(payer)
         (sidechain_transaction_id)
         (sidechain_transaction) )
+
+FC_REFLECT( graphene::chain::sidechain_transaction_settle_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::sidechain_transaction_settle_operation, (fee)(payer)
+        (sidechain_transaction_id) )

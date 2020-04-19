@@ -15,12 +15,26 @@ add_library( peerplays_sidechain
              bitcoin/sign_bitcoin_transaction.cpp
            )
 
-if (SUPPORT_MULTIPLE_SONS)
-   message ("Multiple SONs per software instance are supported")
-   target_compile_definitions(peerplays_sidechain PRIVATE SUPPORT_MULTIPLE_SONS)
+if (ENABLE_DEV_FEATURES)
+    set(ENABLE_MULTIPLE_SONS 1)
+    set(ENABLE_PEERPLAYS_ASSET_DEPOSITS 1)
 endif()
-unset(SUPPORT_MULTIPLE_SONS)
-unset(SUPPORT_MULTIPLE_SONS CACHE)
+unset(ENABLE_DEV_FEATURES)
+unset(ENABLE_DEV_FEATURES CACHE)
+
+if (ENABLE_MULTIPLE_SONS)
+   message ("Multiple SONs per software instance are supported")
+   target_compile_definitions(peerplays_sidechain PRIVATE ENABLE_MULTIPLE_SONS)
+endif()
+unset(ENABLE_MULTIPLE_SONS)
+unset(ENABLE_MULTIPLE_SONS CACHE)
+
+if (ENABLE_PEERPLAYS_ASSET_DEPOSITS)
+   message ("Depositing Peerplays assets enabled")
+   target_compile_definitions(peerplays_sidechain PRIVATE ENABLE_PEERPLAYS_ASSET_DEPOSITS)
+endif()
+unset(ENABLE_PEERPLAYS_ASSET_DEPOSITS)
+unset(ENABLE_PEERPLAYS_ASSET_DEPOSITS CACHE)
 
 target_link_libraries( peerplays_sidechain graphene_chain graphene_app fc zmq )
 target_include_directories( peerplays_sidechain

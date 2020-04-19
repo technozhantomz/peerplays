@@ -272,6 +272,7 @@ void database::initialize_evaluators()
    register_evaluator<sidechain_transaction_create_evaluator>();
    register_evaluator<sidechain_transaction_sign_evaluator>();
    register_evaluator<sidechain_transaction_send_evaluator>();
+   register_evaluator<sidechain_transaction_settle_evaluator>();
 }
 
 void database::initialize_indexes()

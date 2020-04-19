@@ -8,6 +8,7 @@
 #include <boost/property_tree/ptree.hpp>
 
 #include <fc/crypto/base64.hpp>
+#include <fc/crypto/hex.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/network/ip.hpp>
 
@@ -15,12 +16,26 @@
 #include <graphene/chain/protocol/son_wallet.hpp>
 #include <graphene/chain/son_info.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
+#include <graphene/utilities/key_conversion.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
 sidechain_net_handler_peerplays::sidechain_net_handler_peerplays(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
       sidechain_net_handler(_plugin, options) {
    sidechain = sidechain_type::peerplays;
+
+   if (options.count("peerplays-private-key")) {
+      const std::vector<std::string> pub_priv_keys = options["peerplays-private-key"].as<std::vector<std::string>>();
+      for (const std::string &itr_key_pair : pub_priv_keys) {
+         auto key_pair = graphene::app::dejsonify<std::pair<std::string, std::string>>(itr_key_pair, 5);
+         ilog("Peerplays Public Key: ${public}", ("public", key_pair.first));
+         if (!key_pair.first.length() || !key_pair.second.length()) {
+            FC_THROW("Invalid public private key pair.");
+         }
+         private_keys[key_pair.first] = key_pair.second;
+      }
+   }
+
    database.applied_block.connect([&](const signed_block &b) {
       on_applied_block(b);
    });
@@ -85,37 +100,12 @@ bool sidechain_net_handler_peerplays::process_proposal(const proposal_object &po
    }
 
    case chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value: {
-      son_wallet_withdraw_id_type swwo_id = op_obj_idx_0.get<son_wallet_withdraw_process_operation>().son_wallet_withdraw_id;
-      const auto &idx = database.get_index_type<son_wallet_withdraw_index>().indices().get<by_id>();
-      const auto swwo = idx.find(swwo_id);
-      if (swwo != idx.end()) {
-
-         uint32_t swwo_block_num = swwo->block_num;
-         std::string swwo_peerplays_transaction_id = swwo->peerplays_transaction_id;
-         uint32_t swwo_op_idx = std::stoll(swwo->peerplays_uid.substr(swwo->peerplays_uid.find_last_of("-") + 1));
-
-         const auto &block = database.fetch_block_by_number(swwo_block_num);
-
-         for (const auto &tx : block->transactions) {
-            if (tx.id().str() == swwo_peerplays_transaction_id) {
-               operation op = tx.operations[swwo_op_idx];
-               transfer_operation t_op = op.get<transfer_operation>();
-
-               price asset_price = database.get<asset_object>(t_op.amount.asset_id).options.core_exchange_rate;
-               asset peerplays_asset = asset(t_op.amount.amount * asset_price.base.amount / asset_price.quote.amount);
-
-               should_approve = (t_op.to == gpo.parameters.son_account()) &&
-                                (swwo->peerplays_from == t_op.from) &&
-                                (swwo->peerplays_asset == peerplays_asset);
-               break;
-            }
-         }
-      }
+      should_approve = false;
       break;
    }
 
-   case chain::operation::tag<chain::sidechain_transaction_create_operation>::value: {
-      should_approve = false;
+   case chain::operation::tag<chain::sidechain_transaction_settle_operation>::value: {
+      should_approve = true;
       break;
    }
 
@@ -138,7 +128,55 @@ void sidechain_net_handler_peerplays::process_sidechain_addresses() {
 }
 
 bool sidechain_net_handler_peerplays::process_deposit(const son_wallet_deposit_object &swdo) {
-   return true;
+
+   const chain::global_property_object &gpo = database.get_global_properties();
+
+   asset_issue_operation ai_op;
+   ai_op.issuer = gpo.parameters.son_account();
+   price btc_price = database.get<asset_object>(database.get_global_properties().parameters.btc_asset()).options.core_exchange_rate;
+   ai_op.asset_to_issue = asset(swdo.peerplays_asset.amount * btc_price.quote.amount / btc_price.base.amount, database.get_global_properties().parameters.btc_asset());
+   ai_op.issue_to_account = swdo.peerplays_from;
+
+   signed_transaction tx;
+   auto dyn_props = database.get_dynamic_global_properties();
+   tx.set_reference_block(dyn_props.head_block_id);
+   tx.set_expiration(database.head_block_time() + gpo.parameters.maximum_time_until_expiration);
+   tx.operations.push_back(ai_op);
+   database.current_fee_schedule().set_fee(tx.operations.back());
+
+   std::stringstream ss;
+   fc::raw::pack(ss, tx, 1000);
+   std::string tx_str = boost::algorithm::hex(ss.str());
+
+   if (!tx_str.empty()) {
+      const chain::global_property_object &gpo = database.get_global_properties();
+
+      sidechain_transaction_create_operation stc_op;
+      stc_op.payer = gpo.parameters.son_account();
+      stc_op.object_id = swdo.id;
+      stc_op.sidechain = sidechain;
+      stc_op.transaction = tx_str;
+      stc_op.signers = gpo.active_sons;
+
+      proposal_create_operation proposal_op;
+      proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+      proposal_op.proposed_ops.emplace_back(stc_op);
+      uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
+      proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
+
+      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+      try {
+         trx.validate();
+         database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+         if (plugin.app().p2p_node())
+            plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+         return true;
+      } catch (fc::exception e) {
+         elog("Sending proposal for deposit sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
+         return false;
+      }
+   }
+   return false;
 }
 
 bool sidechain_net_handler_peerplays::process_withdrawal(const son_wallet_withdraw_object &swwo) {
@@ -146,11 +184,55 @@ bool sidechain_net_handler_peerplays::process_withdrawal(const son_wallet_withdr
 }
 
 std::string sidechain_net_handler_peerplays::process_sidechain_transaction(const sidechain_transaction_object &sto) {
-   return sto.transaction;
+
+   std::stringstream ss_trx(boost::algorithm::unhex(sto.transaction));
+   signed_transaction trx;
+   fc::raw::unpack(ss_trx, trx, 1000);
+
+   fc::optional<fc::ecc::private_key> privkey = graphene::utilities::wif_to_key(get_private_key(plugin.get_current_son_object().sidechain_public_keys.at(sidechain)));
+   signature_type st = trx.sign(*privkey, database.get_chain_id());
+
+   std::stringstream ss_st;
+   fc::raw::pack(ss_st, st, 1000);
+   std::string st_str = boost::algorithm::hex(ss_st.str());
+
+   return st_str;
 }
 
 std::string sidechain_net_handler_peerplays::send_sidechain_transaction(const sidechain_transaction_object &sto) {
-   return sto.transaction;
+
+   std::stringstream ss_trx(boost::algorithm::unhex(sto.transaction));
+   signed_transaction trx;
+   fc::raw::unpack(ss_trx, trx, 1000);
+
+   for (auto signature : sto.signatures) {
+      if (!signature.second.empty()) {
+         std::stringstream ss_st(boost::algorithm::unhex(signature.second));
+         signature_type st;
+         fc::raw::unpack(ss_st, st, 1000);
+
+         trx.signatures.push_back(st);
+         trx.signees.clear();
+      }
+   }
+
+   try {
+      trx.validate();
+      database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+      if (plugin.app().p2p_node())
+         plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+      return trx.id().str();
+   } catch (fc::exception e) {
+      elog("Sidechain transaction failed with exception ${e}", ("e", e.what()));
+      return "";
+   }
+
+   return "";
+}
+
+int64_t sidechain_net_handler_peerplays::settle_sidechain_transaction(const sidechain_transaction_object &sto) {
+   int64_t settle_amount = 0;
+   return settle_amount;
 }
 
 void sidechain_net_handler_peerplays::on_applied_block(const signed_block &b) {

@@ -92,6 +92,7 @@ public:
    bool process_withdrawal(const son_wallet_withdraw_object &swwo);
    std::string process_sidechain_transaction(const sidechain_transaction_object &sto);
    std::string send_sidechain_transaction(const sidechain_transaction_object &sto);
+   int64_t settle_sidechain_transaction(const sidechain_transaction_object &sto);
 
 private:
    std::string ip;

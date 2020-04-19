@@ -7,6 +7,14 @@
 namespace graphene { namespace chain {
    using namespace graphene::db;
 
+   enum class sidechain_transaction_status {
+      invalid,
+      valid,
+      complete,
+      sent,
+      settled
+   };
+
    /**
     * @class sidechain_transaction_object
     * @brief tracks state of sidechain transaction during signing process.
@@ -28,14 +36,12 @@ namespace graphene { namespace chain {
          uint32_t total_weight = 0;
          uint32_t current_weight = 0;
          uint32_t threshold = 0;
-         bool valid = false;
-         bool complete = false;
-         bool sent = false;
+
+         sidechain_transaction_status status;
    };
 
    struct by_object_id;
-   struct by_sidechain_and_complete;
-   struct by_sidechain_and_complete_and_sent;
+   struct by_sidechain_and_status;
    using sidechain_transaction_multi_index_type = multi_index_container<
       sidechain_transaction_object,
       indexed_by<
@@ -45,23 +51,23 @@ namespace graphene { namespace chain {
          ordered_unique< tag<by_object_id>,
             member<sidechain_transaction_object, object_id_type, &sidechain_transaction_object::object_id>
          >,
-         ordered_non_unique< tag<by_sidechain_and_complete>,
+         ordered_non_unique< tag<by_sidechain_and_status>,
             composite_key<sidechain_transaction_object,
                member<sidechain_transaction_object, sidechain_type, &sidechain_transaction_object::sidechain>,
-               member<sidechain_transaction_object, bool, &sidechain_transaction_object::complete>
-            >
-         >,
-         ordered_non_unique< tag<by_sidechain_and_complete_and_sent>,
-            composite_key<sidechain_transaction_object,
-               member<sidechain_transaction_object, sidechain_type, &sidechain_transaction_object::sidechain>,
-               member<sidechain_transaction_object, bool, &sidechain_transaction_object::complete>,
-               member<sidechain_transaction_object, bool, &sidechain_transaction_object::sent>
+               member<sidechain_transaction_object, sidechain_transaction_status, &sidechain_transaction_object::status>
             >
          >
       >
    >;
    using sidechain_transaction_index = generic_index<sidechain_transaction_object, sidechain_transaction_multi_index_type>;
 } } // graphene::chain
+
+FC_REFLECT_ENUM( graphene::chain::sidechain_transaction_status,
+                 (invalid)
+                 (valid)
+                 (complete)
+                 (sent)
+                 (settled) )
 
 FC_REFLECT_DERIVED( graphene::chain::sidechain_transaction_object, (graphene::db::object ),
                     (sidechain)
@@ -73,6 +79,4 @@ FC_REFLECT_DERIVED( graphene::chain::sidechain_transaction_object, (graphene::db
                     (total_weight)
                     (current_weight)
                     (threshold)
-                    (valid)
-                    (complete)
-                    (sent) )
+                    (status) )

@@ -41,9 +41,7 @@ object_id_type sidechain_transaction_create_evaluator::do_apply(const sidechain_
       sto.sidechain_transaction = "";
       sto.current_weight = 0;
       sto.threshold = sto.total_weight * 2 / 3 + 1;
-      sto.valid = true;
-      sto.complete = false;
-      sto.sent = false;
+      sto.status = sidechain_transaction_status::valid;
    });
    return new_sidechain_transaction_object.id;
 } FC_CAPTURE_AND_RETHROW( ( op ) ) }
@@ -68,9 +66,7 @@ void_result sidechain_transaction_sign_evaluator::do_evaluate(const sidechain_tr
    }
    FC_ASSERT(expected, "Signer not expected");
 
-   FC_ASSERT(sto_obj->valid, "Transaction not valid");
-   FC_ASSERT(!sto_obj->complete, "Transaction signing completed");
-   FC_ASSERT(!sto_obj->sent, "Transaction already sent");
+   FC_ASSERT(sto_obj->status == sidechain_transaction_status::valid, "Invalid transaction status");
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( ( op ) ) }
@@ -94,7 +90,9 @@ object_id_type sidechain_transaction_sign_evaluator::do_apply(const sidechain_tr
              sto.current_weight = sto.current_weight + sto.signers.at(i).weight;
          }
       }
-      sto.complete = (sto.current_weight >= sto.threshold);
+      if (sto.current_weight >= sto.threshold) {
+          sto.status = sidechain_transaction_status::complete;
+      }
    });
 
    db().modify(son_obj->statistics(db()), [&](son_statistics_object& sso) {
@@ -112,9 +110,7 @@ void_result sidechain_transaction_send_evaluator::do_evaluate(const sidechain_tr
    const auto &sto_obj = sto_idx.find(op.sidechain_transaction_id);
    FC_ASSERT(sto_obj != sto_idx.end(), "Sidechain transaction object not found");
 
-   FC_ASSERT(sto_obj->valid, "Transaction not valid");
-   FC_ASSERT(sto_obj->complete, "Transaction signing not complete");
-   FC_ASSERT(!sto_obj->sent, "Transaction already sent");
+   FC_ASSERT(sto_obj->status == sidechain_transaction_status::complete, "Invalid transaction status");
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( ( op ) ) }
@@ -126,7 +122,33 @@ object_id_type sidechain_transaction_send_evaluator::do_apply(const sidechain_tr
 
    db().modify(*sto_obj, [&](sidechain_transaction_object &sto) {
       sto.sidechain_transaction = op.sidechain_transaction;
-      sto.sent = true;
+      sto.status = sidechain_transaction_status::sent;
+   });
+
+   return op.sidechain_transaction_id;
+} FC_CAPTURE_AND_RETHROW( ( op ) ) }
+
+
+void_result sidechain_transaction_settle_evaluator::do_evaluate(const sidechain_transaction_settle_operation &op)
+{ try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK"); // can be removed after HF date pass
+
+   const auto &sto_idx = db().get_index_type<sidechain_transaction_index>().indices().get<by_id>();
+   const auto &sto_obj = sto_idx.find(op.sidechain_transaction_id);
+   FC_ASSERT(sto_obj != sto_idx.end(), "Sidechain transaction object not found");
+
+   FC_ASSERT(sto_obj->status == sidechain_transaction_status::sent, "Invalid transaction status");
+
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( ( op ) ) }
+
+object_id_type sidechain_transaction_settle_evaluator::do_apply(const sidechain_transaction_settle_operation &op)
+{ try {
+   const auto &sto_idx = db().get_index_type<sidechain_transaction_index>().indices().get<by_id>();
+   auto sto_obj = sto_idx.find(op.sidechain_transaction_id);
+
+   db().modify(*sto_obj, [&](sidechain_transaction_object &sto) {
+      sto.status = sidechain_transaction_status::settled;
    });
 
    return op.sidechain_transaction_id;

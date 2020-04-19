@@ -31,4 +31,13 @@ public:
     object_id_type do_apply(const sidechain_transaction_send_operation& o);
 };
 
+class sidechain_transaction_settle_evaluator : public evaluator<sidechain_transaction_settle_evaluator>
+{
+public:
+    typedef sidechain_transaction_settle_operation operation_type;
+
+    void_result do_evaluate(const sidechain_transaction_settle_operation& o);
+    object_id_type do_apply(const sidechain_transaction_settle_operation& o);
+};
+
 } } // namespace graphene::chain
