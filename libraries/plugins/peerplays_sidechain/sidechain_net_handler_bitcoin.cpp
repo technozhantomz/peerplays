@@ -1784,14 +1784,6 @@ void sidechain_net_handler_bitcoin::on_changed_objects_cb(const vector<object_id
             }
          }
       }
-      if (id.is<sidechain_address_object>()) {
-         const auto &sai = database.get_index_type<sidechain_address_index>().indices().get<by_id>();
-         auto sao = sai.find(id);
-         if (sao != sai.end()) {
-            bitcoin_client->importaddress(sao->deposit_address);
-            bitcoin_client->importaddress(sao->withdraw_address);
-         }
-      }
    }
 }
 
