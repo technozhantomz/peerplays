@@ -302,8 +302,6 @@ std::string bitcoin_rpc_client::decoderawtransaction(std::string const &tx_hex) 
    boost::property_tree::read_json(ss, json);
 
    if (reply.status == 200) {
-      std::stringstream ss;
-      boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
       return ss.str();
    }
 
@@ -917,6 +915,22 @@ sidechain_net_handler_bitcoin::~sidechain_net_handler_bitcoin() {
    }
 }
 
+std::string sidechain_net_handler_bitcoin::get_current_primary_wallet_address() {
+   const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+   auto obj = idx.rbegin();
+   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
+      return "";
+   }
+
+   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
+   std::stringstream ss(pw_address_json);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   std::string pw_address = json.get<std::string>("address");
+   return pw_address;
+}
+
 bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) {
 
    ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id()));
@@ -1033,29 +1047,18 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
          boost::property_tree::read_json(tx_ss, tx_json);
 
          if (tx_json.count("error") && tx_json.get_child("error").empty()) {
-
             std::string tx_txid = tx_json.get<std::string>("result.txid");
             uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
-            std::string tx_address = "";
-            int64_t tx_amount = -1;
-            int64_t tx_vout = -1;
+            std::string tx_hex = tx_json.get<std::string>("result.hex");
+            std::string tx_hex_json = bitcoin_client->decoderawtransaction(tx_hex);
+            std::vector<bitcoin::prev_out> pouts = bitcoin::get_outputs_from_transaction_by_address(tx_hex_json, swdo_address);
 
-            for (auto &input : tx_json.get_child("result.details")) {
-               tx_address = input.second.get<std::string>("address");
-               if ((tx_address == swdo_address) && (input.second.get<std::string>("category") == "receive")) {
-                  std::string tx_amount_s = input.second.get<std::string>("amount");
-                  tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
-                  tx_amount = std::stoll(tx_amount_s);
-                  std::string tx_vout_s = input.second.get<std::string>("vout");
-                  tx_vout = std::stoll(tx_vout_s);
-                  break;
-               }
-            }
+            bitcoin::prev_out pout;
+            pout.hash_tx = swdo_txid;
+            pout.n_vout = swdo_vout;
+            pout.amount = swdo_amount;
 
-            process_ok = (swdo_txid == tx_txid) &&
-                         (swdo_address == tx_address) &&
-                         (swdo_amount == tx_amount) &&
-                         (swdo_vout == tx_vout) &&
+            process_ok = (std::find(pouts.begin(), pouts.end(), pout) != pouts.end()) &&
                          (gpo.parameters.son_bitcoin_min_tx_confirmations() <= tx_confirmations);
          }
 
@@ -1396,22 +1399,17 @@ int64_t sidechain_net_handler_bitcoin::settle_sidechain_transaction(const sidech
 
    std::string tx_txid = tx_json.get<std::string>("result.txid");
    uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
-   std::string tx_address = "";
-   int64_t tx_amount = -1;
 
    const chain::global_property_object &gpo = database.get_global_properties();
 
    if (tx_confirmations >= gpo.parameters.son_bitcoin_min_tx_confirmations()) {
       if (sto.object_id.is<son_wallet_deposit_id_type>()) {
-         for (auto &input : tx_json.get_child("result.details")) {
-            if (input.second.get<std::string>("category") == "receive") {
-               std::string tx_amount_s = input.second.get<std::string>("amount");
-               tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
-               tx_amount = std::stoll(tx_amount_s);
-               break;
-            }
+         std::string tx_hex = tx_json.get<std::string>("result.hex");
+         std::string tx_hex_json = bitcoin_client->decoderawtransaction(tx_hex);
+         std::vector<bitcoin::prev_out> pouts = bitcoin::get_outputs_from_transaction_by_address(tx_hex_json);
+         if (pouts.size() > 0) {
+            settle_amount = pouts[0].amount;
          }
-         settle_amount = tx_amount;
       }
 
       if (sto.object_id.is<son_wallet_withdraw_id_type>()) {
@@ -1484,20 +1482,9 @@ std::string sidechain_net_handler_bitcoin::create_primary_wallet_transaction(con
 }
 
 std::string sidechain_net_handler_bitcoin::create_deposit_transaction(const son_wallet_deposit_object &swdo) {
-   const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
-   auto obj = idx.rbegin();
-   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
-      return "";
-   }
    //Get redeem script for deposit address
    std::string redeem_script = get_redeemscript_for_userdeposit(swdo.sidechain_to);
-   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
-
-   std::stringstream ss(pw_address_json);
-   boost::property_tree::ptree json;
-   boost::property_tree::read_json(ss, json);
-
-   std::string pw_address = json.get<std::string>("address");
+   std::string pw_address = get_current_primary_wallet_address();
 
    std::string txid = swdo.sidechain_transaction_id;
    std::string suid = swdo.sidechain_uid;
@@ -1645,7 +1632,7 @@ std::string sidechain_net_handler_bitcoin::send_transaction(const sidechain_tran
          signatures.push_back(read_byte_arrays_from_string(sto.signatures[idx].second));
    }
    //Add empty sig for user signature for Deposit transaction
-   if (sto.object_id.type() == son_wallet_deposit_object::type_id) {
+   if (sto.object_id.is<son_wallet_deposit_id_type>()) {
       add_signatures_to_transaction_user_weighted_multisig(tx, signatures);
    } else {
       add_signatures_to_transaction_weighted_multisig(tx, signatures);

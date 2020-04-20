@@ -42,6 +42,15 @@ struct prev_out {
       return false;
    }
 
+   bool operator==(const prev_out &obj) const {
+      if (this->hash_tx == obj.hash_tx &&
+          this->n_vout == obj.n_vout &&
+          this->amount == obj.amount) {
+         return true;
+      }
+      return false;
+   }
+
    std::string hash_tx;
    uint32_t n_vout;
    uint64_t amount;

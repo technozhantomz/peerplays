@@ -85,6 +85,7 @@ public:
    sidechain_net_handler_bitcoin(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options);
    virtual ~sidechain_net_handler_bitcoin();
 
+   std::string get_current_primary_wallet_address();
    bool process_proposal(const proposal_object &po);
    void process_primary_wallet();
    void process_sidechain_addresses();
