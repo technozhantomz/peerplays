@@ -384,4 +384,66 @@ BOOST_AUTO_TEST_CASE(user_sig_one_or_weighted_multisig_spend_test) {
    }
 }
 
+BOOST_AUTO_TEST_CASE(user_sig_timelocked_one_or_weighted_multisig_spend_test) {
+   std::vector<fc::ecc::private_key> priv_keys;
+   for (uint32_t i = 0; i < 15; ++i) {
+      const char *seed = reinterpret_cast<const char *>(&i);
+      fc::sha256 h = fc::sha256::hash(seed, sizeof(i));
+      priv_keys.push_back(fc::ecc::private_key::generate_from_seed(h));
+   }
+   std::vector<fc::ecc::public_key> pub_keys;
+   for (auto &key : priv_keys) {
+      pub_keys.push_back(key.get_public_key());
+   }
+   // key weights
+   std::vector<std::pair<fc::ecc::public_key, uint16_t>> weights;
+   for (uint16_t i = 0; i < 15; ++i)
+      weights.push_back(std::make_pair(pub_keys[i], i + 1));
+
+   fc::sha256 h = fc::sha256::hash("user", 4);
+   fc::ecc::private_key user_key = fc::ecc::private_key::generate_from_seed(h);
+   fc::ecc::public_key user_pub_key = user_key.get_public_key();
+
+   uint32_t latency = 1;
+   btc_timelocked_one_or_weighted_multisig_address addr(user_pub_key, latency, weights);
+   BOOST_CHECK(addr.get_address() == "bcrt1q5p7phluyzsdcvdyk3dqyv50xtw9n55kjk34l067csj6xezl4kr7qdqmcus");
+
+   bytes redeem_script = addr.get_redeem_script();
+
+   {
+      // this address was filled with regtest transaction
+      // id f4d274b0452d8fa641bae1dfdc4527ac16af65dda30f5ac80031f1f9d24e2ca0
+      // output 0, 10000 satoshis
+
+      // now send it to 2MtH9U8fEZbRmco3GYVMjSg9NfUyPn5RDN1
+      // with single user signature
+      bitcoin_transaction tx;
+      tx.nVersion = 2;
+      tx.vin.resize(1);
+      tx.vout.resize(1);
+      tx.nLockTime = 0;
+
+      tx.vin[0].prevout.hash = fc::sha256("f4d274b0452d8fa641bae1dfdc4527ac16af65dda30f5ac80031f1f9d24e2ca0");
+      tx.vin[0].prevout.n = 0;
+      tx.vin[0].nSequence = 0x1;
+
+      tx.vout[0].value = 9000;
+      bitcoin_address to_address("2MtH9U8fEZbRmco3GYVMjSg9NfUyPn5RDN1");
+      tx.vout[0].scriptPubKey = to_address.get_script();
+
+      uint64_t amount = 10000;
+      int32_t hash_type = 1; // implement SIGHASH_ALL scheme
+
+      bytes key_data(user_key.get_secret().data(), user_key.get_secret().data() + user_key.get_secret().data_size());
+      std::vector<bytes> sigs = sign_witness_transaction_part(tx, {redeem_script}, {amount}, key_data, btc_context(), hash_type);
+      tx.vin[0].scriptWitness.push_back(sigs[0]);
+      sign_witness_transaction_finalize(tx, {redeem_script}, false);
+
+      // this transaction was published in regtest and was accepted only 1 block later then source tx
+      // its id is f23f75322fc39523973eeeb734efe57c54e57e957f76e3f4c6393afd0a8bf658
+      BOOST_CHECK(fc::to_hex(pack(tx)) == "02000000000101a02c4ed2f9f13100c85a0fa3dd65af16ac2745dcdfe1ba41a68f2d45b074d2f400000000000100000001282300000000000017a9140b552f4a72cb614717878b20743d9e38e618130a87024730440220376c642575139ba7856ecdc0489c4c703b39439a810af1b2bea0d984c049bd0202201fcb87b50606cadc38c4a771cabd1d2ac83e90145554e023257a07febb112c5f01fd86022102d2c1cb1575d323b6120b6e5bcc9ce5ad373e88e73e675030f1c2c5261b4dbc86ac6351b2755167007c21030e88484f2bb5dcfc0b326e9eb565c27c8291efb064d060d226916857a2676e62ac635193687c2102151ad794a3aeb3cf9c190120da3d13d36cd8bdf21ca1ccb15debd61c601314b0ac635293687c2103b45a5955ea7847d121225c752edaeb4a5d731a056a951a876caaf6d1f69adb7dac635393687c2102def03a6ffade4ffb0017c8d93859a247badd60e2d76d00e2a3713f6621932ec1ac635493687c21035f17aa7d58b8c3ee0d87240fded52b27f3f12768a0a54ba2595e0a929dd87155ac635593687c2103c8582ac6b0bd20cc1b02c6a86bad2ea10cadb758fedd754ba0d97be85b63b5a7ac635693687c21028148a1f9669fc4471e76f7a371d7cc0563b26e0821d9633fd37649744ff54edaac635793687c2102f0313701b0035f0365a59ce1a3d7ae7045e1f2fb25c4656c08071e5baf51483dac635893687c21024c4c25d08173b3c4d4e1375f8107fd7040c2dc0691ae1bf6fe82b8c88a85185fac635993687c210360fe2daa8661a3d25d0df79875d70b1c3d443ade731caafda7488cb68b4071b0ac635a93687c210250e41a6a4abd7b0b3a49eaec24a6fafa99e5aa7b1e3a5aabe60664276df3d937ac635b93687c2103045a32125930ca103c7d7c79b6f379754796cd4ea7fb0059da926e415e3877d3ac635c93687c210344943249d7ca9b47316fef0c2a413dda3a75416a449a29f310ab7fc9d052ed70ac635d93687c2103c62967320b63df5136ff1ef4c7959ef5917ee5a44f75c83e870bc488143d4d69ac635e93687c21020429f776e15770e4dc52bd6f72e6ed6908d51de1c4a64878433c4e3860a48dc4ac635f93680150a26800000000");
+   }
+
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -32,6 +32,7 @@ enum class op {
    RETURN = 0x6a,
 
    // stack ops
+   DROP = 0x75,
    DUP = 0x76,
    SWAP = 0x7c,
 

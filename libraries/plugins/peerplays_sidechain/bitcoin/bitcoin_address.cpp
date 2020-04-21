@@ -413,4 +413,45 @@ void btc_one_or_weighted_multisig_address::create_segwit_address() {
    address = segwit_addr::encode(hrp, 0, hash_data);
 }
 
+btc_timelocked_one_or_weighted_multisig_address::btc_timelocked_one_or_weighted_multisig_address(const fc::ecc::public_key &user_key_data, uint32_t latency, const std::vector<std::pair<fc::ecc::public_key, uint16_t> > &keys_data, bitcoin_address::network ntype) :
+   btc_one_or_weighted_multisig_address(user_key_data, keys_data, ntype),
+   latency_(latency)
+{
+   create_redeem_script(user_key_data, keys_data);
+   create_witness_script();
+   create_segwit_address();
+}
+
+void btc_timelocked_one_or_weighted_multisig_address::create_redeem_script(const fc::ecc::public_key &user_key_data, const std::vector<std::pair<fc::ecc::public_key, uint16_t> > &keys_data)
+{
+   script_builder builder;
+   builder << user_key_data.serialize();
+   builder << op::CHECKSIG;
+   builder << op::IF;
+   builder << uint32_t(latency_);
+   builder << op::CHECKSEQUENCEVERIFY;
+   builder << op::DROP;
+   builder << op::_1;
+   builder << op::ELSE;
+   uint32_t total_weight = 0;
+   builder << uint32_t(0);
+   for (auto &p : keys_data) {
+      total_weight += p.second;
+      builder << op::SWAP;
+      builder << p.first.serialize();
+      builder << op::CHECKSIG;
+      builder << op::IF;
+      builder << uint32_t(p.second);
+      builder << op::ADD;
+      builder << op::ENDIF;
+   }
+   uint32_t threshold_weight = 2 * total_weight / 3;
+   builder << threshold_weight;
+   builder << op::GREATERTHANOREQUAL;
+   builder << op::ENDIF;
+   redeem_script_ = builder;
+   fc::sha256 sh = fc::sha256::hash(redeem_script_);
+   raw_address = bytes(sh.data(), sh.data() + sh.data_size());
+}
+
 }}} // namespace graphene::peerplays_sidechain::bitcoin
