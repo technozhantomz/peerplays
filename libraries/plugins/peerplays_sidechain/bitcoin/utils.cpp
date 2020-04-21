@@ -96,49 +96,4 @@ std::string write_transaction_data(const std::string &tx, const std::vector<uint
    return res;
 }
 
-std::vector<prev_out> get_outputs_from_transaction_by_address(const std::string &tx_json, const std::string &to_address) {
-   std::stringstream ss(tx_json);
-   boost::property_tree::ptree json;
-   boost::property_tree::read_json(ss, json);
-   std::vector<prev_out> result;
-
-   if (json.count("error") && !json.get_child("error").empty()) {
-      return result;
-   }
-
-   std::string tx_txid = json.get<std::string>("result.txid");
-
-   for (auto &vout : json.get_child("result.vout")) {
-      std::vector<std::string> to_addresses;
-      if (vout.second.find("scriptPubKey") == vout.second.not_found() ||
-          vout.second.get_child("scriptPubKey").find("addresses") == vout.second.get_child("scriptPubKey").not_found()) {
-         continue;
-      }
-
-      for (auto &address : vout.second.get_child("scriptPubKey.addresses")) {
-         to_addresses.push_back(address.second.data());
-      }
-
-      if ((to_address == "") ||
-          (std::find(to_addresses.begin(), to_addresses.end(), to_address) != to_addresses.end())) {
-         std::string tx_amount_s = vout.second.get<std::string>("value");
-         tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
-         uint64_t tx_amount = std::stoll(tx_amount_s);
-
-         std::string tx_vout_s = vout.second.get<std::string>("n");
-         uint64_t tx_vout = std::stoll(tx_vout_s);
-
-         prev_out pout;
-         pout.hash_tx = tx_txid;
-         pout.n_vout = tx_vout;
-         pout.amount = tx_amount;
-         result.push_back(pout);
-         if (to_address == "") {
-            return result;
-         }
-      }
-   }
-   return result;
-}
-
 }}} // namespace graphene::peerplays_sidechain::bitcoin

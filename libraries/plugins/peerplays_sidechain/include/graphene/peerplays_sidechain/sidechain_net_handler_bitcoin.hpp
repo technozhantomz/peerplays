@@ -34,6 +34,7 @@ public:
    std::string finalizepsbt(std::string const &tx_psbt);
    std::string getaddressinfo(const std::string &address);
    std::string getblock(const std::string &block_hash, int32_t verbosity = 2);
+   std::string getrawtransaction(const std::string &txid, const bool verbose = false);
    std::string gettransaction(const std::string &txid, const bool include_watch_only = false);
    void importaddress(const std::string &address_or_script, const std::string &label = "", const bool rescan = true, const bool p2sh = false);
    std::vector<btc_txout> listunspent(const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
@@ -85,7 +86,6 @@ public:
    sidechain_net_handler_bitcoin(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options);
    virtual ~sidechain_net_handler_bitcoin();
 
-   std::string get_current_primary_wallet_address();
    bool process_proposal(const proposal_object &po);
    void process_primary_wallet();
    void process_sidechain_addresses();

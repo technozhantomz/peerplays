@@ -23,6 +23,4 @@ void read_transaction_data(const std::string &string_buf, std::string &tx_hex, s
 
 std::string write_transaction_data(const std::string &tx, const std::vector<uint64_t> &in_amounts, const std::string &redeem_script);
 
-std::vector<prev_out> get_outputs_from_transaction_by_address(const std::string &tx_json, const std::string &to_address = "");
-
 }}} // namespace graphene::peerplays_sidechain::bitcoin
