@@ -27,6 +27,7 @@ namespace graphene { namespace chain {
       struct fee_parameters_type { uint64_t fee = 0; };
 
       asset fee;
+      son_id_type signer;
       account_id_type payer;
 
       sidechain_transaction_id_type sidechain_transaction_id;
@@ -73,7 +74,7 @@ FC_REFLECT( graphene::chain::sidechain_transaction_create_operation, (fee)(payer
         (signers) )
 
 FC_REFLECT( graphene::chain::sidechain_transaction_sign_operation::fee_parameters_type, (fee) )
-FC_REFLECT( graphene::chain::sidechain_transaction_sign_operation, (fee)(payer)
+FC_REFLECT( graphene::chain::sidechain_transaction_sign_operation, (fee)(signer)(payer)
         (sidechain_transaction_id)
         (signature) )
 

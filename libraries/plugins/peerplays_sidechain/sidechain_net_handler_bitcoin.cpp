@@ -1151,6 +1151,41 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
       break;
    }
 
+   case chain::operation::tag<chain::sidechain_transaction_sign_operation>::value: {
+      using namespace bitcoin;
+      should_approve = true;
+      son_id_type signer = op_obj_idx_0.get<sidechain_transaction_sign_operation>().signer;
+      std::string signature = op_obj_idx_0.get<sidechain_transaction_sign_operation>().signature;
+      sidechain_transaction_id_type sidechain_transaction_id = op_obj_idx_0.get<sidechain_transaction_sign_operation>().sidechain_transaction_id;
+      std::vector<uint64_t> in_amounts;
+      std::string tx_hex;
+      std::string redeem_script;
+      const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_id>();
+      const auto sto = st_idx.find(sidechain_transaction_id);
+      if (sto == st_idx.end()) {
+         should_approve = false;
+         break;
+      }
+
+      const auto &s_idx = database.get_index_type<son_index>().indices().get<by_id>();
+      const auto son = s_idx.find(signer);
+      if (son == s_idx.end()) {
+         should_approve = false;
+         break;
+      }
+
+      read_transaction_data(sto->transaction, tx_hex, in_amounts, redeem_script);
+      bitcoin_transaction tx = unpack(parse_hex(tx_hex));
+      bitcoin::bytes pubkey = parse_hex(son->sidechain_public_keys.at(sidechain_type::bitcoin));
+      vector<bitcoin::bytes> sigs = read_byte_arrays_from_string(signature);
+      for (size_t i = 0; i < tx.vin.size(); i++) {
+         const auto &sighash_str = get_signature_hash(tx, parse_hex(redeem_script), static_cast<int64_t>(in_amounts[i]), i, 1, true).str();
+         const bitcoin::bytes &sighash_hex = parse_hex(sighash_str);
+         should_approve = should_approve && verify_sig(sigs[i], pubkey, sighash_hex, btc_context());
+      }
+      break;
+   }
+
    case chain::operation::tag<chain::sidechain_transaction_settle_operation>::value: {
       should_approve = true;
       break;

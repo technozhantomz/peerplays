@@ -49,13 +49,14 @@ object_id_type sidechain_transaction_create_evaluator::do_apply(const sidechain_
 void_result sidechain_transaction_sign_evaluator::do_evaluate(const sidechain_transaction_sign_operation &op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK"); // can be removed after HF date pass
+   FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
 
    const auto &sto_idx = db().get_index_type<sidechain_transaction_index>().indices().get<by_id>();
    const auto &sto_obj = sto_idx.find(op.sidechain_transaction_id);
    FC_ASSERT(sto_obj != sto_idx.end(), "Sidechain transaction object not found");
 
-   const auto &son_idx = db().get_index_type<son_index>().indices().get<by_account>();
-   const auto &son_obj = son_idx.find(op.payer);
+   const auto &son_idx = db().get_index_type<son_index>().indices().get<by_id>();
+   const auto &son_obj = son_idx.find(op.signer);
    FC_ASSERT(son_obj != son_idx.end(), "SON object not found");
 
    bool expected = false;
@@ -76,8 +77,8 @@ object_id_type sidechain_transaction_sign_evaluator::do_apply(const sidechain_tr
    const auto &sto_idx = db().get_index_type<sidechain_transaction_index>().indices().get<by_id>();
    auto sto_obj = sto_idx.find(op.sidechain_transaction_id);
 
-   const auto &son_idx = db().get_index_type<son_index>().indices().get<by_account>();
-   auto son_obj = son_idx.find(op.payer);
+   const auto &son_idx = db().get_index_type<son_index>().indices().get<by_id>();
+   auto son_obj = son_idx.find(op.signer);
 
    db().modify(*sto_obj, [&](sidechain_transaction_object &sto) {
       for (size_t i = 0; i < sto.signatures.size(); i++) {
