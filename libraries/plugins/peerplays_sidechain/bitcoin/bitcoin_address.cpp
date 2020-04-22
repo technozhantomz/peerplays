@@ -263,7 +263,7 @@ void btc_weighted_multisig_address::create_redeem_script(const std::vector<std::
       builder << op::ADD;
       builder << op::ENDIF;
    }
-   uint32_t threshold_weight = 2 * total_weight / 3;
+   uint32_t threshold_weight = total_weight * 2 / 3 + 1;
    builder << threshold_weight;
    builder << op::GREATERTHANOREQUAL;
 
@@ -379,7 +379,7 @@ void btc_one_or_weighted_multisig_address::create_redeem_script(const fc::ecc::p
       builder << op::ADD;
       builder << op::ENDIF;
    }
-   uint32_t threshold_weight = 2 * total_weight / 3;
+   uint32_t threshold_weight = total_weight * 2 / 3 + 1;
    builder << threshold_weight;
    builder << op::GREATERTHANOREQUAL;
    builder << op::ENDIF;
@@ -445,7 +445,7 @@ void btc_timelocked_one_or_weighted_multisig_address::create_redeem_script(const
       builder << op::ADD;
       builder << op::ENDIF;
    }
-   uint32_t threshold_weight = 2 * total_weight / 3;
+   uint32_t threshold_weight = total_weight * 2 / 3 + 1;
    builder << threshold_weight;
    builder << op::GREATERTHANOREQUAL;
    builder << op::ENDIF;
