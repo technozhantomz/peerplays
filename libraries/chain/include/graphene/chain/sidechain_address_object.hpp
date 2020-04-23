@@ -24,6 +24,7 @@ namespace graphene { namespace chain {
          sidechain_type sidechain;
          string deposit_public_key;
          string deposit_address;
+         string deposit_address_data;
          string withdraw_public_key;
          string withdraw_address;
 
@@ -78,4 +79,6 @@ namespace graphene { namespace chain {
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::sidechain_address_object, (graphene::db::object),
-                    (sidechain_address_account) (sidechain) (deposit_public_key) (deposit_address) (withdraw_public_key) (withdraw_address) )
+                    (sidechain_address_account) (sidechain)
+                    (deposit_public_key) (deposit_address) (deposit_address_data)
+                    (withdraw_public_key) (withdraw_address) )

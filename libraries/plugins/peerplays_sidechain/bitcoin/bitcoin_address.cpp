@@ -413,17 +413,15 @@ void btc_one_or_weighted_multisig_address::create_segwit_address() {
    address = segwit_addr::encode(hrp, 0, hash_data);
 }
 
-btc_timelocked_one_or_weighted_multisig_address::btc_timelocked_one_or_weighted_multisig_address(const fc::ecc::public_key &user_key_data, uint32_t latency, const std::vector<std::pair<fc::ecc::public_key, uint16_t> > &keys_data, bitcoin_address::network ntype) :
-   btc_one_or_weighted_multisig_address(user_key_data, keys_data, ntype),
-   latency_(latency)
-{
+btc_timelocked_one_or_weighted_multisig_address::btc_timelocked_one_or_weighted_multisig_address(const fc::ecc::public_key &user_key_data, uint32_t latency, const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data, bitcoin_address::network ntype) :
+      btc_one_or_weighted_multisig_address(user_key_data, keys_data, ntype),
+      latency_(latency) {
    create_redeem_script(user_key_data, keys_data);
    create_witness_script();
    create_segwit_address();
 }
 
-void btc_timelocked_one_or_weighted_multisig_address::create_redeem_script(const fc::ecc::public_key &user_key_data, const std::vector<std::pair<fc::ecc::public_key, uint16_t> > &keys_data)
-{
+void btc_timelocked_one_or_weighted_multisig_address::create_redeem_script(const fc::ecc::public_key &user_key_data, const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data) {
    script_builder builder;
    builder << user_key_data.serialize();
    builder << op::CHECKSIG;

@@ -1310,6 +1310,8 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
                     auto usr_pubkey = fc::ecc::public_key(create_public_key_data(parse_hex(sao.deposit_public_key)));
 
                     btc_one_or_weighted_multisig_address addr(usr_pubkey, pubkeys);
+                    std::string address_data = "{ \"redeemScript\": \"" + fc::to_hex(addr.get_redeem_script()) +
+                                               "\", \"witnessScript\": \"" + fc::to_hex(addr.get_witness_script()) + "\" }";
 
                     if (addr.get_address() != sao.deposit_address) {
                        sidechain_address_update_operation op;
@@ -1319,6 +1321,7 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
                        op.sidechain = sao.sidechain;
                        op.deposit_public_key = sao.deposit_public_key;
                        op.deposit_address = addr.get_address();
+                       op.deposit_address_data = address_data;
                        op.withdraw_public_key = sao.withdraw_public_key;
                        op.withdraw_address = sao.withdraw_address;
 

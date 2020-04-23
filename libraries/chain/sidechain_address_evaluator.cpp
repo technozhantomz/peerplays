@@ -21,6 +21,7 @@ object_id_type add_sidechain_address_evaluator::do_apply(const sidechain_address
         obj.sidechain = op.sidechain;
         obj.deposit_public_key = op.deposit_public_key;
         obj.deposit_address = op.deposit_address;
+        obj.deposit_address_data = op.deposit_address_data;
         obj.withdraw_public_key = op.withdraw_public_key;
         obj.withdraw_address = op.withdraw_address;
     });
@@ -44,6 +45,7 @@ object_id_type update_sidechain_address_evaluator::do_apply(const sidechain_addr
        db().modify(*itr, [&op](sidechain_address_object &sao) {
            if(op.deposit_public_key.valid()) sao.deposit_public_key = *op.deposit_public_key;
            if(op.deposit_address.valid()) sao.deposit_address = *op.deposit_address;
+           if(op.deposit_address_data.valid()) sao.deposit_address_data = *op.deposit_address_data;
            if(op.withdraw_public_key.valid()) sao.withdraw_public_key = *op.withdraw_public_key;
            if(op.withdraw_address.valid()) sao.withdraw_address = *op.withdraw_address;
        });
