@@ -371,6 +371,12 @@ void sidechain_net_handler::process_deposits() {
       if (swdo.id == object_id_type(0, 0, 0)) {
          return;
       }
+      //Ignore the deposits which are not valid anymore, considered refunds.
+      const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address>();
+      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, swdo.sidechain_to));
+      if (addr_itr == sidechain_addresses_idx.end()) {
+         return;
+      }
 
       ilog("Deposit to process: ${swdo}", ("swdo", swdo));
 
