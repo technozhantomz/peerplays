@@ -1991,24 +1991,6 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account)(url)(block_signing_key)(broadcast) ) }
 
-   signed_transaction delete_son(string owner_account,
-                                 bool broadcast /* = false */)
-   { try {
-      son_object son = get_son(owner_account);
-
-      son_delete_operation son_delete_op;
-      son_delete_op.son_id = son.id;
-      son_delete_op.owner_account = son.son_account;
-      son_delete_op.payer = son.son_account;
-
-      signed_transaction tx;
-      tx.operations.push_back( son_delete_op );
-      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
-      tx.validate();
-
-      return sign_transaction( tx, broadcast );
-   } FC_CAPTURE_AND_RETHROW( (owner_account)(broadcast) ) }
-
    signed_transaction request_son_maintenance(string owner_account,
                                            bool broadcast)
    { try {
@@ -2073,7 +2055,7 @@ public:
                      std::inserter(result, result.end()),
                      [](fc::optional<account_object>& acct, fc::optional<son_object> son) {
                         FC_ASSERT(acct, "Invalid active SONs list in global properties.");
-                        if (son.valid())
+                        if (son.valid() && son->status != son_status::deregistered)
                            return std::make_pair<string, son_id_type>(string(acct->name), std::move(son->id));
                         return std::make_pair<string, son_id_type>(string(acct->name), std::move(son_id_type()));
                      });
@@ -4782,12 +4764,6 @@ signed_transaction wallet_api::update_son(string owner_account,
                                           bool broadcast /* = false */)
 {
    return my->update_son(owner_account, url, block_signing_key, sidechain_public_keys, broadcast);
-}
-
-signed_transaction wallet_api::delete_son(string owner_account,
-                                          bool broadcast /* = false */)
-{
-   return my->delete_son(owner_account, broadcast);
 }
 
 signed_transaction wallet_api::request_son_maintenance(string owner_account, bool broadcast)

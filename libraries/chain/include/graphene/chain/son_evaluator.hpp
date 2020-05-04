@@ -22,13 +22,13 @@ public:
     object_id_type do_apply(const son_update_operation& o);
 };
 
-class delete_son_evaluator : public evaluator<delete_son_evaluator>
+class deregister_son_evaluator : public evaluator<deregister_son_evaluator>
 {
 public:
-    typedef son_delete_operation operation_type;
+    typedef son_deregister_operation operation_type;
 
-    void_result do_evaluate(const son_delete_operation& o);
-    void_result do_apply(const son_delete_operation& o);
+    void_result do_evaluate(const son_deregister_operation& o);
+    void_result do_apply(const son_deregister_operation& o);
 };
 
 class son_heartbeat_evaluator : public evaluator<son_heartbeat_evaluator>

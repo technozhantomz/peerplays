@@ -141,7 +141,7 @@ BOOST_AUTO_TEST_CASE( update_son_test ) {
    BOOST_CHECK( obj->sidechain_public_keys.at(sidechain_type::bitcoin) == "new bitcoin address" );
 }
 
-BOOST_AUTO_TEST_CASE( delete_son_test ) {
+BOOST_AUTO_TEST_CASE( deregister_son_test ) {
 try {
    INVOKE(create_son_test);
    GET_ACTOR(alice);
@@ -151,40 +151,25 @@ try {
    BOOST_CHECK_EQUAL(deposit_vesting.is_withdraw_allowed(now, asset(50)), false); // cant withdraw
 
    {
-      son_delete_operation op;
-      op.owner_account = alice_id;
+      son_deregister_operation op;
       op.son_id = son_id_type(0);
       op.payer = alice_id;
 
       trx.operations.push_back(op);
       sign(trx, alice_private_key);
-      PUSH_TX(db, trx, ~0);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0), fc::exception);
    }
    generate_block();
 
    const auto& idx = db.get_index_type<son_index>().indices().get<by_account>();
-   BOOST_REQUIRE( idx.empty() );
-
-   deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
-   BOOST_CHECK_EQUAL(deposit_vesting.policy.get<linear_vesting_policy>().vesting_cliff_seconds,
-         db.get_global_properties().parameters.son_vesting_period()); // in linear policy
-
-   now = db.head_block_time();
-   BOOST_CHECK_EQUAL(deposit_vesting.is_withdraw_allowed(now, asset(50)), false); // but still cant withdraw
-
-   generate_blocks(now + fc::seconds(db.get_global_properties().parameters.son_vesting_period()));
-   generate_block();
-
-   deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
-   now = db.head_block_time();
-   BOOST_CHECK_EQUAL(deposit_vesting.is_withdraw_allowed(now, asset(50)), true); // after 2 days withdraw is allowed
+   BOOST_REQUIRE( idx.size() == 1);
 }
 catch (fc::exception &e) {
    edump((e.to_detail_string()));
    throw;
 } }
 
-BOOST_AUTO_TEST_CASE( delete_son_test_with_consensus_account ) {
+BOOST_AUTO_TEST_CASE( deregister_son_test_with_consensus_account ) {
 try {
    INVOKE(create_son_test);
    GET_ACTOR(alice);
@@ -217,8 +202,7 @@ try {
 
    {
       trx.clear();
-      son_delete_operation op;
-      op.owner_account = alice_id;
+      son_deregister_operation op;
       op.son_id = son_id_type(0);
       op.payer = db.get_global_properties().parameters.son_account();
 
@@ -228,7 +212,9 @@ try {
    }
    generate_block();
 
-   BOOST_REQUIRE( idx.size() == 0 );
+   BOOST_REQUIRE( idx.size() == 1 );
+   BOOST_REQUIRE( obj->status == son_status::deregistered );
+   BOOST_REQUIRE( son_stats_obj->deregistered_timestamp == now );
 
    deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
    BOOST_CHECK_EQUAL(deposit_vesting.policy.get<linear_vesting_policy>().vesting_cliff_seconds,
@@ -278,10 +264,9 @@ try {
    // not changing
    BOOST_CHECK( obj->url == "https://create_son_test" );
 
-   // bob tries to delete a son object he dont own
+   // bob tries to deregister a son object he dont own
    {
-      son_delete_operation op;
-      op.owner_account = bob_id;
+      son_deregister_operation op;
       op.son_id = son_id_type(0);
       op.payer = bob_id;
 

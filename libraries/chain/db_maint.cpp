@@ -84,7 +84,7 @@ vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<
    std::vector<std::reference_wrapper<const son_object>> refs;
    for( auto& son : all_sons )
    {
-      if(son.has_valid_config())
+      if(son.has_valid_config() && son.status != son_status::deregistered)
       {
          refs.push_back(std::cref(son));
       }

@@ -256,7 +256,7 @@ void database::initialize_evaluators()
    register_evaluator<sweeps_vesting_claim_evaluator>();
    register_evaluator<create_son_evaluator>();
    register_evaluator<update_son_evaluator>();
-   register_evaluator<delete_son_evaluator>();
+   register_evaluator<deregister_son_evaluator>();
    register_evaluator<son_heartbeat_evaluator>();
    register_evaluator<son_report_down_evaluator>();
    register_evaluator<son_maintenance_evaluator>();

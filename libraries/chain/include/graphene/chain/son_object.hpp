@@ -44,6 +44,8 @@ namespace graphene { namespace chain {
          fc::time_point_sec last_down_timestamp;
          // Last Active heartbeat timestamp
          fc::time_point_sec last_active_timestamp;
+         // Deregistered Timestamp
+         fc::time_point_sec deregistered_timestamp;
          // Total sidechain transactions reported by SON network while SON was active
          uint64_t total_sidechain_txs_reported = 0;
          // Sidechain transactions reported by this SON
@@ -125,6 +127,7 @@ FC_REFLECT_DERIVED( graphene::chain::son_statistics_object,
                     (current_interval_downtime)
                     (last_down_timestamp)
                     (last_active_timestamp)
+                    (deregistered_timestamp)
                     (total_sidechain_txs_reported)
                     (sidechain_txs_reported)
                   )

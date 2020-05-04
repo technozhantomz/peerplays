@@ -42,7 +42,7 @@ namespace graphene { namespace chain {
       template<typename T>
       void operator()( const T &v ) const {}
 
-      void operator()( const son_delete_operation &v );
+      void operator()( const son_deregister_operation &v );
       void operator()( const son_report_down_operation &v );
    };
 

@@ -63,17 +63,17 @@ object_id_type update_son_evaluator::do_apply(const son_update_operation& op)
    return op.son_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
-void_result delete_son_evaluator::do_evaluate(const son_delete_operation& op)
+void_result deregister_son_evaluator::do_evaluate(const son_deregister_operation& op)
 { try {
     FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON_HARDFORK"); // can be removed after HF date pass
-    // Either owner can remove or consensus son account
-    FC_ASSERT(op.payer == db().get(op.son_id).son_account || (db().is_son_dereg_valid(op.son_id) && op.payer == db().get_global_properties().parameters.son_account()));
+    // Only son account can deregister
+    FC_ASSERT(db().is_son_dereg_valid(op.son_id) && op.payer == db().get_global_properties().parameters.son_account());
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
     FC_ASSERT( idx.find(op.son_id) != idx.end() );
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
-void_result delete_son_evaluator::do_apply(const son_delete_operation& op)
+void_result deregister_son_evaluator::do_apply(const son_deregister_operation& op)
 { try {
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
     const auto& ss_idx = db().get_index_type<son_stats_index>().indices().get<by_id>();
@@ -89,10 +89,16 @@ void_result delete_son_evaluator::do_apply(const son_delete_operation& op)
           vbo.policy = new_vesting_policy;
        });
 
+       db().modify(*son, [&op](son_object &so) {
+          so.status = son_status::deregistered;
+       });
+
        auto stats_obj = ss_idx.find(son->statistics);
-       if(stats_obj != ss_idx.end())
-          db().remove(*stats_obj);
-       db().remove(*son);
+       if(stats_obj != ss_idx.end()) {
+          db().modify(*stats_obj, [&]( son_statistics_object& sso) {
+             sso.deregistered_timestamp = db().head_block_time();
+          });
+       }
     }
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

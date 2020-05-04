@@ -144,7 +144,7 @@ namespace graphene { namespace chain {
             sweeps_vesting_claim_operation,
             son_create_operation,
             son_update_operation,
-            son_delete_operation,
+            son_deregister_operation,
             son_heartbeat_operation,
             son_report_down_operation,
             son_maintenance_operation,

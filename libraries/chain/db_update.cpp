@@ -709,7 +709,7 @@ void database::update_betting_markets(fc::time_point_sec current_block_time)
 void database::remove_son_proposal( const proposal_object& proposal )
 { try {
    if( proposal.proposed_transaction.operations.size() == 1 &&
-     ( proposal.proposed_transaction.operations.back().which() == operation::tag<son_delete_operation>::value ||
+     ( proposal.proposed_transaction.operations.back().which() == operation::tag<son_deregister_operation>::value ||
        proposal.proposed_transaction.operations.back().which() == operation::tag<son_report_down_operation>::value) )
    {
       const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get<by_proposal>();

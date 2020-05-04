@@ -261,40 +261,6 @@ BOOST_AUTO_TEST_CASE( son_voting )
    BOOST_TEST_MESSAGE("SON Vote cli wallet tests end");
 }
 
-BOOST_AUTO_TEST_CASE( delete_son )
-{
-   BOOST_TEST_MESSAGE("SON delete cli wallet tests begin");
-   try
-   {
-      flat_map<sidechain_type, string> sidechain_public_keys;
-
-      son_test_helper sth(*this);
-
-      sidechain_public_keys.clear();
-      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
-      sth.create_son("son1account", "http://son1", sidechain_public_keys);
-
-      sidechain_public_keys.clear();
-      sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
-      sth.create_son("son2account", "http://son2", sidechain_public_keys);
-
-       BOOST_TEST_MESSAGE("Deleting SONs");
-       signed_transaction delete_tx;
-       auto _db = app1->chain_database();
-       BOOST_CHECK(_db->get_index_type<son_index>().indices().size() == 2);
-       delete_tx = con.wallet_api_ptr->delete_son("son1account", "true");
-       delete_tx = con.wallet_api_ptr->delete_son("son2account", "true");
-       BOOST_CHECK(generate_maintenance_block());
-       BOOST_CHECK(_db->get_index_type<son_index>().indices().size() == 0);
-   } catch( fc::exception& e ) {
-      BOOST_TEST_MESSAGE("SON cli wallet tests exception");
-      edump((e.to_detail_string()));
-      throw;
-   }
-   BOOST_TEST_MESSAGE("SON delete cli wallet tests end");
-}
-
-
 BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
 {
    BOOST_TEST_MESSAGE("SON cli wallet tests begin");
@@ -659,8 +625,6 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
           BOOST_CHECK(active_sons.find(name) != active_sons.end());
       }
 
-      // check list_active_son after SON deletion
-      con.wallet_api_ptr->delete_son("sonaccount1", true);
       BOOST_CHECK_NO_THROW(con.wallet_api_ptr->list_active_sons());
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");

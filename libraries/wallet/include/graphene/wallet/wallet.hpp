@@ -1373,18 +1373,6 @@ class wallet_api
                                     flat_map<sidechain_type, string> sidechain_public_keys,
                                     bool broadcast = false);
 
-
-      /** Deletes a SON object owned by the given account.
-       *
-       * An account can have at most one witness object.
-       *
-       * @param owner_account the name or id of the account which is creating the witness
-       * @param broadcast true to broadcast the transaction on the network
-       * @returns the signed transaction registering a witness
-       */
-      signed_transaction delete_son(string owner_account,
-                                    bool broadcast = false);
-
       /** Modify status of the SON owned by the given account to maintenance.
        *
        * @param owner_account the name or id of the account which is owning the SON
@@ -2327,7 +2315,6 @@ FC_API( graphene::wallet::wallet_api,
         (create_son)
         (try_create_son)
         (update_son)
-        (delete_son)
         (list_sons)
         (list_active_sons)
         (request_son_maintenance)

@@ -136,8 +136,8 @@ struct proposal_operation_hardfork_visitor
       FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_update_operation not allowed yet!" );
    }
 
-   void operator()(const son_delete_operation &v) const {
-      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_delete_operation not allowed yet!" );
+   void operator()(const son_deregister_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_deregister_operation not allowed yet!" );
    }
 
    void operator()(const son_heartbeat_operation &v) const {
@@ -164,7 +164,7 @@ struct proposal_operation_hardfork_visitor
    }
 };
 
-void son_hardfork_visitor::operator()( const son_delete_operation &v )
+void son_hardfork_visitor::operator()( const son_deregister_operation &v )
 {
    db.create<son_proposal_object>([&]( son_proposal_object& son_prop ) {
       son_prop.proposal_type = son_proposal_type::son_deregister_proposal;

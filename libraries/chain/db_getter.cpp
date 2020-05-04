@@ -201,7 +201,7 @@ std::set<son_id_type> database::get_sons_being_reported_down()
 
 fc::optional<operation> database::create_son_deregister_proposal( son_id_type son_id, account_id_type paying_son )
 {
-   son_delete_operation son_dereg_op;
+   son_deregister_operation son_dereg_op;
    son_dereg_op.payer = get_global_properties().parameters.son_account();
    son_dereg_op.son_id = son_id;
 
