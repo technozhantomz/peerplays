@@ -1,5 +1,6 @@
 #pragma once
 
+#include <graphene/peerplays_sidechain/bitcoin/bitcoin_address.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
 #include <string>
@@ -36,6 +37,7 @@ public:
    std::string getblock(const std::string &block_hash, int32_t verbosity = 2);
    std::string getrawtransaction(const std::string &txid, const bool verbose = false);
    std::string gettransaction(const std::string &txid, const bool include_watch_only = false);
+   std::string getblockchaininfo();
    void importaddress(const std::string &address_or_script, const std::string &label = "", const bool rescan = true, const bool p2sh = false);
    std::vector<btc_txout> listunspent(const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::vector<btc_txout> listunspent_by_address_and_amount(const std::string &address, double transfer_amount, const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
@@ -108,6 +110,7 @@ private:
    std::unique_ptr<zmq_listener> listener;
 
    fc::future<void> on_changed_objects_task;
+   bitcoin::bitcoin_address::network network_type;
 
    std::string create_primary_wallet_address(const std::vector<son_info> &son_pubkeys);
 

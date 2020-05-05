@@ -516,6 +516,33 @@ std::string bitcoin_rpc_client::gettransaction(const std::string &txid, const bo
    return "";
 }
 
+std::string bitcoin_rpc_client::getblockchaininfo() {
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"getblockchaininfo\", \"method\": "
+                                  "\"getblockchaininfo\", \"params\": [] }");
+
+   const auto reply = send_post_request(body);
+
+   if (reply.body.empty()) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
+      return "";
+   }
+
+   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (reply.status == 200) {
+      std::stringstream ss;
+      boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
+      return ss.str();
+   }
+
+   if (json.count("error") && !json.get_child("error").empty()) {
+      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
+   }
+   return "";
+}
+
 void bitcoin_rpc_client::importaddress(const std::string &address_or_script, const std::string &label, const bool rescan, const bool p2sh) {
    std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"importaddress\", "
                                   "\"method\": \"importaddress\", \"params\": [");
@@ -923,6 +950,21 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
       bitcoin_client->loadwallet(wallet);
    }
 
+   std::string blockchain_info = bitcoin_client->getblockchaininfo();
+   std::stringstream bci_ss(std::string(blockchain_info.begin(), blockchain_info.end()));
+   boost::property_tree::ptree bci_json;
+   boost::property_tree::read_json(bci_ss, bci_json);
+   using namespace bitcoin;
+   network_type = bitcoin_address::network::mainnet;
+   if (bci_json.count("chain")) {
+      std::string chain = bci_json.get<std::string>("chain");
+      if (chain == "test") {
+         network_type = bitcoin_address::network::testnet;
+      } else if (chain == "regtest") {
+         network_type = bitcoin_address::network::regtest;
+      }
+   }
+
    listener = std::unique_ptr<zmq_listener>(new zmq_listener(ip, zmq_port));
    listener->event_received.connect([this](const std::string &event_data) {
       std::thread(&sidechain_net_handler_bitcoin::handle_event, this, event_data).detach();
@@ -1309,7 +1351,7 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
                  [&](const sidechain_address_object &sao) {
                     auto usr_pubkey = fc::ecc::public_key(create_public_key_data(parse_hex(sao.deposit_public_key)));
 
-                    btc_one_or_weighted_multisig_address addr(usr_pubkey, pubkeys);
+                    btc_one_or_weighted_multisig_address addr(usr_pubkey, pubkeys, network_type);
                     std::string address_data = "{ \"redeemScript\": \"" + fc::to_hex(addr.get_redeem_script()) +
                                                "\", \"witnessScript\": \"" + fc::to_hex(addr.get_witness_script()) + "\" }";
 
@@ -1466,7 +1508,7 @@ int64_t sidechain_net_handler_bitcoin::settle_sidechain_transaction(const sidech
       auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(pub_key_str)));
       pubkey_weights.push_back(std::make_pair(pub_key, si.weight));
    }
-   btc_weighted_multisig_address addr(pubkey_weights);
+   btc_weighted_multisig_address addr(pubkey_weights, network_type);
 
    std::string tx_txid = tx_json.get<std::string>("result.txid");
    uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
@@ -1506,7 +1548,7 @@ std::string sidechain_net_handler_bitcoin::create_primary_wallet_address(const s
       pubkey_weights.push_back(std::make_pair(pub_key, son.weight));
    }
 
-   btc_weighted_multisig_address addr(pubkey_weights);
+   btc_weighted_multisig_address addr(pubkey_weights, network_type);
 
    std::stringstream ss;
 
@@ -1790,7 +1832,7 @@ std::string sidechain_net_handler_bitcoin::get_redeemscript_for_userdeposit(cons
       pubkey_weights.push_back(std::make_pair(pub_key, son.weight));
    }
    auto user_pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(addr_itr->deposit_public_key)));
-   btc_one_or_weighted_multisig_address deposit_addr(user_pub_key, pubkey_weights);
+   btc_one_or_weighted_multisig_address deposit_addr(user_pub_key, pubkey_weights, network_type);
    return fc::to_hex(deposit_addr.get_redeem_script());
 }
 
