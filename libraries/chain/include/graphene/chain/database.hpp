@@ -555,6 +555,7 @@ namespace graphene { namespace chain {
          void process_budget();
          void pay_workers( share_type& budget );
          void pay_sons();
+         void perform_son_tasks();
          void perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props);
          void update_active_witnesses();
          void update_active_committee_members();

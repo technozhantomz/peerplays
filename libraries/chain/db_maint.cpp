@@ -178,26 +178,36 @@ void database::update_worker_votes()
 
 void database::pay_sons()
 {
+   auto get_weight = []( uint64_t total_votes ) {
+      int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
+      uint16_t weight = std::max((total_votes >> bits_to_drop), uint64_t(1) );
+      return weight;
+   };
    time_point_sec now = head_block_time();
    const dynamic_global_property_object& dpo = get_dynamic_global_properties();
    // Current requirement is that we have to pay every 24 hours, so the following check
    if( dpo.son_budget.value > 0 && ((now - dpo.last_son_payout_time) >= fc::seconds(get_global_properties().parameters.son_pay_time()))) {
-      uint64_t total_txs_signed = 0;
+      uint64_t weighted_total_txs_signed = 0;
       share_type son_budget = dpo.son_budget;
-      get_index_type<son_stats_index>().inspect_all_objects([this, &total_txs_signed](const object& o) {
+      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &get_weight](const object& o) {
          const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
-         total_txs_signed += s.txs_signed;
+         const auto& idx = get_index_type<son_index>().indices().get<by_id>();
+         auto son_obj = idx.find( s.owner );
+         auto son_weight = get_weight(_vote_tally_buffer[son_obj->vote_id]);
+         weighted_total_txs_signed += (s.txs_signed * son_weight);
       });
 
 
       // Now pay off each SON proportional to the number of transactions signed.
-      get_index_type<son_stats_index>().inspect_all_objects([this, &total_txs_signed, &dpo, &son_budget](const object& o) {
+      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &dpo, &son_budget, &get_weight](const object& o) {
          const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
          if(s.txs_signed > 0){
             auto son_params = get_global_properties().parameters;
-            share_type pay = (s.txs_signed * son_budget.value)/total_txs_signed;
             const auto& idx = get_index_type<son_index>().indices().get<by_id>();
             auto son_obj = idx.find( s.owner );
+            auto son_weight = get_weight(_vote_tally_buffer[son_obj->vote_id]);
+            share_type pay = (s.txs_signed * son_weight * son_budget.value)/weighted_total_txs_signed;
+
             modify( *son_obj, [&]( son_object& _son_obj)
             {
                _son_obj.pay_son_fee(pay, *this);
@@ -670,26 +680,20 @@ void database::update_active_sons()
       {
          if( head_block_time() < HARDFORK_533_TIME )
          {
-            uint64_t total_votes = 0;
             map<account_id_type, uint64_t> weights;
             a.active.weight_threshold = 0;
             a.active.account_auths.clear();
 
             for( const son_object& son : sons )
             {
-               weights.emplace(son.son_account, _vote_tally_buffer[son.vote_id]);
-               total_votes += _vote_tally_buffer[son.vote_id];
+               weights.emplace(son.son_account, uint64_t(1));
             }
 
-            // total_votes is 64 bits. Subtract the number of leading low bits from 64 to get the number of useful bits,
-            // then I want to keep the most significant 16 bits of what's left.
-            int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
             for( const auto& weight : weights )
             {
                // Ensure that everyone has at least one vote. Zero weights aren't allowed.
-               uint16_t votes = std::max((weight.second >> bits_to_drop), uint64_t(1) );
-               a.active.account_auths[weight.first] += votes;
-               a.active.weight_threshold += votes;
+               a.active.account_auths[weight.first] += 1;
+               a.active.weight_threshold += 1;
             }
 
             a.active.weight_threshold *= 2;
@@ -700,7 +704,7 @@ void database::update_active_sons()
          {
             vote_counter vc;
             for( const son_object& son : sons )
-               vc.add( son.son_account, std::max(_vote_tally_buffer[son.vote_id], UINT64_C(1)) );
+               vc.add( son.son_account, UINT64_C(1) );
             vc.finish_2_3( a.active );
          }
       } );
@@ -857,10 +861,6 @@ void database::process_budget()
       // We should not factor-in the son budget before SON HARDFORK
       share_type son_budget = 0;
       if(now >= HARDFORK_SON_TIME){
-         // Before making a budget we should pay out SONs for the last day
-         // This function should check if its time to pay sons
-         // and modify the global son funds accordingly, whatever is left is passed on to next budget
-         pay_sons();
          rec.leftover_son_funds = dpo.son_budget;
          available_funds += rec.leftover_son_funds;
          son_budget = gpo.parameters.son_pay_max();
@@ -1870,14 +1870,14 @@ void process_dividend_assets(database& db)
       }
 } FC_CAPTURE_AND_RETHROW() }
 
-void perform_son_tasks(database& db)
+void database::perform_son_tasks()
 {
-   const global_property_object& gpo = db.get_global_properties();
-   if(gpo.parameters.son_account() == GRAPHENE_NULL_ACCOUNT && db.head_block_time() >= HARDFORK_SON_TIME)
+   const global_property_object& gpo = get_global_properties();
+   if(gpo.parameters.son_account() == GRAPHENE_NULL_ACCOUNT && head_block_time() >= HARDFORK_SON_TIME)
    {
-      const auto& son_account = db.create<account_object>([&](account_object& a) {
+      const auto& son_account = create<account_object>([&](account_object& a) {
          a.name = "son-account";
-         a.statistics = db.create<account_statistics_object>([&a](account_statistics_object& s){
+         a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
             s.owner = a.id;
             s.name = a.name;
          }).id;
@@ -1889,22 +1889,22 @@ void perform_son_tasks(database& db)
          a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT - GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
       });
 
-      db.modify( gpo, [&son_account]( global_property_object& gpo ) {
+      modify( gpo, [&son_account]( global_property_object& gpo ) {
             gpo.parameters.extensions.value.son_account = son_account.get_id();
             if( gpo.pending_parameters )
                gpo.pending_parameters->extensions.value.son_account = son_account.get_id();
       });
    }
    // create BTC asset here because son_account is the issuer of the BTC
-   if (gpo.parameters.btc_asset() == asset_id_type()  && db.head_block_time() >= HARDFORK_SON_TIME)
+   if (gpo.parameters.btc_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_TIME)
    {
       const asset_dynamic_data_object& dyn_asset =
-         db.create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
+         create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
             a.current_supply = 0;
          });
 
       const asset_object& btc_asset =
-         db.create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
+         create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
             a.symbol = "BTC";
             a.precision = 8;
             a.issuer = gpo.parameters.son_account();
@@ -1926,11 +1926,19 @@ void perform_son_tasks(database& db)
             a.options.blacklist_markets.clear(); // might not be traded with
             a.dynamic_asset_data_id = dyn_asset.id;
          });
-      db.modify( gpo, [&btc_asset]( global_property_object& gpo ) {
+      modify( gpo, [&btc_asset]( global_property_object& gpo ) {
             gpo.parameters.extensions.value.btc_asset = btc_asset.get_id();
             if( gpo.pending_parameters )
                gpo.pending_parameters->extensions.value.btc_asset = btc_asset.get_id();
       });
+   }
+   // Pay the SONs
+   if (head_block_time() >= HARDFORK_SON_TIME)
+   {
+      // Before making a budget we should pay out SONs
+      // This function should check if its time to pay sons
+      // and modify the global son funds accordingly, whatever is left is passed on to next budget
+      pay_sons();
    }
 }
 
@@ -1942,7 +1950,6 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    create_buyback_orders(*this);
 
    process_dividend_assets(*this);
-   perform_son_tasks(*this);
 
    rolling_period_start(*this);
 
@@ -2099,6 +2106,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                 d(_son_count_histogram_buffer),
                 c(_vote_tally_buffer);
 
+   perform_son_tasks();
    update_top_n_authorities(*this);
    update_active_witnesses();
    update_active_committee_members();
