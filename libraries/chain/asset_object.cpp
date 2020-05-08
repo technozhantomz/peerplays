@@ -272,7 +272,7 @@ map< account_id_type, vector< uint16_t > > asset_object::distribute_winners_part
       reward_op.lottery = get_id();
       reward_op.is_benefactor_reward = false;
       reward_op.winner = holders[winner_num];
-      if(db.head_block_time() > HARDFORK_5050_1_TIME && ticket_ids.size() >= winner_num)
+      if(db.head_block_time() > HARDFORK_5050_1_TIME && ticket_ids.size() > winner_num)
       {
          const static_variant<uint64_t, void_t> tkt_id = ticket_ids[winner_num];
          reward_op.winner_ticket_id = tkt_id;
