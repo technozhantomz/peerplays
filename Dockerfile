@@ -13,6 +13,7 @@ RUN \
       build-essential \
       ca-certificates \
       cmake \
+      dnsutils \
       doxygen \
       git \
       graphviz \
