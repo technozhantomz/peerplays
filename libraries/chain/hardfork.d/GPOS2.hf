@@ -1,0 +1,4 @@
+// GPOS2 HARDFORK Tuesday, 28 July 2020 01:00:00 GMT
+#ifndef HARDFORK_GPOS2_TIME
+#define HARDFORK_GPOS2_TIME (fc::time_point_sec( 1595898000 ))
+#endif

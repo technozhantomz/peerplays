@@ -803,8 +803,6 @@ uint32_t database::get_gpos_current_subperiod()
    const auto now = this->head_block_time();
    auto seconds_since_period_start = now.sec_since_epoch() - period_start.sec_since_epoch();
 
-   FC_ASSERT(period_start <= now && now <= period_end);
-
    // get in what sub period we are
    uint32_t current_subperiod = 0;
    std::list<uint32_t> period_list(number_of_subperiods);
@@ -926,9 +924,16 @@ void rolling_period_start(database& db)
       if(now.sec_since_epoch() >= (period_start + vesting_period))
       {
          // roll
-         db.modify(db.get_global_properties(), [now](global_property_object& p) {
-            p.parameters.extensions.value.gpos_period_start =  now.sec_since_epoch();
-         });
+         if(db.head_block_time() >= HARDFORK_GPOS2_TIME)
+         {
+            db.modify(db.get_global_properties(), [period_start, vesting_period](global_property_object& p) {
+               p.parameters.extensions.value.gpos_period_start =  period_start + vesting_period;
+            });
+         } else {
+            db.modify(db.get_global_properties(), [now](global_property_object& p) {
+               p.parameters.extensions.value.gpos_period_start =  now.sec_since_epoch();
+            });
+         }
       }
    }
 }
