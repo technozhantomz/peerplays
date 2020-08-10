@@ -184,6 +184,39 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       // gpos
       gpos_info get_gpos_info(const account_id_type account) const;
 
+      // rbac
+      vector<custom_permission_object> get_custom_permissions(const account_id_type account) const;
+      fc::optional<custom_permission_object> get_custom_permission_by_name(const account_id_type account, const string& permission_name) const;
+      vector<custom_account_authority_object> get_custom_account_authorities(const account_id_type account) const;
+      vector<custom_account_authority_object> get_custom_account_authorities_by_permission_id(const custom_permission_id_type permission_id) const;
+      vector<custom_account_authority_object> get_custom_account_authorities_by_permission_name(const account_id_type account, const string& permission_name) const;
+      vector<authority> get_active_custom_account_authorities_by_operation(const account_id_type account, int operation_type) const;
+
+      // NFT
+      uint64_t nft_get_balance(const account_id_type owner) const;
+      optional<account_id_type> nft_owner_of(const nft_id_type token_id) const;
+      optional<account_id_type> nft_get_approved(const nft_id_type token_id) const;
+      bool nft_is_approved_for_all(const account_id_type owner, const account_id_type operator_) const;
+      string nft_get_name(const nft_metadata_id_type nft_metadata_id) const;
+      string nft_get_symbol(const nft_metadata_id_type nft_metadata_id) const;
+      string nft_get_token_uri(const nft_id_type token_id) const;
+      uint64_t nft_get_total_supply(const nft_metadata_id_type nft_metadata_id) const;
+      nft_object nft_token_by_index(const nft_metadata_id_type nft_metadata_id, const uint64_t token_idx) const;
+      nft_object nft_token_of_owner_by_index(const nft_metadata_id_type nft_metadata_id, const account_id_type owner, const uint64_t token_idx) const;
+      vector<nft_object> nft_get_all_tokens() const;
+      vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner) const;
+
+      // Marketplace
+      vector<offer_object> list_offers(const offer_id_type lower_id, uint32_t limit) const;
+      vector<offer_object> list_sell_offers(const offer_id_type lower_id, uint32_t limit) const;
+      vector<offer_object> list_buy_offers(const offer_id_type lower_id, uint32_t limit) const;
+      vector<offer_history_object> list_offer_history(const offer_history_id_type lower_id, uint32_t limit) const;
+      vector<offer_object> get_offers_by_issuer(const offer_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const;
+      vector<offer_object> get_offers_by_item(const offer_id_type lower_id, const nft_id_type item, uint32_t limit) const;
+      vector<offer_history_object> get_offer_history_by_issuer(const offer_history_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const;
+      vector<offer_history_object> get_offer_history_by_item(const offer_history_id_type lower_id, const nft_id_type item, uint32_t limit) const;
+      vector<offer_history_object> get_offer_history_by_bidder(const offer_history_id_type lower_id, const account_id_type bidder_account_id, uint32_t limit) const;
+
    //private:
       const account_object* get_account_from_string( const std::string& name_or_id,
                                                      bool throw_if_not_found = true ) const;
@@ -1857,6 +1890,9 @@ set<public_key_type> database_api_impl::get_required_signatures( const signed_tr
                                        available_keys,
                                        [&]( account_id_type id ){ return &id(_db).active; },
                                        [&]( account_id_type id ){ return &id(_db).owner; },
+                                       [&]( account_id_type id, const operation& op ) {
+                                          return _db.get_account_custom_authorities(id, op);
+                                       },
                                        _db.get_global_properties().parameters.max_authority_depth );
    wdump((result));
    return result;
@@ -1892,6 +1928,17 @@ set<public_key_type> database_api_impl::get_potential_signatures( const signed_t
             result.insert(k);
          return &auth;
       },
+      [&]( account_id_type id, const operation& op ) {
+         vector<authority> custom_auths = _db.get_account_custom_authorities(id, op);
+         for (const auto& cauth: custom_auths)
+         {
+            for (const auto& k : cauth.get_keys())
+            {
+               result.insert(k);
+            }
+         }
+         return custom_auths;
+      },
       _db.get_global_properties().parameters.max_authority_depth
    );
 
@@ -1919,6 +1966,9 @@ set<address> database_api_impl::get_potential_address_signatures( const signed_t
             result.insert(k);
          return &auth;
       },
+      [&]( account_id_type id, const operation& op ) {
+         return _db.get_account_custom_authorities(id, op);
+      },
       _db.get_global_properties().parameters.max_authority_depth
    );
    return result;
@@ -1934,6 +1984,8 @@ bool database_api_impl::verify_authority( const signed_transaction& trx )const
    trx.verify_authority( _db.get_chain_id(),
                          [this]( account_id_type id ){ return &id(_db).active; },
                          [this]( account_id_type id ){ return &id(_db).owner; },
+                         [this]( account_id_type id, const operation& op ) {
+                           return _db.get_account_custom_authorities(id, op); },
                           _db.get_global_properties().parameters.max_authority_depth );
    return true;
 }
@@ -2240,6 +2292,7 @@ graphene::app::gpos_info database_api::get_gpos_info(const account_id_type accou
    return my->get_gpos_info(account);
 
 }
+
 graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type account) const
 {
    FC_ASSERT( _db.head_block_time() > HARDFORK_GPOS_TIME);  //Can be deleted after GPOS hardfork time
@@ -2303,6 +2356,538 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
    return result;
 }
 
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// RBAC methods                                                     //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+vector<custom_permission_object> database_api::get_custom_permissions(const account_id_type account) const
+{
+   return my->get_custom_permissions(account);
+}
+
+vector<custom_permission_object> database_api_impl::get_custom_permissions(const account_id_type account) const
+{
+   const auto& pindex = _db.get_index_type<custom_permission_index>().indices().get<by_account_and_permission>();
+   auto prange = pindex.equal_range(boost::make_tuple(account));
+   vector<custom_permission_object> custom_permissions;
+   for(const custom_permission_object& pobj : boost::make_iterator_range(prange.first, prange.second))
+   {
+      custom_permissions.push_back(pobj);
+   }
+   return custom_permissions;
+}
+
+fc::optional<custom_permission_object> database_api::get_custom_permission_by_name(const account_id_type account, const string& permission_name) const
+{
+   return my->get_custom_permission_by_name(account, permission_name);
+}
+
+fc::optional<custom_permission_object> database_api_impl::get_custom_permission_by_name(const account_id_type account, const string& permission_name) const
+{
+   const auto& pindex = _db.get_index_type<custom_permission_index>().indices().get<by_account_and_permission>();
+   auto prange = pindex.equal_range(boost::make_tuple(account, permission_name));
+   for(const custom_permission_object& pobj : boost::make_iterator_range(prange.first, prange.second))
+   {
+      return pobj;
+   }
+   return {};
+}
+
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// NFT methods                                                      //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+uint64_t database_api::nft_get_balance(const account_id_type owner) const
+{
+   return my->nft_get_balance(owner);
+}
+
+uint64_t database_api_impl::nft_get_balance(const account_id_type owner) const
+{
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_owner>();
+   const auto &idx_nft_range = idx_nft.equal_range(owner);
+   return std::distance(idx_nft_range.first, idx_nft_range.second);
+}
+
+optional<account_id_type> database_api::nft_owner_of(const nft_id_type token_id) const
+{
+   return my->nft_owner_of(token_id);
+}
+
+optional<account_id_type> database_api_impl::nft_owner_of(const nft_id_type token_id) const
+{
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_id>();
+   auto itr_nft = idx_nft.find(token_id);
+   if (itr_nft != idx_nft.end()) {
+       return itr_nft->owner;
+   }
+   return {};
+}
+
+optional<account_id_type> database_api::nft_get_approved(const nft_id_type token_id) const
+{
+   return my->nft_get_approved(token_id);
+}
+
+optional<account_id_type> database_api_impl::nft_get_approved(const nft_id_type token_id) const
+{
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_id>();
+   auto itr_nft = idx_nft.find(token_id);
+   if (itr_nft != idx_nft.end()) {
+       return itr_nft->approved;
+   }
+   return {};
+}
+
+bool database_api::nft_is_approved_for_all(const account_id_type owner, const account_id_type operator_) const
+{
+   return my->nft_is_approved_for_all(owner, operator_);
+}
+
+bool database_api_impl::nft_is_approved_for_all(const account_id_type owner, const account_id_type operator_) const
+{
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_owner>();
+   const auto &idx_nft_range = idx_nft.equal_range(owner);
+   if (std::distance(idx_nft_range.first, idx_nft_range.second) == 0) {
+       return false;
+   }
+   bool result = true;
+   std::for_each(idx_nft_range.first, idx_nft_range.second, [&](const nft_object &obj) {
+      result = result && (obj.approved == operator_);
+   });
+   return result;
+}
+
+string database_api::nft_get_name(const nft_metadata_id_type nft_metadata_id) const
+{
+   return my->nft_get_name(nft_metadata_id);
+}
+
+string database_api_impl::nft_get_name(const nft_metadata_id_type nft_metadata_id) const
+{
+   const auto &idx_nft_md = _db.get_index_type<nft_metadata_index>().indices().get<by_id>();
+   auto itr_nft_md = idx_nft_md.find(nft_metadata_id);
+   if (itr_nft_md != idx_nft_md.end()) {
+       return itr_nft_md->name;
+   }
+   return "";
+}
+
+string database_api::nft_get_symbol(const nft_metadata_id_type nft_metadata_id) const
+{
+   return my->nft_get_symbol(nft_metadata_id);
+}
+
+string database_api_impl::nft_get_symbol(const nft_metadata_id_type nft_metadata_id) const
+{
+   const auto &idx_nft_md = _db.get_index_type<nft_metadata_index>().indices().get<by_id>();
+   auto itr_nft_md = idx_nft_md.find(nft_metadata_id);
+   if (itr_nft_md != idx_nft_md.end()) {
+       return itr_nft_md->symbol;
+   }
+   return "";
+}
+
+string database_api::nft_get_token_uri(const nft_id_type token_id) const
+{
+   return my->nft_get_token_uri(token_id);
+}
+
+string database_api_impl::nft_get_token_uri(const nft_id_type token_id) const
+{
+   string result = "";
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_id>();
+   auto itr_nft = idx_nft.find(token_id);
+   if (itr_nft != idx_nft.end()) {
+      result = itr_nft->token_uri;
+      const auto &idx_nft_md = _db.get_index_type<nft_metadata_index>().indices().get<by_id>();
+      auto itr_nft_md = idx_nft_md.find(itr_nft->nft_metadata_id);
+      if (itr_nft_md != idx_nft_md.end()) {
+         result = itr_nft_md->base_uri + itr_nft->token_uri;
+      }
+   }
+   return result;
+}
+
+uint64_t database_api::nft_get_total_supply(const nft_metadata_id_type nft_metadata_id) const
+{
+   return my->nft_get_total_supply(nft_metadata_id);
+}
+
+uint64_t database_api_impl::nft_get_total_supply(const nft_metadata_id_type nft_metadata_id) const
+{
+   const auto &idx_nft_md = _db.get_index_type<nft_metadata_index>().indices().get<by_id>();
+   return idx_nft_md.size();
+}
+
+nft_object database_api::nft_token_by_index(const nft_metadata_id_type nft_metadata_id, const uint64_t token_idx) const
+{
+   return my->nft_token_by_index(nft_metadata_id, token_idx);
+}
+
+nft_object database_api_impl::nft_token_by_index(const nft_metadata_id_type nft_metadata_id, const uint64_t token_idx) const
+{
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_metadata>();
+   auto idx_nft_range = idx_nft.equal_range(nft_metadata_id);
+   uint64_t tmp_idx = token_idx;
+   for (auto itr = idx_nft_range.first; itr != idx_nft_range.second; ++itr) {
+      if (tmp_idx == 0) {
+          return *itr;
+      }
+      tmp_idx = tmp_idx - 1;
+   }
+   return {};
+}
+
+nft_object database_api::nft_token_of_owner_by_index(const nft_metadata_id_type nft_metadata_id, const account_id_type owner, const uint64_t token_idx) const
+{
+   return my->nft_token_of_owner_by_index(nft_metadata_id, owner, token_idx);
+}
+
+nft_object database_api_impl::nft_token_of_owner_by_index(const nft_metadata_id_type nft_metadata_id, const account_id_type owner, const uint64_t token_idx) const
+{
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_metadata_and_owner>();
+   auto idx_nft_range = idx_nft.equal_range(std::make_tuple(nft_metadata_id, owner));
+   uint64_t tmp_idx = token_idx;
+   for (auto itr = idx_nft_range.first; itr != idx_nft_range.second; ++itr) {
+      if (tmp_idx == 0) {
+          return *itr;
+      }
+      tmp_idx = tmp_idx - 1;
+   }
+   return {};
+}
+
+vector<nft_object> database_api::nft_get_all_tokens() const
+{
+   return my->nft_get_all_tokens();
+}
+
+vector<nft_object> database_api_impl::nft_get_all_tokens() const
+{
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_id>();
+   vector<nft_object> result;
+   for (auto itr = idx_nft.begin(); itr != idx_nft.end(); ++itr) {
+      result.push_back(*itr);
+   }
+   return result;
+}
+
+vector<nft_object> database_api::nft_get_tokens_by_owner(const account_id_type owner) const
+{
+   return my->nft_get_tokens_by_owner(owner);
+}
+
+vector<nft_object> database_api_impl::nft_get_tokens_by_owner(const account_id_type owner) const
+{
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_owner>();
+   auto idx_nft_range = idx_nft.equal_range(owner);
+   vector<nft_object> result;
+   for (auto itr = idx_nft_range.first; itr != idx_nft_range.second; ++itr) {
+      result.push_back(*itr);
+   }
+   return result;
+}
+
+vector<custom_account_authority_object> database_api::get_custom_account_authorities(const account_id_type account) const
+{
+   return my->get_custom_account_authorities(account);
+}
+
+vector<custom_account_authority_object> database_api_impl::get_custom_account_authorities(const account_id_type account) const
+{
+   const auto& pindex = _db.get_index_type<custom_permission_index>().indices().get<by_account_and_permission>();
+   const auto& cindex = _db.get_index_type<custom_account_authority_index>().indices().get<by_permission_and_op>();
+   vector<custom_account_authority_object> custom_account_auths;
+   auto prange = pindex.equal_range(boost::make_tuple(account));
+   for(const custom_permission_object& pobj : boost::make_iterator_range(prange.first, prange.second))
+   {
+      auto crange = cindex.equal_range(boost::make_tuple(pobj.id));
+      for(const custom_account_authority_object& cobj : boost::make_iterator_range(crange.first, crange.second))
+      {
+         custom_account_auths.push_back(cobj);
+      }
+   }
+   return custom_account_auths;
+}
+
+vector<custom_account_authority_object> database_api::get_custom_account_authorities_by_permission_id(const custom_permission_id_type permission_id) const
+{
+   return my->get_custom_account_authorities_by_permission_id(permission_id);
+}
+
+vector<custom_account_authority_object> database_api_impl::get_custom_account_authorities_by_permission_id(const custom_permission_id_type permission_id) const
+{
+   const auto& cindex = _db.get_index_type<custom_account_authority_index>().indices().get<by_permission_and_op>();
+   vector<custom_account_authority_object> custom_account_auths;
+   auto crange = cindex.equal_range(boost::make_tuple(permission_id));
+   for(const custom_account_authority_object& cobj : boost::make_iterator_range(crange.first, crange.second))
+   {
+      custom_account_auths.push_back(cobj);
+   }
+   return custom_account_auths;
+}
+
+vector<custom_account_authority_object> database_api::get_custom_account_authorities_by_permission_name(const account_id_type account, const string& permission_name) const
+{
+   return my->get_custom_account_authorities_by_permission_name(account, permission_name);
+}
+
+vector<custom_account_authority_object> database_api_impl::get_custom_account_authorities_by_permission_name(const account_id_type account, const string& permission_name) const
+{
+   vector<custom_account_authority_object> custom_account_auths;
+   fc::optional<custom_permission_object> pobj = get_custom_permission_by_name(account, permission_name);
+   if(!pobj)
+   {
+      return custom_account_auths;
+   }
+   const auto& cindex = _db.get_index_type<custom_account_authority_index>().indices().get<by_permission_and_op>();
+   auto crange = cindex.equal_range(boost::make_tuple(pobj->id));
+   for(const custom_account_authority_object& cobj : boost::make_iterator_range(crange.first, crange.second))
+   {
+      custom_account_auths.push_back(cobj);
+   }
+   return custom_account_auths;
+}
+
+vector<authority> database_api::get_active_custom_account_authorities_by_operation(const account_id_type account, int operation_type) const
+{
+   return my->get_active_custom_account_authorities_by_operation(account, operation_type);
+}
+
+vector<authority> database_api_impl::get_active_custom_account_authorities_by_operation(const account_id_type account, int operation_type) const
+{
+   operation op;
+   op.set_which(operation_type);
+   return _db.get_account_custom_authorities(account, op);
+}
+
+// Marketplace
+vector<offer_object> database_api::list_offers(const offer_id_type lower_id, uint32_t limit) const
+{
+   return my->list_offers(lower_id, limit);
+}
+
+vector<offer_object> database_api_impl::list_offers(const offer_id_type lower_id, uint32_t limit) const
+{
+   FC_ASSERT( limit <= 100 );
+   const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
+   vector<offer_object> result;
+   result.reserve(limit);
+
+   auto itr = offers_idx.lower_bound(lower_id);
+
+   while(limit-- && itr != offers_idx.end())
+      result.emplace_back(*itr++);
+
+   return result;
+}
+
+vector<offer_object> database_api::list_sell_offers(const offer_id_type lower_id, uint32_t limit) const
+{
+   return my->list_sell_offers(lower_id, limit);
+}
+
+vector<offer_object> database_api_impl::list_sell_offers(const offer_id_type lower_id, uint32_t limit) const
+{
+   FC_ASSERT( limit <= 100 );
+   const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
+   vector<offer_object> result;
+   result.reserve(limit);
+
+   auto itr = offers_idx.lower_bound(lower_id);
+
+   while(limit && itr != offers_idx.end())
+   {
+      if(itr->buying_item == false)
+      {
+         result.emplace_back(*itr);
+         limit--;
+      }
+      itr++;
+   }
+   return result;
+}
+
+vector<offer_object> database_api::list_buy_offers(const offer_id_type lower_id, uint32_t limit) const
+{
+   return my->list_buy_offers(lower_id, limit);
+}
+
+vector<offer_object> database_api_impl::list_buy_offers(const offer_id_type lower_id, uint32_t limit) const
+{
+   FC_ASSERT( limit <= 100 );
+   const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
+   vector<offer_object> result;
+   result.reserve(limit);
+
+   auto itr = offers_idx.lower_bound(lower_id);
+
+   while(limit && itr != offers_idx.end())
+   {
+      if(itr->buying_item == true)
+      {
+         result.emplace_back(*itr);
+         limit--;
+      }
+      itr++;
+   }
+
+   return result;
+}
+
+vector<offer_history_object> database_api::list_offer_history(const offer_history_id_type lower_id, uint32_t limit) const
+{
+   return my->list_offer_history(lower_id, limit);
+}
+
+vector<offer_history_object> database_api_impl::list_offer_history(const offer_history_id_type lower_id, uint32_t limit) const
+{
+   FC_ASSERT( limit <= 100 );
+   const auto& oh_idx = _db.get_index_type<offer_history_index>().indices().get<by_id>();
+   vector<offer_history_object> result;
+   result.reserve(limit);
+
+   auto itr = oh_idx.lower_bound(lower_id);
+
+   while(limit-- && itr != oh_idx.end())
+      result.emplace_back(*itr++);
+
+   return result;
+}
+
+vector<offer_object> database_api::get_offers_by_issuer(const offer_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const
+{
+   return my->get_offers_by_issuer(lower_id, issuer_account_id, limit);
+}
+
+vector<offer_object> database_api_impl::get_offers_by_issuer(const offer_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const
+{
+   FC_ASSERT( limit <= 100 );
+   const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
+   vector<offer_object> result;
+   result.reserve(limit);
+   auto itr = offers_idx.lower_bound(lower_id);
+   while(limit && itr != offers_idx.end())
+   {
+      if(itr->issuer == issuer_account_id)
+      {
+         result.emplace_back(*itr);
+         limit--;
+      }
+      itr++;
+   }
+   return result;
+}
+
+vector<offer_object> database_api::get_offers_by_item(const offer_id_type lower_id, const nft_id_type item, uint32_t limit) const
+{
+   return my->get_offers_by_item(lower_id, item, limit);
+}
+
+vector<offer_object> database_api_impl::get_offers_by_item(const offer_id_type lower_id, const nft_id_type item, uint32_t limit) const
+{
+   FC_ASSERT( limit <= 100 );
+   const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
+   vector<offer_object> result;
+   result.reserve(limit);
+
+   auto itr = offers_idx.lower_bound(lower_id);
+   while(limit && itr != offers_idx.end())
+   {
+      if(itr->item_ids.find(item) != itr->item_ids.end())
+      {
+         result.emplace_back(*itr);
+         limit--;
+      }
+      itr++;
+   }
+   return result;
+}
+
+vector<offer_history_object> database_api::get_offer_history_by_issuer(const offer_history_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const
+{
+   return my->get_offer_history_by_issuer(lower_id, issuer_account_id, limit);
+}
+
+vector<offer_history_object> database_api::get_offer_history_by_item(const offer_history_id_type lower_id, const nft_id_type item, uint32_t limit) const
+{
+   return my->get_offer_history_by_item(lower_id, item, limit);
+}
+
+vector<offer_history_object> database_api::get_offer_history_by_bidder(const offer_history_id_type lower_id, const account_id_type bidder_account_id, uint32_t limit) const
+{
+   return my->get_offer_history_by_bidder(lower_id, bidder_account_id, limit);
+}
+
+vector<offer_history_object> database_api_impl::get_offer_history_by_issuer(const offer_history_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const
+{
+   FC_ASSERT( limit <= 100 );
+   const auto& oh_idx = _db.get_index_type<offer_history_index>().indices().get<by_id>();
+   vector<offer_history_object> result;
+   result.reserve(limit);
+
+   auto itr = oh_idx.lower_bound(lower_id);
+
+   while(limit && itr != oh_idx.end())
+   {
+      if(itr->issuer == issuer_account_id)
+      {
+         result.emplace_back(*itr);
+         limit--;
+      }
+      itr++;
+   }
+   return result;
+}
+
+vector<offer_history_object> database_api_impl::get_offer_history_by_item(const offer_history_id_type lower_id, const nft_id_type item, uint32_t limit) const
+{
+   FC_ASSERT( limit <= 100 );
+   const auto& oh_idx = _db.get_index_type<offer_history_index>().indices().get<by_id>();
+   vector<offer_history_object> result;
+   result.reserve(limit);
+
+   auto itr = oh_idx.lower_bound(lower_id);
+
+   while(limit && itr != oh_idx.end())
+   {
+      if(itr->item_ids.find(item) != itr->item_ids.end())
+      {
+         result.emplace_back(*itr);
+         limit--;
+      }
+      itr++;
+   }
+
+   return result;
+}
+
+vector<offer_history_object> database_api_impl::get_offer_history_by_bidder(const offer_history_id_type lower_id, const account_id_type bidder_account_id, uint32_t limit) const
+{
+   FC_ASSERT( limit <= 100 );
+   const auto& oh_idx = _db.get_index_type<offer_history_index>().indices().get<by_id>();
+   vector<offer_history_object> result;
+   result.reserve(limit);
+
+   auto itr = oh_idx.lower_bound(lower_id);
+
+   while(limit && itr != oh_idx.end())
+   {
+      if(itr->bidder && *itr->bidder == bidder_account_id)
+      {
+         result.emplace_back(*itr);
+         limit--;
+      }
+      itr++;
+   }
+
+   return result;
+}
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
 // Private methods                                                  //

@@ -234,3 +234,13 @@
 #define GPOS_PERIOD                                         (60*60*24*30*6) // 6 months
 #define GPOS_SUBPERIOD                                      (60*60*24*30) // 1 month
 #define GPOS_VESTING_LOCKIN_PERIOD                          (60*60*24*30) // 1 month
+
+#define RBAC_MIN_PERMISSION_NAME_LENGTH                     3
+#define RBAC_MAX_PERMISSION_NAME_LENGTH                     10
+#define RBAC_MAX_PERMISSIONS_PER_ACCOUNT                    5 // 5 per account
+#define RBAC_MAX_ACCOUNT_AUTHORITY_LIFETIME                 180*24*60*60 // 6 months
+#define RBAC_MAX_AUTHS_PER_PERMISSION                       15 // 15 ops linked per permission
+
+#define NFT_TOKEN_MIN_LENGTH                                3
+#define NFT_TOKEN_MAX_LENGTH                                15
+#define NFT_URI_MAX_LENGTH                                  GRAPHENE_MAX_URL_LENGTH
