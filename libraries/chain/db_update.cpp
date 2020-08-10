@@ -705,4 +705,30 @@ void database::update_betting_markets(fc::time_point_sec current_block_time)
    remove_completed_events();
 }
 
+void database::finalize_expired_offers(){
+    try {
+       detail::with_skip_flags( *this,
+          get_node_properties().skip_flags | skip_authority_check, [&](){
+             transaction_evaluation_state cancel_context(this);
+
+             //Cancel expired limit orders
+             auto& limit_index = get_index_type<offer_index>().indices().get<by_expiration_date>();
+             auto itr = limit_index.begin();
+             while( itr != limit_index.end() && itr->offer_expiration_date <= head_block_time() )
+             {
+                 const offer_object& offer = *itr;
+                 ++itr;
+
+                 finalize_offer_operation finalize;
+                 finalize.fee_paying_account = offer.issuer;
+                 finalize.offer_id = offer.id;
+                 finalize.fee = asset( 0, asset_id_type() );
+                 finalize.result = offer.bidder ? result_type::Expired : result_type::ExpiredNoBid;
+
+                 cancel_context.skip_fee_schedule_check = true;
+                 apply_operation(cancel_context, finalize);
+             }
+         });
+} FC_CAPTURE_AND_RETHROW()}
+
 } }

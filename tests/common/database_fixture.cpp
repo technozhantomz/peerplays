@@ -43,6 +43,7 @@
 #include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/offer_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 
@@ -307,7 +308,21 @@ void database_fixture::verify_asset_supplies( const database& db )
       total_balances[betting_market_group.asset_id] += o.fees_collected;
    }
 
-   
+   for (const offer_object &o : db.get_index_type<offer_index>().indices())
+   {
+      if (o.buying_item)
+      {
+         total_balances[o.maximum_price.asset_id] += o.maximum_price.amount;
+      }
+      else
+      {
+         if (o.bid_price)
+         {
+            total_balances[o.bid_price->asset_id] += o.bid_price->amount;
+         }
+      }
+   }
+
    uint64_t sweeps_vestings = 0;
    for( const sweeps_vesting_balance_object& svbo: db.get_index_type< sweeps_vesting_balance_index >().indices() )
       sweeps_vestings += svbo.balance;

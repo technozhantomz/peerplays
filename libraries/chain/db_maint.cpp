@@ -47,6 +47,7 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/worker_object.hpp>
+#include <graphene/chain/custom_account_authority_object.hpp>
 
 #define USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX // vesting_balance_object by_asset_balance index needed
 
@@ -803,8 +804,6 @@ uint32_t database::get_gpos_current_subperiod()
    const auto now = this->head_block_time();
    auto seconds_since_period_start = now.sec_since_epoch() - period_start.sec_since_epoch();
 
-   FC_ASSERT(period_start <= now && now <= period_end);
-
    // get in what sub period we are
    uint32_t current_subperiod = 0;
    std::list<uint32_t> period_list(number_of_subperiods);
@@ -926,10 +925,19 @@ void rolling_period_start(database& db)
       if(now.sec_since_epoch() >= (period_start + vesting_period))
       {
          // roll
-         db.modify(db.get_global_properties(), [now](global_property_object& p) {
-            p.parameters.extensions.value.gpos_period_start =  now.sec_since_epoch();
+         db.modify(db.get_global_properties(), [period_start, vesting_period](global_property_object& p) {
+            p.parameters.extensions.value.gpos_period_start =  period_start + vesting_period;
          });
       }
+   }
+}
+
+void clear_expired_custom_account_authorities(database& db)
+{
+   const auto& cindex = db.get_index_type<custom_account_authority_index>().indices().get<by_expiration>();
+   while(!cindex.empty() && cindex.begin()->valid_to < db.head_block_time())
+   {
+      db.remove(*cindex.begin());
    }
 }
 
@@ -1707,7 +1715,10 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    //for( const asset_bitasset_data_object* d : get_index_type<asset_bitasset_data_index>() )
    for( const auto& d : get_index_type<asset_bitasset_data_index>().indices() )
       modify( d, [](asset_bitasset_data_object& o) { o.force_settled_volume = 0; });
-
+   // Ideally we have to do this after every block but that leads to longer block applicaiton/replay times.
+   // So keep it here as it is not critical. valid_to check ensures
+   // these custom account auths are not usable.
+   clear_expired_custom_account_authorities(*this);
    // process_budget needs to run at the bottom because
    //   it needs to know the next_maintenance_time
    process_budget();

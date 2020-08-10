@@ -27,6 +27,9 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/chain_property_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
+#include <graphene/chain/custom_permission_object.hpp>
+#include <graphene/chain/custom_account_authority_object.hpp>
+#include <graphene/chain/offer_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -159,4 +162,34 @@ const witness_schedule_object& database::get_witness_schedule_object()const
    return *_p_witness_schedule_obj;
 }
 
+vector<authority> database::get_account_custom_authorities(account_id_type account, const operation& op)const
+{
+   const auto& pindex = get_index_type<custom_permission_index>().indices().get<by_account_and_permission>();
+   const auto& cindex = get_index_type<custom_account_authority_index>().indices().get<by_permission_and_op>();
+   auto prange = pindex.equal_range(boost::make_tuple(account));
+   time_point_sec now = head_block_time();
+   vector<authority> custom_auths;
+   for(const custom_permission_object& pobj : boost::make_iterator_range(prange.first, prange.second))
+   {
+      auto crange = cindex.equal_range(boost::make_tuple(pobj.id, op.which()));
+      for(const custom_account_authority_object& cobj : boost::make_iterator_range(crange.first, crange.second))
+      {
+         if(now >= cobj.valid_from && now < cobj.valid_to)
+         {
+            custom_auths.push_back(pobj.auth);
+         }
+      }
+   }
+   return custom_auths;
+}
+
+bool database::item_locked(const nft_id_type &item) const
+{
+   const auto &offer_idx = get_index_type<offer_index>();
+   const auto &oidx = dynamic_cast<const base_primary_index &>(offer_idx);
+   const auto &market_items = oidx.get_secondary_index<graphene::chain::offer_item_index>();
+
+   auto items_itr = market_items._locked_items.find(item);
+   return (items_itr != market_items._locked_items.end());
+}
 } }

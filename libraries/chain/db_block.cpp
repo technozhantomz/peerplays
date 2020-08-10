@@ -721,6 +721,7 @@ void database::_apply_block( const signed_block& next_block )
    update_withdraw_permissions();
    update_tournaments();
    update_betting_markets(next_block.timestamp);
+   finalize_expired_offers();
 
    // n.b., update_maintenance_flag() happens this late
    // because get_slot_time() / get_slot_at_time() is needed above
@@ -790,7 +791,10 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
    {
       auto get_active = [&]( account_id_type id ) { return &id(*this).active; };
       auto get_owner  = [&]( account_id_type id ) { return &id(*this).owner;  };
-      trx.verify_authority( chain_id, get_active, get_owner, get_global_properties().parameters.max_authority_depth );
+      auto get_custom = [&]( account_id_type id, const operation& op ) {
+         return get_account_custom_authorities(id, op);
+      };
+      trx.verify_authority( chain_id, get_active, get_owner, get_custom, get_global_properties().parameters.max_authority_depth );
    }
 
    //Skip all manner of expiration and TaPoS checking if we're on block 1; It's impossible that the transaction is

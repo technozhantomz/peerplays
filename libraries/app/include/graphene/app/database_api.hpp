@@ -48,6 +48,11 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 
+#include <graphene/chain/custom_permission_object.hpp>
+#include <graphene/chain/custom_account_authority_object.hpp>
+#include <graphene/chain/nft_object.hpp>
+#include <graphene/chain/offer_object.hpp>
+
 #include <graphene/market_history/market_history_plugin.hpp>
 
 #include <fc/api.hpp>
@@ -709,8 +714,121 @@ class database_api
        */
       gpos_info get_gpos_info(const account_id_type account) const;
 
+      //////////
+      // RBAC //
+      //////////
+      /**
+       * @return account and custom permissions/account-authorities info
+       */
+      vector<custom_permission_object> get_custom_permissions(const account_id_type account) const;
+      fc::optional<custom_permission_object> get_custom_permission_by_name(const account_id_type account, const string& permission_name) const;
+      vector<custom_account_authority_object> get_custom_account_authorities(const account_id_type account) const;
+      vector<custom_account_authority_object> get_custom_account_authorities_by_permission_id(const custom_permission_id_type permission_id) const;
+      vector<custom_account_authority_object> get_custom_account_authorities_by_permission_name(const account_id_type account, const string& permission_name) const;
+      vector<authority> get_active_custom_account_authorities_by_operation(const account_id_type account, int operation_type) const;
 
+      /////////
+      // NFT //
+      /////////
+      /**
+       * @brief Returns the number of NFT owned by account
+       * @param owner Owner account ID
+       * @return Number of NFTs owned by account
+       */
+      uint64_t nft_get_balance(const account_id_type owner) const;
 
+      /**
+       * @brief Returns the NFT owner
+       * @param token_id NFT ID
+       * @return NFT owner account ID
+       */
+      optional<account_id_type> nft_owner_of(const nft_id_type token_id) const;
+
+      /**
+       * @brief Returns the NFT approved account ID
+       * @param token_id NFT ID
+       * @return NFT approved account ID
+       */
+      optional<account_id_type> nft_get_approved(const nft_id_type token_id) const;
+
+      /**
+       * @brief Returns operator approved state for all NFT owned by owner
+       * @param owner NFT owner account ID
+       * @param token_id NFT ID
+       * @return True if operator is approved for all NFT owned by owner, else False
+       */
+      bool nft_is_approved_for_all(const account_id_type owner, const account_id_type operator_) const;
+
+      /**
+       * @brief Returns NFT name from NFT metadata
+       * @param nft_metadata_id NFT metadata ID
+       * @return NFT name
+       */
+      string nft_get_name(const nft_metadata_id_type nft_metadata_id) const;
+
+      /**
+       * @brief Returns NFT symbol from NFT metadata
+       * @param nft_metadata_id NFT metadata ID
+       * @return NFT symbol
+       */
+      string nft_get_symbol(const nft_metadata_id_type nft_metadata_id) const;
+
+      /**
+       * @brief Returns NFT URI
+       * @param token_id NFT ID
+       * @return NFT URI
+       */
+      string nft_get_token_uri(const nft_id_type token_id) const;
+
+      /**
+       * @brief Returns total number of NFTs assigned to NFT metadata
+       * @param nft_metadata_id NFT metadata ID
+       * @return Total number of NFTs assigned to NFT metadata
+       */
+      uint64_t nft_get_total_supply(const nft_metadata_id_type nft_metadata_id) const;
+
+      /**
+       * @brief Returns NFT by index from NFT metadata
+       * @param nft_metadata_id NFT metadata ID
+       * @param token_idx NFT index in the list of tokens
+       * @return NFT symbol
+       */
+      nft_object nft_token_by_index(const nft_metadata_id_type nft_metadata_id, const uint64_t token_idx) const;
+
+      /**
+       * @brief Returns NFT by owner and index
+       * @param nft_metadata_id NFT metadata ID
+       * @param owner NFT owner
+       * @param token_idx NFT index in the list of tokens
+       * @return NFT object
+       */
+      nft_object nft_token_of_owner_by_index(const nft_metadata_id_type nft_metadata_id, const account_id_type owner, const uint64_t token_idx) const;
+
+      /**
+       * @brief Returns list of all available NTF's
+       * @return List of all available NFT's
+       */
+      vector<nft_object> nft_get_all_tokens() const;
+
+      /**
+       * @brief Returns NFT's owned by owner
+       * @param owner NFT owner
+       * @return List of NFT owned by owner
+       */
+      vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner) const;
+
+      //////////////////
+      // MARKET PLACE //
+      //////////////////
+      vector<offer_object> list_offers(const offer_id_type lower_id, uint32_t limit) const;
+      vector<offer_object> list_sell_offers(const offer_id_type lower_id, uint32_t limit) const;
+      vector<offer_object> list_buy_offers(const offer_id_type lower_id, uint32_t limit) const;
+      vector<offer_history_object> list_offer_history(const offer_history_id_type lower_id, uint32_t limit) const;
+      vector<offer_object> get_offers_by_issuer(const offer_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const;
+      vector<offer_object> get_offers_by_item(const offer_id_type lower_id, const nft_id_type item, uint32_t limit) const;
+      vector<offer_history_object> get_offer_history_by_issuer(const offer_history_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const;
+      vector<offer_history_object> get_offer_history_by_item(const offer_history_id_type lower_id, const nft_id_type item, uint32_t limit) const;
+      vector<offer_history_object> get_offer_history_by_bidder(const offer_history_id_type lower_id, const account_id_type bidder_account_id, uint32_t limit) const;
 private:
       std::shared_ptr< database_api_impl > my;
 };
@@ -848,4 +966,37 @@ FC_API(graphene::app::database_api,
 
    // gpos
    (get_gpos_info)
+
+   //rbac
+   (get_custom_permissions)
+   (get_custom_permission_by_name)
+   (get_custom_account_authorities)
+   (get_custom_account_authorities_by_permission_id)
+   (get_custom_account_authorities_by_permission_name)
+   (get_active_custom_account_authorities_by_operation)
+
+   // NFT
+   (nft_get_balance)
+   (nft_owner_of)
+   (nft_get_approved)
+   (nft_is_approved_for_all)
+   (nft_get_name)
+   (nft_get_symbol)
+   (nft_get_token_uri)
+   (nft_get_total_supply)
+   (nft_token_by_index)
+   (nft_token_of_owner_by_index)
+   (nft_get_all_tokens)
+   (nft_get_tokens_by_owner)
+
+   // Marketplace
+   (list_offers)
+   (list_sell_offers)
+   (list_buy_offers)
+   (list_offer_history)
+   (get_offers_by_issuer)
+   (get_offers_by_item)
+   (get_offer_history_by_issuer)
+   (get_offer_history_by_item)
+   (get_offer_history_by_bidder)
 )
