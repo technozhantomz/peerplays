@@ -2080,7 +2080,6 @@ public:
    signed_transaction add_sidechain_address(string account,
                                             sidechain_type sidechain,
                                             string deposit_public_key,
-                                            string deposit_address,
                                             string withdraw_public_key,
                                             string withdraw_address,
                                             bool broadcast /* = false */)
@@ -2092,38 +2091,6 @@ public:
       op.sidechain_address_account = sidechain_address_account_id;
       op.sidechain = sidechain;
       op.deposit_public_key = deposit_public_key;
-      op.deposit_address = deposit_address;
-      op.withdraw_public_key = withdraw_public_key;
-      op.withdraw_address = withdraw_address;
-
-      signed_transaction tx;
-      tx.operations.push_back( op );
-      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
-      tx.validate();
-
-      return sign_transaction( tx, broadcast );
-   } FC_CAPTURE_AND_RETHROW() }
-
-   signed_transaction update_sidechain_address(string account,
-                                               sidechain_type sidechain,
-                                               string deposit_public_key,
-                                               string deposit_address,
-                                               string withdraw_public_key,
-                                               string withdraw_address,
-                                               bool broadcast /* = false */)
-   { try {
-      account_id_type sidechain_address_account_id = get_account_id(account);
-      fc::optional<sidechain_address_object> sao = _remote_db->get_sidechain_address_by_account_and_sidechain(sidechain_address_account_id, sidechain);
-      if (!sao)
-         FC_THROW("No sidechain address for account ${account} and sidechain ${sidechain}", ("account", sidechain_address_account_id)("sidechain", sidechain));
-
-      sidechain_address_update_operation op;
-      op.payer = sidechain_address_account_id;
-      op.sidechain_address_id = sao->id;
-      op.sidechain_address_account = sidechain_address_account_id;
-      op.sidechain = sidechain;
-      op.deposit_public_key = deposit_public_key;
-      op.deposit_address = deposit_address;
       op.withdraw_public_key = withdraw_public_key;
       op.withdraw_address = withdraw_address;
 
@@ -4804,23 +4771,11 @@ vector<optional<son_wallet_object>> wallet_api::get_son_wallets(uint32_t limit)
 signed_transaction wallet_api::add_sidechain_address(string account,
                                           sidechain_type sidechain,
                                           string deposit_public_key,
-                                          string deposit_address,
                                           string withdraw_public_key,
                                           string withdraw_address,
                                           bool broadcast /* = false */)
 {
-   return my->add_sidechain_address(account, sidechain, deposit_public_key, deposit_address, withdraw_public_key, withdraw_address, broadcast);
-}
-
-signed_transaction wallet_api::update_sidechain_address(string account,
-                                          sidechain_type sidechain,
-                                          string deposit_public_key,
-                                          string deposit_address,
-                                          string withdraw_public_key,
-                                          string withdraw_address,
-                                          bool broadcast /* = false */)
-{
-   return my->update_sidechain_address(account, sidechain, deposit_public_key, deposit_address, withdraw_public_key, withdraw_address, broadcast);
+   return my->add_sidechain_address(account, sidechain, deposit_public_key, withdraw_public_key, withdraw_address, broadcast);
 }
 
 signed_transaction wallet_api::delete_sidechain_address(string account,

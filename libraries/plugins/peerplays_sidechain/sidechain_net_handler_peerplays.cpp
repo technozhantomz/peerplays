@@ -124,6 +124,38 @@ void sidechain_net_handler_peerplays::process_primary_wallet() {
 }
 
 void sidechain_net_handler_peerplays::process_sidechain_addresses() {
+   const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>();
+   const auto &sidechain_addresses_by_sidechain_idx = sidechain_addresses_idx.indices().get<by_sidechain>();
+   const auto &sidechain_addresses_by_sidechain_range = sidechain_addresses_by_sidechain_idx.equal_range(sidechain);
+   std::for_each(sidechain_addresses_by_sidechain_range.first, sidechain_addresses_by_sidechain_range.second,
+                 [&](const sidechain_address_object &sao) {
+                    if (sao.expires == time_point_sec::maximum()) {
+                       if (sao.deposit_address == "") {
+                          sidechain_address_update_operation op;
+                           op.payer = plugin.get_current_son_object().son_account;
+                           op.sidechain_address_id = sao.id;
+                           op.sidechain_address_account = sao.sidechain_address_account;
+                           op.sidechain = sao.sidechain;
+                           op.deposit_public_key = sao.deposit_public_key;
+                           op.deposit_address = sao.withdraw_address;
+                           op.deposit_address_data = sao.withdraw_address;
+                           op.withdraw_public_key = sao.withdraw_public_key;
+                           op.withdraw_address = sao.withdraw_address;
+
+                           signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), op);
+                           try {
+                              trx.validate();
+                              database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+                              if (plugin.app().p2p_node())
+                                 plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+                              return true;
+                           } catch (fc::exception e) {
+                              elog("Sending transaction for update deposit address operation failed with exception ${e}", ("e", e.what()));
+                              return false;
+                           }
+                       }
+                    }
+                 });
    return;
 }
 

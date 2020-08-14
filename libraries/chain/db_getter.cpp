@@ -240,6 +240,28 @@ bool database::is_son_dereg_valid( son_id_type son_id )
                 (head_block_time() - son->statistics(*this).last_down_timestamp >= fc::seconds(get_global_properties().parameters.son_deregister_time())));
 }
 
+bool database::is_son_active( son_id_type son_id )
+{
+   const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
+   auto son = son_idx.find( son_id );
+   if(son == son_idx.end())
+   {
+      return false;
+   }
+
+   const global_property_object& gpo = get_global_properties();
+   vector<son_id_type> active_son_ids;
+   active_son_ids.reserve(gpo.active_sons.size());
+   std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                  std::inserter(active_son_ids, active_son_ids.end()),
+                  [](const son_info& swi) {
+      return swi.son_id;
+   });
+
+   auto it_son = std::find(active_son_ids.begin(), active_son_ids.end(), son_id);
+   return (it_son != active_son_ids.end());
+}
+
 const account_statistics_object& database::get_account_stats_by_owner( account_id_type owner )const
 {
    auto& idx = get_index_type<account_stats_index>().indices().get<by_owner>();

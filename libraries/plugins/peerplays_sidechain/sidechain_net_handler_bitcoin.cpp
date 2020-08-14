@@ -1349,34 +1349,36 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
    const auto &sidechain_addresses_by_sidechain_range = sidechain_addresses_by_sidechain_idx.equal_range(sidechain);
    std::for_each(sidechain_addresses_by_sidechain_range.first, sidechain_addresses_by_sidechain_range.second,
                  [&](const sidechain_address_object &sao) {
-                    auto usr_pubkey = fc::ecc::public_key(create_public_key_data(parse_hex(sao.deposit_public_key)));
+                    if (sao.expires == time_point_sec::maximum()) {
+                       auto usr_pubkey = fc::ecc::public_key(create_public_key_data(parse_hex(sao.deposit_public_key)));
 
-                    btc_one_or_weighted_multisig_address addr(usr_pubkey, pubkeys, network_type);
-                    std::string address_data = "{ \"redeemScript\": \"" + fc::to_hex(addr.get_redeem_script()) +
-                                               "\", \"witnessScript\": \"" + fc::to_hex(addr.get_witness_script()) + "\" }";
+                       btc_one_or_weighted_multisig_address addr(usr_pubkey, pubkeys, network_type);
+                       std::string address_data = "{ \"redeemScript\": \"" + fc::to_hex(addr.get_redeem_script()) +
+                                                  "\", \"witnessScript\": \"" + fc::to_hex(addr.get_witness_script()) + "\" }";
 
-                    if (addr.get_address() != sao.deposit_address) {
-                       sidechain_address_update_operation op;
-                       op.payer = plugin.get_current_son_object().son_account;
-                       op.sidechain_address_id = sao.id;
-                       op.sidechain_address_account = sao.sidechain_address_account;
-                       op.sidechain = sao.sidechain;
-                       op.deposit_public_key = sao.deposit_public_key;
-                       op.deposit_address = addr.get_address();
-                       op.deposit_address_data = address_data;
-                       op.withdraw_public_key = sao.withdraw_public_key;
-                       op.withdraw_address = sao.withdraw_address;
+                       if (addr.get_address() != sao.deposit_address) {
+                          sidechain_address_update_operation op;
+                          op.payer = plugin.get_current_son_object().son_account;
+                          op.sidechain_address_id = sao.id;
+                          op.sidechain_address_account = sao.sidechain_address_account;
+                          op.sidechain = sao.sidechain;
+                          op.deposit_public_key = sao.deposit_public_key;
+                          op.deposit_address = addr.get_address();
+                          op.deposit_address_data = address_data;
+                          op.withdraw_public_key = sao.withdraw_public_key;
+                          op.withdraw_address = sao.withdraw_address;
 
-                       signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), op);
-                       try {
-                          trx.validate();
-                          database.push_transaction(trx, database::validation_steps::skip_block_size_check);
-                          if (plugin.app().p2p_node())
-                             plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-                          return true;
-                       } catch (fc::exception e) {
-                          elog("Sending proposal for deposit sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
-                          return false;
+                          signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), op);
+                          try {
+                             trx.validate();
+                             database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+                             if (plugin.app().p2p_node())
+                                plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+                             return true;
+                          } catch (fc::exception e) {
+                             elog("Sending proposal for deposit sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
+                             return false;
+                          }
                        }
                     }
                  });
@@ -1779,11 +1781,11 @@ void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) 
    if (block != "") {
       const auto &vins = extract_info_from_block(block);
 
-      const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address>();
+      const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address_and_expires>();
 
       for (const auto &v : vins) {
          // !!! EXTRACT DEPOSIT ADDRESS FROM SIDECHAIN ADDRESS OBJECT
-         const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, v.address));
+         const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, v.address, time_point_sec::maximum()));
          if (addr_itr == sidechain_addresses_idx.end())
             continue;
 
@@ -1813,8 +1815,8 @@ void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) 
 
 std::string sidechain_net_handler_bitcoin::get_redeemscript_for_userdeposit(const std::string &user_address) {
    using namespace bitcoin;
-   const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address>();
-   const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, user_address));
+   const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address_and_expires>();
+   const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, user_address, time_point_sec::maximum()));
    if (addr_itr == sidechain_addresses_idx.end()) {
       return "";
    }

@@ -307,6 +307,7 @@ namespace graphene { namespace chain {
          fc::optional<operation>                create_son_deregister_proposal( son_id_type son_id, account_id_type paying_son );
          signed_transaction                     create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op );
          bool                                   is_son_dereg_valid( son_id_type son_id );
+         bool                                   is_son_active( son_id_type son_id );
          const witness_schedule_object&         get_witness_schedule_object()const;
 
          time_point_sec   head_block_time()const;

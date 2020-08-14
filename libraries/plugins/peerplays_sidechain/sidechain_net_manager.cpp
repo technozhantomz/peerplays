@@ -51,6 +51,12 @@ void sidechain_net_manager::process_active_sons_change() {
    }
 }
 
+void sidechain_net_manager::create_deposit_addresses() {
+   for (size_t i = 0; i < net_handlers.size(); i++) {
+      net_handlers.at(i)->create_deposit_addresses();
+   }
+}
+
 void sidechain_net_manager::process_deposits() {
    for (size_t i = 0; i < net_handlers.size(); i++) {
       net_handlers.at(i)->process_deposits();

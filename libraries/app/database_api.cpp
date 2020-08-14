@@ -1938,7 +1938,8 @@ vector<optional<sidechain_address_object>> database_api_impl::get_sidechain_addr
    const auto& sidechain_addresses_range = _db.get_index_type<sidechain_address_index>().indices().get<by_account>().equal_range(account);
    std::for_each(sidechain_addresses_range.first, sidechain_addresses_range.second,
          [&result] (const sidechain_address_object& sao) {
-         result.push_back(sao);
+         if( sao.expires == time_point_sec::maximum() )
+            result.push_back(sao);
    });
    return result;
 }
@@ -1954,7 +1955,8 @@ vector<optional<sidechain_address_object>> database_api_impl::get_sidechain_addr
    const auto& sidechain_addresses_range = _db.get_index_type<sidechain_address_index>().indices().get<by_sidechain>().equal_range(sidechain);
    std::for_each(sidechain_addresses_range.first, sidechain_addresses_range.second,
          [&result] (const sidechain_address_object& sao) {
-         result.push_back(sao);
+         if( sao.expires == time_point_sec::maximum() )
+            result.push_back(sao);
    });
    return result;
 }
@@ -1966,8 +1968,8 @@ fc::optional<sidechain_address_object> database_api::get_sidechain_address_by_ac
 
 fc::optional<sidechain_address_object> database_api_impl::get_sidechain_address_by_account_and_sidechain(account_id_type account, sidechain_type sidechain)const
 {
-   const auto& idx = _db.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain>();
-   auto itr = idx.find( boost::make_tuple( account, sidechain ) );
+   const auto& idx = _db.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain_and_expires>();
+   auto itr = idx.find( boost::make_tuple( account, sidechain, time_point_sec::maximum() ) );
    if( itr != idx.end() )
       return *itr;
    return {};

@@ -27,6 +27,8 @@ namespace graphene { namespace chain {
          string deposit_address_data;
          string withdraw_public_key;
          string withdraw_address;
+         time_point_sec valid_from;
+         time_point_sec expires;
 
          sidechain_address_object() :
             sidechain(sidechain_type::bitcoin),
@@ -38,10 +40,10 @@ namespace graphene { namespace chain {
 
    struct by_account;
    struct by_sidechain;
-   struct by_deposit_public_key;
+   struct by_sidechain_and_deposit_public_key_and_expires;
    struct by_withdraw_public_key;
-   struct by_account_and_sidechain;
-   struct by_sidechain_and_deposit_address;
+   struct by_account_and_sidechain_and_expires;
+   struct by_sidechain_and_deposit_address_and_expires;
    using sidechain_address_multi_index_type = multi_index_container<
       sidechain_address_object,
       indexed_by<
@@ -54,22 +56,28 @@ namespace graphene { namespace chain {
          ordered_non_unique< tag<by_sidechain>,
             member<sidechain_address_object, sidechain_type, &sidechain_address_object::sidechain>
          >,
-         ordered_non_unique< tag<by_deposit_public_key>,
-            member<sidechain_address_object, std::string, &sidechain_address_object::deposit_public_key>
-         >,
-         ordered_non_unique< tag<by_withdraw_public_key>,
-            member<sidechain_address_object, std::string, &sidechain_address_object::withdraw_public_key>
-         >,
-         ordered_unique< tag<by_account_and_sidechain>,
-            composite_key<sidechain_address_object,
-               member<sidechain_address_object, account_id_type, &sidechain_address_object::sidechain_address_account>,
-               member<sidechain_address_object, sidechain_type, &sidechain_address_object::sidechain>
-            >
-         >,
-         ordered_unique< tag<by_sidechain_and_deposit_address>,
+         ordered_unique< tag<by_sidechain_and_deposit_public_key_and_expires>,
             composite_key<sidechain_address_object,
                member<sidechain_address_object, sidechain_type, &sidechain_address_object::sidechain>,
-               member<sidechain_address_object, std::string, &sidechain_address_object::deposit_address>
+               member<sidechain_address_object, string, &sidechain_address_object::deposit_public_key>,
+               member<sidechain_address_object, time_point_sec, &sidechain_address_object::expires>
+            >
+         >,
+         ordered_non_unique< tag<by_withdraw_public_key>,
+            member<sidechain_address_object, string, &sidechain_address_object::withdraw_public_key>
+         >,
+         ordered_non_unique< tag<by_account_and_sidechain_and_expires>,
+            composite_key<sidechain_address_object,
+               member<sidechain_address_object, account_id_type, &sidechain_address_object::sidechain_address_account>,
+               member<sidechain_address_object, sidechain_type, &sidechain_address_object::sidechain>,
+               member<sidechain_address_object, time_point_sec, &sidechain_address_object::expires>
+            >
+         >,
+         ordered_non_unique< tag<by_sidechain_and_deposit_address_and_expires>,
+            composite_key<sidechain_address_object,
+               member<sidechain_address_object, sidechain_type, &sidechain_address_object::sidechain>,
+               member<sidechain_address_object, string, &sidechain_address_object::deposit_address>,
+               member<sidechain_address_object, time_point_sec, &sidechain_address_object::expires>
             >
          >
       >
@@ -81,4 +89,4 @@ namespace graphene { namespace chain {
 FC_REFLECT_DERIVED( graphene::chain::sidechain_address_object, (graphene::db::object),
                     (sidechain_address_account) (sidechain)
                     (deposit_public_key) (deposit_address) (deposit_address_data)
-                    (withdraw_public_key) (withdraw_address) )
+                    (withdraw_public_key) (withdraw_address) (valid_from) (expires) )

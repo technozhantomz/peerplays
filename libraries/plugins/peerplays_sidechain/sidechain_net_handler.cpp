@@ -216,8 +216,8 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
    // Withdrawal request
    if (withdraw_condition) {
       // BTC Payout only (for now)
-      const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain>();
-      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sed.peerplays_from, sidechain_type::bitcoin));
+      const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain_and_expires>();
+      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sed.peerplays_from, sidechain_type::bitcoin, time_point_sec::maximum()));
       if (addr_itr == sidechain_addresses_idx.end())
          return;
 
@@ -356,6 +356,12 @@ void sidechain_net_handler::process_proposals() {
 
 void sidechain_net_handler::process_active_sons_change() {
    process_primary_wallet();
+}
+
+void sidechain_net_handler::create_deposit_addresses() {
+   if (database.get_global_properties().active_sons.size() < database.get_chain_properties().immutable_parameters.min_son_count) {
+      return;
+   }
    process_sidechain_addresses();
 }
 
@@ -372,8 +378,8 @@ void sidechain_net_handler::process_deposits() {
          return;
       }
       //Ignore the deposits which are not valid anymore, considered refunds.
-      const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address>();
-      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, swdo.sidechain_to));
+      const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address_and_expires>();
+      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, swdo.sidechain_to, time_point_sec::maximum()));
       if (addr_itr == sidechain_addresses_idx.end()) {
          return;
       }

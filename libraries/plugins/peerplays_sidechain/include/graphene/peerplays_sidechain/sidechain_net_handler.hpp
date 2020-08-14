@@ -32,6 +32,7 @@ public:
 
    void process_proposals();
    void process_active_sons_change();
+   void create_deposit_addresses();
    void process_deposits();
    void process_withdrawals();
    void process_sidechain_transactions();

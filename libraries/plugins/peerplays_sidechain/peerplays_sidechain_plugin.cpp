@@ -54,6 +54,7 @@ public:
 
    void process_proposals();
    void process_active_sons_change();
+   void create_deposit_addresses();
    void process_deposits();
    void process_withdrawals();
    void process_sidechain_transactions();
@@ -415,6 +416,8 @@ void peerplays_sidechain_plugin_impl::son_processing() {
 
             process_active_sons_change();
 
+            create_deposit_addresses();
+
             process_deposits();
 
             process_withdrawals();
@@ -594,6 +597,10 @@ void peerplays_sidechain_plugin_impl::process_proposals() {
 
 void peerplays_sidechain_plugin_impl::process_active_sons_change() {
    net_manager->process_active_sons_change();
+}
+
+void peerplays_sidechain_plugin_impl::create_deposit_addresses() {
+   net_manager->create_deposit_addresses();
 }
 
 void peerplays_sidechain_plugin_impl::process_deposits() {
