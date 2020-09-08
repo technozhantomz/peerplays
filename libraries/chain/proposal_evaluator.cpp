@@ -204,19 +204,20 @@ struct proposal_operation_hardfork_visitor
    }
 };
 
-void_result proposal_create_evaluator::do_evaluate(const proposal_create_operation& o)
+void_result proposal_create_evaluator::do_evaluate( const proposal_create_operation& o )
 { try {
    const database& d = db();
+   auto block_time = d.head_block_time();
 
-   proposal_operation_hardfork_visitor vtor( d.head_block_time() );
+   proposal_operation_hardfork_visitor vtor( block_time );
    vtor( o );
 
    const auto& global_parameters = d.get_global_properties().parameters;
 
-   FC_ASSERT( o.expiration_time > d.head_block_time(), "Proposal has already expired on creation." );
-   FC_ASSERT( o.expiration_time <= d.head_block_time() + global_parameters.maximum_proposal_lifetime,
+   FC_ASSERT( o.expiration_time > block_time, "Proposal has already expired on creation." );
+   FC_ASSERT( o.expiration_time <= block_time + global_parameters.maximum_proposal_lifetime,
               "Proposal expiration time is too far in the future.");
-   FC_ASSERT( !o.review_period_seconds || fc::seconds(*o.review_period_seconds) < (o.expiration_time - d.head_block_time()),
+   FC_ASSERT( !o.review_period_seconds || fc::seconds(*o.review_period_seconds) < (o.expiration_time - block_time),
               "Proposal review period must be less than its overall lifetime." );
 
    {
@@ -225,7 +226,8 @@ void_result proposal_create_evaluator::do_evaluate(const proposal_create_operati
       vector<authority> other;
       for( auto& op : o.proposed_ops )
       {
-         operation_get_required_authorities(op.op, auths, auths, other);
+         operation_get_required_authorities( op.op, auths, auths, other,
+                                             MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(block_time) );
       }
 
       FC_ASSERT( other.size() == 0 ); // TODO: what about other??? 
@@ -248,18 +250,19 @@ void_result proposal_create_evaluator::do_evaluate(const proposal_create_operati
       }
    }
 
-   for( const op_wrapper& op : o.proposed_ops )
+   for (const op_wrapper& op : o.proposed_ops)
       _proposed_trx.operations.push_back(op.op);
    _proposed_trx.validate();
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (o) ) }
 
-object_id_type proposal_create_evaluator::do_apply(const proposal_create_operation& o)
+object_id_type proposal_create_evaluator::do_apply( const proposal_create_operation& o )
 { try {
    database& d = db();
+   auto chain_time = d.head_block_time();
 
-   const proposal_object& proposal = d.create<proposal_object>([&](proposal_object& proposal) {
+   const proposal_object& proposal = d.create<proposal_object>( [&o, this, chain_time](proposal_object& proposal) {
       _proposed_trx.expiration = o.expiration_time;
       proposal.proposed_transaction = _proposed_trx;
       proposal.proposer = o.fee_paying_account;
@@ -273,7 +276,8 @@ object_id_type proposal_create_evaluator::do_apply(const proposal_create_operati
       
       // TODO: consider caching values from evaluate?
       for( auto& op : _proposed_trx.operations )
-         operation_get_required_authorities(op, required_active, proposal.required_owner_approvals, other);
+         operation_get_required_authorities( op, required_active, proposal.required_owner_approvals, other,
+                                             MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(chain_time) );
 
       //All accounts which must provide both owner and active authority should be omitted from the active authority set;
       //owner authority approval implies active authority approval.
@@ -285,7 +289,7 @@ object_id_type proposal_create_evaluator::do_apply(const proposal_create_operati
    return proposal.id;
 } FC_CAPTURE_AND_RETHROW( (o) ) }
 
-void_result proposal_update_evaluator::do_evaluate(const proposal_update_operation& o)
+void_result proposal_update_evaluator::do_evaluate( const proposal_update_operation& o )
 { try {
    database& d = db();
 

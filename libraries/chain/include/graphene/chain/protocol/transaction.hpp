@@ -112,7 +112,10 @@ namespace graphene { namespace chain {
          return results;
       }
 
-      void get_required_authorities( flat_set<account_id_type>& active, flat_set<account_id_type>& owner, vector<authority>& other )const;
+      void get_required_authorities( flat_set<account_id_type>& active,
+                                     flat_set<account_id_type>& owner,
+                                     vector<authority>& other,
+                                     bool ignore_custom_operation_required_auths )const;
    };
 
    /**
@@ -142,6 +145,7 @@ namespace graphene { namespace chain {
          const std::function<const authority*(account_id_type)>& get_active,
          const std::function<const authority*(account_id_type)>& get_owner,
          const std::function<vector<authority>(account_id_type, const operation&)>& get_custom,
+         bool ignore_custom_operation_required_authorities,
          uint32_t max_recursion = GRAPHENE_MAX_SIG_CHECK_DEPTH
          )const;
 
@@ -150,6 +154,7 @@ namespace graphene { namespace chain {
          const std::function<const authority*(account_id_type)>& get_active,
          const std::function<const authority*(account_id_type)>& get_owner,
          const std::function<vector<authority>(account_id_type, const operation&)>& get_custom,
+         bool ignore_custom_operation_required_auths,
          uint32_t max_recursion = GRAPHENE_MAX_SIG_CHECK_DEPTH )const;
 
       /**
@@ -158,13 +163,13 @@ namespace graphene { namespace chain {
        * some cases where get_required_signatures() returns a
        * non-minimal set.
        */
-
       set<public_key_type> minimize_required_signatures(
          const chain_id_type& chain_id,
          const flat_set<public_key_type>& available_keys,
          const std::function<const authority*(account_id_type)>& get_active,
          const std::function<const authority*(account_id_type)>& get_owner,
          const std::function<vector<authority>(account_id_type, const operation&)>& get_custom,
+         bool ignore_custom_operation_required_auths,
          uint32_t max_recursion = GRAPHENE_MAX_SIG_CHECK_DEPTH
          ) const;
 
@@ -198,10 +203,11 @@ namespace graphene { namespace chain {
                           const std::function<const authority*(account_id_type)>& get_active,
                           const std::function<const authority*(account_id_type)>& get_owner,
                           const std::function<vector<authority>(account_id_type, const operation&)>& get_custom,
+                          bool ignore_custom_operation_required_auths,
                           uint32_t max_recursion = GRAPHENE_MAX_SIG_CHECK_DEPTH,
-                          bool allow_committe = false,
+                          bool allow_committee = false,
                           const flat_set<account_id_type>& active_aprovals = flat_set<account_id_type>(),
-                          const flat_set<account_id_type>& owner_approvals = flat_set<account_id_type>());
+                          const flat_set<account_id_type>& owner_approvals = flat_set<account_id_type>() );
 
    /**
     *  @brief captures the result of evaluating the operations contained in the transaction
