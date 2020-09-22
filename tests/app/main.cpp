@@ -34,9 +34,6 @@
 #include <graphene/accounts_list/accounts_list_plugin.hpp>
 #include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
 #include <graphene/market_history/market_history_plugin.hpp>
-#include <graphene/witness/witness.hpp>
-#include <graphene/market_history/market_history_plugin.hpp>
-
 #include <fc/thread/thread.hpp>
 #include <fc/smart_ref_impl.hpp>
 

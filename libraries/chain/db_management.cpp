@@ -43,7 +43,6 @@ database::database() :
 {
    initialize_indexes();
    initialize_evaluators();
-   initialize_db_sidechain();
 }
 
 database::~database()

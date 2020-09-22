@@ -151,6 +151,19 @@ const std::vector<uint32_t> database::get_winner_numbers( asset_id_type for_asse
    return result;
 }
 
+const account_statistics_object& database::get_account_stats_by_owner( account_id_type owner )const
+{
+   auto& idx = get_index_type<account_stats_index>().indices().get<by_owner>();
+   auto itr = idx.find( owner );
+   FC_ASSERT( itr != idx.end(), "Can not find account statistics object for owner ${a}", ("a",owner) );
+   return *itr;
+}
+
+const witness_schedule_object& database::get_witness_schedule_object()const
+{
+   return *_p_witness_schedule_obj;
+}
+
 vector<authority> database::get_account_custom_authorities(account_id_type account, const operation& op)const
 {
    const auto& pindex = get_index_type<custom_permission_index>().indices().get<by_account_and_permission>();
@@ -295,19 +308,6 @@ bool database::is_son_active( son_id_type son_id )
 
    auto it_son = std::find(active_son_ids.begin(), active_son_ids.end(), son_id);
    return (it_son != active_son_ids.end());
-}
-
-const account_statistics_object& database::get_account_stats_by_owner( account_id_type owner )const
-{
-   auto& idx = get_index_type<account_stats_index>().indices().get<by_owner>();
-   auto itr = idx.find( owner );
-   FC_ASSERT( itr != idx.end(), "Can not find account statistics object for owner ${a}", ("a",owner) );
-   return *itr;
-}
-
-const witness_schedule_object& database::get_witness_schedule_object()const
-{
-   return *_p_witness_schedule_obj;
 }
 
 } }

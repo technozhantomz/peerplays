@@ -137,7 +137,7 @@ FC_REFLECT(graphene::chain::cdd_vesting_policy_initializer, (start_claim)(vestin
 FC_REFLECT(graphene::chain::dormant_vesting_policy_initializer,  )
 FC_REFLECT_TYPENAME( graphene::chain::vesting_policy_initializer )
 
-FC_REFLECT_ENUM( graphene::chain::vesting_balance_type, (normal)(gpos)(son))
+FC_REFLECT_ENUM( graphene::chain::vesting_balance_type, (normal)(gpos)(son) )
 
 GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vesting_balance_create_operation::fee_parameters_type )
 GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vesting_balance_withdraw_operation::fee_parameters_type )

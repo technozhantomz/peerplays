@@ -128,6 +128,11 @@ struct proposal_operation_hardfork_visitor
        FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_update_status_operation not allowed yet!" );
    }
 
+   void operator()(const vesting_balance_create_operation &vbco) const {
+      if(block_time < HARDFORK_GPOS_TIME)
+         FC_ASSERT( vbco.balance_type == vesting_balance_type::normal, "balance_type in vesting create not allowed yet!" );
+   }
+
    void operator()(const custom_permission_create_operation &v) const {
        FC_ASSERT( block_time >= HARDFORK_NFT_TIME, "custom_permission_create_operation not allowed yet!" );
    }
@@ -216,11 +221,6 @@ struct proposal_operation_hardfork_visitor
       FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_maintenance_operation not allowed yet!" );
    }
 
-   void operator()(const vesting_balance_create_operation &vbco) const {
-      if(block_time < HARDFORK_GPOS_TIME)
-         FC_ASSERT( vbco.balance_type == vesting_balance_type::normal, "balance_type in vesting create not allowed yet!" );
-   }
-
    // loop and self visit in proposals
    void operator()(const proposal_create_operation &v) const {
       for (const op_wrapper &op : v.proposed_ops)
@@ -246,7 +246,7 @@ void son_hardfork_visitor::operator()( const son_report_down_operation &v )
    });
 }
 
-void_result proposal_create_evaluator::do_evaluate(const proposal_create_operation& o)
+void_result proposal_create_evaluator::do_evaluate( const proposal_create_operation& o )
 { try {
    const database& d = db();
    auto block_time = d.head_block_time();

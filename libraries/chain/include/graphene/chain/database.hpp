@@ -301,6 +301,7 @@ namespace graphene { namespace chain {
          const std::vector<uint32_t>            get_winner_numbers( asset_id_type for_asset, uint32_t count_members, uint8_t count_winners ) const;
          std::vector<uint32_t>                  get_seeds( asset_id_type for_asset, uint8_t count_winners )const;
          uint64_t                               get_random_bits( uint64_t bound );
+         const witness_schedule_object&         get_witness_schedule_object()const;
          bool                                   item_locked(const nft_id_type& item)const;
          std::set<son_id_type>                  get_sons_being_deregistered();
          std::set<son_id_type>                  get_sons_being_reported_down();
@@ -309,7 +310,6 @@ namespace graphene { namespace chain {
          signed_transaction                     create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op );
          bool                                   is_son_dereg_valid( son_id_type son_id );
          bool                                   is_son_active( son_id_type son_id );
-         const witness_schedule_object&         get_witness_schedule_object()const;
 
          time_point_sec   head_block_time()const;
          uint32_t         head_block_num()const;
@@ -633,13 +633,6 @@ namespace graphene { namespace chain {
           * database::close() has not been called, or failed during execution.
           */
          bool                              _opened = false;
-
-      /////////////////////// db_sidechain.cpp ////////////////////
-      public:
-          bool recreate_primary_wallet;
-          void initialize_db_sidechain();
-      protected:
-      private:
          /// Tracks assets affected by bitshares-core issue #453 before hard fork #615 in one block
          flat_set<asset_id_type>           _issue_453_affected_assets;
 
