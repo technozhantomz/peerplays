@@ -48,6 +48,7 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/worker_object.hpp>
+#include <graphene/chain/custom_account_authority_object.hpp>
 
 #define USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX // vesting_balance_object by_asset_balance index needed
 
@@ -577,7 +578,7 @@ void database::update_active_committee_members()
          update_committee_member_total_votes( cm );
       }
    }
-
+   
    // Update committee authorities
    if( !committee_members.empty() )
    {
@@ -1195,8 +1196,6 @@ uint32_t database::get_gpos_current_subperiod()
    const auto now = this->head_block_time();
    auto seconds_since_period_start = now.sec_since_epoch() - period_start.sec_since_epoch();
 
-   FC_ASSERT(period_start <= now && now <= period_end);
-
    // get in what sub period we are
    uint32_t current_subperiod = 0;
    std::list<uint32_t> period_list(number_of_subperiods);
@@ -1230,13 +1229,13 @@ double database::calculate_vesting_factor(const account_object& stake_account)
    //  variables needed
    const auto number_of_subperiods = vesting_period / vesting_subperiod;
    double vesting_factor;
-
+  
     // get in what sub period we are
    uint32_t current_subperiod = get_gpos_current_subperiod();
-
+ 
    if(current_subperiod == 0 || current_subperiod > number_of_subperiods) return 0;
 
-   // On starting new vesting period, all votes become zero until someone votes, To avoid a situation of zero votes,
+   // On starting new vesting period, all votes become zero until someone votes, To avoid a situation of zero votes, 
    // changes were done to roll in GPOS rules, the vesting factor will be 1 for whoever votes in 6th sub-period of last vesting period
    // BLOCKBACK-174 fix
    if(current_subperiod == 1 && this->head_block_time() >= HARDFORK_GPOS_TIME + vesting_period)   //Applicable only from 2nd vesting period
@@ -1318,10 +1317,19 @@ void rolling_period_start(database& db)
       if(now.sec_since_epoch() >= (period_start + vesting_period))
       {
          // roll
-         db.modify(db.get_global_properties(), [now](global_property_object& p) {
-            p.parameters.extensions.value.gpos_period_start =  now.sec_since_epoch();
+         db.modify(db.get_global_properties(), [period_start, vesting_period](global_property_object& p) {
+            p.parameters.extensions.value.gpos_period_start =  period_start + vesting_period;
          });
       }
+   }
+}
+
+void clear_expired_custom_account_authorities(database& db)
+{
+   const auto& cindex = db.get_index_type<custom_account_authority_index>().indices().get<by_expiration>();
+   while(!cindex.empty() && cindex.begin()->valid_to < db.head_block_time())
+   {
+      db.remove(*cindex.begin());
    }
 }
 
@@ -2093,7 +2101,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          }
       }
    } tally_helper(*this, gpo);
-
+   
    perform_account_maintenance( tally_helper );
    struct clear_canary {
       clear_canary(vector<uint64_t>& target): target(target){}
@@ -2139,6 +2147,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          if( !p.pending_parameters->extensions.value.gpos_subperiod.valid() )
             p.pending_parameters->extensions.value.gpos_subperiod = p.parameters.extensions.value.gpos_subperiod;
          if( !p.pending_parameters->extensions.value.gpos_vesting_lockin_period.valid() )
+            p.pending_parameters->extensions.value.gpos_vesting_lockin_period = p.parameters.extensions.value.gpos_vesting_lockin_period;                              
             p.pending_parameters->extensions.value.gpos_vesting_lockin_period = p.parameters.extensions.value.gpos_vesting_lockin_period;
          if( !p.pending_parameters->extensions.value.son_vesting_amount.valid() )
             p.pending_parameters->extensions.value.son_vesting_amount = p.parameters.extensions.value.son_vesting_amount;
@@ -2203,7 +2212,10 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    //for( const asset_bitasset_data_object* d : get_index_type<asset_bitasset_data_index>() )
    for( const auto& d : get_index_type<asset_bitasset_data_index>().indices() )
       modify( d, [](asset_bitasset_data_object& o) { o.force_settled_volume = 0; });
-
+   // Ideally we have to do this after every block but that leads to longer block applicaiton/replay times.
+   // So keep it here as it is not critical. valid_to check ensures
+   // these custom account auths are not usable.
+   clear_expired_custom_account_authorities(*this);
    // process_budget needs to run at the bottom because
    //   it needs to know the next_maintenance_time
    process_budget();

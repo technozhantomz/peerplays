@@ -45,6 +45,10 @@
 #include <graphene/chain/protocol/event.hpp>
 #include <graphene/chain/protocol/betting_market.hpp>
 #include <graphene/chain/protocol/tournament.hpp>
+#include <graphene/chain/protocol/custom_permission.hpp>
+#include <graphene/chain/protocol/custom_account_authority.hpp>
+#include <graphene/chain/protocol/offer.hpp>
+#include <graphene/chain/protocol/nft_ops.hpp>
 #include <graphene/chain/protocol/son.hpp>
 #include <graphene/chain/protocol/sidechain_address.hpp>
 #include <graphene/chain/protocol/son_wallet.hpp>
@@ -142,6 +146,22 @@ namespace graphene { namespace chain {
             lottery_reward_operation,
             lottery_end_operation,
             sweeps_vesting_claim_operation,
+            custom_permission_create_operation,
+            custom_permission_update_operation,
+            custom_permission_delete_operation,
+            custom_account_authority_create_operation,
+            custom_account_authority_update_operation,
+            custom_account_authority_delete_operation,
+            offer_operation,
+            bid_operation,
+            cancel_offer_operation,
+            finalize_offer_operation,
+            nft_metadata_create_operation,
+            nft_metadata_update_operation,
+            nft_mint_operation,
+            nft_safe_transfer_from_operation,
+            nft_approve_operation,
+            nft_set_approval_for_all_operation,
             son_create_operation,
             son_update_operation,
             son_deregister_operation,
@@ -171,10 +191,11 @@ namespace graphene { namespace chain {
     *
     *  @return a set of required authorities for @ref op
     */
-   void operation_get_required_authorities( const operation& op, 
+   void operation_get_required_authorities( const operation& op,
                                             flat_set<account_id_type>& active,
                                             flat_set<account_id_type>& owner,
-                                            vector<authority>&  other );
+                                            vector<authority>& other,
+                                            bool ignore_custom_operation_required_auths );
 
    void operation_validate( const operation& op );
 

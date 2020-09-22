@@ -49,6 +49,10 @@ namespace graphene { namespace chain {
       optional < uint32_t >           gpos_subperiod                    = GPOS_SUBPERIOD;
       optional < uint32_t >           gpos_period_start                 = HARDFORK_GPOS_TIME.sec_since_epoch();
       optional < uint32_t >           gpos_vesting_lockin_period        = GPOS_VESTING_LOCKIN_PERIOD;
+      /* rbac parameters */
+      optional < uint16_t >           rbac_max_permissions_per_account    = RBAC_MAX_PERMISSIONS_PER_ACCOUNT;
+      optional < uint32_t >           rbac_max_account_authority_lifetime = RBAC_MAX_ACCOUNT_AUTHORITY_LIFETIME;
+      optional < uint16_t >           rbac_max_authorities_per_permission = RBAC_MAX_AUTHS_PER_PERMISSION;
 
       optional < uint32_t >           son_vesting_amount                = SON_VESTING_AMOUNT;
       optional < uint32_t >           son_vesting_period                = SON_VESTING_PERIOD;
@@ -177,6 +181,15 @@ namespace graphene { namespace chain {
       inline uint32_t gpos_vesting_lockin_period()const {
          return extensions.value.gpos_vesting_lockin_period.valid() ? *extensions.value.gpos_vesting_lockin_period : GPOS_VESTING_LOCKIN_PERIOD; /// GPOS vesting lockin period
       }
+      inline uint16_t rbac_max_permissions_per_account()const {
+         return extensions.value.rbac_max_permissions_per_account.valid() ? *extensions.value.rbac_max_permissions_per_account : RBAC_MAX_PERMISSIONS_PER_ACCOUNT;
+      }
+      inline uint32_t rbac_max_account_authority_lifetime()const {
+         return extensions.value.rbac_max_account_authority_lifetime.valid() ? *extensions.value.rbac_max_account_authority_lifetime : RBAC_MAX_ACCOUNT_AUTHORITY_LIFETIME;
+      }
+      inline uint16_t rbac_max_authorities_per_permission()const {
+         return extensions.value.rbac_max_authorities_per_permission.valid() ? *extensions.value.rbac_max_authorities_per_permission : RBAC_MAX_AUTHS_PER_PERMISSION;
+      }
       inline account_id_type son_account() const {
          return extensions.value.son_account.valid() ? *extensions.value.son_account : GRAPHENE_NULL_ACCOUNT;
       }
@@ -200,6 +213,9 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (gpos_subperiod)
    (gpos_period_start)
    (gpos_vesting_lockin_period)
+   (rbac_max_permissions_per_account)
+   (rbac_max_account_authority_lifetime)
+   (rbac_max_authorities_per_permission)
    (son_vesting_amount)
    (son_vesting_period)
    (son_pay_max)

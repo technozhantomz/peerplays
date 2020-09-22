@@ -52,6 +52,8 @@ namespace graphene { namespace chain {
       share_type      calculate_fee( const fee_parameters_type& k )const;
    };
 
+   typedef static_variant<uint64_t, void_t> ticket_num;
+
    /**
     * @ingroup operations
     */
@@ -73,7 +75,7 @@ namespace graphene { namespace chain {
       // true if recieved from benefators section of lottery; false otherwise
       bool                    is_benefactor_reward;
 
-      extensions_type         extensions;
+      ticket_num              winner_ticket_id;
 
       account_id_type fee_payer()const { return account_id_type(); }
       void            validate()const {};
@@ -114,7 +116,7 @@ FC_REFLECT( graphene::chain::ticket_purchase_operation,
           )
 FC_REFLECT( graphene::chain::ticket_purchase_operation::fee_parameters_type, (fee) )
 
-
+FC_REFLECT_TYPENAME( graphene::chain::ticket_num )
 FC_REFLECT( graphene::chain::lottery_reward_operation,
             (fee)
             (lottery)
@@ -122,7 +124,7 @@ FC_REFLECT( graphene::chain::lottery_reward_operation,
             (amount)
             (win_percentage)
             (is_benefactor_reward)
-            (extensions)
+            (winner_ticket_id)
           )
 FC_REFLECT( graphene::chain::lottery_reward_operation::fee_parameters_type, (fee) )
 

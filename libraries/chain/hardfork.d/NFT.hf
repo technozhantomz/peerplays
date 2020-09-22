@@ -1,0 +1,4 @@
+// NFT HARDFORK Wednesday, 20-May-20 00:00:00 UTC
+#ifndef HARDFORK_NFT_TIME
+#define HARDFORK_NFT_TIME (fc::time_point_sec( 1589932800 ))
+#endif

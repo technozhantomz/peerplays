@@ -301,6 +301,7 @@ namespace graphene { namespace chain {
          const std::vector<uint32_t>            get_winner_numbers( asset_id_type for_asset, uint32_t count_members, uint8_t count_winners ) const;
          std::vector<uint32_t>                  get_seeds( asset_id_type for_asset, uint8_t count_winners )const;
          uint64_t                               get_random_bits( uint64_t bound );
+         bool                                   item_locked(const nft_id_type& item)const;
          std::set<son_id_type>                  get_sons_being_deregistered();
          std::set<son_id_type>                  get_sons_being_reported_down();
          std::set<son_id_type>                  get_sons_to_be_deregistered();
@@ -321,6 +322,7 @@ namespace graphene { namespace chain {
 
 
          uint32_t last_non_undoable_block_num() const;
+         vector<authority> get_account_custom_authorities(account_id_type account, const operation& op)const;
          //////////////////// db_init.cpp ////////////////////
 
          void initialize_evaluators();
@@ -546,6 +548,7 @@ namespace graphene { namespace chain {
          void update_betting_markets(fc::time_point_sec current_block_time);
          bool check_for_blackswan( const asset_object& mia, bool enable_black_swan = true,
                                    const asset_bitasset_data_object* bitasset_ptr = nullptr );
+         void finalize_expired_offers();
 
          ///Steps performed only at maintenance intervals
          ///@{

@@ -8,6 +8,10 @@
 
 #define INVOKE(test) ((struct test*)this)->test_method();
 
+int get_available_port();
+
+std::shared_ptr<graphene::app::application> start_application(fc::temp_directory& app_dir, int& server_port_number);
+
 ///////////
 /// @brief a class to make connecting to the application server easier
 ///////////

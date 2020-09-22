@@ -43,6 +43,10 @@
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/game_object.hpp>
+#include <graphene/chain/custom_permission_object.hpp>
+#include <graphene/chain/custom_account_authority_object.hpp>
+#include <graphene/chain/offer_object.hpp>
+#include <graphene/chain/nft_object.hpp>
 #include <graphene/chain/son_object.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
 #include <graphene/chain/son_wallet_deposit_object.hpp>

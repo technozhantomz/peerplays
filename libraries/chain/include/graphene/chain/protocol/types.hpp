@@ -171,6 +171,11 @@ namespace graphene { namespace chain {
       betting_market_group_object_type,
       betting_market_object_type,
       bet_object_type,
+      custom_permission_object_type,
+      custom_account_authority_object_type,
+      offer_object_type,
+      nft_metadata_type,
+      nft_object_type,
       son_object_type,
       son_proposal_object_type,
       son_wallet_object_type,
@@ -207,6 +212,7 @@ namespace graphene { namespace chain {
       impl_global_betting_statistics_object_type,
       impl_lottery_balance_object_type,
       impl_sweeps_vesting_balance_object_type,
+      impl_offer_history_object_type,
       impl_son_statistics_object_type,
       impl_son_schedule_object_type
    };
@@ -239,6 +245,11 @@ namespace graphene { namespace chain {
    class betting_market_group_object;
    class betting_market_object;
    class bet_object;
+   class custom_permission_object;
+   class custom_account_authority_object;
+   class offer_object;
+   class nft_metadata_object;
+   class nft_object;
    class son_object;
    class son_proposal_object;
    class son_wallet_object;
@@ -272,6 +283,11 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, betting_market_group_object_type, betting_market_group_object> betting_market_group_id_type;
    typedef object_id< protocol_ids, betting_market_object_type,     betting_market_object>        betting_market_id_type;
    typedef object_id< protocol_ids, bet_object_type,                bet_object>                   bet_id_type;
+   typedef object_id< protocol_ids, custom_permission_object_type,  custom_permission_object>     custom_permission_id_type;
+   typedef object_id< protocol_ids, custom_account_authority_object_type,  custom_account_authority_object>     custom_account_authority_id_type;
+   typedef object_id< protocol_ids, offer_object_type,              offer_object>                 offer_id_type;
+   typedef object_id< protocol_ids, nft_metadata_type,              nft_metadata_object>          nft_metadata_id_type;
+   typedef object_id< protocol_ids, nft_object_type,                nft_object>                   nft_id_type;
    typedef object_id< protocol_ids, son_object_type,                son_object>                   son_id_type;
    typedef object_id< protocol_ids, son_proposal_object_type,       son_proposal_object>          son_proposal_id_type;
    typedef object_id< protocol_ids, son_wallet_object_type,         son_wallet_object>            son_wallet_id_type;
@@ -302,6 +318,7 @@ namespace graphene { namespace chain {
    class global_betting_statistics_object;
    class lottery_balance_object;
    class sweeps_vesting_balance_object;
+   class offer_history_object;
    class son_statistics_object;
    class son_schedule_object;
 
@@ -332,6 +349,7 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_global_betting_statistics_object_type, global_betting_statistics_object > global_betting_statistics_id_type;
    typedef object_id< implementation_ids, impl_lottery_balance_object_type, lottery_balance_object >                    lottery_balance_id_type;
    typedef object_id< implementation_ids, impl_sweeps_vesting_balance_object_type, sweeps_vesting_balance_object>       sweeps_vesting_balance_id_type;
+   typedef object_id< implementation_ids, impl_offer_history_object_type, offer_history_object>                         offer_history_id_type;
    typedef object_id< implementation_ids, impl_son_statistics_object_type, son_statistics_object >                      son_statistics_id_type;
    typedef object_id< implementation_ids, impl_son_schedule_object_type, son_schedule_object>                           son_schedule_id_type;
 
@@ -463,6 +481,11 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (betting_market_group_object_type)
                  (betting_market_object_type)
                  (bet_object_type)
+                 (custom_permission_object_type)
+                 (custom_account_authority_object_type)
+                 (offer_object_type)
+                 (nft_metadata_type)
+                 (nft_object_type)
                  (son_object_type)
                  (son_proposal_object_type)
                  (son_wallet_object_type)
@@ -497,6 +520,7 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_global_betting_statistics_object_type)
                  (impl_lottery_balance_object_type)
                  (impl_sweeps_vesting_balance_object_type)
+                 (impl_offer_history_object_type)
                  (impl_son_statistics_object_type)
                  (impl_son_schedule_object_type)
                )
@@ -525,6 +549,7 @@ FC_REFLECT_TYPENAME( graphene::chain::betting_market_group_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::betting_market_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::bet_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::tournament_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::offer_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::dynamic_global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::asset_dynamic_data_id_type )
@@ -541,6 +566,11 @@ FC_REFLECT_TYPENAME( graphene::chain::fba_accumulator_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::betting_market_position_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_betting_statistics_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::tournament_details_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::custom_permission_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::custom_account_authority_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::offer_history_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::nft_metadata_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::nft_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_proposal_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_wallet_id_type )
