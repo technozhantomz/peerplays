@@ -30,6 +30,7 @@
 #include <graphene/chain/custom_permission_object.hpp>
 #include <graphene/chain/custom_account_authority_object.hpp>
 #include <graphene/chain/offer_object.hpp>
+#include <graphene/chain/account_role_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -191,5 +192,12 @@ bool database::item_locked(const nft_id_type &item) const
 
    auto items_itr = market_items._locked_items.find(item);
    return (items_itr != market_items._locked_items.end());
+}
+
+bool database::account_role_valid(const account_role_object &aro, account_id_type account, optional<int> op_type) const
+{
+   return (aro.valid_to > head_block_time()) &&
+          (aro.whitelisted_accounts.find(account) != aro.whitelisted_accounts.end()) &&
+          (!op_type || (aro.allowed_operations.find(*op_type) != aro.allowed_operations.end()));
 }
 } }

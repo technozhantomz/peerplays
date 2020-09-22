@@ -244,3 +244,6 @@
 #define NFT_TOKEN_MIN_LENGTH                                3
 #define NFT_TOKEN_MAX_LENGTH                                15
 #define NFT_URI_MAX_LENGTH                                  GRAPHENE_MAX_URL_LENGTH
+
+#define ACCOUNT_ROLES_MAX_PER_ACCOUNT                       20 // Max 20 roles can be created by a resource owner
+#define ACCOUNT_ROLES_MAX_LIFETIME                          365*24*60*60 // 1 Year

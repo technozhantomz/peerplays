@@ -176,6 +176,7 @@ namespace graphene { namespace chain {
       offer_object_type,
       nft_metadata_type,
       nft_object_type,
+      account_role_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -241,6 +242,7 @@ namespace graphene { namespace chain {
    class offer_object;
    class nft_metadata_object;
    class nft_object;
+   class account_role_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -272,6 +274,7 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, offer_object_type,              offer_object>                 offer_id_type;
    typedef object_id< protocol_ids, nft_metadata_type,              nft_metadata_object>          nft_metadata_id_type;
    typedef object_id< protocol_ids, nft_object_type,                nft_object>                   nft_id_type;
+   typedef object_id< protocol_ids, account_role_type,              account_role_object>          account_role_id_type;
 
    // implementation types
    class global_property_object;
@@ -459,6 +462,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (offer_object_type)
                  (nft_metadata_type)
                  (nft_object_type)
+                 (account_role_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
@@ -535,6 +539,7 @@ FC_REFLECT_TYPENAME( graphene::chain::custom_account_authority_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::offer_history_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::nft_metadata_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::nft_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::account_role_id_type )
 
 FC_REFLECT( graphene::chain::void_t, )
 

@@ -196,6 +196,18 @@ struct proposal_operation_hardfork_visitor
        FC_ASSERT( block_time >= HARDFORK_NFT_TIME, "nft_set_approval_for_all_operation not allowed yet!" );
    }
 
+   void operator()(const account_role_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_NFT_TIME, "account_role_create_operation not allowed yet!" );
+   }
+
+   void operator()(const account_role_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_NFT_TIME, "account_role_update_operation not allowed yet!" );
+   }
+
+   void operator()(const account_role_delete_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_NFT_TIME, "account_role_delete_operation not allowed yet!" );
+   }
+
 
    // loop and self visit in proposals
    void operator()(const proposal_create_operation &v) const {

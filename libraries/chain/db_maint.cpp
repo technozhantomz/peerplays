@@ -941,6 +941,15 @@ void clear_expired_custom_account_authorities(database& db)
    }
 }
 
+void clear_expired_account_roles(database& db)
+{
+   const auto& arindex = db.get_index_type<account_role_index>().indices().get<by_expiration>();
+   while(!arindex.empty() && arindex.begin()->valid_to < db.head_block_time())
+   {
+      db.remove(*arindex.begin());
+   }
+}
+
 // Schedules payouts from a dividend distribution account to the current holders of the
 // dividend-paying asset.  This takes any deposits made to the dividend distribution account
 // since the last time it was called, and distributes them to the current owners of the
@@ -1668,6 +1677,16 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.gpos_subperiod = p.parameters.extensions.value.gpos_subperiod;
          if( !p.pending_parameters->extensions.value.gpos_vesting_lockin_period.valid() )
             p.pending_parameters->extensions.value.gpos_vesting_lockin_period = p.parameters.extensions.value.gpos_vesting_lockin_period;                              
+         if( !p.pending_parameters->extensions.value.rbac_max_permissions_per_account.valid() )
+            p.pending_parameters->extensions.value.rbac_max_permissions_per_account = p.parameters.extensions.value.rbac_max_permissions_per_account;
+         if( !p.pending_parameters->extensions.value.rbac_max_account_authority_lifetime.valid() )
+            p.pending_parameters->extensions.value.rbac_max_account_authority_lifetime = p.parameters.extensions.value.rbac_max_account_authority_lifetime;
+         if( !p.pending_parameters->extensions.value.rbac_max_authorities_per_permission.valid() )
+            p.pending_parameters->extensions.value.rbac_max_authorities_per_permission = p.parameters.extensions.value.rbac_max_authorities_per_permission;
+         if( !p.pending_parameters->extensions.value.account_roles_max_per_account.valid() )
+            p.pending_parameters->extensions.value.account_roles_max_per_account = p.parameters.extensions.value.account_roles_max_per_account;
+         if( !p.pending_parameters->extensions.value.account_roles_max_lifetime.valid() )
+            p.pending_parameters->extensions.value.account_roles_max_lifetime = p.parameters.extensions.value.account_roles_max_lifetime;
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }
@@ -1717,8 +1736,9 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
       modify( d, [](asset_bitasset_data_object& o) { o.force_settled_volume = 0; });
    // Ideally we have to do this after every block but that leads to longer block applicaiton/replay times.
    // So keep it here as it is not critical. valid_to check ensures
-   // these custom account auths are not usable.
+   // these custom account auths and account roles are not usable.
    clear_expired_custom_account_authorities(*this);
+   clear_expired_account_roles(*this);
    // process_budget needs to run at the bottom because
    //   it needs to know the next_maintenance_time
    process_budget();

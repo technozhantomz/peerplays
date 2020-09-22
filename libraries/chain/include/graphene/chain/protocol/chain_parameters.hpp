@@ -52,6 +52,9 @@ namespace graphene { namespace chain {
       optional < uint16_t >           rbac_max_permissions_per_account    = RBAC_MAX_PERMISSIONS_PER_ACCOUNT;
       optional < uint32_t >           rbac_max_account_authority_lifetime = RBAC_MAX_ACCOUNT_AUTHORITY_LIFETIME;
       optional < uint16_t >           rbac_max_authorities_per_permission = RBAC_MAX_AUTHS_PER_PERMISSION;
+      /* Account Roles - Permissions Parameters */
+      optional < uint16_t >           account_roles_max_per_account    = ACCOUNT_ROLES_MAX_PER_ACCOUNT;
+      optional < uint32_t >           account_roles_max_lifetime       = ACCOUNT_ROLES_MAX_LIFETIME;
    };
 
    struct chain_parameters
@@ -152,6 +155,12 @@ namespace graphene { namespace chain {
       inline uint16_t rbac_max_authorities_per_permission()const {
          return extensions.value.rbac_max_authorities_per_permission.valid() ? *extensions.value.rbac_max_authorities_per_permission : RBAC_MAX_AUTHS_PER_PERMISSION;
       }
+      inline uint16_t account_roles_max_per_account()const {
+         return extensions.value.account_roles_max_per_account.valid() ? *extensions.value.account_roles_max_per_account : ACCOUNT_ROLES_MAX_PER_ACCOUNT;
+      }
+      inline uint32_t account_roles_max_lifetime()const {
+         return extensions.value.account_roles_max_lifetime.valid() ? *extensions.value.account_roles_max_lifetime : ACCOUNT_ROLES_MAX_LIFETIME;
+      }
    };
 
 } }  // graphene::chain
@@ -172,6 +181,8 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (rbac_max_permissions_per_account)
    (rbac_max_account_authority_lifetime)
    (rbac_max_authorities_per_permission)
+   (account_roles_max_per_account)
+   (account_roles_max_lifetime)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,

@@ -1,5 +1,7 @@
 #include <graphene/chain/nft_evaluator.hpp>
 #include <graphene/chain/nft_object.hpp>
+#include <graphene/chain/protocol/operations.hpp>
+#include <graphene/chain/account_role_object.hpp>
 #include <graphene/chain/hardfork.hpp>
 
 namespace graphene { namespace chain {
@@ -18,6 +20,10 @@ void_result nft_metadata_create_evaluator::do_evaluate( const nft_metadata_creat
        (*op.revenue_partner)(db());
        FC_ASSERT(*op.revenue_split >= 0 && *op.revenue_split <= GRAPHENE_100_PERCENT, "Revenue split percent invalid");
    }
+   if(op.account_role) {
+      const auto& ar_obj = (*op.account_role)(db());
+      FC_ASSERT(ar_obj.owner == op.owner, "Only the Account Role created by the owner can be attached");
+   }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -32,6 +38,7 @@ object_id_type nft_metadata_create_evaluator::do_apply( const nft_metadata_creat
       obj.revenue_split = op.revenue_split;
       obj.is_transferable = op.is_transferable;
       obj.is_sellable = op.is_sellable;
+      obj.account_role = op.account_role;
    });
    return new_nft_metadata_object.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -57,6 +64,10 @@ void_result nft_metadata_update_evaluator::do_evaluate( const nft_metadata_updat
        (*op.revenue_partner)(db());
        FC_ASSERT(*op.revenue_split >= 0 && *op.revenue_split <= GRAPHENE_100_PERCENT, "Revenue split percent invalid");
    }
+   if(op.account_role) {
+      const auto& ar_obj = (*op.account_role)(db());
+      FC_ASSERT(ar_obj.owner == op.owner, "Only the Account Role created by the owner can be attached");
+   }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -77,6 +88,8 @@ void_result nft_metadata_update_evaluator::do_apply( const nft_metadata_update_o
          obj.is_transferable = *op.is_transferable;
       if( op.is_sellable.valid() )
          obj.is_sellable = *op.is_sellable;
+      if( op.account_role.valid() )
+         obj.account_role = op.account_role;
    });
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -143,6 +156,17 @@ void_result nft_safe_transfer_from_evaluator::do_evaluate( const nft_safe_transf
 
    const auto& nft_meta_obj = itr_nft->nft_metadata_id(db());
    FC_ASSERT( nft_meta_obj.is_transferable == true, "NFT is not transferable");
+
+   if (nft_meta_obj.account_role)
+   {
+      const auto &ar_idx = db().get_index_type<account_role_index>().indices().get<by_id>();
+      auto ar_itr = ar_idx.find(*nft_meta_obj.account_role);
+      if(ar_itr != ar_idx.end())
+      {
+         FC_ASSERT(db().account_role_valid(*ar_itr, op.operator_, get_type()), "Account role not valid");
+         FC_ASSERT(db().account_role_valid(*ar_itr, op.to), "Account role not valid");
+      }
+   }
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

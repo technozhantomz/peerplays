@@ -52,6 +52,7 @@
 #include <graphene/chain/custom_permission_object.hpp>
 #include <graphene/chain/custom_account_authority_object.hpp>
 #include <graphene/chain/offer_object.hpp>
+#include <graphene/chain/account_role_object.hpp>
 
 #include <graphene/chain/nft_object.hpp>
 
@@ -85,6 +86,7 @@
 #include <graphene/chain/custom_account_authority_evaluator.hpp>
 #include <graphene/chain/offer_evaluator.hpp>
 #include <graphene/chain/nft_evaluator.hpp>
+#include <graphene/chain/account_role_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -186,6 +188,9 @@ const uint8_t offer_object::type_id;
 const uint8_t offer_history_object::space_id;
 const uint8_t offer_history_object::type_id;
 
+const uint8_t account_role_object::space_id;
+const uint8_t account_role_object::type_id;
+
 void database::initialize_evaluators()
 {
    _operation_evaluators.resize(255);
@@ -275,6 +280,9 @@ void database::initialize_evaluators()
    register_evaluator<nft_safe_transfer_from_evaluator>();
    register_evaluator<nft_approve_evaluator>();
    register_evaluator<nft_set_approval_for_all_evaluator>();
+   register_evaluator<account_role_create_evaluator>();
+   register_evaluator<account_role_update_evaluator>();
+   register_evaluator<account_role_delete_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -323,6 +331,7 @@ void database::initialize_indexes()
 
    add_index< primary_index<nft_metadata_index > >();
    add_index< primary_index<nft_index > >();
+   add_index< primary_index<account_role_index> >();
 
    //Implementation object indexes
    add_index< primary_index<transaction_index                             > >();

@@ -49,6 +49,7 @@
 #include <graphene/chain/protocol/custom_account_authority.hpp>
 #include <graphene/chain/protocol/offer.hpp>
 #include <graphene/chain/protocol/nft_ops.hpp>
+#include <graphene/chain/protocol/account_role.hpp>
 
 namespace graphene { namespace chain {
 
@@ -155,7 +156,10 @@ namespace graphene { namespace chain {
             nft_mint_operation,
             nft_safe_transfer_from_operation,
             nft_approve_operation,
-            nft_set_approval_for_all_operation
+            nft_set_approval_for_all_operation,
+            account_role_create_operation,
+            account_role_update_operation,
+            account_role_delete_operation
          > operation;
 
    /// @} // operations group
