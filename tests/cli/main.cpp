@@ -35,7 +35,10 @@
 // Tests
 ///////////////////////////////
 
-BOOST_FIXTURE_TEST_SUITE(cli_common, cli_fixture)
+////////////////
+// Start a server and connect using the same calls as the CLI
+////////////////
+BOOST_FIXTURE_TEST_SUITE( cli_common, cli_fixture )
 
 BOOST_AUTO_TEST_CASE( cli_connect )
 {

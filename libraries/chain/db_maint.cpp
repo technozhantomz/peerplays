@@ -2148,7 +2148,6 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.gpos_subperiod = p.parameters.extensions.value.gpos_subperiod;
          if( !p.pending_parameters->extensions.value.gpos_vesting_lockin_period.valid() )
             p.pending_parameters->extensions.value.gpos_vesting_lockin_period = p.parameters.extensions.value.gpos_vesting_lockin_period;                              
-            p.pending_parameters->extensions.value.gpos_vesting_lockin_period = p.parameters.extensions.value.gpos_vesting_lockin_period;
          if( !p.pending_parameters->extensions.value.son_vesting_amount.valid() )
             p.pending_parameters->extensions.value.son_vesting_amount = p.parameters.extensions.value.son_vesting_amount;
          if( !p.pending_parameters->extensions.value.son_vesting_period.valid() )

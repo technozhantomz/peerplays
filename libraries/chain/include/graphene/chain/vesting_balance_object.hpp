@@ -25,6 +25,7 @@
 
 #include <graphene/chain/protocol/asset.hpp>
 #include <graphene/chain/protocol/vesting.hpp>
+
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 
