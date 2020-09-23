@@ -55,6 +55,7 @@
 #include <graphene/chain/custom_account_authority_object.hpp>
 #include <graphene/chain/nft_object.hpp>
 #include <graphene/chain/offer_object.hpp>
+#include <graphene/chain/account_role_object.hpp>
 
 #include <graphene/market_history/market_history_plugin.hpp>
 
@@ -928,6 +929,11 @@ class database_api
       vector<offer_history_object> get_offer_history_by_issuer(const offer_history_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const;
       vector<offer_history_object> get_offer_history_by_item(const offer_history_id_type lower_id, const nft_id_type item, uint32_t limit) const;
       vector<offer_history_object> get_offer_history_by_bidder(const offer_history_id_type lower_id, const account_id_type bidder_account_id, uint32_t limit) const;
+
+      //////////////////
+      // ACCOUNT ROLE //
+      //////////////////
+      vector<account_role_object> get_account_roles_by_owner(account_id_type owner) const;
 private:
       std::shared_ptr< database_api_impl > my;
 };
@@ -1116,4 +1122,7 @@ FC_API(graphene::app::database_api,
    (get_offer_history_by_issuer)
    (get_offer_history_by_item)
    (get_offer_history_by_bidder)
+
+   // Account Roles
+   (get_account_roles_by_owner)
 )

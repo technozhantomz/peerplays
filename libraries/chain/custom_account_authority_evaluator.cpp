@@ -4,36 +4,12 @@
 #include <graphene/chain/custom_account_authority_object.hpp>
 #include <graphene/chain/custom_permission_object.hpp>
 #include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/rbac_hardfork_visitor.hpp>
 
 namespace graphene
 {
 namespace chain
 {
-
-struct rbac_operation_hardfork_visitor
-{
-   typedef void result_type;
-   const fc::time_point_sec block_time;
-
-   rbac_operation_hardfork_visitor(const fc::time_point_sec bt) : block_time(bt) {}
-   void operator()(int op_type) const
-   {
-      int first_allowed_op = operation::tag<custom_permission_create_operation>::value;
-      switch (op_type)
-      {
-      case operation::tag<custom_permission_create_operation>::value:
-      case operation::tag<custom_permission_update_operation>::value:
-      case operation::tag<custom_permission_delete_operation>::value:
-      case operation::tag<custom_account_authority_create_operation>::value:
-      case operation::tag<custom_account_authority_update_operation>::value:
-      case operation::tag<custom_account_authority_delete_operation>::value:
-         FC_ASSERT(block_time >= HARDFORK_NFT_TIME, "Custom permission not allowed on this operation yet!");
-         break;
-      default:
-         FC_ASSERT(op_type < first_allowed_op, "Custom permission not allowed on this operation!");
-      }
-   }
-};
 
 void_result create_custom_account_authority_evaluator::do_evaluate(const custom_account_authority_create_operation &op)
 {

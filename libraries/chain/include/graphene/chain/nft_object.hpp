@@ -20,6 +20,7 @@ namespace graphene { namespace chain {
          optional<uint16_t> revenue_split;
          bool            is_transferable = false;
          bool            is_sellable = true;
+         optional<account_role_id_type> account_role;
    };
 
    class nft_object : public abstract_object<nft_object>
@@ -95,7 +96,8 @@ FC_REFLECT_DERIVED( graphene::chain::nft_metadata_object, (graphene::db::object)
                     (revenue_partner)
                     (revenue_split)
                     (is_transferable)
-                    (is_sellable) )
+                    (is_sellable)
+                    (account_role) )
 
 FC_REFLECT_DERIVED( graphene::chain::nft_object, (graphene::db::object),
                     (nft_metadata_id)

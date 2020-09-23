@@ -64,7 +64,7 @@ object_id_type update_sidechain_address_evaluator::do_apply(const sidechain_addr
     {
         // Case of change of Active SONs, store the outgoing address object with proper valid_from and expires updated
         if(itr->deposit_address.length() > 0) {
-            const auto& new_sidechain_address_object = db().create<sidechain_address_object>( [&]( sidechain_address_object& obj ) {
+            db().create<sidechain_address_object>( [&]( sidechain_address_object& obj ) {
                 obj.sidechain_address_account = op.sidechain_address_account;
                 obj.sidechain = op.sidechain;
                 obj.deposit_public_key = *op.deposit_public_key;

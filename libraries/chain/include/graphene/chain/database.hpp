@@ -303,6 +303,7 @@ namespace graphene { namespace chain {
          uint64_t                               get_random_bits( uint64_t bound );
          const witness_schedule_object&         get_witness_schedule_object()const;
          bool                                   item_locked(const nft_id_type& item)const;
+         bool                                   account_role_valid(const account_role_object& aro, account_id_type account, optional<int> op_type = optional<int>()) const;
          std::set<son_id_type>                  get_sons_being_deregistered();
          std::set<son_id_type>                  get_sons_being_reported_down();
          std::set<son_id_type>                  get_sons_to_be_deregistered();

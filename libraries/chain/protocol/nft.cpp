@@ -45,7 +45,6 @@ void nft_metadata_create_operation::validate() const
    FC_ASSERT(fee.amount >= 0, "Fee must not be negative");
    FC_ASSERT(is_valid_nft_token_name(name), "Invalid NFT name provided");
    FC_ASSERT(is_valid_nft_token_name(symbol), "Invalid NFT symbol provided");
-   FC_ASSERT(base_uri.length() <= NFT_URI_MAX_LENGTH, "Invalid NFT Base URI");
 }
 
 void nft_metadata_update_operation::validate() const
@@ -55,14 +54,11 @@ void nft_metadata_update_operation::validate() const
       FC_ASSERT(is_valid_nft_token_name(*name), "Invalid NFT name provided");
    if(symbol)
       FC_ASSERT(is_valid_nft_token_name(*symbol), "Invalid NFT symbol provided");
-   if(base_uri)
-      FC_ASSERT((*base_uri).length() <= NFT_URI_MAX_LENGTH, "Invalid NFT Base URI");
 }
 
 void nft_mint_operation::validate() const
 {
    FC_ASSERT(fee.amount >= 0, "Fee must not be negative");
-   FC_ASSERT(token_uri.length() <= NFT_URI_MAX_LENGTH, "Invalid NFT Token URI");
 }
 
 share_type nft_metadata_create_operation::calculate_fee(const fee_parameters_type &k) const
@@ -72,7 +68,7 @@ share_type nft_metadata_create_operation::calculate_fee(const fee_parameters_typ
 
 share_type nft_metadata_update_operation::calculate_fee(const fee_parameters_type &k) const
 {
-   return k.fee;
+   return k.fee + calculate_data_fee( fc::raw::pack_size(*this), k.price_per_kbyte );
 }
 
 share_type nft_mint_operation::calculate_fee(const fee_parameters_type &k) const

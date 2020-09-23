@@ -2185,6 +2185,7 @@ class wallet_api
                                     optional<uint16_t> revenue_split,
                                     bool is_transferable,
                                     bool is_sellable,
+                                    optional<account_role_id_type> role_id,
                                     bool broadcast);
 
       /**
@@ -2210,6 +2211,7 @@ class wallet_api
                                     optional<uint16_t> revenue_split,
                                     optional<bool> is_transferable,
                                     optional<bool> is_sellable,
+                                    optional<account_role_id_type> role_id,
                                     bool broadcast);
 
       /**
@@ -2347,6 +2349,28 @@ class wallet_api
       vector<offer_history_object> get_offer_history_by_issuer(string issuer_account_id_or_name, uint32_t limit, optional<offer_history_id_type> lower_id) const;
       vector<offer_history_object> get_offer_history_by_item(const nft_id_type item, uint32_t limit, optional<offer_history_id_type> lower_id) const;
       vector<offer_history_object> get_offer_history_by_bidder(string bidder_account_id_or_name, uint32_t limit, optional<offer_history_id_type> lower_id) const;
+
+      signed_transaction create_account_role(string owner_account_id_or_name,
+                                             string name,
+                                             string metadata,
+                                             flat_set<int> allowed_operations,
+                                             flat_set<account_id_type> whitelisted_accounts,
+                                             time_point_sec valid_to,
+                                             bool broadcast);
+      signed_transaction update_account_role(string owner_account_id_or_name,
+                                             account_role_id_type role_id,
+                                             optional<string> name,
+                                             optional<string> metadata,
+                                             flat_set<int> operations_to_add,
+                                             flat_set<int> operations_to_remove,
+                                             flat_set<account_id_type> accounts_to_add,
+                                             flat_set<account_id_type> accounts_to_remove,
+                                             optional<time_point_sec> valid_to,
+                                             bool broadcast);
+      signed_transaction delete_account_role(string owner_account_id_or_name,
+                                             account_role_id_type role_id,
+                                             bool broadcast);
+      vector<account_role_object> get_account_roles_by_owner(string owner_account_id_or_name) const;
 
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
@@ -2641,6 +2665,10 @@ FC_API( graphene::wallet::wallet_api,
         (get_offer_history_by_issuer)
         (get_offer_history_by_item)
         (get_offer_history_by_bidder)
+        (create_account_role)
+        (update_account_role)
+        (delete_account_role)
+        (get_account_roles_by_owner)
         (get_upcoming_tournaments)
         (get_tournaments)
         (get_tournaments_by_state)
