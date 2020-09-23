@@ -126,6 +126,7 @@ add_library( graphene_chain
              protocol/nft.cpp
              protocol/account_role.cpp
              account_role_evaluator.cpp
+
              son_evaluator.cpp
              son_object.cpp
 
