@@ -472,7 +472,7 @@ graphene::wallet::plain_keys decrypt_keys( const std::string& password, const ve
    return fc::raw::unpack<graphene::wallet::plain_keys>( decrypted );
 }
 
-BOOST_FIXTURE_TEST_CASE( saving_keys_wallet_test, cli_fixture ) 
+BOOST_FIXTURE_TEST_CASE( saving_keys_wallet_test, cli_fixture )
 {
    con.wallet_api_ptr->import_balance( "nathan", nathan_keys, true );
    con.wallet_api_ptr->upgrade_account( "nathan", true );
