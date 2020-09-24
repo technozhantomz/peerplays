@@ -472,18 +472,16 @@ graphene::wallet::plain_keys decrypt_keys( const std::string& password, const ve
    return fc::raw::unpack<graphene::wallet::plain_keys>( decrypted );
 }
 
-BOOST_AUTO_TEST_CASE( saving_keys_wallet_test ) 
+BOOST_FIXTURE_TEST_CASE( saving_keys_wallet_test, cli_fixture ) 
 {
-   cli_fixture cli;
-
-   cli.con.wallet_api_ptr->import_balance( "nathan", cli.nathan_keys, true );
-   cli.con.wallet_api_ptr->upgrade_account( "nathan", true );
+   con.wallet_api_ptr->import_balance( "nathan", nathan_keys, true );
+   con.wallet_api_ptr->upgrade_account( "nathan", true );
    std::string brain_key( "FICTIVE WEARY MINIBUS LENS HAWKIE MAIDISH MINTY GLYPH GYTE KNOT COCKSHY LENTIGO PROPS BIFORM KHUTBAH BRAZIL" );
-   cli.con.wallet_api_ptr->create_account_with_brain_key( brain_key, "account1", "nathan", "nathan", true );
+   con.wallet_api_ptr->create_account_with_brain_key( brain_key, "account1", "nathan", "nathan", true );
 
-   BOOST_CHECK_NO_THROW( cli.con.wallet_api_ptr->transfer( "nathan", "account1", "9000", "1.3.0", "", true ) );
+   BOOST_CHECK_NO_THROW( con.wallet_api_ptr->transfer( "nathan", "account1", "9000", "1.3.0", "", true ) );
 
-   std::string path( cli.app_dir.path().generic_string() + "/wallet.json" );
+   std::string path( app_dir.path().generic_string() + "/wallet.json" );
    graphene::wallet::wallet_data wallet = fc::json::from_file( path ).as<graphene::wallet::wallet_data>( 2 * GRAPHENE_MAX_NESTED_OBJECTS );
    BOOST_CHECK( wallet.extra_keys.size() == 1 ); // nathan
    BOOST_CHECK( wallet.pending_account_registrations.size() == 1 ); // account1
@@ -498,7 +496,7 @@ BOOST_AUTO_TEST_CASE( saving_keys_wallet_test )
    wallet = fc::json::from_file( path ).as<graphene::wallet::wallet_data>( 2 * GRAPHENE_MAX_NESTED_OBJECTS );
    BOOST_CHECK( wallet.extra_keys.size() == 2 ); // nathan + account1
    BOOST_CHECK( wallet.pending_account_registrations.empty() );
-   BOOST_CHECK_NO_THROW( cli.con.wallet_api_ptr->transfer( "account1", "nathan", "1000", "1.3.0", "", true ) );
+   BOOST_CHECK_NO_THROW( con.wallet_api_ptr->transfer( "account1", "nathan", "1000", "1.3.0", "", true ) );
 
    pk = decrypt_keys( "supersecret", wallet.cipher_keys );
    BOOST_CHECK( pk.keys.size() == 3 ); // nathan key + account1 active key + account1 memo key
