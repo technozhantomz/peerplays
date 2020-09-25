@@ -508,6 +508,7 @@ void get_relevant_accounts( const object* obj, flat_set<account_id_type>& accoun
            assert( aobj != nullptr );
            accounts.insert( aobj->owner );
            accounts.insert( aobj->whitelisted_accounts.begin(), aobj->whitelisted_accounts.end() );
+           break;
         } case son_object_type:{
            const auto& aobj = dynamic_cast<const son_object*>(obj);
            assert( aobj != nullptr );
