@@ -300,7 +300,7 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
           con.wallet_api_ptr->transfer(
               "nathan", "sonaccount" + fc::to_pretty_string(i), "1000", "1.3.0", "Here are some CORE tokens for your new account", true );
           con.wallet_api_ptr->create_vesting_balance("sonaccount" + fc::to_pretty_string(i), "500", "1.3.0", vesting_balance_type::gpos, true);
-   
+
           std::string name = "sonaccount" + fc::to_pretty_string(i);
           vote_tx = con.wallet_api_ptr->vote_for_son(name, name, true, true);
       }

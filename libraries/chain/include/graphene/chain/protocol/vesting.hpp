@@ -34,7 +34,7 @@ namespace graphene { namespace chain {
          case vesting_balance_type::normal:
             return "NORMAL";
          case vesting_balance_type::son:
-            return "SON";   
+            return "SON";
          case vesting_balance_type::gpos:
          default:
             return "GPOS";

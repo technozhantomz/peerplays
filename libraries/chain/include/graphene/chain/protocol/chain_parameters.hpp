@@ -148,30 +148,6 @@ namespace graphene { namespace chain {
       inline account_id_type sweeps_vesting_accumulator_account()const {
          return extensions.value.sweeps_vesting_accumulator_account.valid() ? *extensions.value.sweeps_vesting_accumulator_account : SWEEPS_ACCUMULATOR_ACCOUNT;
       }
-      inline uint32_t son_vesting_amount()const {
-         return extensions.value.son_vesting_amount.valid() ? *extensions.value.son_vesting_amount : SON_VESTING_AMOUNT; /// current period start date
-      }
-      inline uint32_t son_vesting_period()const {
-         return extensions.value.son_vesting_period.valid() ? *extensions.value.son_vesting_period : SON_VESTING_PERIOD; /// current period start date
-      }
-      inline uint16_t son_pay_max()const {
-         return extensions.value.son_pay_max.valid() ? *extensions.value.son_pay_max : SON_PAY_MAX;
-      }
-      inline uint16_t son_pay_time()const {
-         return extensions.value.son_pay_time.valid() ? *extensions.value.son_pay_time : SON_PAY_TIME;
-      }
-      inline uint16_t son_deregister_time()const {
-         return extensions.value.son_deregister_time.valid() ? *extensions.value.son_deregister_time : SON_DEREGISTER_TIME;
-      }
-      inline uint16_t son_heartbeat_frequency()const {
-         return extensions.value.son_heartbeat_frequency.valid() ? *extensions.value.son_heartbeat_frequency : SON_HEARTBEAT_FREQUENCY;
-      }
-      inline uint16_t son_down_time()const {
-         return extensions.value.son_down_time.valid() ? *extensions.value.son_down_time : SON_DOWN_TIME;
-      }
-      inline uint16_t son_bitcoin_min_tx_confirmations()const {
-         return extensions.value.son_bitcoin_min_tx_confirmations.valid() ? *extensions.value.son_bitcoin_min_tx_confirmations : SON_BITCOIN_MIN_TX_CONFIRMATIONS;
-      }
       inline uint32_t gpos_period()const {
          return extensions.value.gpos_period.valid() ? *extensions.value.gpos_period : GPOS_PERIOD; /// total seconds of current gpos period
       }
@@ -198,6 +174,30 @@ namespace graphene { namespace chain {
       }
       inline uint32_t account_roles_max_lifetime()const {
          return extensions.value.account_roles_max_lifetime.valid() ? *extensions.value.account_roles_max_lifetime : ACCOUNT_ROLES_MAX_LIFETIME;
+      }
+      inline uint32_t son_vesting_amount()const {
+         return extensions.value.son_vesting_amount.valid() ? *extensions.value.son_vesting_amount : SON_VESTING_AMOUNT; /// current period start date
+      }
+      inline uint32_t son_vesting_period()const {
+         return extensions.value.son_vesting_period.valid() ? *extensions.value.son_vesting_period : SON_VESTING_PERIOD; /// current period start date
+      }
+      inline uint16_t son_pay_max()const {
+         return extensions.value.son_pay_max.valid() ? *extensions.value.son_pay_max : SON_PAY_MAX;
+      }
+      inline uint16_t son_pay_time()const {
+         return extensions.value.son_pay_time.valid() ? *extensions.value.son_pay_time : SON_PAY_TIME;
+      }
+      inline uint16_t son_deregister_time()const {
+         return extensions.value.son_deregister_time.valid() ? *extensions.value.son_deregister_time : SON_DEREGISTER_TIME;
+      }
+      inline uint16_t son_heartbeat_frequency()const {
+         return extensions.value.son_heartbeat_frequency.valid() ? *extensions.value.son_heartbeat_frequency : SON_HEARTBEAT_FREQUENCY;
+      }
+      inline uint16_t son_down_time()const {
+         return extensions.value.son_down_time.valid() ? *extensions.value.son_down_time : SON_DOWN_TIME;
+      }
+      inline uint16_t son_bitcoin_min_tx_confirmations()const {
+         return extensions.value.son_bitcoin_min_tx_confirmations.valid() ? *extensions.value.son_bitcoin_min_tx_confirmations : SON_BITCOIN_MIN_TX_CONFIRMATIONS;
       }
       inline account_id_type son_account() const {
          return extensions.value.son_account.valid() ? *extensions.value.son_account : GRAPHENE_NULL_ACCOUNT;

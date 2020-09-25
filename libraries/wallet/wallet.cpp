@@ -2045,7 +2045,7 @@ public:
          {
             std::string acc_id = account_id_to_string(obj->son_account);
             owners.push_back(acc_id);
-         }            
+         }
       }
       vector< optional< account_object> > accs = _remote_db->get_accounts(owners);
       std::remove_if(son_objects.begin(), son_objects.end(),

@@ -31,9 +31,9 @@
 #include <graphene/chain/custom_account_authority_object.hpp>
 #include <graphene/chain/offer_object.hpp>
 #include <graphene/chain/account_role_object.hpp>
-
 #include <graphene/chain/son_object.hpp>
 #include <graphene/chain/son_proposal_object.hpp>
+
 #include <fc/smart_ref_impl.hpp>
 
 #include <ctime>
