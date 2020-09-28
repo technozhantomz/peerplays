@@ -30,8 +30,8 @@ test:
   dependencies:
     - build
   script:
-    - ./build/tests/betting_test --log_level=all
-    - ./build/tests/chain_test --log_level=all
-    - ./build/tests/cli_test --log_level=all
+    - ./build/tests/betting_test --log_level=message
+    - ./build/tests/chain_test --log_level=message
+    - ./build/tests/cli_test --log_level=message
   tags:
     - builder
