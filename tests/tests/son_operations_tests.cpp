@@ -302,10 +302,12 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
       generate_block();
       set_expiration(db, trx);
 
-      ACTORS((alice)(bob));
-      // Send some core to the actors
-      transfer( committee_account, alice_id, asset( 20000 * 100000) );
-      transfer( committee_account, bob_id, asset( 20000 * 100000) );
+      {
+         ACTORS((alice)(bob));
+         // Send some core to the actors
+         transfer( committee_account, alice_id, asset( 20000 * 100000) );
+         transfer( committee_account, bob_id, asset( 20000 * 100000) );
+      }
 
       generate_block();
       // Enable default fee schedule to collect fees
@@ -317,6 +319,9 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
          _gpo.parameters.extensions.value.son_pay_max = 200;
          _gpo.parameters.witness_pay_per_block = 0;
       } );
+
+      GET_ACTOR(alice);
+      GET_ACTOR(bob);
       // Upgrades pay fee and this goes to reserve
       upgrade_to_lifetime_member(alice);
       upgrade_to_lifetime_member(bob);
@@ -429,7 +434,7 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
          op.deposit = deposit1;
          op.pay_vb = payment1;
          op.fee = asset(0);
-         op.signing_key = alice_public_key;
+         op.signing_key = alice_private_key.get_public_key();
          trx.operations.push_back(op);
          for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
          sign(trx, alice_private_key);
@@ -445,7 +450,7 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
          op.deposit = deposit2;
          op.pay_vb = payment2;
          op.fee = asset(0);
-         op.signing_key = bob_public_key;
+         op.signing_key = bob_private_key.get_public_key();
          trx.operations.push_back(op);
          for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
          sign(trx, bob_private_key);
@@ -461,14 +466,14 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
       auto obj1 = idx.find( alice_id );
       BOOST_REQUIRE( obj1 != idx.end() );
       BOOST_CHECK( obj1->url == test_url1 );
-      BOOST_CHECK( obj1->signing_key == alice_public_key );
+      BOOST_CHECK( obj1->signing_key == alice_private_key.get_public_key() );
       BOOST_CHECK( obj1->deposit.instance == deposit1.instance.value );
       BOOST_CHECK( obj1->pay_vb.instance == payment1.instance.value );
       // Bob's SON
       auto obj2 = idx.find( bob_id );
       BOOST_REQUIRE( obj2 != idx.end() );
       BOOST_CHECK( obj2->url == test_url2 );
-      BOOST_CHECK( obj2->signing_key == bob_public_key );
+      BOOST_CHECK( obj2->signing_key == bob_private_key.get_public_key() );
       BOOST_CHECK( obj2->deposit.instance == deposit2.instance.value );
       BOOST_CHECK( obj2->pay_vb.instance == payment2.instance.value );
       // Get the statistics object for the SONs
