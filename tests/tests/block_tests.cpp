@@ -733,7 +733,7 @@ BOOST_FIXTURE_TEST_CASE( maintenance_interval, database_fixture )
       fc::time_point_sec maintenence_time = db.get_dynamic_global_properties().next_maintenance_time;
       BOOST_CHECK_GT(maintenence_time.sec_since_epoch(), db.head_block_time().sec_since_epoch());
       auto initial_properties = db.get_global_properties();
-      const account_object& nathan = create_account("nathan");
+      auto nathan = create_account("nathan");
       upgrade_to_lifetime_member(nathan);
       const committee_member_object nathans_committee_member = create_committee_member(nathan);
       {
@@ -747,6 +747,7 @@ BOOST_FIXTURE_TEST_CASE( maintenance_interval, database_fixture )
       }
 
       generate_block();
+      nathan = get_account("nathan");
       transfer(account_id_type()(db), nathan, asset(5000));
 
       generate_blocks(maintenence_time - initial_properties.parameters.block_interval);
