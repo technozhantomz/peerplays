@@ -146,4 +146,3 @@ FC_REFLECT( graphene::chain::nft_mint_operation, (fee) (payer) (nft_metadata_id)
 FC_REFLECT( graphene::chain::nft_safe_transfer_from_operation, (fee) (operator_) (from) (to) (token_id) (data) (extensions) )
 FC_REFLECT( graphene::chain::nft_approve_operation, (fee) (operator_) (approved) (token_id) (extensions) )
 FC_REFLECT( graphene::chain::nft_set_approval_for_all_operation, (fee) (owner) (operator_) (approved) (extensions) )
-

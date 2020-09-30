@@ -50,6 +50,7 @@ WORKDIR /peerplays-core
 # Compile Peerplays
 RUN \
     BOOST_ROOT=$HOME/boost_1_67_0 && \
+    git submodule sync --recursive && \
     git submodule update --init --recursive && \
     mkdir build && \
     mkdir build/release && \
