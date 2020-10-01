@@ -61,8 +61,14 @@ namespace graphene { namespace app {
             plug->plugin_set_program_options(plugin_cli_options, plugin_cfg_options);
             if( !plugin_cli_options.options().empty() )
                _cli_options.add(plugin_cli_options);
+
             if( !plugin_cfg_options.options().empty() )
+            {
+               std::string header_name = "plugin-cfg-header-" + plug->plugin_name();
+               std::string header_desc = plug->plugin_name() + " plugin options";
+               _cfg_options.add_options()(header_name.c_str(), header_desc.c_str());
                _cfg_options.add(plugin_cfg_options);
+            }
 
             add_available_plugin( plug );
             return plug;

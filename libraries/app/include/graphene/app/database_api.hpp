@@ -43,6 +43,9 @@
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/global_betting_statistics_object.hpp>
+#include <graphene/chain/son_object.hpp>
+#include <graphene/chain/son_wallet_object.hpp>
+#include <graphene/chain/sidechain_address_object.hpp>
 
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -600,6 +603,102 @@ class database_api
        */
       map<string, committee_member_id_type> lookup_committee_member_accounts(const string& lower_bound_name, uint32_t limit)const;
 
+      /////////////////
+      // SON members //
+      /////////////////
+
+      /**
+       * @brief Get a list of SONs by ID
+       * @param son_ids IDs of the SONs to retrieve
+       * @return The SONs corresponding to the provided IDs
+       *
+       * This function has semantics identical to @ref get_objects
+       */
+      vector<optional<son_object>> get_sons(const vector<son_id_type>& son_ids)const;
+
+      /**
+       * @brief Get the SON owned by a given account
+       * @param account The ID of the account whose SON should be retrieved
+       * @return The SON object, or null if the account does not have a SON
+       */
+      fc::optional<son_object> get_son_by_account(account_id_type account)const;
+
+      /**
+       * @brief Get names and IDs for registered SONs
+       * @param lower_bound_name Lower bound of the first name to return
+       * @param limit Maximum number of results to return -- must not exceed 1000
+       * @return Map of SON names to corresponding IDs
+       */
+      map<string, son_id_type> lookup_son_accounts(const string& lower_bound_name, uint32_t limit)const;
+
+      /**
+       * @brief Get the total number of SONs registered with the blockchain
+       */
+      uint64_t get_son_count()const;
+
+      /////////////////////////
+      // SON Wallets         //
+      /////////////////////////
+
+      /**
+       * @brief Get active SON wallet
+       * @return Active SON wallet object
+       */
+      optional<son_wallet_object> get_active_son_wallet();
+
+      /**
+       * @brief Get SON wallet that was active for a given time point
+       * @param time_point Time point
+       * @return SON wallet object, for the wallet that was active for a given time point
+       */
+      optional<son_wallet_object> get_son_wallet_by_time_point(time_point_sec time_point);
+
+      /**
+       * @brief Get full list of SON wallets
+       * @param limit Maximum number of results to return
+       * @return A list of SON wallet objects
+       */
+      vector<optional<son_wallet_object>> get_son_wallets(uint32_t limit);
+
+      /////////////////////////
+      // Sidechain Addresses //
+      /////////////////////////
+
+      /**
+       * @brief Get a list of sidechain addresses
+       * @param sidechain_address_ids IDs of the sidechain addresses to retrieve
+       * @return The sidechain accounts corresponding to the provided IDs
+       *
+       * This function has semantics identical to @ref get_objects
+       */
+      vector<optional<sidechain_address_object>> get_sidechain_addresses(const vector<sidechain_address_id_type>& sidechain_address_ids)const;
+
+      /**
+       * @brief Get the sidechain addresses for a given account
+       * @param account The ID of the account whose sidechain addresses should be retrieved
+       * @return The sidechain addresses objects, or null if the account does not have a sidechain addresses
+       */
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_account(account_id_type account)const;
+
+      /**
+       * @brief Get the sidechain addresses for a given sidechain
+       * @param sidechain Sidechain for which addresses should be retrieved
+       * @return The sidechain addresses objects, or null if the sidechain does not have any addresses
+       */
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(sidechain_type sidechain)const;
+
+      /**
+       * @brief Get the sidechain addresses for a given account and sidechain
+       * @param account The ID of the account whose sidechain addresses should be retrieved
+       * @param sidechain Sidechain for which address should be retrieved
+       * @return The sidechain addresses objects, or null if the account does not have a sidechain addresses for a given sidechain
+       */
+      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(account_id_type account, sidechain_type sidechain)const;
+
+      /**
+       * @brief Get the total number of sidechain addresses registered with the blockchain
+       */
+      uint64_t get_sidechain_addresses_count()const;
 
       /// WORKERS
 
@@ -942,6 +1041,24 @@ FC_API(graphene::app::database_api,
    (get_committee_members)
    (get_committee_member_by_account)
    (lookup_committee_member_accounts)
+
+   // SON members
+   (get_sons)
+   (get_son_by_account)
+   (lookup_son_accounts)
+   (get_son_count)
+
+   // SON wallets
+   (get_active_son_wallet)
+   (get_son_wallet_by_time_point)
+   (get_son_wallets)
+
+   // Sidechain addresses
+   (get_sidechain_addresses)
+   (get_sidechain_addresses_by_account)
+   (get_sidechain_addresses_by_sidechain)
+   (get_sidechain_address_by_account_and_sidechain)
+   (get_sidechain_addresses_count)
 
    // workers
    (get_workers_by_account)

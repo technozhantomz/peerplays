@@ -42,6 +42,9 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
 
    database& d = db();
 
+   if (d.head_block_time() < HARDFORK_SON_TIME)
+      FC_ASSERT(op.symbol != "BTC", "BTC asset creation before SON hardfork");
+
    const auto& chain_parameters = d.get_global_properties().parameters;
    FC_ASSERT( op.common_options.whitelist_authorities.size() <= chain_parameters.maximum_asset_whitelist_authorities );
    FC_ASSERT( op.common_options.blacklist_authorities.size() <= chain_parameters.maximum_asset_whitelist_authorities );
