@@ -344,6 +344,7 @@
     "maximum_asset_feed_publishers": 10,
     "maximum_witness_count": 1001,
     "maximum_committee_count": 1001,
+    "maximum_son_count": 15,
     "maximum_authority_membership": 10,
     "reserve_percent_of_fee": 2000,
     "network_percent_of_fee": 2000,
@@ -384,7 +385,14 @@
       "gpos_period": 15552000,
       "gpos_subperiod": 2592000,
       "gpos_period_start": 1601528400,
-      "gpos_vesting_lockin_period": 2592000
+      "gpos_vesting_lockin_period": 2592000,
+      "son_vesting_amount": 5000000,
+      "son_vesting_period": 172800,
+      "son_pay_max": 20000000,
+      "son_pay_time": 86400,
+      "son_deregister_time": 43200,
+      "son_heartbeat_frequency": 180,
+      "son_down_time": 360
     }
   },
   "initial_bts_accounts": [],

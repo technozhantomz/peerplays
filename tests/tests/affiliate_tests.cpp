@@ -289,7 +289,7 @@ BOOST_AUTO_TEST_CASE( affiliate_payout_helper_test )
 {
    ACTORS( (irene) );
 
-   const asset_id_type btc_id = create_user_issued_asset( "BTC", irene, 0 ).id;
+   const asset_id_type btc_id = create_user_issued_asset( "BTCTEST", irene, 0 ).id;
    issue_uia( irene, asset( 100000, btc_id ) );
 
    affiliate_test_helper ath( *this );
@@ -517,7 +517,7 @@ BOOST_AUTO_TEST_CASE( bookie_payout_test )
 { try {
    ACTORS( (irene) );
 
-   const asset_id_type btc_id = create_user_issued_asset( "BTC", irene, 0 ).id;
+   const asset_id_type btc_id = create_user_issued_asset( "BTCTEST", irene, 0 ).id;
 
    affiliate_test_helper ath( *this );
 
@@ -616,7 +616,7 @@ BOOST_AUTO_TEST_CASE( statistics_test )
 
    INVOKE(bookie_payout_test);
 
-   const asset_id_type btc_id = get_asset( "BTC" ).id;
+   const asset_id_type btc_id = get_asset( "BTCTEST" ).id;
 
    transfer( ath.alice_id, ath.ann_id,    asset( 100, btc_id ), asset(0) );
    transfer( ath.alice_id, ath.audrey_id, asset( 100, btc_id ), asset(0) );

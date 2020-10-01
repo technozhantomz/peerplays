@@ -63,6 +63,17 @@ struct vote_counter
       out_auth = auth;
    }
 
+   void finish_2_3( authority& out_auth )
+   {
+      if( total_votes == 0 )
+         return;
+      assert( total_votes <= std::numeric_limits<uint32_t>::max() );
+      uint32_t weight = uint32_t( total_votes );
+      weight = (weight * 2 / 3) + 1;
+      auth.weight_threshold = weight;
+      out_auth = auth;
+   }
+
    bool is_empty()const
    {
       return (total_votes == 0);

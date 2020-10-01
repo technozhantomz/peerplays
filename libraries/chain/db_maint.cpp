@@ -42,6 +42,7 @@
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/special_authority_object.hpp>
+#include <graphene/chain/son_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/vote_count.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -66,6 +67,32 @@ vector<std::reference_wrapper<const typename Index::object_type>> database::sort
                   [](const ObjectType& o) { return std::cref(o); });
    std::partial_sort(refs.begin(), refs.begin() + count, refs.end(),
                    [this](const ObjectType& a, const ObjectType& b)->bool {
+      share_type oa_vote = _vote_tally_buffer[a.vote_id];
+      share_type ob_vote = _vote_tally_buffer[b.vote_id];
+      if( oa_vote != ob_vote )
+         return oa_vote > ob_vote;
+      return a.vote_id < b.vote_id;
+   });
+
+   refs.resize(count, refs.front());
+   return refs;
+}
+
+template<>
+vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<son_index>(size_t count) const
+{
+   const auto& all_sons = get_index_type<son_index>().indices().get< by_id >();
+   std::vector<std::reference_wrapper<const son_object>> refs;
+   for( auto& son : all_sons )
+   {
+      if(son.has_valid_config() && son.status != son_status::deregistered)
+      {
+         refs.push_back(std::cref(son));
+      }
+   }
+   count = std::min(count, refs.size());
+   std::partial_sort(refs.begin(), refs.begin() + count, refs.end(),
+                   [this](const son_object& a, const son_object& b)->bool {
       share_type oa_vote = _vote_tally_buffer[a.vote_id];
       share_type ob_vote = _vote_tally_buffer[b.vote_id];
       if( oa_vote != ob_vote )
@@ -150,6 +177,215 @@ void database::update_worker_votes()
    }
 }
 
+void database::pay_sons()
+{
+   auto get_weight = []( uint64_t total_votes ) {
+      int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
+      uint16_t weight = std::max((total_votes >> bits_to_drop), uint64_t(1) );
+      return weight;
+   };
+   time_point_sec now = head_block_time();
+   const dynamic_global_property_object& dpo = get_dynamic_global_properties();
+   // Current requirement is that we have to pay every 24 hours, so the following check
+   if( dpo.son_budget.value > 0 && ((now - dpo.last_son_payout_time) >= fc::seconds(get_global_properties().parameters.son_pay_time()))) {
+      uint64_t weighted_total_txs_signed = 0;
+      share_type son_budget = dpo.son_budget;
+      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &get_weight](const object& o) {
+         const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
+         const auto& idx = get_index_type<son_index>().indices().get<by_id>();
+         auto son_obj = idx.find( s.owner );
+         auto son_weight = get_weight(_vote_tally_buffer[son_obj->vote_id]);
+         weighted_total_txs_signed += (s.txs_signed * son_weight);
+      });
+
+
+      // Now pay off each SON proportional to the number of transactions signed.
+      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &dpo, &son_budget, &get_weight](const object& o) {
+         const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
+         if(s.txs_signed > 0){
+            auto son_params = get_global_properties().parameters;
+            const auto& idx = get_index_type<son_index>().indices().get<by_id>();
+            auto son_obj = idx.find( s.owner );
+            auto son_weight = get_weight(_vote_tally_buffer[son_obj->vote_id]);
+            share_type pay = (s.txs_signed * son_weight * son_budget.value)/weighted_total_txs_signed;
+
+            modify( *son_obj, [&]( son_object& _son_obj)
+            {
+               _son_obj.pay_son_fee(pay, *this);
+            });
+            //Remove the amount paid out to SON from global SON Budget
+            modify( dpo, [&]( dynamic_global_property_object& _dpo )
+            {
+               _dpo.son_budget -= pay;
+            } );
+            //Reset the tx counter in each son statistics object
+            modify( s, [&]( son_statistics_object& _s)
+            {
+               _s.total_txs_signed += _s.txs_signed;
+               _s.txs_signed = 0;
+            });
+         }
+      });
+      //Note the last son pay out time
+      modify( dpo, [&]( dynamic_global_property_object& _dpo )
+      {
+         _dpo.last_son_payout_time = now;
+      });
+   }
+}
+
+void database::update_son_metrics(const vector<son_info>& curr_active_sons)
+{
+   vector<son_id_type> current_sons;
+
+   current_sons.reserve(curr_active_sons.size());
+   std::transform(curr_active_sons.begin(), curr_active_sons.end(),
+                  std::inserter(current_sons, current_sons.end()),
+                  [](const son_info &swi) {
+                     return swi.son_id;
+                  });
+
+   const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
+   for( auto& son : son_idx )
+   {
+      auto& stats = son.statistics(*this);
+      bool is_active_son = (std::find(current_sons.begin(), current_sons.end(), son.id) != current_sons.end());
+      modify( stats, [&]( son_statistics_object& _stats )
+      {
+         _stats.total_downtime += _stats.current_interval_downtime;
+         _stats.current_interval_downtime = 0;
+         if(is_active_son)
+         {
+            _stats.total_voted_time = _stats.total_voted_time + get_global_properties().parameters.maintenance_interval;
+         }
+      });
+   }
+}
+
+void database::update_son_statuses(const vector<son_info>& curr_active_sons, const vector<son_info>& new_active_sons)
+{
+   vector<son_id_type> current_sons, new_sons;
+   vector<son_id_type> sons_to_remove, sons_to_add;
+   const auto& idx = get_index_type<son_index>().indices().get<by_id>();
+
+   current_sons.reserve(curr_active_sons.size());
+   std::transform(curr_active_sons.begin(), curr_active_sons.end(),
+                  std::inserter(current_sons, current_sons.end()),
+                  [](const son_info &swi) {
+                     return swi.son_id;
+                  });
+
+   new_sons.reserve(new_active_sons.size());
+   std::transform(new_active_sons.begin(), new_active_sons.end(),
+                  std::inserter(new_sons, new_sons.end()),
+                  [](const son_info &swi) {
+                     return swi.son_id;
+                  });
+
+   // find all cur_active_sons members that is not in new_active_sons
+   for_each(current_sons.begin(), current_sons.end(),
+            [&sons_to_remove, &new_sons](const son_id_type& si)
+            {
+               if(std::find(new_sons.begin(), new_sons.end(), si) ==
+                     new_sons.end())
+               {
+                  sons_to_remove.push_back(si);
+               }
+            }
+   );
+
+   for( const auto& sid : sons_to_remove )
+   {
+      auto son = idx.find( sid );
+      if(son == idx.end()) // SON is deleted already
+         continue;
+      // keep maintenance status for nodes becoming inactive
+      if(son->status == son_status::active)
+      {
+         modify( *son, [&]( son_object& obj ){
+                  obj.status = son_status::inactive;
+                  });
+      }
+   }
+
+   // find all new_active_sons members that is not in cur_active_sons
+   for_each(new_sons.begin(), new_sons.end(),
+            [&sons_to_add, &current_sons](const son_id_type& si)
+            {
+               if(std::find(current_sons.begin(), current_sons.end(), si) ==
+                     current_sons.end())
+               {
+                  sons_to_add.push_back(si);
+               }
+            }
+   );
+
+   for( const auto& sid : sons_to_add )
+   {
+      auto son = idx.find( sid );
+      FC_ASSERT(son != idx.end(), "Invalid SON in active list, id={sonid}.", ("sonid", sid));
+      // keep maintenance status for new nodes
+      if(son->status == son_status::inactive)
+      {
+         modify( *son, [&]( son_object& obj ){
+                  obj.status = son_status::active;
+                  });
+      }
+   }
+
+   ilog("New SONS");
+   for(size_t i = 0; i < new_sons.size(); i++) {
+         auto son = idx.find( new_sons[i] );
+         if(son == idx.end()) // SON is deleted already
+            continue;
+      ilog( "${s}, status = ${ss}, total_votes = ${sv}", ("s", new_sons[i])("ss", son->status)("sv", son->total_votes) );
+   }
+
+   if( sons_to_remove.size() > 0 )
+   {
+      remove_inactive_son_proposals(sons_to_remove);
+   }
+}
+
+void database::update_son_wallet(const vector<son_info>& new_active_sons)
+{
+   bool should_recreate_pw = true;
+
+   // Expire for current son_wallet_object wallet, if exists
+   const auto& idx_swi = get_index_type<son_wallet_index>().indices().get<by_id>();
+   auto obj = idx_swi.rbegin();
+   if (obj != idx_swi.rend()) {
+      // Compare current wallet SONs and to-be lists of active sons
+      auto cur_wallet_sons = (*obj).sons;
+
+      bool wallet_son_sets_equal = (cur_wallet_sons.size() == new_active_sons.size());
+      if (wallet_son_sets_equal) {
+         for( size_t i = 0; i < cur_wallet_sons.size(); i++ ) {
+            wallet_son_sets_equal = wallet_son_sets_equal && cur_wallet_sons.at(i) == new_active_sons.at(i);
+         }
+      }
+
+      should_recreate_pw = !wallet_son_sets_equal;
+
+      if (should_recreate_pw) {
+         modify(*obj, [&, obj](son_wallet_object &swo) {
+            swo.expires = head_block_time();
+         });
+      }
+   }
+
+   should_recreate_pw = should_recreate_pw && (new_active_sons.size() >= get_chain_properties().immutable_parameters.min_son_count);
+
+   if (should_recreate_pw) {
+      // Create new son_wallet_object, to initiate wallet recreation
+      create<son_wallet_object>( [&]( son_wallet_object& obj ) {
+         obj.valid_from = head_block_time();
+         obj.expires = time_point_sec::maximum();
+         obj.sons.insert(obj.sons.end(), new_active_sons.begin(), new_active_sons.end());
+      });
+   }
+}
+
 void database::pay_workers( share_type& budget )
 {
    const auto head_time = head_block_time();
@@ -207,7 +443,7 @@ void database::update_active_witnesses()
    /// accounts that vote for 0 or 1 witness do not get to express an opinion on
    /// the number of witnesses to have (they abstain and are non-voting accounts)
 
-   share_type stake_tally = 0; 
+   share_type stake_tally = 0;
 
    size_t witness_count = 0;
    if( stake_target > 0 )
@@ -306,7 +542,7 @@ void database::update_active_witnesses()
 void database::update_active_committee_members()
 { try {
    assert( _committee_count_histogram_buffer.size() > 0 );
-   share_type stake_target = (_total_voting_stake-_witness_count_histogram_buffer[0]) / 2;
+   share_type stake_target = (_total_voting_stake-_committee_count_histogram_buffer[0]) / 2;
 
    /// accounts that vote for 0 or 1 witness do not get to express an opinion on
    /// the number of witnesses to have (they abstain and are non-voting accounts)
@@ -392,6 +628,146 @@ void database::update_active_committee_members()
       std::transform(committee_members.begin(), committee_members.end(),
                      std::inserter(gp.active_committee_members, gp.active_committee_members.begin()),
                      [](const committee_member_object& d) { return d.id; });
+   });
+} FC_CAPTURE_AND_RETHROW() }
+
+void database::update_active_sons()
+{ try {
+   assert( _son_count_histogram_buffer.size() > 0 );
+   share_type stake_target = (_total_voting_stake-_son_count_histogram_buffer[0]) / 2;
+
+   /// accounts that vote for 0 or 1 son do not get to express an opinion on
+   /// the number of sons to have (they abstain and are non-voting accounts)
+
+   share_type stake_tally = 0;
+
+   size_t son_count = 0;
+   if( stake_target > 0 )
+   {
+      while( (son_count < _son_count_histogram_buffer.size() - 1)
+             && (stake_tally <= stake_target) )
+      {
+         stake_tally += _son_count_histogram_buffer[++son_count];
+      }
+   }
+
+   const global_property_object& gpo = get_global_properties();
+   const chain_parameters& cp = gpo.parameters;
+   auto sons = sort_votable_objects<son_index>(cp.maximum_son_count);
+
+   const auto& all_sons = get_index_type<son_index>().indices();
+
+   auto& local_vote_buffer_ref = _vote_tally_buffer;
+   for( const son_object& son : all_sons )
+   {
+      if(son.status == son_status::request_maintenance)
+      {
+         auto& stats = son.statistics(*this);
+         modify( stats, [&]( son_statistics_object& _s){
+               _s.last_down_timestamp = head_block_time();
+            });
+      }
+      modify( son, [local_vote_buffer_ref]( son_object& obj ){
+              obj.total_votes = local_vote_buffer_ref[obj.vote_id];
+              if(obj.status == son_status::request_maintenance)
+                 obj.status = son_status::in_maintenance;
+              });
+   }
+
+   // Update SON authority
+   if( gpo.parameters.son_account() != GRAPHENE_NULL_ACCOUNT )
+   {
+      modify( get(gpo.parameters.son_account()), [&]( account_object& a )
+      {
+         if( head_block_time() < HARDFORK_533_TIME )
+         {
+            map<account_id_type, uint64_t> weights;
+            a.active.weight_threshold = 0;
+            a.active.account_auths.clear();
+
+            for( const son_object& son : sons )
+            {
+               weights.emplace(son.son_account, uint64_t(1));
+            }
+
+            for( const auto& weight : weights )
+            {
+               // Ensure that everyone has at least one vote. Zero weights aren't allowed.
+               a.active.account_auths[weight.first] += 1;
+               a.active.weight_threshold += 1;
+            }
+
+            a.active.weight_threshold *= 2;
+            a.active.weight_threshold /= 3;
+            a.active.weight_threshold += 1;
+         }
+         else
+         {
+            vote_counter vc;
+            for( const son_object& son : sons )
+               vc.add( son.son_account, UINT64_C(1) );
+            vc.finish_2_3( a.active );
+         }
+      } );
+   }
+
+
+   // Compare current and to-be lists of active sons
+   auto cur_active_sons = gpo.active_sons;
+   vector<son_info> new_active_sons;
+   const auto &acc = get(gpo.parameters.son_account());
+   for( const son_object& son : sons ) {
+      son_info swi;
+      swi.son_id = son.id;
+      swi.weight = acc.active.account_auths.at(son.son_account);
+      swi.signing_key = son.signing_key;
+      swi.sidechain_public_keys = son.sidechain_public_keys;
+      new_active_sons.push_back(swi);
+   }
+
+   bool son_sets_equal = (cur_active_sons.size() == new_active_sons.size());
+   if (son_sets_equal) {
+      for( size_t i = 0; i < cur_active_sons.size(); i++ ) {
+         son_sets_equal = son_sets_equal && cur_active_sons.at(i) == new_active_sons.at(i);
+      }
+   }
+
+   if (son_sets_equal) {
+      ilog( "Active SONs set NOT CHANGED" );
+   } else {
+      ilog( "Active SONs set CHANGED" );
+
+      update_son_wallet(new_active_sons);
+      update_son_statuses(cur_active_sons, new_active_sons);
+   }
+
+   // Update son performance metrics
+   update_son_metrics(cur_active_sons);
+
+   modify(gpo, [&]( global_property_object& gp ){
+      gp.active_sons.clear();
+      gp.active_sons.reserve(new_active_sons.size());
+      gp.active_sons.insert(gp.active_sons.end(), new_active_sons.begin(), new_active_sons.end());
+   });
+
+   const son_schedule_object& sso = son_schedule_id_type()(*this);
+   modify(sso, [&](son_schedule_object& _sso)
+   {
+      flat_set<son_id_type> active_sons;
+      active_sons.reserve(gpo.active_sons.size());
+      std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                     std::inserter(active_sons, active_sons.end()),
+                     [](const son_info& swi) {
+         return swi.son_id;
+      });
+      _sso.scheduler.update(active_sons);
+      // similar to witness, produce schedule for sons
+      if(cur_active_sons.size() == 0 && new_active_sons.size() > 0)
+      {
+         witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+         for( size_t i=0; i<new_active_sons.size(); ++i )
+            _sso.scheduler.produce_schedule(rng);
+      }
    });
 } FC_CAPTURE_AND_RETHROW() }
 
@@ -483,6 +859,17 @@ void database::process_budget()
       rec.witness_budget = witness_budget;
       available_funds -= witness_budget;
 
+      // We should not factor-in the son budget before SON HARDFORK
+      share_type son_budget = 0;
+      if(now >= HARDFORK_SON_TIME){
+         rec.leftover_son_funds = dpo.son_budget;
+         available_funds += rec.leftover_son_funds;
+         son_budget = gpo.parameters.son_pay_max();
+         son_budget = std::min(son_budget, available_funds);
+         rec.son_budget = son_budget;
+         available_funds -= son_budget;
+      }
+
       fc::uint128_t worker_budget_u128 = gpo.parameters.worker_budget_per_day.value;
       worker_budget_u128 *= uint64_t(time_to_maint);
       worker_budget_u128 /= 60*60*24;
@@ -502,9 +889,11 @@ void database::process_budget()
 
       rec.supply_delta = rec.witness_budget
          + rec.worker_budget
+         + rec.son_budget
          - rec.leftover_worker_funds
          - rec.from_accumulated_fees
-         - rec.from_unused_witness_budget;
+         - rec.from_unused_witness_budget
+         - rec.leftover_son_funds;
 
       modify(core, [&]( asset_dynamic_data_object& _core )
       {
@@ -513,9 +902,11 @@ void database::process_budget()
          assert( rec.supply_delta ==
                                    witness_budget
                                  + worker_budget
+                                 + son_budget
                                  - leftover_worker_funds
                                  - _core.accumulated_fees
                                  - dpo.witness_budget
+                                 - dpo.son_budget
                                 );
          _core.accumulated_fees = 0;
       });
@@ -526,6 +917,7 @@ void database::process_budget()
          // available_funds, we replace it with witness_budget
          // instead of adding it.
          _dpo.witness_budget = witness_budget;
+         _dpo.son_budget = son_budget;
          _dpo.last_budget_time = now;
       });
 
@@ -954,10 +1346,10 @@ void clear_expired_account_roles(database& db)
 // dividend-paying asset.  This takes any deposits made to the dividend distribution account
 // since the last time it was called, and distributes them to the current owners of the
 // dividend-paying asset according to the amount they own.
-void schedule_pending_dividend_balances(database& db, 
+void schedule_pending_dividend_balances(database& db,
                                         const asset_object& dividend_holder_asset_obj,
                                         const asset_dividend_data_object& dividend_data,
-                                        const fc::time_point_sec& current_head_block_time, 
+                                        const fc::time_point_sec& current_head_block_time,
                                         const account_balance_index& balance_index,
                                         const vesting_balance_index& vesting_index,
                                         const total_distributed_dividend_balance_object_index& distributed_dividend_balance_index,
@@ -966,7 +1358,7 @@ void schedule_pending_dividend_balances(database& db,
    dlog("Processing dividend payments for dividend holder asset type ${holder_asset} at time ${t}",
         ("holder_asset", dividend_holder_asset_obj.symbol)("t", db.head_block_time()));
    auto balance_by_acc_index = db.get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >();
-   auto current_distribution_account_balance_range = 
+   auto current_distribution_account_balance_range =
       //balance_index.indices().get<by_account_asset>().equal_range(boost::make_tuple(dividend_data.dividend_distribution_account));
       balance_by_acc_index.get_account_balances(dividend_data.dividend_distribution_account);
    auto previous_distribution_account_balance_range =
@@ -977,7 +1369,7 @@ void schedule_pending_dividend_balances(database& db,
    const auto& gpo = db.get_global_properties();
 
    // get the list of accounts that hold nonzero balances of the dividend asset
-   auto holder_balances_begin = 
+   auto holder_balances_begin =
       balance_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(dividend_holder_asset_obj.id));
    auto holder_balances_end =
       balance_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(dividend_holder_asset_obj.id, share_type()));
@@ -1037,7 +1429,7 @@ void schedule_pending_dividend_balances(database& db,
         ("previous", (int64_t)std::distance(previous_distribution_account_balance_range.first, previous_distribution_account_balance_range.second)));
 
    // when we pay out the dividends to the holders, we need to know the total balance of the dividend asset in all
-   // accounts other than the distribution account (it would be silly to distribute dividends back to 
+   // accounts other than the distribution account (it would be silly to distribute dividends back to
    // the distribution account)
    share_type total_balance_of_dividend_asset;
    if(db.head_block_time() >= HARDFORK_GPOS_TIME && dividend_holder_asset_obj.symbol == GRAPHENE_SYMBOL) { // only core
@@ -1068,7 +1460,7 @@ void schedule_pending_dividend_balances(database& db,
          share_type previous_balance;
          asset_id_type payout_asset_type;
 
-         if (previous_distribution_account_balance_iter == previous_distribution_account_balance_range.second || 
+         if (previous_distribution_account_balance_iter == previous_distribution_account_balance_range.second ||
              current_distribution_account_balance_iter->second->asset_type < previous_distribution_account_balance_iter->dividend_payout_asset_type)
          {
             // there are no more previous balances or there is no previous balance for this particular asset type
@@ -1076,7 +1468,7 @@ void schedule_pending_dividend_balances(database& db,
             current_balance = current_distribution_account_balance_iter->second->balance;
             idump((payout_asset_type)(current_balance));
          }
-         else if (current_distribution_account_balance_iter == current_distribution_account_balance_range.end() || 
+         else if (current_distribution_account_balance_iter == current_distribution_account_balance_range.end() ||
                   previous_distribution_account_balance_iter->dividend_payout_asset_type < current_distribution_account_balance_iter->second->asset_type)
          {
             // there are no more current balances or there is no current balance for this particular previous asset type
@@ -1095,7 +1487,7 @@ void schedule_pending_dividend_balances(database& db,
 
          share_type delta_balance = current_balance - previous_balance;
 
-         // Next, figure out if we want to share this out -- if the amount added to the distribution 
+         // Next, figure out if we want to share this out -- if the amount added to the distribution
          // account since last payout is too small, we won't bother.
 
          share_type total_fee_per_asset_in_payout_asset;
@@ -1104,7 +1496,7 @@ void schedule_pending_dividend_balances(database& db,
          {
             payout_asset_object = &db.get_core_asset();
             total_fee_per_asset_in_payout_asset = total_fee_per_asset_in_core;
-            dlog("Fee for distributing ${payout_asset_type}: ${fee}", 
+            dlog("Fee for distributing ${payout_asset_type}: ${fee}",
                  ("payout_asset_type", asset_id_type()(db).symbol)
                  ("fee", asset(total_fee_per_asset_in_core, asset_id_type())));
          }
@@ -1120,7 +1512,7 @@ void schedule_pending_dividend_balances(database& db,
             FC_ASSERT(total_fee_per_asset.asset_id == payout_asset_type);
 
             total_fee_per_asset_in_payout_asset = total_fee_per_asset.amount;
-            dlog("Fee for distributing ${payout_asset_type}: ${fee}", 
+            dlog("Fee for distributing ${payout_asset_type}: ${fee}",
                  ("payout_asset_type", payout_asset_type(db).symbol)("fee", total_fee_per_asset_in_payout_asset));
          }
 
@@ -1133,7 +1525,7 @@ void schedule_pending_dividend_balances(database& db,
             wdump((total_fee_per_asset_in_payout_asset)(dividend_data.options));
             minimum_shares_to_distribute = minimum_amount_to_distribute.to_uint64();
          }
-         
+
          dlog("Processing dividend payments of asset type ${payout_asset_type}, delta balance is ${delta_balance}", ("payout_asset_type", payout_asset_type(db).symbol)("delta_balance", delta_balance));
          if (delta_balance > 0)
          {
@@ -1146,7 +1538,7 @@ void schedule_pending_dividend_balances(database& db,
                   db.modify(asset_dynamic_data_id_type()(db), [total_fee_per_asset_in_core](asset_dynamic_data_object& d) {
                      d.accumulated_fees += total_fee_per_asset_in_core;
                   });
-                  db.adjust_balance(dividend_data.dividend_distribution_account, 
+                  db.adjust_balance(dividend_data.dividend_distribution_account,
                                     asset(-total_fee_per_asset_in_core, asset_id_type()));
                   delta_balance -= total_fee_per_asset_in_core;
                }
@@ -1161,7 +1553,7 @@ void schedule_pending_dividend_balances(database& db,
                               ("need", asset(total_fee_per_asset_in_core, asset_id_type()))
                               ("have", asset(dynamic_data.fee_pool, payout_asset_type)));
                   // deduct the fee from the dividend distribution account
-                  db.adjust_balance(dividend_data.dividend_distribution_account, 
+                  db.adjust_balance(dividend_data.dividend_distribution_account,
                                     asset(-total_fee_per_asset_in_payout_asset, payout_asset_type));
                   // convert it to core
                   db.modify(payout_asset_object->dynamic_data(db), [total_fee_per_asset_in_core, total_fee_per_asset_in_payout_asset](asset_dynamic_data_object& d) {
@@ -1175,7 +1567,7 @@ void schedule_pending_dividend_balances(database& db,
                   delta_balance -= total_fee_per_asset_in_payout_asset;
                }
 
-               dlog("There are ${count} holders of the dividend-paying asset, with a total balance of ${total}", 
+               dlog("There are ${count} holders of the dividend-paying asset, with a total balance of ${total}",
                     ("count", holder_account_count)
                     ("total", total_balance_of_dividend_asset));
                share_type remaining_amount_to_distribute = delta_balance;
@@ -1247,7 +1639,7 @@ void schedule_pending_dividend_balances(database& db,
                       dlog("Pending payout: ${account_name}   ->   ${amount}",
                            ("account_name", pending_payout.owner(db).name)
                            ("amount", asset(pending_payout.pending_balance, pending_payout.dividend_payout_asset_type)));
-               dlog("Remaining balance not paid out: ${amount}", 
+               dlog("Remaining balance not paid out: ${amount}",
                     ("amount", asset(remaining_amount_to_distribute, payout_asset_type)));
 
                share_type distributed_amount = delta_balance - remaining_amount_to_distribute;
@@ -1277,7 +1669,7 @@ void schedule_pending_dividend_balances(database& db,
             // This should be extremely rare (caused by an override transfer by the asset owner).
             // Reduce all pending payouts proportionally
             share_type total_pending_balances;
-            auto pending_payouts_range = 
+            auto pending_payouts_range =
                pending_payout_balance_index.indices().get<by_dividend_payout_account>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id, payout_asset_type));
 
             for (const pending_dividend_payout_balance_for_holder_object& pending_balance_object : boost::make_iterator_range(pending_payouts_range.first, pending_payouts_range.second))
@@ -1314,10 +1706,10 @@ void schedule_pending_dividend_balances(database& db,
       }
 
       // iterate
-      if (previous_distribution_account_balance_iter == previous_distribution_account_balance_range.second || 
+      if (previous_distribution_account_balance_iter == previous_distribution_account_balance_range.second ||
           current_distribution_account_balance_iter->second->asset_type < previous_distribution_account_balance_iter->dividend_payout_asset_type)
          ++current_distribution_account_balance_iter;
-      else if (current_distribution_account_balance_iter == current_distribution_account_balance_range.end() || 
+      else if (current_distribution_account_balance_iter == current_distribution_account_balance_range.end() ||
                previous_distribution_account_balance_iter->dividend_payout_asset_type < current_distribution_account_balance_iter->second->asset_type)
          ++previous_distribution_account_balance_iter;
       else
@@ -1359,7 +1751,7 @@ void process_dividend_assets(database& db)
          {
             try
             {
-               dlog("Dividend payout time has arrived for asset ${holder_asset}", 
+               dlog("Dividend payout time has arrived for asset ${holder_asset}",
                     ("holder_asset", dividend_holder_asset_obj.symbol));
 #ifndef NDEBUG
                // dump balances before the payouts for debugging
@@ -1371,14 +1763,14 @@ void process_dividend_assets(database& db)
 
                // when we do the payouts, we first increase the balances in all of the receiving accounts
                // and use this map to keep track of the total amount of each asset paid out.
-               // Afterwards, we decrease the distribution account's balance by the total amount paid out, 
+               // Afterwards, we decrease the distribution account's balance by the total amount paid out,
                // and modify the distributed_balances accordingly
                std::map<asset_id_type, share_type> amounts_paid_out_by_asset;
 
-               auto pending_payouts_range = 
+               auto pending_payouts_range =
                   pending_payout_balance_index.indices().get<by_dividend_account_payout>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id));
                // the pending_payouts_range is all payouts for this dividend asset, sorted by the holder's account
-               // we iterate in this order so we can build up a list of payouts for each account to put in the 
+               // we iterate in this order so we can build up a list of payouts for each account to put in the
                // virtual op
                vector<asset> payouts_for_this_holder;
                fc::optional<account_id_type> last_holder_account_id;
@@ -1390,7 +1782,7 @@ void process_dividend_assets(database& db)
                   auto approved_assets_iter = approved_assets.find(asset_id);
                   if (approved_assets_iter != approved_assets.end())
                      return approved_assets_iter->second;
-                  bool is_approved = is_authorized_asset(db, dividend_distribution_account_object, 
+                  bool is_approved = is_authorized_asset(db, dividend_distribution_account_object,
                                                          asset_id(db));
                   approved_assets[asset_id] = is_approved;
                   return is_approved;
@@ -1403,8 +1795,8 @@ void process_dividend_assets(database& db)
                   if (last_holder_account_id && *last_holder_account_id != pending_balance_object.owner && payouts_for_this_holder.size())
                   {
                      // we've moved on to a new account, generate the dividend payment virtual op for the previous one
-                     db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id, 
-                                                                                     *last_holder_account_id, 
+                     db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id,
+                                                                                     *last_holder_account_id,
                                                                                      payouts_for_this_holder));
                      dlog("Just pushed virtual op for payout to ${account}", ("account", (*last_holder_account_id)(db).name));
                      payouts_for_this_holder.clear();
@@ -1416,14 +1808,14 @@ void process_dividend_assets(database& db)
                       is_authorized_asset(db, pending_balance_object.owner(db), pending_balance_object.dividend_payout_asset_type(db)) &&
                       is_asset_approved_for_distribution_account(pending_balance_object.dividend_payout_asset_type))
                   {
-                     dlog("Processing payout of ${asset} to account ${account}", 
+                     dlog("Processing payout of ${asset} to account ${account}",
                           ("asset", asset(pending_balance_object.pending_balance, pending_balance_object.dividend_payout_asset_type))
                           ("account", pending_balance_object.owner(db).name));
 
                      db.adjust_balance(pending_balance_object.owner,
-                                       asset(pending_balance_object.pending_balance, 
+                                       asset(pending_balance_object.pending_balance,
                                              pending_balance_object.dividend_payout_asset_type));
-                     payouts_for_this_holder.push_back(asset(pending_balance_object.pending_balance, 
+                     payouts_for_this_holder.push_back(asset(pending_balance_object.pending_balance,
                                                              pending_balance_object.dividend_payout_asset_type));
                      last_holder_account_id = pending_balance_object.owner;
                      amounts_paid_out_by_asset[pending_balance_object.dividend_payout_asset_type] += pending_balance_object.pending_balance;
@@ -1439,8 +1831,8 @@ void process_dividend_assets(database& db)
                if (last_holder_account_id && payouts_for_this_holder.size())
                {
                   // we've moved on to a new account, generate the dividend payment virtual op for the previous one
-                  db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id, 
-                                                                                  *last_holder_account_id, 
+                  db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id,
+                                                                                  *last_holder_account_id,
                                                                                   payouts_for_this_holder));
                   dlog("Just pushed virtual op for payout to ${account}", ("account", (*last_holder_account_id)(db).name));
                }
@@ -1453,11 +1845,11 @@ void process_dividend_assets(database& db)
                   const asset_id_type& asset_paid_out = value.first;
                   const share_type& amount_paid_out = value.second;
 
-                  db.adjust_balance(dividend_data.dividend_distribution_account, 
+                  db.adjust_balance(dividend_data.dividend_distribution_account,
                                     asset(-amount_paid_out,
                                           asset_paid_out));
-                  auto distributed_balance_iter = 
-                     distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().find(boost::make_tuple(dividend_holder_asset_obj.id, 
+                  auto distributed_balance_iter =
+                     distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().find(boost::make_tuple(dividend_holder_asset_obj.id,
                                                                                                                          asset_paid_out));
                   assert(distributed_balance_iter != distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().end());
                   if (distributed_balance_iter != distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().end())
@@ -1474,7 +1866,7 @@ void process_dividend_assets(database& db)
                   fc::optional<fc::time_point_sec> next_payout_time;
                   if (dividend_data_obj.options.payout_interval)
                   {
-                     // if there was a previous payout, make our next payment one interval 
+                     // if there was a previous payout, make our next payment one interval
                      uint32_t current_time_sec = current_head_block_time.sec_since_epoch();
                      fc::time_point_sec reference_time = *dividend_data_obj.last_scheduled_payout_time;
                      uint32_t next_possible_time_sec = dividend_data_obj.last_scheduled_payout_time->sec_since_epoch();
@@ -1489,11 +1881,83 @@ void process_dividend_assets(database& db)
                         (dividend_data_obj.last_payout_time)
                         (dividend_data_obj.options.next_payout_time));
                });
-            } 
+            }
             FC_RETHROW_EXCEPTIONS(error, "Error while paying out dividends for holder asset ${holder_asset}", ("holder_asset", dividend_holder_asset_obj.symbol))
          }
       }
 } FC_CAPTURE_AND_RETHROW() }
+
+void database::perform_son_tasks()
+{
+   const global_property_object& gpo = get_global_properties();
+   if(gpo.parameters.son_account() == GRAPHENE_NULL_ACCOUNT && head_block_time() >= HARDFORK_SON_TIME)
+   {
+      const auto& son_account = create<account_object>([&](account_object& a) {
+         a.name = "son-account";
+         a.statistics = create<account_statistics_object>([&a](account_statistics_object& s){
+            s.owner = a.id;
+            s.name = a.name;
+         }).id;
+         a.owner.weight_threshold = 1;
+         a.active.weight_threshold = 0;
+         a.registrar = a.lifetime_referrer = a.referrer = a.id;
+         a.membership_expiration_date = time_point_sec::maximum();
+         a.network_fee_percentage = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
+         a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT - GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
+      });
+
+      modify( gpo, [&son_account]( global_property_object& gpo ) {
+            gpo.parameters.extensions.value.son_account = son_account.get_id();
+            if( gpo.pending_parameters )
+               gpo.pending_parameters->extensions.value.son_account = son_account.get_id();
+      });
+   }
+   // create BTC asset here because son_account is the issuer of the BTC
+   if (gpo.parameters.btc_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_TIME)
+   {
+      const asset_dynamic_data_object& dyn_asset =
+         create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
+            a.current_supply = 0;
+         });
+
+      const asset_object& btc_asset =
+         create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
+            a.symbol = "BTC";
+            a.precision = 8;
+            a.issuer = gpo.parameters.son_account();
+            a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+            a.options.market_fee_percent = 500; // 5%
+            a.options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
+            a.options.flags = asset_issuer_permission_flags::charge_market_fee |
+                              //asset_issuer_permission_flags::white_list |
+                              asset_issuer_permission_flags::override_authority |
+                              asset_issuer_permission_flags::transfer_restricted |
+                              asset_issuer_permission_flags::disable_confidential;
+            a.options.core_exchange_rate.base.amount = 100000;
+            a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
+            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
+            a.options.core_exchange_rate.quote.asset_id = a.id;
+            a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
+            a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
+            a.options.whitelist_markets.clear(); // might be traded with
+            a.options.blacklist_markets.clear(); // might not be traded with
+            a.dynamic_asset_data_id = dyn_asset.id;
+         });
+      modify( gpo, [&btc_asset]( global_property_object& gpo ) {
+            gpo.parameters.extensions.value.btc_asset = btc_asset.get_id();
+            if( gpo.pending_parameters )
+               gpo.pending_parameters->extensions.value.btc_asset = btc_asset.get_id();
+      });
+   }
+   // Pay the SONs
+   if (head_block_time() >= HARDFORK_SON_TIME)
+   {
+      // Before making a budget we should pay out SONs
+      // This function should check if its time to pay sons
+      // and modify the global son funds accordingly, whatever is left is passed on to next budget
+      pay_sons();
+   }
+}
 
 void database::perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props)
 { try {
@@ -1517,6 +1981,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          d._vote_tally_buffer.resize(props.next_available_vote_id);
          d._witness_count_histogram_buffer.resize(props.parameters.maximum_witness_count / 2 + 1);
          d._committee_count_histogram_buffer.resize(props.parameters.maximum_committee_count / 2 + 1);
+         d._son_count_histogram_buffer.resize(props.parameters.maximum_son_count / 2 + 1);
          d._total_voting_stake = 0;
 
          auto balance_type = vesting_balance_type::normal;
@@ -1628,6 +2093,18 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                // same rationale as for witnesses
                d._committee_count_histogram_buffer[offset] += voting_stake;
             }
+            if( opinion_account.options.num_son <= props.parameters.maximum_son_count )
+            {
+               uint16_t offset = std::min(size_t(opinion_account.options.num_son/2),
+                                          d._son_count_histogram_buffer.size() - 1);
+               // votes for a number greater than maximum_son_count
+               // are turned into votes for maximum_son_count.
+               //
+               // in particular, this takes care of the case where a
+               // member was voting for a high number, then the
+               // parameter was lowered.
+               d._son_count_histogram_buffer[offset] += voting_stake;
+            }
 
             d._total_voting_stake += voting_stake;
          }
@@ -1643,11 +2120,14 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    };
    clear_canary a(_witness_count_histogram_buffer),
                 b(_committee_count_histogram_buffer),
+                d(_son_count_histogram_buffer),
                 c(_vote_tally_buffer);
 
+   perform_son_tasks();
    update_top_n_authorities(*this);
    update_active_witnesses();
    update_active_committee_members();
+   update_active_sons();
    update_worker_votes();
 
    const dynamic_global_property_object& dgpo = get_dynamic_global_properties();
@@ -1687,6 +2167,22 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.account_roles_max_per_account = p.parameters.extensions.value.account_roles_max_per_account;
          if( !p.pending_parameters->extensions.value.account_roles_max_lifetime.valid() )
             p.pending_parameters->extensions.value.account_roles_max_lifetime = p.parameters.extensions.value.account_roles_max_lifetime;
+         if( !p.pending_parameters->extensions.value.son_vesting_amount.valid() )
+            p.pending_parameters->extensions.value.son_vesting_amount = p.parameters.extensions.value.son_vesting_amount;
+         if( !p.pending_parameters->extensions.value.son_vesting_period.valid() )
+            p.pending_parameters->extensions.value.son_vesting_period = p.parameters.extensions.value.son_vesting_period;
+         if( !p.pending_parameters->extensions.value.son_pay_max.valid() )
+            p.pending_parameters->extensions.value.son_pay_max = p.parameters.extensions.value.son_pay_max;
+         if( !p.pending_parameters->extensions.value.son_pay_time.valid() )
+            p.pending_parameters->extensions.value.son_pay_time = p.parameters.extensions.value.son_pay_time;
+         if( !p.pending_parameters->extensions.value.son_deregister_time.valid() )
+            p.pending_parameters->extensions.value.son_deregister_time = p.parameters.extensions.value.son_deregister_time;
+         if( !p.pending_parameters->extensions.value.son_heartbeat_frequency.valid() )
+            p.pending_parameters->extensions.value.son_heartbeat_frequency = p.parameters.extensions.value.son_heartbeat_frequency;
+         if( !p.pending_parameters->extensions.value.son_down_time.valid() )
+            p.pending_parameters->extensions.value.son_down_time = p.parameters.extensions.value.son_down_time;
+         if( !p.pending_parameters->extensions.value.son_bitcoin_min_tx_confirmations.valid() )
+            p.pending_parameters->extensions.value.son_bitcoin_min_tx_confirmations = p.parameters.extensions.value.son_bitcoin_min_tx_confirmations;
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }
