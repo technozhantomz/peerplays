@@ -13,6 +13,7 @@ RUN \
       build-essential \
       ca-certificates \
       cmake \
+      dnsutils \
       doxygen \
       git \
       graphviz \
@@ -22,6 +23,7 @@ RUN \
       libreadline-dev \
       libssl-dev \
       libtool \
+      libzmq3-dev \
       locales \
       ntp \
       pkg-config \
@@ -57,7 +59,7 @@ RUN \
     cd build/release && \
     cmake \
         -DBOOST_ROOT="$BOOST_ROOT" \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_BUILD_TYPE=Debug \
         ../.. && \
     make witness_node cli_wallet && \
     install -s programs/witness_node/witness_node programs/cli_wallet/cli_wallet /usr/local/bin && \

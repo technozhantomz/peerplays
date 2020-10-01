@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(get_account_history_additional) {
       const account_object& dan = create_account("dan"); // create op 1
 
       create_bitasset("CNY", dan.id); // create op 2
-      create_bitasset("BTC", account_id_type()); // create op 3
+      create_bitasset("BTCTEST", account_id_type()); // create op 3
       create_bitasset("XMR", dan.id); // create op 4
       create_bitasset("EUR", account_id_type()); // create op 5
       create_bitasset("OIL", dan.id); // create op 6
@@ -454,7 +454,7 @@ BOOST_AUTO_TEST_CASE(track_account) {
       BOOST_CHECK_EQUAL(histories[1].id.instance(), 3u);
 
       // create more ops, starting with an untracked account
-      create_bitasset( "BTC", account_id_type() );
+      create_bitasset( "BTCTEST", account_id_type() );
       create_bitasset( "GBP", dan_id );
 
       generate_block( ~database::skip_fork_db );
@@ -468,7 +468,7 @@ BOOST_AUTO_TEST_CASE(track_account) {
       db.pop_block();
 
       // Try again, should result in same object IDs
-      create_bitasset( "BTC", account_id_type() );
+      create_bitasset( "BTCTEST", account_id_type() );
       create_bitasset( "GBP", dan_id );
 
       generate_block();

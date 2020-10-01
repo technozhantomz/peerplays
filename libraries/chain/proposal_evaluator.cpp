@@ -25,6 +25,7 @@
 #include <graphene/chain/proposal_evaluator.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/son_proposal_object.hpp>
 #include <graphene/chain/protocol/account.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/protocol/tournament.hpp>
@@ -129,7 +130,7 @@ struct proposal_operation_hardfork_visitor
 
    void operator()(const vesting_balance_create_operation &vbco) const {
       if(block_time < HARDFORK_GPOS_TIME)
-      FC_ASSERT( vbco.balance_type == vesting_balance_type::normal, "balance_type in vesting create not allowed yet!" );
+         FC_ASSERT( vbco.balance_type == vesting_balance_type::normal, "balance_type in vesting create not allowed yet!" );
    }
 
    void operator()(const custom_permission_create_operation &v) const {
@@ -208,6 +209,29 @@ struct proposal_operation_hardfork_visitor
        FC_ASSERT( block_time >= HARDFORK_NFT_TIME, "account_role_delete_operation not allowed yet!" );
    }
 
+   void operator()(const son_create_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_create_operation not allowed yet!" );
+   }
+
+   void operator()(const son_update_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_update_operation not allowed yet!" );
+   }
+
+   void operator()(const son_deregister_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_deregister_operation not allowed yet!" );
+   }
+
+   void operator()(const son_heartbeat_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_heartbeat_operation not allowed yet!" );
+   }
+
+   void operator()(const son_report_down_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_report_down_operation not allowed yet!" );
+   }
+
+   void operator()(const son_maintenance_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_maintenance_operation not allowed yet!" );
+   }
 
    // loop and self visit in proposals
    void operator()(const proposal_create_operation &v) const {
@@ -215,6 +239,24 @@ struct proposal_operation_hardfork_visitor
          op.op.visit(*this);
    }
 };
+
+void son_hardfork_visitor::operator()( const son_deregister_operation &v )
+{
+   db.create<son_proposal_object>([&]( son_proposal_object& son_prop ) {
+      son_prop.proposal_type = son_proposal_type::son_deregister_proposal;
+      son_prop.proposal_id = prop_id;
+      son_prop.son_id = v.son_id;
+   });
+}
+
+void son_hardfork_visitor::operator()( const son_report_down_operation &v )
+{
+   db.create<son_proposal_object>([&]( son_proposal_object& son_prop ) {
+      son_prop.proposal_type = son_proposal_type::son_report_down_proposal;
+      son_prop.proposal_id = prop_id;
+      son_prop.son_id = v.son_id;
+   });
+}
 
 void_result proposal_create_evaluator::do_evaluate( const proposal_create_operation& o )
 { try {
@@ -297,6 +339,12 @@ object_id_type proposal_create_evaluator::do_apply( const proposal_create_operat
                           proposal.required_owner_approvals.begin(), proposal.required_owner_approvals.end(),
                           std::inserter(proposal.required_active_approvals, proposal.required_active_approvals.begin()));
    });
+
+   son_hardfork_visitor son_vtor(d, proposal.id);
+   for(auto& op: o.proposed_ops)
+   {
+      op.op.visit(son_vtor);
+   }
 
    return proposal.id;
 } FC_CAPTURE_AND_RETHROW( (o) ) }

@@ -50,6 +50,12 @@
 #include <graphene/chain/protocol/offer.hpp>
 #include <graphene/chain/protocol/nft_ops.hpp>
 #include <graphene/chain/protocol/account_role.hpp>
+#include <graphene/chain/protocol/son.hpp>
+#include <graphene/chain/protocol/sidechain_address.hpp>
+#include <graphene/chain/protocol/son_wallet.hpp>
+#include <graphene/chain/protocol/son_wallet_deposit.hpp>
+#include <graphene/chain/protocol/son_wallet_withdraw.hpp>
+#include <graphene/chain/protocol/sidechain_transaction.hpp>
 
 namespace graphene { namespace chain {
 
@@ -159,7 +165,26 @@ namespace graphene { namespace chain {
             nft_set_approval_for_all_operation,
             account_role_create_operation,
             account_role_update_operation,
-            account_role_delete_operation
+            account_role_delete_operation,
+            son_create_operation,
+            son_update_operation,
+            son_deregister_operation,
+            son_heartbeat_operation,
+            son_report_down_operation,
+            son_maintenance_operation,
+            son_wallet_recreate_operation,
+            son_wallet_update_operation,
+            son_wallet_deposit_create_operation,
+            son_wallet_deposit_process_operation,
+            son_wallet_withdraw_create_operation,
+            son_wallet_withdraw_process_operation,
+            sidechain_address_add_operation,
+            sidechain_address_update_operation,
+            sidechain_address_delete_operation,
+            sidechain_transaction_create_operation,
+            sidechain_transaction_sign_operation,
+            sidechain_transaction_send_operation,
+            sidechain_transaction_settle_operation
          > operation;
 
    /// @} // operations group

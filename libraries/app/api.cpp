@@ -448,7 +448,17 @@ namespace graphene { namespace app {
             } case balance_object_type:{
                /** these are free from any accounts */
                break;
-            } 
+            } case son_object_type:{
+               const auto& aobj = dynamic_cast<const son_object*>(obj);
+               assert( aobj != nullptr );
+               accounts.insert( aobj->son_account );
+               break;
+            } case sidechain_address_object_type:{
+               const auto& aobj = dynamic_cast<const sidechain_address_object*>(obj);
+               assert( aobj != nullptr );
+               accounts.insert( aobj->sidechain_address_account );
+               break;
+            }
             case sport_object_type:
             case event_group_object_type:
             case event_object_type:
