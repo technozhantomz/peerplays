@@ -52,6 +52,7 @@
 #include <graphene/chain/custom_permission_object.hpp>
 #include <graphene/chain/custom_account_authority_object.hpp>
 #include <graphene/chain/offer_object.hpp>
+#include <graphene/chain/account_role_object.hpp>
 
 #include <graphene/chain/nft_object.hpp>
 
@@ -60,6 +61,13 @@
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/global_betting_statistics_object.hpp>
+#include <graphene/chain/son_object.hpp>
+#include <graphene/chain/son_proposal_object.hpp>
+#include <graphene/chain/son_wallet_object.hpp>
+#include <graphene/chain/son_wallet_deposit_object.hpp>
+#include <graphene/chain/son_wallet_withdraw_object.hpp>
+#include <graphene/chain/sidechain_address_object.hpp>
+#include <graphene/chain/sidechain_transaction_object.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
@@ -85,6 +93,13 @@
 #include <graphene/chain/custom_account_authority_evaluator.hpp>
 #include <graphene/chain/offer_evaluator.hpp>
 #include <graphene/chain/nft_evaluator.hpp>
+#include <graphene/chain/account_role_evaluator.hpp>
+#include <graphene/chain/son_evaluator.hpp>
+#include <graphene/chain/son_wallet_evaluator.hpp>
+#include <graphene/chain/son_wallet_deposit_evaluator.hpp>
+#include <graphene/chain/son_wallet_withdraw_evaluator.hpp>
+#include <graphene/chain/sidechain_address_evaluator.hpp>
+#include <graphene/chain/sidechain_transaction_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -186,6 +201,9 @@ const uint8_t offer_object::type_id;
 const uint8_t offer_history_object::space_id;
 const uint8_t offer_history_object::type_id;
 
+const uint8_t account_role_object::space_id;
+const uint8_t account_role_object::type_id;
+
 void database::initialize_evaluators()
 {
    _operation_evaluators.resize(255);
@@ -275,6 +293,28 @@ void database::initialize_evaluators()
    register_evaluator<nft_safe_transfer_from_evaluator>();
    register_evaluator<nft_approve_evaluator>();
    register_evaluator<nft_set_approval_for_all_evaluator>();
+   register_evaluator<account_role_create_evaluator>();
+   register_evaluator<account_role_update_evaluator>();
+   register_evaluator<account_role_delete_evaluator>();
+   register_evaluator<create_son_evaluator>();
+   register_evaluator<update_son_evaluator>();
+   register_evaluator<deregister_son_evaluator>();
+   register_evaluator<son_heartbeat_evaluator>();
+   register_evaluator<son_report_down_evaluator>();
+   register_evaluator<son_maintenance_evaluator>();
+   register_evaluator<recreate_son_wallet_evaluator>();
+   register_evaluator<update_son_wallet_evaluator>();
+   register_evaluator<create_son_wallet_deposit_evaluator>();
+   register_evaluator<process_son_wallet_deposit_evaluator>();
+   register_evaluator<create_son_wallet_withdraw_evaluator>();
+   register_evaluator<process_son_wallet_withdraw_evaluator>();
+   register_evaluator<add_sidechain_address_evaluator>();
+   register_evaluator<update_sidechain_address_evaluator>();
+   register_evaluator<delete_sidechain_address_evaluator>();
+   register_evaluator<sidechain_transaction_create_evaluator>();
+   register_evaluator<sidechain_transaction_sign_evaluator>();
+   register_evaluator<sidechain_transaction_send_evaluator>();
+   register_evaluator<sidechain_transaction_settle_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -291,6 +331,7 @@ void database::initialize_indexes()
    acnt_index->add_secondary_index<account_referrer_index>();
 
    add_index< primary_index<committee_member_index, 8> >(); // 256 members per chunk
+   add_index< primary_index<son_index> >();
    add_index< primary_index<witness_index, 10> >(); // 1024 witnesses per chunk
    add_index< primary_index<limit_order_index > >();
    add_index< primary_index<call_order_index > >();
@@ -323,6 +364,15 @@ void database::initialize_indexes()
 
    add_index< primary_index<nft_metadata_index > >();
    add_index< primary_index<nft_index > >();
+   add_index< primary_index<account_role_index> >();
+   add_index< primary_index<son_proposal_index> >();
+
+   add_index< primary_index<son_wallet_index> >();
+   add_index< primary_index<son_wallet_deposit_index> >();
+   add_index< primary_index<son_wallet_withdraw_index> >();
+
+   add_index< primary_index<sidechain_address_index> >();
+   add_index< primary_index<sidechain_transaction_index> >();
 
    //Implementation object indexes
    add_index< primary_index<transaction_index                             > >();
@@ -339,6 +389,7 @@ void database::initialize_indexes()
    add_index< primary_index<flat_index<  block_summary_object            >> >();
    add_index< primary_index<simple_index<chain_property_object          > > >();
    add_index< primary_index<simple_index<witness_schedule_object        > > >();
+   add_index< primary_index<simple_index<son_schedule_object            > > >();
    add_index< primary_index<simple_index<budget_record_object           > > >();
    add_index< primary_index< special_authority_index                      > >();
    add_index< primary_index< buyback_index                                > >();
@@ -353,6 +404,7 @@ void database::initialize_indexes()
    add_index< primary_index<lottery_balance_index                         > >();
    add_index< primary_index<sweeps_vesting_balance_index                  > >();
    add_index< primary_index<offer_history_index                           > >();
+   add_index< primary_index<son_stats_index                               > >();
 
 }
 
@@ -996,6 +1048,29 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          _wso.current_shuffled_witnesses.push_back( wid );
    });
    FC_ASSERT( _p_witness_schedule_obj->id == witness_schedule_id_type() );
+
+      // Initialize witness schedule
+#ifndef NDEBUG
+   const son_schedule_object& sso =
+#endif
+   create<son_schedule_object>([&](son_schedule_object& _sso)
+   {
+      // for scheduled
+      memset(_sso.rng_seed.begin(), 0, _sso.rng_seed.size());
+
+      witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+
+      auto init_witnesses = get_global_properties().active_witnesses;
+
+      _sso.scheduler = son_scheduler();
+      _sso.scheduler._min_token_count = std::max(int(init_witnesses.size()) / 2, 1);
+
+
+      _sso.last_scheduling_block = 0;
+
+      _sso.recent_slots_filled = fc::uint128::max_value();
+   });
+   assert( sso.id == son_schedule_id_type() );
 
    // Enable fees
    modify(get_global_properties(), [&genesis_state](global_property_object& p) {

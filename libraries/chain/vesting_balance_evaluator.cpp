@@ -42,6 +42,9 @@ void_result vesting_balance_create_evaluator::do_evaluate( const vesting_balance
    FC_ASSERT( d.get_balance( creator_account.id, op.amount.asset_id ) >= op.amount );
    FC_ASSERT( !op.amount.asset_id(d).is_transfer_restricted() );
 
+   if(d.head_block_time() >= HARDFORK_SON_TIME && op.balance_type == vesting_balance_type::son) // Todo: hf check can be removed after pass
+      FC_ASSERT( op.amount.amount >= d.get_global_properties().parameters.son_vesting_amount() );
+
    if(d.head_block_time() < HARDFORK_GPOS_TIME) // Todo: can be removed after gpos hf time pass
       FC_ASSERT( op.balance_type == vesting_balance_type::normal);
 
@@ -79,6 +82,11 @@ struct init_policy_visitor
       policy.coin_seconds_earned_last_update = now;
       p = policy;
    }
+   void operator()( const dormant_vesting_policy_initializer& i )const
+   {
+      dormant_vesting_policy policy;
+      p = policy;
+   }
 };
 
 object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance_create_operation& op )
@@ -110,8 +118,6 @@ object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance
       }
       obj.balance_type = op.balance_type;
    } );
-
-
    return vbo.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -133,7 +139,7 @@ void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balan
    const time_point_sec now = d.head_block_time();
 
    const vesting_balance_object& vbo = op.vesting_balance( d );
-   if(vbo.balance_type == vesting_balance_type::normal)
+   if(vbo.balance_type == vesting_balance_type::normal || vbo.balance_type == vesting_balance_type::son)
    {
       FC_ASSERT( op.owner == vbo.owner, "", ("op.owner", op.owner)("vbo.owner", vbo.owner) );
       FC_ASSERT( vbo.is_withdraw_allowed( now, op.amount ), "Account has insufficient ${balance_type} Vested Balance to withdraw",
@@ -173,7 +179,7 @@ void_result vesting_balance_withdraw_evaluator::do_apply( const vesting_balance_
    //Handling all GPOS withdrawls separately from normal and SONs(future extension).
    // One request/transaction would be sufficient to withdraw from multiple vesting balance ids
    const vesting_balance_object& vbo = op.vesting_balance( d );
-   if(vbo.balance_type == vesting_balance_type::normal)
+   if(vbo.balance_type == vesting_balance_type::normal || vbo.balance_type == vesting_balance_type::son)
    {
       // Allow zero balance objects to stick around, (1) to comply
       // with the chain's "objects live forever" design principle, (2)

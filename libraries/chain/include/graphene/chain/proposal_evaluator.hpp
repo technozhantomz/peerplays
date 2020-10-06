@@ -30,6 +30,22 @@
 
 namespace graphene { namespace chain {
 
+   class son_hardfork_visitor
+   {
+   public:
+      typedef void result_type;
+      database& db;
+      proposal_id_type prop_id;
+
+      son_hardfork_visitor( database& _db, const proposal_id_type& _prop_id  ) : db( _db ), prop_id( _prop_id ) {}
+
+      template<typename T>
+      void operator()( const T &v ) const {}
+
+      void operator()( const son_deregister_operation &v );
+      void operator()( const son_report_down_operation &v );
+   };
+
    class proposal_create_evaluator : public evaluator<proposal_create_evaluator>
    {
       public:

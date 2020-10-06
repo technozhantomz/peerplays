@@ -30,6 +30,9 @@
 #include <graphene/chain/custom_permission_object.hpp>
 #include <graphene/chain/custom_account_authority_object.hpp>
 #include <graphene/chain/offer_object.hpp>
+#include <graphene/chain/account_role_object.hpp>
+#include <graphene/chain/son_object.hpp>
+#include <graphene/chain/son_proposal_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -192,4 +195,126 @@ bool database::item_locked(const nft_id_type &item) const
    auto items_itr = market_items._locked_items.find(item);
    return (items_itr != market_items._locked_items.end());
 }
+
+bool database::account_role_valid(const account_role_object &aro, account_id_type account, optional<int> op_type) const
+{
+   return (aro.valid_to > head_block_time()) &&
+          (aro.whitelisted_accounts.find(account) != aro.whitelisted_accounts.end()) &&
+          (!op_type || (aro.allowed_operations.find(*op_type) != aro.allowed_operations.end()));
+}
+std::set<son_id_type> database::get_sons_being_deregistered()
+{
+   std::set<son_id_type> ret;
+   const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get< by_id >();
+
+   for( auto& son_proposal : son_proposal_idx )
+   {
+      if(son_proposal.proposal_type == son_proposal_type::son_deregister_proposal)
+      {
+         ret.insert(son_proposal.son_id);
+      }
+   }
+   return ret;
+}
+
+std::set<son_id_type> database::get_sons_to_be_deregistered()
+{
+   std::set<son_id_type> ret;
+   const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
+
+   for( auto& son : son_idx )
+   {
+      if(son.status == son_status::in_maintenance)
+      {
+         auto stats = son.statistics(*this);
+         // TODO : We need to add a function that returns if we can deregister SON 
+         // i.e. with introduction of PW code, we have to make a decision if the SON 
+         // is needed for release of funds from the PW
+         if(head_block_time() - stats.last_down_timestamp >= fc::seconds(get_global_properties().parameters.son_deregister_time()))
+         {
+            ret.insert(son.id);
+         }
+      }
+   }
+   return ret;
+}
+
+std::set<son_id_type> database::get_sons_being_reported_down()
+{
+   std::set<son_id_type> ret;
+   const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get< by_id >();
+
+   for( auto& son_proposal : son_proposal_idx )
+   {
+      if(son_proposal.proposal_type == son_proposal_type::son_report_down_proposal)
+      {
+         ret.insert(son_proposal.son_id);
+      }
+   }
+   return ret;
+}
+
+fc::optional<operation> database::create_son_deregister_proposal( son_id_type son_id, account_id_type paying_son )
+{
+   son_deregister_operation son_dereg_op;
+   son_dereg_op.payer = get_global_properties().parameters.son_account();
+   son_dereg_op.son_id = son_id;
+
+   proposal_create_operation proposal_op;
+   proposal_op.fee_paying_account = paying_son;
+   proposal_op.proposed_ops.push_back( op_wrapper( son_dereg_op ) );
+   uint32_t lifetime = ( get_global_properties().parameters.block_interval * get_global_properties().active_witnesses.size() ) * 3;
+   proposal_op.expiration_time = time_point_sec( head_block_time().sec_since_epoch() + lifetime );
+   return proposal_op;
+}
+
+signed_transaction database::create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op )
+{
+   signed_transaction processed_trx;
+   auto dyn_props = get_dynamic_global_properties();
+   processed_trx.set_reference_block( dyn_props.head_block_id );
+   processed_trx.set_expiration( head_block_time() + get_global_properties().parameters.maximum_time_until_expiration );
+   processed_trx.operations.push_back( op );
+   current_fee_schedule().set_fee( processed_trx.operations.back() );
+
+   processed_trx.sign( signing_private_key, get_chain_id() );
+
+   return processed_trx;
+}
+
+bool database::is_son_dereg_valid( son_id_type son_id )
+{
+   const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
+   auto son = son_idx.find( son_id );
+   if(son == son_idx.end())
+   {
+      return false;
+   }
+
+   return (son->status == son_status::in_maintenance &&
+                (head_block_time() - son->statistics(*this).last_down_timestamp >= fc::seconds(get_global_properties().parameters.son_deregister_time())));
+}
+
+bool database::is_son_active( son_id_type son_id )
+{
+   const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
+   auto son = son_idx.find( son_id );
+   if(son == son_idx.end())
+   {
+      return false;
+   }
+
+   const global_property_object& gpo = get_global_properties();
+   vector<son_id_type> active_son_ids;
+   active_son_ids.reserve(gpo.active_sons.size());
+   std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                  std::inserter(active_son_ids, active_son_ids.end()),
+                  [](const son_info& swi) {
+      return swi.son_id;
+   });
+
+   auto it_son = std::find(active_son_ids.begin(), active_son_ids.end(), son_id);
+   return (it_son != active_son_ids.end());
+}
+
 } }

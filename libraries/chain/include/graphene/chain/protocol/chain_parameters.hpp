@@ -27,6 +27,7 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
+#include <graphene/chain/hardfork.hpp>
 #include <../hardfork.d/GPOS.hf>
 #include <memory>
 
@@ -52,6 +53,21 @@ namespace graphene { namespace chain {
       optional < uint16_t >           rbac_max_permissions_per_account    = RBAC_MAX_PERMISSIONS_PER_ACCOUNT;
       optional < uint32_t >           rbac_max_account_authority_lifetime = RBAC_MAX_ACCOUNT_AUTHORITY_LIFETIME;
       optional < uint16_t >           rbac_max_authorities_per_permission = RBAC_MAX_AUTHS_PER_PERMISSION;
+      /* Account Roles - Permissions Parameters */
+      optional < uint16_t >           account_roles_max_per_account    = ACCOUNT_ROLES_MAX_PER_ACCOUNT;
+      optional < uint32_t >           account_roles_max_lifetime       = ACCOUNT_ROLES_MAX_LIFETIME;
+
+      optional < uint32_t >           son_vesting_amount                = SON_VESTING_AMOUNT;
+      optional < uint32_t >           son_vesting_period                = SON_VESTING_PERIOD;
+      optional < uint32_t >           son_pay_max                       = SON_PAY_MAX;
+      optional < uint32_t >           son_pay_time                      = SON_PAY_TIME;
+      optional < uint32_t >           son_deregister_time               = SON_DEREGISTER_TIME;
+      optional < uint32_t >           son_heartbeat_frequency           = SON_HEARTBEAT_FREQUENCY;
+      optional < uint32_t >           son_down_time                     = SON_DOWN_TIME;
+      optional < uint16_t >           son_bitcoin_min_tx_confirmations  = SON_BITCOIN_MIN_TX_CONFIRMATIONS;
+
+      optional < account_id_type >    son_account;
+      optional < asset_id_type >      btc_asset;
    };
 
    struct chain_parameters
@@ -70,6 +86,7 @@ namespace graphene { namespace chain {
       uint8_t                 maximum_asset_feed_publishers       = GRAPHENE_DEFAULT_MAX_ASSET_FEED_PUBLISHERS; ///< the maximum number of feed publishers for a given asset
       uint16_t                maximum_witness_count               = GRAPHENE_DEFAULT_MAX_WITNESSES; ///< maximum number of active witnesses
       uint16_t                maximum_committee_count             = GRAPHENE_DEFAULT_MAX_COMMITTEE; ///< maximum number of active committee_members
+      uint16_t                maximum_son_count                   = GRAPHENE_DEFAULT_MAX_SONS; ///< maximum number of active SONS
       uint16_t                maximum_authority_membership        = GRAPHENE_DEFAULT_MAX_AUTHORITY_MEMBERSHIP; ///< largest number of keys/accounts an authority can have
       uint16_t                reserve_percent_of_fee              = GRAPHENE_DEFAULT_BURN_PERCENT_OF_FEE; ///< the percentage of the network's allocation of a fee that is taken out of circulation
       uint16_t                network_percent_of_fee              = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE; ///< percent of transaction fees paid to network
@@ -101,7 +118,7 @@ namespace graphene { namespace chain {
       uint32_t                maximum_tournament_start_time_in_future = TOURNAMENT_MAX_START_TIME_IN_FUTURE;
       uint32_t                maximum_tournament_start_delay      = TOURNAMENT_MAX_START_DELAY;
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
-      
+
       extension<parameter_extension> extensions;
 
       /** defined in fee_schedule.cpp */
@@ -152,6 +169,42 @@ namespace graphene { namespace chain {
       inline uint16_t rbac_max_authorities_per_permission()const {
          return extensions.value.rbac_max_authorities_per_permission.valid() ? *extensions.value.rbac_max_authorities_per_permission : RBAC_MAX_AUTHS_PER_PERMISSION;
       }
+      inline uint16_t account_roles_max_per_account()const {
+         return extensions.value.account_roles_max_per_account.valid() ? *extensions.value.account_roles_max_per_account : ACCOUNT_ROLES_MAX_PER_ACCOUNT;
+      }
+      inline uint32_t account_roles_max_lifetime()const {
+         return extensions.value.account_roles_max_lifetime.valid() ? *extensions.value.account_roles_max_lifetime : ACCOUNT_ROLES_MAX_LIFETIME;
+      }
+      inline uint32_t son_vesting_amount()const {
+         return extensions.value.son_vesting_amount.valid() ? *extensions.value.son_vesting_amount : SON_VESTING_AMOUNT; /// current period start date
+      }
+      inline uint32_t son_vesting_period()const {
+         return extensions.value.son_vesting_period.valid() ? *extensions.value.son_vesting_period : SON_VESTING_PERIOD; /// current period start date
+      }
+      inline uint16_t son_pay_max()const {
+         return extensions.value.son_pay_max.valid() ? *extensions.value.son_pay_max : SON_PAY_MAX;
+      }
+      inline uint16_t son_pay_time()const {
+         return extensions.value.son_pay_time.valid() ? *extensions.value.son_pay_time : SON_PAY_TIME;
+      }
+      inline uint16_t son_deregister_time()const {
+         return extensions.value.son_deregister_time.valid() ? *extensions.value.son_deregister_time : SON_DEREGISTER_TIME;
+      }
+      inline uint16_t son_heartbeat_frequency()const {
+         return extensions.value.son_heartbeat_frequency.valid() ? *extensions.value.son_heartbeat_frequency : SON_HEARTBEAT_FREQUENCY;
+      }
+      inline uint16_t son_down_time()const {
+         return extensions.value.son_down_time.valid() ? *extensions.value.son_down_time : SON_DOWN_TIME;
+      }
+      inline uint16_t son_bitcoin_min_tx_confirmations()const {
+         return extensions.value.son_bitcoin_min_tx_confirmations.valid() ? *extensions.value.son_bitcoin_min_tx_confirmations : SON_BITCOIN_MIN_TX_CONFIRMATIONS;
+      }
+      inline account_id_type son_account() const {
+         return extensions.value.son_account.valid() ? *extensions.value.son_account : GRAPHENE_NULL_ACCOUNT;
+      }
+      inline asset_id_type btc_asset() const {
+         return extensions.value.btc_asset.valid() ? *extensions.value.btc_asset : asset_id_type();
+      }
    };
 
 } }  // graphene::chain
@@ -172,6 +225,18 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (rbac_max_permissions_per_account)
    (rbac_max_account_authority_lifetime)
    (rbac_max_authorities_per_permission)
+   (account_roles_max_per_account)
+   (account_roles_max_lifetime)
+   (son_vesting_amount)
+   (son_vesting_period)
+   (son_pay_max)
+   (son_pay_time)
+   (son_deregister_time)
+   (son_heartbeat_frequency)
+   (son_down_time)
+   (son_bitcoin_min_tx_confirmations)
+   (son_account)
+   (btc_asset)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,
@@ -188,6 +253,7 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (maximum_asset_feed_publishers)
             (maximum_witness_count)
             (maximum_committee_count)
+            (maximum_son_count)
             (maximum_authority_membership)
             (reserve_percent_of_fee)
             (network_percent_of_fee)

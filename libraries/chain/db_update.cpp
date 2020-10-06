@@ -225,6 +225,7 @@ void database::clear_expired_proposals()
          elog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
               ("proposal", proposal)("error", e.to_detail_string()));
       }
+      remove_son_proposal(proposal);
       remove(proposal);
    }
 }
@@ -730,5 +731,50 @@ void database::finalize_expired_offers(){
              }
          });
 } FC_CAPTURE_AND_RETHROW()}
+void database::remove_son_proposal( const proposal_object& proposal )
+{ try {
+   if( proposal.proposed_transaction.operations.size() == 1 &&
+     ( proposal.proposed_transaction.operations.back().which() == operation::tag<son_deregister_operation>::value ||
+       proposal.proposed_transaction.operations.back().which() == operation::tag<son_report_down_operation>::value) )
+   {
+      const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get<by_proposal>();
+      auto son_proposal_itr = son_proposal_idx.find( proposal.id );
+      if( son_proposal_itr == son_proposal_idx.end() ) {
+         return;
+      }
+      remove( *son_proposal_itr );
+   }
+} FC_CAPTURE_AND_RETHROW( (proposal) ) }
+
+void database::remove_inactive_son_down_proposals( const vector<son_id_type>& son_ids_to_remove )
+{
+   const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get< by_id >();
+   std::vector<proposal_id_type> proposals_to_remove;
+
+   for( auto& son_proposal : son_proposal_idx )
+   {
+      if(son_proposal.proposal_type == son_proposal_type::son_report_down_proposal)
+      {
+         auto it = std::find(son_ids_to_remove.begin(), son_ids_to_remove.end(), son_proposal.son_id);
+         if (it != son_ids_to_remove.end())
+         {
+            ilog( "Removing inactive proposal ${p} for son ${s}", ("p", son_proposal.proposal_id) ("s",son_proposal.son_id));
+            proposals_to_remove.push_back(son_proposal.proposal_id);
+         }
+      }
+   }
+
+   for( auto& proposal_id : proposals_to_remove )
+   {
+      const auto& proposal_obj = proposal_id(*this);
+      remove_son_proposal(proposal_obj);
+      remove(proposal_obj);
+   }
+}
+
+void database::remove_inactive_son_proposals( const vector<son_id_type>& son_ids_to_remove )
+{
+   remove_inactive_son_down_proposals( son_ids_to_remove );
+}
 
 } }

@@ -320,7 +320,7 @@ BOOST_AUTO_TEST_CASE( proposed_single_account )
       {
          vector<authority> other;
          flat_set<account_id_type> active_set, owner_set;
-         operation_get_required_authorities(op,active_set,owner_set,other);
+         operation_get_required_authorities(op, active_set, owner_set, other, false);
          BOOST_CHECK_EQUAL(active_set.size(), 1lu);
          BOOST_CHECK_EQUAL(owner_set.size(), 0lu);
          BOOST_CHECK_EQUAL(other.size(), 0lu);
@@ -328,7 +328,7 @@ BOOST_AUTO_TEST_CASE( proposed_single_account )
 
          active_set.clear();
          other.clear();
-         operation_get_required_authorities(op.proposed_ops.front().op,active_set,owner_set,other);
+         operation_get_required_authorities(op.proposed_ops.front().op, active_set, owner_set, other, false);
          BOOST_CHECK_EQUAL(active_set.size(), 1lu);
          BOOST_CHECK_EQUAL(owner_set.size(), 0lu);
          BOOST_CHECK_EQUAL(other.size(), 0lu);
@@ -1055,7 +1055,7 @@ BOOST_FIXTURE_TEST_CASE( bogus_signature, database_fixture )
 
       flat_set<account_id_type> active_set, owner_set;
       vector<authority> others;
-      trx.get_required_authorities( active_set, owner_set, others );
+      trx.get_required_authorities(active_set, owner_set, others, false);
 
       PUSH_TX( db,  trx, skip  );
 
@@ -1204,9 +1204,12 @@ BOOST_FIXTURE_TEST_CASE( get_required_signatures_test, database_fixture )
          ) -> bool
       {
          //wdump( (tx)(available_keys) );
-         set<public_key_type> result_set = tx.get_required_signatures( db.get_chain_id(), available_keys, get_active, get_owner, get_custom );
-         //wdump( (result_set)(ref_set) );
-         return result_set == ref_set;
+         set<public_key_type> result_set = tx.get_required_signatures(db.get_chain_id(), available_keys,
+                                                                      get_active, get_owner, get_custom, false);
+         set<public_key_type> result_set2 = tx.get_required_signatures(db.get_chain_id(), available_keys,
+                                                                       get_active, get_owner, get_custom, true);
+         //wdump( (result_set)(result_set2)(ref_set) );
+         return result_set == ref_set && result_set2 == ref_set;
       } ;
 
       set_auth( well_id, authority( 60, alice_id, 50, bob_id, 50 ) );
@@ -1326,9 +1329,12 @@ BOOST_FIXTURE_TEST_CASE( nonminimal_sig_test, database_fixture )
          ) -> bool
       {
          //wdump( (tx)(available_keys) );
-         set<public_key_type> result_set = tx.get_required_signatures( db.get_chain_id(), available_keys, get_active, get_owner, get_custom );
-         //wdump( (result_set)(ref_set) );
-         return result_set == ref_set;
+         set<public_key_type> result_set = tx.get_required_signatures(db.get_chain_id(), available_keys,
+                                                                      get_active, get_owner, get_custom, false);
+         set<public_key_type> result_set2 = tx.get_required_signatures(db.get_chain_id(), available_keys,
+                                                                       get_active, get_owner, get_custom, true);
+         //wdump( (result_set)(result_set2)(ref_set) );
+         return result_set == ref_set && result_set2 == ref_set;
       } ;
 
       auto chk_min = [&](
@@ -1338,9 +1344,12 @@ BOOST_FIXTURE_TEST_CASE( nonminimal_sig_test, database_fixture )
          ) -> bool
       {
          //wdump( (tx)(available_keys) );
-         set<public_key_type> result_set = tx.minimize_required_signatures( db.get_chain_id(), available_keys, get_active, get_owner, get_custom );
-         //wdump( (result_set)(ref_set) );
-         return result_set == ref_set;
+         set<public_key_type> result_set = tx.minimize_required_signatures(db.get_chain_id(), available_keys,
+                                                                           get_active, get_owner, get_custom, false);
+         set<public_key_type> result_set2 = tx.minimize_required_signatures(db.get_chain_id(), available_keys,
+                                                                            get_active, get_owner, get_custom, true);
+         //wdump( (result_set)(result_set2)(ref_set) );
+         return result_set == ref_set && result_set2 == ref_set;
       } ;
 
       set_auth( roco_id, authority( 2, styx_id, 1, thud_id, 2 ) );
@@ -1357,9 +1366,13 @@ BOOST_FIXTURE_TEST_CASE( nonminimal_sig_test, database_fixture )
       BOOST_CHECK( chk( tx, { alice_public_key, bob_public_key }, { alice_public_key, bob_public_key } ) );
       BOOST_CHECK( chk_min( tx, { alice_public_key, bob_public_key }, { alice_public_key } ) );
 
-      GRAPHENE_REQUIRE_THROW( tx.verify_authority( db.get_chain_id(), get_active, get_owner, get_custom ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( tx.verify_authority( db.get_chain_id(), get_active, get_owner, get_custom, false ),
+                              fc::exception );
+      GRAPHENE_REQUIRE_THROW( tx.verify_authority( db.get_chain_id(), get_active, get_owner, get_custom, true ),
+                              fc::exception );
       sign( tx, alice_private_key );
-      tx.verify_authority( db.get_chain_id(), get_active, get_owner, get_custom );
+      tx.verify_authority( db.get_chain_id(), get_active, get_owner, get_custom, false );
+      tx.verify_authority( db.get_chain_id(), get_active, get_owner, get_custom, true );
    }
    catch(fc::exception& e)
    {
