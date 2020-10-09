@@ -17,6 +17,27 @@ namespace graphene
                 int first_allowed_op = operation::tag<custom_permission_create_operation>::value;
                 switch (op_type)
                 {
+                case operation::tag<son_create_operation>::value:
+                case operation::tag<son_update_operation>::value:
+                case operation::tag<son_deregister_operation>::value:
+                case operation::tag<son_heartbeat_operation>::value:
+                case operation::tag<son_report_down_operation>::value:
+                case operation::tag<son_maintenance_operation>::value:
+                case operation::tag<son_wallet_recreate_operation>::value:
+                case operation::tag<son_wallet_update_operation>::value:
+                case operation::tag<son_wallet_deposit_create_operation>::value:
+                case operation::tag<son_wallet_deposit_process_operation>::value:
+                case operation::tag<son_wallet_withdraw_create_operation>::value:
+                case operation::tag<son_wallet_withdraw_process_operation>::value:
+                case operation::tag<sidechain_address_add_operation>::value:
+                case operation::tag<sidechain_address_update_operation>::value:
+                case operation::tag<sidechain_address_delete_operation>::value:
+                case operation::tag<sidechain_transaction_create_operation>::value:
+                case operation::tag<sidechain_transaction_sign_operation>::value:
+                case operation::tag<sidechain_transaction_send_operation>::value:
+                case operation::tag<sidechain_transaction_settle_operation>::value:
+                    FC_ASSERT(block_time >= HARDFORK_SON_TIME, "Custom permissions and roles not allowed on this operation yet!");
+                    break;
                 case operation::tag<custom_permission_create_operation>::value:
                 case operation::tag<custom_permission_update_operation>::value:
                 case operation::tag<custom_permission_delete_operation>::value:

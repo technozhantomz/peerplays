@@ -59,7 +59,7 @@ namespace graphene { namespace chain {
 
       optional < uint32_t >           son_vesting_amount                = SON_VESTING_AMOUNT;
       optional < uint32_t >           son_vesting_period                = SON_VESTING_PERIOD;
-      optional < uint32_t >           son_pay_max                       = SON_PAY_MAX;
+      optional < uint64_t >           son_pay_max                       = SON_PAY_MAX;
       optional < uint32_t >           son_pay_time                      = SON_PAY_TIME;
       optional < uint32_t >           son_deregister_time               = SON_DEREGISTER_TIME;
       optional < uint32_t >           son_heartbeat_frequency           = SON_HEARTBEAT_FREQUENCY;
@@ -181,19 +181,19 @@ namespace graphene { namespace chain {
       inline uint32_t son_vesting_period()const {
          return extensions.value.son_vesting_period.valid() ? *extensions.value.son_vesting_period : SON_VESTING_PERIOD; /// current period start date
       }
-      inline uint16_t son_pay_max()const {
+      inline uint64_t son_pay_max()const {
          return extensions.value.son_pay_max.valid() ? *extensions.value.son_pay_max : SON_PAY_MAX;
       }
-      inline uint16_t son_pay_time()const {
+      inline uint32_t son_pay_time()const {
          return extensions.value.son_pay_time.valid() ? *extensions.value.son_pay_time : SON_PAY_TIME;
       }
-      inline uint16_t son_deregister_time()const {
+      inline uint32_t son_deregister_time()const {
          return extensions.value.son_deregister_time.valid() ? *extensions.value.son_deregister_time : SON_DEREGISTER_TIME;
       }
-      inline uint16_t son_heartbeat_frequency()const {
+      inline uint32_t son_heartbeat_frequency()const {
          return extensions.value.son_heartbeat_frequency.valid() ? *extensions.value.son_heartbeat_frequency : SON_HEARTBEAT_FREQUENCY;
       }
-      inline uint16_t son_down_time()const {
+      inline uint32_t son_down_time()const {
          return extensions.value.son_down_time.valid() ? *extensions.value.son_down_time : SON_DOWN_TIME;
       }
       inline uint16_t son_bitcoin_min_tx_confirmations()const {
