@@ -65,9 +65,8 @@ namespace graphene { namespace chain {
       optional < uint32_t >           son_heartbeat_frequency           = SON_HEARTBEAT_FREQUENCY;
       optional < uint32_t >           son_down_time                     = SON_DOWN_TIME;
       optional < uint16_t >           son_bitcoin_min_tx_confirmations  = SON_BITCOIN_MIN_TX_CONFIRMATIONS;
-
-      optional < account_id_type >    son_account;
-      optional < asset_id_type >      btc_asset;
+      optional < account_id_type >    son_account                       = GRAPHENE_NULL_ACCOUNT;
+      optional < asset_id_type >      btc_asset                         = asset_id_type();
       optional < uint16_t >           maximum_son_count                 = GRAPHENE_DEFAULT_MAX_SONS; ///< maximum number of active SONS
    };
 
