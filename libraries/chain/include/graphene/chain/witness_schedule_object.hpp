@@ -57,7 +57,7 @@ typedef generic_far_future_witness_scheduler<
 typedef generic_witness_scheduler<
    /* WitnessID  = */ son_id_type,
    /* RNG        = */ witness_scheduler_rng,
-   /* CountType  = */ decltype( chain_parameters::maximum_son_count ),
+   /* CountType  = */ decltype( chain_parameters::extensions.value.maximum_son_count )::value_type,
    /* OffsetType = */ uint32_t,
    /* debug      = */ true
    > son_scheduler;
@@ -65,7 +65,7 @@ typedef generic_witness_scheduler<
 typedef generic_far_future_witness_scheduler<
    /* WitnessID  = */ son_id_type,
    /* RNG        = */ witness_scheduler_rng,
-   /* CountType  = */ decltype( chain_parameters::maximum_son_count ),
+   /* CountType  = */ decltype( chain_parameters::extensions.value.maximum_son_count )::value_type,
    /* OffsetType = */ uint32_t,
    /* debug      = */ true
    > far_future_son_scheduler;

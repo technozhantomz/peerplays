@@ -653,7 +653,7 @@ void database::update_active_sons()
 
    const global_property_object& gpo = get_global_properties();
    const chain_parameters& cp = gpo.parameters;
-   auto sons = sort_votable_objects<son_index>(cp.maximum_son_count);
+   auto sons = sort_votable_objects<son_index>(cp.maximum_son_count());
 
    const auto& all_sons = get_index_type<son_index>().indices();
 
@@ -1981,7 +1981,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          d._vote_tally_buffer.resize(props.next_available_vote_id);
          d._witness_count_histogram_buffer.resize(props.parameters.maximum_witness_count / 2 + 1);
          d._committee_count_histogram_buffer.resize(props.parameters.maximum_committee_count / 2 + 1);
-         d._son_count_histogram_buffer.resize(props.parameters.maximum_son_count / 2 + 1);
+         d._son_count_histogram_buffer.resize(props.parameters.maximum_son_count() / 2 + 1);
          d._total_voting_stake = 0;
 
          auto balance_type = vesting_balance_type::normal;
@@ -2093,7 +2093,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                // same rationale as for witnesses
                d._committee_count_histogram_buffer[offset] += voting_stake;
             }
-            if( opinion_account.options.num_son <= props.parameters.maximum_son_count )
+            if( opinion_account.options.num_son <= props.parameters.maximum_son_count() )
             {
                uint16_t offset = std::min(size_t(opinion_account.options.num_son/2),
                                           d._son_count_histogram_buffer.size() - 1);
@@ -2183,6 +2183,12 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.son_down_time = p.parameters.extensions.value.son_down_time;
          if( !p.pending_parameters->extensions.value.son_bitcoin_min_tx_confirmations.valid() )
             p.pending_parameters->extensions.value.son_bitcoin_min_tx_confirmations = p.parameters.extensions.value.son_bitcoin_min_tx_confirmations;
+	 if( !p.pending_parameters->extensions.value.son_account.valid() )
+            p.pending_parameters->extensions.value.son_account = p.parameters.extensions.value.son_account;
+         if( !p.pending_parameters->extensions.value.btc_asset.valid() )
+            p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
+	 if( !p.pending_parameters->extensions.value.maximum_son_count.valid() )
+            p.pending_parameters->extensions.value.maximum_son_count = p.parameters.extensions.value.maximum_son_count;
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }

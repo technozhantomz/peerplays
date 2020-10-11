@@ -68,6 +68,7 @@ namespace graphene { namespace chain {
 
       optional < account_id_type >    son_account;
       optional < asset_id_type >      btc_asset;
+      optional < uint16_t >           maximum_son_count                 = GRAPHENE_DEFAULT_MAX_SONS; ///< maximum number of active SONS
    };
 
    struct chain_parameters
@@ -86,7 +87,6 @@ namespace graphene { namespace chain {
       uint8_t                 maximum_asset_feed_publishers       = GRAPHENE_DEFAULT_MAX_ASSET_FEED_PUBLISHERS; ///< the maximum number of feed publishers for a given asset
       uint16_t                maximum_witness_count               = GRAPHENE_DEFAULT_MAX_WITNESSES; ///< maximum number of active witnesses
       uint16_t                maximum_committee_count             = GRAPHENE_DEFAULT_MAX_COMMITTEE; ///< maximum number of active committee_members
-      uint16_t                maximum_son_count                   = GRAPHENE_DEFAULT_MAX_SONS; ///< maximum number of active SONS
       uint16_t                maximum_authority_membership        = GRAPHENE_DEFAULT_MAX_AUTHORITY_MEMBERSHIP; ///< largest number of keys/accounts an authority can have
       uint16_t                reserve_percent_of_fee              = GRAPHENE_DEFAULT_BURN_PERCENT_OF_FEE; ///< the percentage of the network's allocation of a fee that is taken out of circulation
       uint16_t                network_percent_of_fee              = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE; ///< percent of transaction fees paid to network
@@ -205,6 +205,9 @@ namespace graphene { namespace chain {
       inline asset_id_type btc_asset() const {
          return extensions.value.btc_asset.valid() ? *extensions.value.btc_asset : asset_id_type();
       }
+      inline uint16_t maximum_son_count()const {
+         return extensions.value.maximum_son_count.valid() ? *extensions.value.maximum_son_count : GRAPHENE_DEFAULT_MAX_SONS;
+      }
    };
 
 } }  // graphene::chain
@@ -237,6 +240,7 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (son_bitcoin_min_tx_confirmations)
    (son_account)
    (btc_asset)
+   (maximum_son_count)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,
@@ -253,7 +257,6 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (maximum_asset_feed_publishers)
             (maximum_witness_count)
             (maximum_committee_count)
-            (maximum_son_count)
             (maximum_authority_membership)
             (reserve_percent_of_fee)
             (network_percent_of_fee)
