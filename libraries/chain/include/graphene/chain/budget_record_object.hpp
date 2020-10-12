@@ -76,7 +76,9 @@ FC_REFLECT(graphene::chain::budget_record,
    (total_budget)
    (witness_budget)
    (worker_budget)
+   (son_budget)
    (leftover_worker_funds)
+   (leftover_son_funds)
    (supply_delta)
 )
 

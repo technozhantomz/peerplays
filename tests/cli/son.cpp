@@ -278,7 +278,7 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
       global_property_object gpo;
 
       gpo = con.wallet_api_ptr->get_global_properties();
-      unsigned int son_number = gpo.parameters.maximum_son_count;
+      unsigned int son_number = gpo.parameters.maximum_son_count();
 
       flat_map<sidechain_type, string> sidechain_public_keys;
 
@@ -578,7 +578,7 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
       global_property_object gpo;
 
       gpo = con.wallet_api_ptr->get_global_properties();
-      unsigned int son_number = gpo.parameters.maximum_son_count;
+      unsigned int son_number = gpo.parameters.maximum_son_count();
 
       flat_map<sidechain_type, string> sidechain_public_keys;
 
@@ -645,7 +645,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
 
       global_property_object gpo;
       gpo = con.wallet_api_ptr->get_global_properties();
-      unsigned int son_number = gpo.parameters.maximum_son_count;
+      unsigned int son_number = gpo.parameters.maximum_son_count();
 
       flat_map<sidechain_type, string> sidechain_public_keys;
 

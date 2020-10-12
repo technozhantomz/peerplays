@@ -344,7 +344,6 @@
     "maximum_asset_feed_publishers": 10,
     "maximum_witness_count": 1001,
     "maximum_committee_count": 1001,
-    "maximum_son_count": 15,
     "maximum_authority_membership": 10,
     "reserve_percent_of_fee": 2000,
     "network_percent_of_fee": 2000,
@@ -392,7 +391,8 @@
       "son_pay_time": 86400,
       "son_deregister_time": 43200,
       "son_heartbeat_frequency": 180,
-      "son_down_time": 360
+      "son_down_time": 360,
+      "maximum_son_count": 15
     }
   },
   "initial_bts_accounts": [],
