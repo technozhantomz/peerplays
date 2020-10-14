@@ -1,5 +1,5 @@
-// SON HARDFORK Saturday, October 17, 2020 00:00:00 UTC
+// SON HARDFORK Saturday, October 20, 2020 00:00:00 UTC
 #ifndef HARDFORK_SON_TIME
 #include <ctime>
-#define HARDFORK_SON_TIME (fc::time_point_sec( 1602892800 ))
+#define HARDFORK_SON_TIME (fc::time_point_sec( 1603152000 ))
 #endif
