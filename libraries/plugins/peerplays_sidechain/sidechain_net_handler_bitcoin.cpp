@@ -940,7 +940,7 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    fc::http::connection conn;
    try {
       conn.connect_to(fc::ip::endpoint(fc::ip::address(ip), rpc_port));
-   } catch (fc::exception e) {
+   } catch (fc::exception &e) {
       elog("No BTC node running at ${ip} or wrong rpc port: ${port}", ("ip", ip)("port", rpc_port));
       FC_ASSERT(false);
    }
@@ -1324,7 +1324,7 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
                database.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-            } catch (fc::exception e) {
+            } catch (fc::exception &e) {
                elog("Sending proposal for son wallet update operation failed with exception ${e}", ("e", e.what()));
                return;
             }
@@ -1375,7 +1375,7 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
                              if (plugin.app().p2p_node())
                                 plugin.app().p2p_node()->broadcast(net::trx_message(trx));
                              return true;
-                          } catch (fc::exception e) {
+                          } catch (fc::exception &e) {
                              elog("Sending proposal for deposit sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
                              return false;
                           }
@@ -1420,7 +1420,7 @@ bool sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_obj
          if (plugin.app().p2p_node())
             plugin.app().p2p_node()->broadcast(net::trx_message(trx));
          return true;
-      } catch (fc::exception e) {
+      } catch (fc::exception &e) {
          elog("Sending proposal for deposit sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
          return false;
       }
@@ -1464,7 +1464,7 @@ bool sidechain_net_handler_bitcoin::process_withdrawal(const son_wallet_withdraw
          if (plugin.app().p2p_node())
             plugin.app().p2p_node()->broadcast(net::trx_message(trx));
          return true;
-      } catch (fc::exception e) {
+      } catch (fc::exception &e) {
          elog("Sending proposal for withdraw sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
          return false;
       }

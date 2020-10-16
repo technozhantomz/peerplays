@@ -1,4 +1,5 @@
 #include <fc/crypto/base58.hpp>
+#include <fc/crypto/sha256.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_address.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_script.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/segwit_addr.hpp>
@@ -99,7 +100,7 @@ bool bitcoin_address::is_p2pk() const {
          parse_hex(address);
          return true;
       }
-   } catch (fc::exception e) {
+   } catch (fc::exception &e) {
       return false;
    }
    return false;
@@ -121,7 +122,7 @@ bool bitcoin_address::is_p2pkh() const {
          return true;
       }
       return false;
-   } catch (fc::exception e) {
+   } catch (fc::exception &e) {
       return false;
    }
 }
@@ -134,7 +135,7 @@ bool bitcoin_address::is_p2sh() const {
          return true;
       }
       return false;
-   } catch (fc::exception e) {
+   } catch (fc::exception &e) {
       return false;
    }
 }
@@ -269,7 +270,7 @@ void btc_weighted_multisig_address::create_redeem_script(const std::vector<std::
 
    redeem_script_ = builder;
 
-   fc::sha256 sh = fc::sha256::hash(redeem_script_);
+   fc::sha256 sh = fc::sha256::hash(redeem_script_.data(), redeem_script_.size());
    raw_address = bytes(sh.data(), sh.data() + sh.data_size());
 }
 
@@ -323,7 +324,7 @@ void btc_one_or_m_of_n_multisig_address::create_redeem_script(const fc::ecc::pub
    builder << op::CHECKMULTISIG;
    builder << op::ENDIF;
    redeem_script_ = builder;
-   fc::sha256 sh = fc::sha256::hash(redeem_script_);
+   fc::sha256 sh = fc::sha256::hash(redeem_script_.data(), redeem_script_.size());
    raw_address = bytes(sh.data(), sh.data() + sh.data_size());
 }
 void btc_one_or_m_of_n_multisig_address::create_witness_script() {
@@ -384,7 +385,7 @@ void btc_one_or_weighted_multisig_address::create_redeem_script(const fc::ecc::p
    builder << op::GREATERTHANOREQUAL;
    builder << op::ENDIF;
    redeem_script_ = builder;
-   fc::sha256 sh = fc::sha256::hash(redeem_script_);
+   fc::sha256 sh = fc::sha256::hash(redeem_script_.data(), redeem_script_.size());
    raw_address = bytes(sh.data(), sh.data() + sh.data_size());
 }
 
@@ -448,7 +449,7 @@ void btc_timelocked_one_or_weighted_multisig_address::create_redeem_script(const
    builder << op::GREATERTHANOREQUAL;
    builder << op::ENDIF;
    redeem_script_ = builder;
-   fc::sha256 sh = fc::sha256::hash(redeem_script_);
+   fc::sha256 sh = fc::sha256::hash(redeem_script_.data(), redeem_script_.size());
    raw_address = bytes(sh.data(), sh.data() + sh.data_size());
 }
 
