@@ -138,7 +138,7 @@ bool sidechain_net_handler::approve_proposal(const proposal_id_type &proposal_id
       if (plugin.app().p2p_node())
          plugin.app().p2p_node()->broadcast(net::trx_message(trx));
       return true;
-   } catch (fc::exception e) {
+   } catch (fc::exception &e) {
       elog("Sending approval from ${son_id} for proposal ${proposal_id} failed with exception ${e}",
            ("son_id", son_id)("proposal_id", proposal_id)("e", e.what()));
       return false;
@@ -205,7 +205,7 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
                database.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-            } catch (fc::exception e) {
+            } catch (fc::exception &e) {
                elog("Sending son wallet deposit create operation by ${son} failed with exception ${e}", ("son", son_id)("e", e.what()));
             }
          }
@@ -247,7 +247,7 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
                database.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-            } catch (fc::exception e) {
+            } catch (fc::exception &e) {
                elog("Sending son wallet withdraw create operation by ${son} failed with exception ${e}", ("son", son_id)("e", e.what()));
             }
          }
@@ -460,7 +460,7 @@ void sidechain_net_handler::process_sidechain_transactions() {
          database.push_transaction(trx, database::validation_steps::skip_block_size_check);
          if (plugin.app().p2p_node())
             plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-      } catch (fc::exception e) {
+      } catch (fc::exception &e) {
          elog("Sending proposal for sidechain transaction sign operation failed with exception ${e}", ("e", e.what()));
       }
    });
@@ -495,7 +495,7 @@ void sidechain_net_handler::send_sidechain_transactions() {
          database.push_transaction(trx, database::validation_steps::skip_block_size_check);
          if (plugin.app().p2p_node())
             plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-      } catch (fc::exception e) {
+      } catch (fc::exception &e) {
          elog("Sending proposal for sidechain transaction send operation failed with exception ${e}", ("e", e.what()));
       }
    });
@@ -560,7 +560,7 @@ void sidechain_net_handler::settle_sidechain_transactions() {
          database.push_transaction(trx, database::validation_steps::skip_block_size_check);
          if (plugin.app().p2p_node())
             plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-      } catch (fc::exception e) {
+      } catch (fc::exception &e) {
          elog("Sending proposal for sidechain transaction settle operation failed with exception ${e}", ("e", e.what()));
       }
    });
