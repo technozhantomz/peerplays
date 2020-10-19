@@ -356,7 +356,7 @@ void peerplays_sidechain_plugin_impl::heartbeat_loop() {
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
                return true;
-            } catch (fc::exception e) {
+            } catch (fc::exception &e) {
                elog("Sending heartbeat failed with exception ${e}", ("e", e.what()));
                return false;
             }
@@ -468,7 +468,7 @@ void peerplays_sidechain_plugin_impl::approve_proposals() {
             if (plugin.app().p2p_node())
                plugin.app().p2p_node()->broadcast(net::trx_message(trx));
             return true;
-         } catch (fc::exception e) {
+         } catch (fc::exception &e) {
             elog("Sending approval failed with exception ${e}", ("e", e.what()));
             return false;
          }
@@ -544,7 +544,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals() {
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
                return true;
-            } catch (fc::exception e) {
+            } catch (fc::exception &e) {
                elog("Sending son down proposal failed with exception ${e}", ("e", e.what()));
                return false;
             }
@@ -579,7 +579,7 @@ void peerplays_sidechain_plugin_impl::create_son_deregister_proposals() {
                      if (plugin.app().p2p_node())
                         plugin.app().p2p_node()->broadcast(net::trx_message(trx));
                      return true;
-                  } catch (fc::exception e) {
+                  } catch (fc::exception &e) {
                      elog("Sending son deregister proposal failed with exception ${e}", ("e", e.what()));
                      return false;
                   }
