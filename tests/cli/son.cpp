@@ -23,7 +23,6 @@
  */
 #include "cli_fixture.hpp"
 
-#include <fc/smart_ref_impl.hpp>
 #include <fc/string.hpp>
 
 #include <boost/test/unit_test.hpp>

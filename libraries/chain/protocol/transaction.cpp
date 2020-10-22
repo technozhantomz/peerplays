@@ -25,7 +25,6 @@
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <fc/io/raw.hpp>
 #include <fc/bitutil.hpp>
-#include <fc/smart_ref_impl.hpp>
 #include <algorithm>
 #include <fc/io/raw.hpp>
 
@@ -106,6 +105,7 @@ void transaction::get_required_authorities( flat_set<account_id_type>& active,
 
 
 
+const flat_set<public_key_type> empty_keyset;
 
 struct sign_state
 {
@@ -231,7 +231,7 @@ struct sign_state
 
       sign_state( const flat_set<public_key_type>& sigs,
                   const std::function<const authority*(account_id_type)>& a,
-                  const flat_set<public_key_type>& keys = flat_set<public_key_type>() )
+                  const flat_set<public_key_type>& keys = empty_keyset )
       :get_active(a),available_keys(keys)
       {
          for( const auto& key : sigs )
@@ -446,7 +446,7 @@ void signed_transaction::verify_authority(
    bool ignore_custom_operation_required_auths,
    uint32_t max_recursion )const
 { try {
-   graphene::chain::verify_authority( operations, get_signature_keys( chain_id ), get_active, get_owner, get_custom, max_recursion );
+   graphene::chain::verify_authority( operations, get_signature_keys( chain_id ), get_active, get_owner, get_custom, ignore_custom_operation_required_auths, max_recursion );
 } FC_CAPTURE_AND_RETHROW( (*this) ) }
 
 } } // graphene::chain

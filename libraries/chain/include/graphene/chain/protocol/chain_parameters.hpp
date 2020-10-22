@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 #pragma once
+#include <memory>
 #include <graphene/chain/protocol/base.hpp>
 #include <graphene/chain/protocol/ext.hpp>
 #include <graphene/chain/protocol/types.hpp>
-#include <fc/smart_ref_fwd.hpp>
 
 #include <graphene/chain/hardfork.hpp>
 #include <../hardfork.d/GPOS.hf>
@@ -72,8 +72,13 @@ namespace graphene { namespace chain {
 
    struct chain_parameters
    {
+      chain_parameters();
+      chain_parameters(const chain_parameters& other);
+      chain_parameters(chain_parameters&& other);
+      chain_parameters& operator=(const chain_parameters& other);
+      chain_parameters& operator=(chain_parameters&& other);
       /** using a smart ref breaks the circular dependency created between operations and the fee schedule */
-      smart_ref<fee_schedule> current_fees;                       ///< current schedule of fees
+      std::shared_ptr<fee_schedule> current_fees;                       ///< current schedule of fees
       uint8_t                 block_interval                      = GRAPHENE_DEFAULT_BLOCK_INTERVAL; ///< interval in seconds between blocks
       uint32_t                maintenance_interval                = GRAPHENE_DEFAULT_MAINTENANCE_INTERVAL; ///< interval in sections between blockchain maintenance events
       uint8_t                 maintenance_skip_slots              = GRAPHENE_DEFAULT_MAINTENANCE_SKIP_SLOTS; ///< number of block_intervals to skip at maintenance time
@@ -207,6 +212,8 @@ namespace graphene { namespace chain {
       inline uint16_t maximum_son_count()const {
          return extensions.value.maximum_son_count.valid() ? *extensions.value.maximum_son_count : GRAPHENE_DEFAULT_MAX_SONS;
       }
+      private:
+      static void safe_copy(chain_parameters& to, const chain_parameters& from);
    };
 
 } }  // graphene::chain

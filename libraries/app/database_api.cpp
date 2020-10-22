@@ -30,7 +30,6 @@
 #include <graphene/chain/pts_address.hpp>
 
 #include <fc/bloom_filter.hpp>
-#include <fc/smart_ref_impl.hpp>
 
 #include <fc/crypto/hex.hpp>
 #include <fc/rpc/api_connection.hpp>

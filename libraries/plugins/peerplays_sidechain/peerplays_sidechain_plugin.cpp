@@ -5,8 +5,6 @@
 #include <boost/range/algorithm_ext/insert.hpp>
 
 #include <fc/log/logger.hpp>
-#include <fc/smart_ref_impl.hpp>
-
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/protocol/transfer.hpp>
 #include <graphene/chain/sidechain_address_object.hpp>
