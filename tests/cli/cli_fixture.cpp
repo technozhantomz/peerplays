@@ -12,7 +12,6 @@
 #include <fc/crypto/base58.hpp>
 
 #include <fc/crypto/aes.hpp>
-#include <fc/smart_ref_impl.hpp>
 
 #ifdef _WIN32
 #ifndef _WIN32_WINNT

@@ -34,8 +34,6 @@
 #include <graphene/chain/son_object.hpp>
 #include <graphene/chain/son_proposal_object.hpp>
 
-#include <fc/smart_ref_impl.hpp>
-
 #include <ctime>
 #include <algorithm>
 
@@ -68,7 +66,7 @@ const dynamic_global_property_object& database::get_dynamic_global_properties() 
 
 const fee_schedule&  database::current_fee_schedule()const
 {
-   return get_global_properties().parameters.current_fees;
+   return std::ref( *get_global_properties().parameters.current_fees );
 }
 
 time_point_sec database::head_block_time()const

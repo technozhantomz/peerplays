@@ -30,7 +30,6 @@
 
 #include "../common/database_fixture.hpp"
 
-#include <fc/smart_ref_impl.hpp>
 #include <fc/crypto/digest.hpp>
 
 using namespace graphene::app;

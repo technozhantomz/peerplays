@@ -32,8 +32,6 @@
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
 
-#include <fc/smart_ref_impl.hpp>
-
 namespace graphene { namespace chain {
 
 struct proposal_operation_hardfork_visitor

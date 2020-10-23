@@ -24,7 +24,6 @@
 #include "cli_fixture.hpp"
 
 #include <fc/crypto/aes.hpp>
-#include <fc/smart_ref_impl.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 

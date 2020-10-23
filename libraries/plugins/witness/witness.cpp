@@ -30,7 +30,6 @@
 
 #include <boost/range/algorithm_ext/insert.hpp>
 
-#include <fc/smart_ref_impl.hpp>
 #include <fc/thread/thread.hpp>
 
 #include <iostream>

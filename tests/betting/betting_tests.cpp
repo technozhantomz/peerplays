@@ -1877,10 +1877,11 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test_not_existed_event_group)
     try
     {
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+	event_group_id_type nhl_id = nhl.id;
+	delete_event_group(nhl_id);
 
-        delete_event_group(nhl.id);
 
-        BOOST_CHECK_THROW(delete_event_group(nhl.id), fc::exception);
+        BOOST_CHECK_THROW(delete_event_group(nhl_id), fc::exception);
     } FC_LOG_AND_RETHROW()
 }
 
