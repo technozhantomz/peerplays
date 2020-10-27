@@ -579,7 +579,10 @@ namespace graphene { namespace app {
     {
         FC_ASSERT( _app.chain_database() );
         const auto& db = *_app.chain_database();
-        FC_ASSERT( limit <= 100 );
+        FC_ASSERT( limit <= api_limit_get_account_history,
+            "Number of querying accounts can not be greater than ${configured_limit}",
+            ("configured_limit", api_limit_get_account_history) );
+
         vector<operation_history_object> result;
         account_id_type account;
         try {
@@ -627,7 +630,10 @@ namespace graphene { namespace app {
     {
        FC_ASSERT( _app.chain_database() );
        const auto& db = *_app.chain_database();
-       FC_ASSERT( limit <= 100 );
+       FC_ASSERT( limit <= api_limit_get_account_history_operations,
+            "Number of querying history accounts can not be greater than ${configured_limit}",
+            ("configured_limit", api_limit_get_account_history_operations) );
+
        vector<operation_history_object> result;
        account_id_type account;
        try {
@@ -667,7 +673,10 @@ namespace graphene { namespace app {
     {
        FC_ASSERT( _app.chain_database() );
        const auto& db = *_app.chain_database();
-       FC_ASSERT(limit <= 100);
+       FC_ASSERT( limit <= api_limit_get_relative_account_history,
+            "Number of querying accounts can not be greater than ${configured_limit}",
+            ("configured_limit", api_limit_get_relative_account_history) );
+            
        vector<operation_history_object> result;
        account_id_type account;
        try {
@@ -804,7 +813,9 @@ namespace graphene { namespace app {
     asset_api::~asset_api() { }
 
     vector<account_asset_balance> asset_api::get_asset_holders( std::string asset, uint32_t start, uint32_t limit ) const {
-      FC_ASSERT(limit <= 100);
+      FC_ASSERT( limit <= api_limit_get_asset_holders,
+            "Number of querying asset holder accounts can not be greater than ${configured_limit}",
+            ("configured_limit", api_limit_get_asset_holders) );
 
       asset_id_type asset_id = database_api.get_asset_id_from_string( asset );
       const auto& bal_idx = _db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();
