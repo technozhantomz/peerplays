@@ -245,7 +245,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       uint32_t api_limit_lookup_committee_member_accounts = 1000;
       uint32_t api_limit_get_trade_history = 100;
       uint32_t api_limit_get_trade_history_by_sequence = 100;
-      
+
       // Account Role
       vector<account_role_object> get_account_roles_by_owner(account_id_type owner) const;
 
@@ -928,7 +928,7 @@ vector<asset> database_api::get_account_balances(const std::string& account_name
    return my->get_account_balances( account_name_or_id, assets );
 }
 
-vector<asset> database_api_impl::get_account_balances( const std::string& account_name_or_id, 
+vector<asset> database_api_impl::get_account_balances( const std::string& account_name_or_id,
                                                        const flat_set<asset_id_type>& assets)const
 {
    const account_object* account = get_account_from_string(account_name_or_id);
@@ -2602,9 +2602,9 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
                         && balance.balance.asset_id == asset_id_type())
                         account_vbos.emplace_back(balance);
                   });
-                  
+
    share_type allowed_withdraw_amount = 0, account_vested_balance = 0;
-   
+
    for (const vesting_balance_object& vesting_balance_obj : account_vbos)
    {
       account_vested_balance += vesting_balance_obj.balance.amount;

@@ -1,7 +1,5 @@
-// SON HARDFORK Wednesday, January 1, 2020 12:00:00 AM - 1577836800
-// SON HARDFORK Monday, March 30, 2020 3:00:00 PM - 1585573200
-// SON HARDFORK Monday, September 21, 2020 1:43:11 PM - 1600695791
+// SON HARDFORK Wednesday, October 28, 2020 0:00:00 GMT
 #ifndef HARDFORK_SON_TIME
 #include <ctime>
-#define HARDFORK_SON_TIME (fc::time_point_sec( 1585573200 ))
+#define HARDFORK_SON_TIME (fc::time_point_sec( 1603843200 ))
 #endif

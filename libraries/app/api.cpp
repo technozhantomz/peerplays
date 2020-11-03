@@ -190,7 +190,7 @@ namespace graphene { namespace app {
     fc::variant network_broadcast_api::broadcast_transaction_synchronous(const signed_transaction& trx)
     {
        _app.chain_database()->check_tansaction_for_duplicated_operations(trx);
-        
+
        fc::promise<fc::variant>::ptr prom( new fc::promise<fc::variant>() );
        broadcast_transaction_with_callback( [=]( const fc::variant& v ){
         prom->set_value(v);
@@ -639,7 +639,7 @@ namespace graphene { namespace app {
        try {
          account = database_api.get_account_id_from_string(account_id_or_name);
        } catch (...) { return result; }
-       
+
        const auto& stats = account(db).statistics(db);
        if( stats.most_recent_op == account_transaction_history_id_type() ) return result;
        const account_transaction_history_object* node = &stats.most_recent_op(db);
@@ -676,7 +676,7 @@ namespace graphene { namespace app {
        FC_ASSERT( limit <= api_limit_get_relative_account_history,
             "Number of querying accounts can not be greater than ${configured_limit}",
             ("configured_limit", api_limit_get_relative_account_history) );
-            
+
        vector<operation_history_object> result;
        account_id_type account;
        try {
@@ -806,7 +806,7 @@ namespace graphene { namespace app {
     }
 
     // asset_api
-    asset_api::asset_api(graphene::app::application& app) : 
+    asset_api::asset_api(graphene::app::application& app) :
          _app(app),
           _db( *app.chain_database()),
           database_api( std::ref(*app.chain_database())) { }
