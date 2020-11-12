@@ -5,7 +5,7 @@ add_library( graphene_affiliate_stats
              affiliate_stats_plugin.cpp
            )
 
-target_link_libraries( graphene_affiliate_stats graphene_chain graphene_app )
+target_link_libraries( graphene_affiliate_stats PRIVATE graphene_plugin graphene_account_history )
 target_include_directories( graphene_affiliate_stats
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 

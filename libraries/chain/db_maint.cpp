@@ -32,22 +32,24 @@
 #include <graphene/chain/is_authorized_asset.hpp>
 
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/account_role_object.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/budget_record_object.hpp>
 #include <graphene/chain/buyback_object.hpp>
 #include <graphene/chain/chain_property_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
+#include <graphene/chain/custom_account_authority_object.hpp>
 #include <graphene/chain/fba_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/special_authority_object.hpp>
 #include <graphene/chain/son_object.hpp>
+#include <graphene/chain/son_wallet_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/vote_count.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/worker_object.hpp>
-#include <graphene/chain/custom_account_authority_object.hpp>
 
 #define USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX // vesting_balance_object by_asset_balance index needed
 

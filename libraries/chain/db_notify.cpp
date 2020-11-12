@@ -24,6 +24,7 @@
 
 #include <fc/container/flat.hpp>
 
+#include <graphene/chain/database.hpp>
 #include <graphene/chain/protocol/authority.hpp>
 #include <graphene/chain/protocol/operations.hpp>
 #include <graphene/chain/protocol/transaction.hpp>
@@ -41,6 +42,10 @@
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/impacted.hpp>
 #include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/account_object.hpp>
+#include <graphene/chain/account_role_object.hpp>
+#include <graphene/chain/son_object.hpp>
+#include <graphene/chain/sidechain_address_object.hpp>
 
 
 using namespace fc;

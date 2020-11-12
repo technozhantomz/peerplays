@@ -4,7 +4,7 @@ add_library( graphene_es_objects
         es_objects.cpp
            )
 
-target_link_libraries( graphene_es_objects graphene_chain graphene_app curl )
+target_link_libraries( graphene_es_objects PRIVATE graphene_plugin curl )
 target_include_directories( graphene_es_objects
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 

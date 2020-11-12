@@ -4,7 +4,7 @@ add_library( graphene_elasticsearch
         elasticsearch_plugin.cpp
            )
 
-target_link_libraries( graphene_elasticsearch graphene_chain graphene_app curl )
+target_link_libraries( graphene_elasticsearch PRIVATE graphene_plugin curl )
 target_include_directories( graphene_elasticsearch
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 
