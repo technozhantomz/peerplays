@@ -83,7 +83,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Keys
       vector<vector<account_id_type>> get_key_references( vector<public_key_type> key )const;
-     bool is_public_key_registered(string public_key) const;
+      bool is_public_key_registered(string public_key) const;
 
       // Accounts
       account_id_type get_account_id_from_string(const std::string& name_or_id)const;

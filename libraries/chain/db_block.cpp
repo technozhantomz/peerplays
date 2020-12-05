@@ -149,7 +149,7 @@ std::vector<block_id_type> database::get_block_ids_on_fork(block_id_type head_of
   return result;
 }
     
-void database::check_tansaction_for_duplicated_operations(const signed_transaction& trx)
+void database::check_transaction_for_duplicated_operations(const signed_transaction& trx)
 {
    const auto& proposal_index = get_index<proposal_object>();
    std::set<fc::sha256> existed_operations_digests;
