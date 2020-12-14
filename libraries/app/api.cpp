@@ -38,7 +38,6 @@
 #include <graphene/chain/tournament_object.hpp>
 
 #include <fc/crypto/hex.hpp>
-#include <fc/smart_ref_impl.hpp>
 #include <fc/rpc/api_connection.hpp>
 #include <fc/thread/future.hpp>
 
@@ -182,7 +181,7 @@ namespace graphene { namespace app {
     void network_broadcast_api::broadcast_transaction(const signed_transaction& trx)
     {
        trx.validate();
-       database_api( *(_app.chain_database() ) ).check_transaction_for_duplicated_operations(trx);
+       _app.chain_database()->check_transaction_for_duplicated_operations(trx);
        _app.chain_database()->push_transaction(trx);
        if( _app.p2p_node() != nullptr )
           _app.p2p_node()->broadcast_transaction(trx);
@@ -190,7 +189,7 @@ namespace graphene { namespace app {
 
     fc::variant network_broadcast_api::broadcast_transaction_synchronous(const signed_transaction& trx)
     {
-       database_api( *(_app.chain_database() ) ).check_transaction_for_duplicated_operations(trx);
+       _app.chain_database()->check_transaction_for_duplicated_operations(trx);
         
        fc::promise<fc::variant>::ptr prom( new fc::promise<fc::variant>() );
        broadcast_transaction_with_callback( [=]( const fc::variant& v ){
@@ -448,7 +447,17 @@ namespace graphene { namespace app {
             } case balance_object_type:{
                /** these are free from any accounts */
                break;
-            } 
+            } case son_object_type:{
+               const auto& aobj = dynamic_cast<const son_object*>(obj);
+               assert( aobj != nullptr );
+               accounts.insert( aobj->son_account );
+               break;
+            } case sidechain_address_object_type:{
+               const auto& aobj = dynamic_cast<const sidechain_address_object*>(obj);
+               assert( aobj != nullptr );
+               accounts.insert( aobj->sidechain_address_account );
+               break;
+            }
             case sport_object_type:
             case event_group_object_type:
             case event_object_type:

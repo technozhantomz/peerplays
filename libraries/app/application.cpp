@@ -37,8 +37,6 @@
 #include <graphene/utilities/key_conversion.hpp>
 #include <graphene/chain/worker_evaluator.hpp>
 
-#include <fc/smart_ref_impl.hpp>
-
 #include <fc/io/fstream.hpp>
 #include <fc/rpc/api_connection.hpp>
 #include <fc/rpc/websocket_api.hpp>
@@ -80,7 +78,7 @@ namespace detail {
       auto nathan_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
       dlog("Allocating all stake to ${key}", ("key", utilities::key_to_wif(nathan_key)));
       genesis_state_type initial_state;
-      initial_state.initial_parameters.current_fees = fee_schedule::get_default();//->set_all_fees(GRAPHENE_BLOCKCHAIN_PRECISION);
+      initial_state.initial_parameters.current_fees = std::make_shared<fee_schedule>(fee_schedule::get_default());
       initial_state.initial_active_witnesses = GRAPHENE_DEFAULT_MIN_WITNESS_COUNT;
       initial_state.initial_timestamp = time_point_sec(time_point::now().sec_since_epoch() /
             initial_state.initial_parameters.block_interval *
@@ -162,41 +160,13 @@ namespace detail {
          {
             // t.me/peerplays #seednodes
             vector<string> seeds = {
-               "seed.ppy.blckchnd.com:6666",           // blckchnd
-               "ppy.esteem.ws:7777",                   // good-karma
-               "peerplays.bitcoiner.me:9777",          // bitcoiner
-               "peerplays.roelandp.nl:9777",           // roelandp
-               "ppyseed.bacchist.me:42420",            // bacchist-witness
-               "5.9.18.213:18828",                     // pfunk
-               "31.171.244.121:7777",                  // taconator
-               "seed.peerplaysdb.com:9777",            // jesta
-               "ppy-seed.xeldal.com:19777",            // xeldal
-               "seed.ppy.altcap.io:61388",             // winner.winner.chicken.dinner
-               "seed.peerplaysnodes.com:9777",         // wackou
-               "peerplays-seed.privex.io:7777",        // someguy123/privex
-               "51.15.78.16:9777",                     // agoric.systems
-               "212.71.253.163:9777",                  // xtar
-               "51.15.35.96:9777",                     // lafona
-               "anyx.ca:9777",                         // anyx
-               "82.223.108.91:7777",                   // hiltos-witness
-               "seed.ppy.nuevax.com:9777",            // nuevax
-               "peerplays.butler.net:9777",            // billbutler-witness
-               "peerplays.bitcoiner.me:9777",          // bitcoiner
-               "ppyseed.bacchist.me:42420",            // bacchist-witness
-               "peerplays.bhuz.info:9777",             // bhuz
-               "node.peerblock.trade:9777",            // bitcoinsig
-               "peerplays.crypto.fans:9777",           // sc-steemit
-               "54.38.193.20:9777",                    // royal-flush
-               "ppy001.bts-nodes.net:7777",            // baxters-sports-witness
-               "ppy002.bts-nodes.net:7777",            // baxters-sports-witness
-               "ppy003.bts-nodes.net:7777",            // baxters-sports-witness
-               "ppy004.bts-nodes.net:7777",            // baxters-sports-witness
-               "ppy.proxyhosts.info:7777",             // baxters-sports-witness
-               "ppyseed.spacemx.tech:9777",            // spacecrypt-witness
-               "peerplaysblockchain.net:9777",         // houdini-witness
-               "54.37.235.164:7777",                   // melea-trust
-               "seed01.eifos.org:7777"                 // eifos    
-               "peerplays-seed.lukestokes.info:7777"   // lukestokes-witness
+               "173.249.23.108:9777",
+               "node.peerblock.trade:9777",
+               "peerplays.blockoperations.com:9777",
+               "pms.blockveritas.co:7777",
+               "seed.ppy.alex-pu.info:8888",
+               "seed.ppy.blckchnd.com:6116",
+               "seed01.eifos.org:7777"
             };
 
             for( const string& endpoint_string : seeds )
@@ -257,7 +227,7 @@ namespace detail {
 
       void new_connection( const fc::http::websocket_connection_ptr& c )
       {
-         auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c, GRAPHENE_MAX_NESTED_OBJECTS);
+         auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(c, GRAPHENE_MAX_NESTED_OBJECTS);
          auto login = std::make_shared<graphene::app::login_api>( std::ref(*_self) );
          login->enable_api("database_api");
 

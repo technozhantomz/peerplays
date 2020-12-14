@@ -1294,6 +1294,12 @@ class wallet_api
        */
       map<string, committee_member_id_type>       list_committee_members(const string& lowerbound, uint32_t limit);
 
+      /** Returns information about the given SON.
+       * @param owner_account the name or id of the SON account owner, or the id of the SON
+       * @returns the information about the SON stored in the block chain
+       */
+      son_object get_son(string owner_account);
+
       /** Returns information about the given witness.
        * @param owner_account the name or id of the witness account owner, or the id of the witness
        * @returns the information about the witness stored in the block chain
@@ -1311,6 +1317,179 @@ class wallet_api
        * @returns the information about the committee_member stored in the block chain
        */
       committee_member_object get_committee_member(string owner_account);
+
+
+      /** Creates a SON object owned by the given account.
+       *
+       * An account can have at most one SON object.
+       *
+       * @param owner_account the name or id of the account which is creating the SON
+       * @param url a URL to include in the SON record in the blockchain.  Clients may
+       *            display this when showing a list of SONs.  May be blank.
+       * @param deposit_id vesting balance id for SON deposit
+       * @param pay_vb_id vesting balance id for SON pay_vb
+       * @param sidechain_public_keys The new set of sidechain public keys.
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction registering a SON
+       */
+      signed_transaction create_son(string owner_account,
+                                    string url,
+                                    vesting_balance_id_type deposit_id,
+                                    vesting_balance_id_type pay_vb_id,
+                                    flat_map<sidechain_type, string> sidechain_public_keys,
+                                    bool broadcast = false);
+
+      /** Creates a SON object owned by the given account.
+       *
+       * Tries to create a SON object owned by the given account using
+       * existing vesting balances, fails if can't quess matching
+       * vesting balance objects. If several vesting balance objects matches
+       * this function uses the recent one.
+       *
+       * @param owner_account the name or id of the account which is creating the SON
+       * @param url a URL to include in the SON record in the blockchain.  Clients may
+       *            display this when showing a list of SONs.  May be blank.
+       * @param sidechain_public_keys The new set of sidechain public keys.
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction registering a SON
+       */
+      signed_transaction try_create_son(string owner_account,
+                                    string url,
+                                    flat_map<sidechain_type, string> sidechain_public_keys,
+                                    bool broadcast = false);
+
+      /**
+       * Update a SON object owned by the given account.
+       *
+       * @param owner_account The name of the SON's owner account.  Also accepts the ID of the owner account or the ID of the SON.
+       * @param url Same as for create_son.  The empty string makes it remain the same.
+       * @param block_signing_key The new block signing public key.  The empty string makes it remain the same.
+       * @param sidechain_public_keys The new set of sidechain public keys.  The empty string makes it remain the same.
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction update_son(string owner_account,
+                                    string url,
+                                    string block_signing_key,
+                                    flat_map<sidechain_type, string> sidechain_public_keys,
+                                    bool broadcast = false);
+
+      /** Modify status of the SON owned by the given account to maintenance.
+       *
+       * @param owner_account the name or id of the account which is owning the SON
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction
+       */
+      signed_transaction request_son_maintenance(string owner_account,
+                                              bool broadcast = false);
+
+      /** Modify status of the SON owned by the given account back to active.
+       *
+       * @param owner_account the name or id of the account which is owning the SON
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction
+       */
+      signed_transaction cancel_request_son_maintenance(string owner_account,
+                                              bool broadcast = false);
+
+      /** Lists all SONs in the blockchain.
+       * This returns a list of all account names that own SON, and the associated SON id,
+       * sorted by name.  This lists SONs whether they are currently voted in or not.
+       *
+       * Use the \c lowerbound and limit parameters to page through the list.  To retrieve all SONs,
+       * start by setting \c lowerbound to the empty string \c "", and then each iteration, pass
+       * the last SON name returned as the \c lowerbound for the next \c list_sons() call.
+       *
+       * @param lowerbound the name of the first SON to return.  If the named SON does not exist,
+       *                   the list will start at the SON that comes after \c lowerbound
+       * @param limit the maximum number of SON to return (max: 1000)
+       * @returns a list of SON mapping SON names to SON ids
+       */
+      map<string, son_id_type> list_sons(const string& lowerbound, uint32_t limit);
+
+      /** Lists active at the moment SONs.
+       * This returns a list of all account names that own active SON, and the associated SON id,
+       * sorted by name.
+       * @returns a list of active SONs mapping SON names to SON ids
+       */
+      map<string, son_id_type> list_active_sons();
+
+      /**
+       * @brief Get active SON wallet
+       * @return Active SON wallet object
+       */
+      optional<son_wallet_object> get_active_son_wallet();
+
+      /**
+       * @brief Get SON wallet that was active for a given time point
+       * @param time_point Time point
+       * @return SON wallet object, for the wallet that was active for a given time point
+       */
+      optional<son_wallet_object> get_son_wallet_by_time_point(time_point_sec time_point);
+
+      /**
+       * @brief Get full list of SON wallets
+       * @param limit Maximum number of results to return
+       * @return A list of SON wallet objects
+       */
+      vector<optional<son_wallet_object>> get_son_wallets(uint32_t limit);
+
+      /** Adds sidechain address owned by the given account for a given sidechain.
+       *
+       * An account can have at most one sidechain address for one sidechain.
+       *
+       * @param account the name or id of the account who owns the address
+       * @param sidechain a sidechain to whom address belongs
+       * @param deposit_public_key sidechain public key used for deposit address
+       * @param withdraw_public_key sidechain public key used for withdraw address
+       * @param withdraw_address sidechain address for withdrawals
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction adding sidechain address
+       */
+      signed_transaction add_sidechain_address(string account,
+                                          sidechain_type sidechain,
+                                          string deposit_public_key,
+                                          string withdraw_public_key,
+                                          string withdraw_address,
+                                          bool broadcast = false);
+
+      /** Deletes existing sidechain address owned by the given account for a given sidechain.
+       *
+       * @param account the name or id of the account who owns the address
+       * @param sidechain a sidechain to whom address belongs
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction updating sidechain address
+       */
+      signed_transaction delete_sidechain_address(string account,
+                                          sidechain_type sidechain,
+                                          bool broadcast = false);
+
+      /** Retrieves all sidechain addresses owned by given account.
+       *
+       * @param account the name or id of the account who owns the address
+       * @returns the list of all sidechain addresses owned by given account.
+       */
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_account(string account);
+
+      /** Retrieves all sidechain addresses registered for a given sidechain.
+       *
+       * @param sidechain the name of the sidechain
+       * @returns the list of all sidechain addresses registered for a given sidechain.
+       */
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(sidechain_type sidechain);
+
+      /** Retrieves sidechain address owned by given account for a given sidechain.
+       *
+       * @param account the name or id of the account who owns the address
+       * @param sidechain the name of the sidechain
+       * @returns the sidechain address owned by given account for a given sidechain.
+       */
+      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(string account, sidechain_type sidechain);
+
+      /** Retrieves the total number of sidechain addresses registered in the system.
+       *
+       * @returns the total number of sidechain addresses registered in the system.
+       */
+      uint64_t get_sidechain_addresses_count();
 
       /** Creates a witness object owned by the given account.
        *
@@ -1376,6 +1555,21 @@ class wallet_api
          bool broadcast = false
          );
 
+      /** Creates a vesting deposit owned by the given account.
+       *
+       * @param owner_account vesting balance owner and creator (the name or id)
+       * @param amount amount to vest
+       * @param asset_symbol the symbol of the asset to vest
+       * @param vesting_type "normal", "gpos" or "son"
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction registering a vesting object
+       */
+      signed_transaction create_vesting_balance(string owner_account,
+                                        string amount,
+                                        string asset_symbol,
+                                        vesting_balance_type vesting_type,
+                                        bool broadcast = false);
+
       /**
        * Get information about a vesting balance object.
        *
@@ -1432,6 +1626,61 @@ class wallet_api
                                            string committee_member,
                                            bool approve,
                                            bool broadcast = false);
+
+      /** Vote for a given SON.
+       *
+       * An account can publish a list of all SONs they approve of.  This
+       * command allows you to add or remove SONs from this list.
+       * Each account's vote is weighted according to the number of shares of the
+       * core asset owned by that account at the time the votes are tallied.
+       *
+       * @note you cannot vote against a SON, you can only vote for the SON
+       *       or not vote for the SON.
+       *
+       * @param voting_account the name or id of the account who is voting with their shares
+       * @param son the name or id of the SONs' owner account
+       * @param approve true if you wish to vote in favor of that SON, false to
+       *                remove your vote in favor of that SON
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction changing your vote for the given SON
+       */
+      signed_transaction vote_for_son(string voting_account,
+                                             string son,
+                                             bool approve,
+                                             bool broadcast = false);
+
+      /** Change your SON votes.
+       *
+       * An account can publish a list of all SONs they approve of.
+       * Each account's vote is weighted according to the number of shares of the
+       * core asset owned by that account at the time the votes are tallied.
+       * This command allows you to add or remove one or more SON from this list
+       * in one call.  When you are changing your vote on several SONs, this
+       * may be easier than multiple `vote_for_sons` and
+       * `set_desired_witness_and_committee_member_count` calls.
+       *
+       * @note you cannot vote against a SON, you can only vote for the SON
+       *       or not vote for the SON.
+       *
+       * @param voting_account the name or id of the account who is voting with their shares
+       * @param sons_to_approve the names or ids of the sons owner accounts you wish
+       *                             to approve (these will be added to the list of sons
+       *                             you currently approve).  This list can be empty.
+       * @param sons_to_reject the names or ids of the SONs owner accounts you wish
+       *                            to reject (these will be removed from the list of SONs
+       *                            you currently approve).  This list can be empty.
+       * @param desired_number_of_sons the number of SONs you believe the network
+       *                                    should have.  You must vote for at least this many
+       *                                    SONs.  You can set this to 0 to abstain from
+       *                                    voting on the number of SONNs.
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction changing your vote for the given witnesses
+       */
+      signed_transaction update_son_votes(string voting_account,
+                                              std::vector<std::string> sons_to_approve,
+                                              std::vector<std::string> sons_to_reject,
+                                              uint16_t desired_number_of_son,
+                                              bool broadcast = false);
 
       /** Vote for a given witness.
        *
@@ -1881,19 +2130,247 @@ class wallet_api
                                    rock_paper_scissors_gesture gesture,
                                    bool broadcast);
 
-      /** Create a vesting balance including gpos vesting balance after HARDFORK_GPOS_TIME
-       * @param owner vesting balance owner and creator
-       * @param amount amount to vest
-       * @param asset_symbol the symbol of the asset to vest
-       * @param is_gpos True if the balance is of gpos type
-       * @param broadcast true if you wish to broadcast the transaction
-       * @return the signed version of the transaction
+      signed_transaction create_custom_permission(string owner,
+                                                  string permission_name,
+                                                  authority auth,
+                                                  bool broadcast = true);
+      signed_transaction update_custom_permission(string owner,
+                                                  custom_permission_id_type permission_id,
+                                                  fc::optional<authority> new_auth,
+                                                  bool broadcast = true);
+      signed_transaction delete_custom_permission(string owner,
+                                                  custom_permission_id_type permission_id,
+                                                  bool broadcast = true);
+      signed_transaction create_custom_account_authority(string owner,
+                                                         custom_permission_id_type permission_id,
+                                                         int operation_type,
+                                                         fc::time_point_sec valid_from,
+                                                         fc::time_point_sec valid_to,
+                                                         bool broadcast = true);
+      signed_transaction update_custom_account_authority(string owner,
+                                                         custom_account_authority_id_type auth_id,
+                                                         fc::optional<fc::time_point_sec> new_valid_from,
+                                                         fc::optional<fc::time_point_sec> new_valid_to,
+                                                         bool broadcast = true);
+      signed_transaction delete_custom_account_authority(string owner,
+                                                         custom_account_authority_id_type auth_id,
+                                                         bool broadcast = true);
+      vector<custom_permission_object> get_custom_permissions(string owner) const;
+      fc::optional<custom_permission_object> get_custom_permission_by_name(string owner, string permission_name) const;
+      vector<custom_account_authority_object> get_custom_account_authorities(string owner) const;
+      vector<custom_account_authority_object> get_custom_account_authorities_by_permission_id(custom_permission_id_type permission_id) const;
+      vector<custom_account_authority_object> get_custom_account_authorities_by_permission_name(string owner, string permission_name) const;
+      vector<authority> get_active_custom_account_authorities_by_operation(string owner, int operation_type) const;
+      /////////
+      // NFT //
+      /////////
+      /**
+       * @brief Creates NFT metadata
+       * @param owner_account_id_or_name Owner account ID or name
+       * @param name Name of the token group
+       * @param symbol Symbol of the token group
+       * @param base_uri Base URI for token URI
+       * @param revenue_partner revenue partner for this type of Token
+       * @param revenue_split revenue split for the sale
+       * @param is_transferable can transfer the NFT or not
+       * @param is_sellable can sell NFT or not
+       * @param broadcast  true to broadcast transaction to the network
+       * @return Signed transaction transfering the funds
        */
-      signed_transaction create_vesting_balance(string owner,
-                                                string amount,
-                                                string asset_symbol,
-                                                bool is_gpos,
+      signed_transaction nft_metadata_create(string owner_account_id_or_name,
+                                    string name,
+                                    string symbol,
+                                    string base_uri,
+                                    optional<string> revenue_partner,
+                                    optional<uint16_t> revenue_split,
+                                    bool is_transferable,
+                                    bool is_sellable,
+                                    optional<account_role_id_type> role_id,
+                                    bool broadcast);
+
+      /**
+       * @brief Updates NFT metadata
+       * @param owner_account_id_or_name Owner account ID or name
+       * @param nft_metadata_id Metadata ID to modify
+       * @param name Name of the token group
+       * @param symbol Symbol of the token group
+       * @param base_uri Base URI for token URI
+       * @param revenue_partner revenue partner for this type of Token
+       * @param revenue_split revenue split for the sale
+       * @param is_transferable can transfer the NFT or not
+       * @param is_sellable can sell NFT or not
+       * @param broadcast  true to broadcast transaction to the network
+       * @return Signed transaction transfering the funds
+       */
+      signed_transaction nft_metadata_update(string owner_account_id_or_name,
+                                    nft_metadata_id_type nft_metadata_id,
+                                    optional<string> name,
+                                    optional<string> symbol,
+                                    optional<string> base_uri,
+                                    optional<string> revenue_partner,
+                                    optional<uint16_t> revenue_split,
+                                    optional<bool> is_transferable,
+                                    optional<bool> is_sellable,
+                                    optional<account_role_id_type> role_id,
+                                    bool broadcast);
+
+      /**
+       * @brief Creates NFT
+       * @param metadata_owner_account_id_or_name NFT metadata owner account ID or name
+       * @param metadata_id NFT metadata ID to which token will belong
+       * @param owner_account_id_or_name Owner account ID or name
+       * @param approved_account_id_or_name Approved account ID or name
+       * @param token_uri Token URI (Will be combined with metadata base_uri if its not empty)
+       * @param broadcast  true to broadcast transaction to the network
+       * @return Signed transaction transfering the funds
+       */
+      signed_transaction nft_create(string metadata_owner_account_id_or_name,
+                                    nft_metadata_id_type metadata_id,
+                                    string owner_account_id_or_name,
+                                    string approved_account_id_or_name,
+                                    string token_uri,
+                                    bool broadcast);
+
+      /**
+       * @brief Returns the number of NFT owned by account
+       * @param owner_account_id_or_name Owner account ID or name
+       * @return Number of NFTs owned by account
+       */
+      uint64_t nft_get_balance(string owner_account_id_or_name) const;
+
+      /**
+       * @brief Returns the NFT owner
+       * @param token_id NFT ID
+       * @return NFT owner account ID
+       */
+      optional<account_id_type> nft_owner_of(const nft_id_type token_id) const;
+
+      /**
+       * @brief Transfers NFT safely
+       * @param operator_account_id_or_name Operators account ID or name
+       * @param from_account_id_or_name Senders account ID or name
+       * @param to_account_id_or_name Receivers account ID or name
+       * @param token_id NFT ID
+       * @param data Non mandatory data
+       * @param broadcast  true to broadcast transaction to the network
+       * @return Signed transaction transfering NFT
+       */
+      signed_transaction nft_safe_transfer_from(string operator_account_id_or_name,
+                                                string from_account_id_or_name,
+                                                string to_account_id_or_name,
+                                                nft_id_type token_id,
+                                                string data,
                                                 bool broadcast);
+
+      /**
+       * @brief Transfers NFT
+       * @param operator_account_id_or_name Operators account ID or name
+       * @param from_account_id_or_name Senders account ID or name
+       * @param to_account_id_or_name Receivers account ID or name
+       * @param token_id NFT ID
+       * @param broadcast  true to broadcast transaction to the network
+       * @return Signed transaction transfering NFT
+       */
+      signed_transaction nft_transfer_from(string operator_account_id_or_name,
+                                           string from_account_id_or_name,
+                                           string to_account_id_or_name,
+                                           nft_id_type token_id,
+                                           bool broadcast);
+
+      /**
+       * @brief Sets approved account for NFT
+       * @param operator_account_id_or_name Operators account ID or name
+       * @param approved_account_id_or_name Senders account ID or name
+       * @param token_id NFT ID
+       * @param broadcast  true to broadcast transaction to the network
+       * @return Signed transaction setting approving account for NFT
+       */
+      signed_transaction nft_approve(string operator_account_id_or_name,
+                                     string approved_account_id_or_name,
+                                     nft_id_type token_id,
+                                     bool broadcast);
+
+      /**
+       * @brief Sets approval for all NFT owned by owner
+       * @param owner_account_id_or_name Owner account ID or name
+       * @param operator_account_id_or_name Operator account ID or name
+       * @param approved true if approved
+       * @param broadcast  true to broadcast transaction to the network
+       * @return Signed transaction setting approvals for all NFT owned by owner
+       */
+      signed_transaction nft_set_approval_for_all(string owner_account_id_or_name,
+                                                  string operator_account_id_or_name,
+                                                  bool approved,
+                                                  bool broadcast);
+
+      /**
+       * @brief Returns the NFT approved account ID
+       * @param token_id NFT ID
+       * @return NFT approved account ID
+       */
+      optional<account_id_type> nft_get_approved(const nft_id_type token_id) const;
+
+      /**
+       * @brief Returns operator approved state for all NFT owned by owner
+       * @param owner NFT owner account ID
+       * @param token_id NFT ID
+       * @return True if operator is approved for all NFT owned by owner, else False
+       */
+      bool nft_is_approved_for_all(string owner_account_id_or_name, string operator_account_id_or_name) const;
+
+      /**
+       * @brief Returns all tokens
+       * @return Returns vector of NFT objects, empty vector if none
+       */
+      vector<nft_object> nft_get_all_tokens() const;
+
+      signed_transaction create_offer(set<nft_id_type> item_ids,
+                                      string issuer_accound_id_or_name,
+                                      asset minimum_price,
+                                      asset maximum_price,
+                                      bool buying_item,
+                                      time_point_sec offer_expiration_date,
+                                      optional<memo_data> memo,
+                                      bool broadcast);
+      signed_transaction create_bid(string bidder_account_id_or_name,
+                                    asset bid_price,
+                                    offer_id_type offer_id,
+                                    bool broadcast);
+      signed_transaction cancel_offer(string issuer_account_id_or_name,
+                                      offer_id_type offer_id,
+                                      bool broadcast);
+      vector<offer_object> list_offers(uint32_t limit, optional<offer_id_type> lower_id) const;
+      vector<offer_object> list_sell_offers(uint32_t limit, optional<offer_id_type> lower_id) const;
+      vector<offer_object> list_buy_offers(uint32_t limit, optional<offer_id_type> lower_id) const;
+      vector<offer_history_object> list_offer_history(uint32_t limit, optional<offer_history_id_type> lower_id) const;
+      vector<offer_object> get_offers_by_issuer(string issuer_account_id_or_name,
+                                                uint32_t limit, optional<offer_id_type> lower_id) const;
+      vector<offer_object> get_offers_by_item(const nft_id_type item, uint32_t limit, optional<offer_id_type> lower_id) const;
+      vector<offer_history_object> get_offer_history_by_issuer(string issuer_account_id_or_name, uint32_t limit, optional<offer_history_id_type> lower_id) const;
+      vector<offer_history_object> get_offer_history_by_item(const nft_id_type item, uint32_t limit, optional<offer_history_id_type> lower_id) const;
+      vector<offer_history_object> get_offer_history_by_bidder(string bidder_account_id_or_name, uint32_t limit, optional<offer_history_id_type> lower_id) const;
+
+      signed_transaction create_account_role(string owner_account_id_or_name,
+                                             string name,
+                                             string metadata,
+                                             flat_set<int> allowed_operations,
+                                             flat_set<account_id_type> whitelisted_accounts,
+                                             time_point_sec valid_to,
+                                             bool broadcast);
+      signed_transaction update_account_role(string owner_account_id_or_name,
+                                             account_role_id_type role_id,
+                                             optional<string> name,
+                                             optional<string> metadata,
+                                             flat_set<int> operations_to_add,
+                                             flat_set<int> operations_to_remove,
+                                             flat_set<account_id_type> accounts_to_add,
+                                             flat_set<account_id_type> accounts_to_remove,
+                                             optional<time_point_sec> valid_to,
+                                             bool broadcast);
+      signed_transaction delete_account_role(string owner_account_id_or_name,
+                                             account_role_id_type role_id,
+                                             bool broadcast);
+      vector<account_role_object> get_account_roles_by_owner(string owner_account_id_or_name) const;
 
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
@@ -2048,11 +2525,28 @@ FC_API( graphene::wallet::wallet_api,
         (settle_asset)
         (whitelist_account)
         (create_committee_member)
+        (get_son)
         (get_witness)
         (is_witness)
         (get_committee_member)
         (list_witnesses)
         (list_committee_members)
+        (create_son)
+        (try_create_son)
+        (update_son)
+        (list_sons)
+        (list_active_sons)
+        (request_son_maintenance)
+        (cancel_request_son_maintenance)
+        (get_active_son_wallet)
+        (get_son_wallet_by_time_point)
+        (get_son_wallets)
+        (add_sidechain_address)
+        (delete_sidechain_address)
+        (get_sidechain_addresses_by_account)
+        (get_sidechain_addresses_by_sidechain)
+        (get_sidechain_address_by_account_and_sidechain)
+        (get_sidechain_addresses_count)
         (create_witness)
         (update_witness)
         (create_worker)
@@ -2061,6 +2555,8 @@ FC_API( graphene::wallet::wallet_api,
         (withdraw_vesting)
         (withdraw_GPOS_vesting_balance)
         (vote_for_committee_member)
+        (vote_for_son)
+        (update_son_votes)
         (vote_for_witness)
         (update_witness_votes)
         (set_voting_proxy)
@@ -2145,6 +2641,34 @@ FC_API( graphene::wallet::wallet_api,
         (tournament_leave)
         (rps_throw)
         (create_vesting_balance)
+        (nft_metadata_create)
+        (nft_metadata_update)
+        (nft_create)
+        (nft_get_balance)
+        (nft_owner_of)
+        (nft_safe_transfer_from)
+        (nft_transfer_from)
+        (nft_approve)
+        (nft_set_approval_for_all)
+        (nft_get_approved)
+        (nft_is_approved_for_all)
+        (nft_get_all_tokens)
+        (create_offer)
+        (create_bid)
+        (cancel_offer)
+        (list_offers)
+        (list_sell_offers)
+        (list_buy_offers)
+        (list_offer_history)
+        (get_offers_by_issuer)
+        (get_offers_by_item)
+        (get_offer_history_by_issuer)
+        (get_offer_history_by_item)
+        (get_offer_history_by_bidder)
+        (create_account_role)
+        (update_account_role)
+        (delete_account_role)
+        (get_account_roles_by_owner)
         (get_upcoming_tournaments)
         (get_tournaments)
         (get_tournaments_by_state)
@@ -2157,4 +2681,16 @@ FC_API( graphene::wallet::wallet_api,
         (get_all_matched_bets_for_bettor)
         (buy_ticket)
         (quit)
+        (create_custom_permission)
+        (update_custom_permission)
+        (delete_custom_permission)
+        (create_custom_account_authority)
+        (update_custom_account_authority)
+        (delete_custom_account_authority)
+        (get_custom_permissions)
+        (get_custom_permission_by_name)
+        (get_custom_account_authorities)
+        (get_custom_account_authorities_by_permission_id)
+        (get_custom_account_authorities_by_permission_name)
+        (get_active_custom_account_authorities_by_operation)
       )

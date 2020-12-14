@@ -74,6 +74,7 @@
 #include <graphene/chain/rock_paper_scissors.hpp>
 
 #include <graphene/bookie/bookie_api.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/utilities/git_revision.hpp>
@@ -83,7 +84,6 @@
 #include <graphene/wallet/api_documentation.hpp>
 #include <graphene/wallet/reflect_util.hpp>
 #include <graphene/debug_witness/debug_api.hpp>
-#include <fc/smart_ref_impl.hpp>
 
 #ifndef WIN32
 # include <sys/types.h>
@@ -661,10 +661,10 @@ public:
       return ob.template as<T>( GRAPHENE_MAX_NESTED_OBJECTS );
    }
 
-   void set_operation_fees( signed_transaction& tx, const fee_schedule& s  )
+   void set_operation_fees( signed_transaction& tx, std::shared_ptr<fee_schedule> s  )
    {
       for( auto& op : tx.operations )
-         s.set_fee(op);
+         s->set_fee(op);
    }
 
    variant info() const
@@ -683,6 +683,7 @@ public:
       result["participation"] = (100*dynamic_props.recent_slots_filled.popcount()) / 128.0;
       result["active_witnesses"] = fc::variant(global_props.active_witnesses, GRAPHENE_MAX_NESTED_OBJECTS);
       result["active_committee_members"] = fc::variant(global_props.active_committee_members, GRAPHENE_MAX_NESTED_OBJECTS);
+      result["active_sons"] = fc::variant(global_props.active_sons, GRAPHENE_MAX_NESTED_OBJECTS);
       result["entropy"] = fc::variant(dynamic_props.random, GRAPHENE_MAX_NESTED_OBJECTS);
       return result;
    }
@@ -853,6 +854,7 @@ public:
    //          account, false otherwise (but it is stored either way)
    bool import_key(string account_name_or_id, string wif_key)
    {
+      fc::scoped_lock<fc::mutex> lock(_resync_mutex);
       fc::optional<fc::ecc::private_key> optional_private_key = wif_to_key(wif_key);
       if (!optional_private_key)
          FC_THROW("Invalid private key");
@@ -1304,8 +1306,7 @@ public:
 
       tx.operations.push_back( account_create_op );
 
-      auto current_fees = _remote_db->get_global_properties().parameters.current_fees;
-      set_operation_fees( tx, current_fees );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
 
       vector<public_key_type> paying_keys = registrar_account_object.active.get_keys();
 
@@ -1394,6 +1395,7 @@ public:
                                                       bool broadcast = false,
                                                       bool save_wallet = true)
    { try {
+         fc::scoped_lock<fc::mutex> lock(_resync_mutex);
          int active_key_index = find_first_unused_derived_key_index(owner_privkey);
          fc::ecc::private_key active_privkey = derive_private_key( key_to_wif(owner_privkey), active_key_index);
 
@@ -1824,6 +1826,41 @@ public:
       FC_CAPTURE_AND_RETHROW( (owner_account) )
    }
 
+   son_object get_son(string owner_account)
+   {
+      try
+      {
+         fc::optional<son_id_type> son_id = maybe_id<son_id_type>(owner_account);
+         if (son_id)
+         {
+            std::vector<son_id_type> ids_to_get;
+            ids_to_get.push_back(*son_id);
+            std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(ids_to_get);
+            if (son_objects.front())
+               return *son_objects.front();
+            FC_THROW("No SON is registered for id ${id}", ("id", owner_account));
+         }
+         else
+         {
+            // then maybe it's the owner account
+            try
+            {
+               account_id_type owner_account_id = get_account_id(owner_account);
+               fc::optional<son_object> son = _remote_db->get_son_by_account(owner_account_id);
+               if (son)
+                  return *son;
+               else
+                  FC_THROW("No SON is registered for account ${account}", ("account", owner_account));
+            }
+            catch (const fc::exception&)
+            {
+               FC_THROW("No account or SON named ${account}", ("account", owner_account));
+            }
+         }
+      }
+      FC_CAPTURE_AND_RETHROW( (owner_account) )
+   }
+
    bool is_witness(string owner_account)
    {
       try
@@ -1894,10 +1931,204 @@ public:
       FC_CAPTURE_AND_RETHROW( (owner_account) )
    }
 
+   signed_transaction create_son(string owner_account,
+                                 string url,
+                                 vesting_balance_id_type deposit_id,
+                                 vesting_balance_id_type pay_vb_id,
+                                 flat_map<sidechain_type, string> sidechain_public_keys,
+                                 bool broadcast /* = false */)
+   { try {
+      fc::scoped_lock<fc::mutex> lock(_resync_mutex);
+      account_object son_account = get_account(owner_account);
+      auto son_public_key = son_account.active.get_keys()[0];
+
+      son_create_operation son_create_op;
+      son_create_op.owner_account = son_account.id;
+      son_create_op.signing_key = son_public_key;
+      son_create_op.url = url;
+      son_create_op.deposit = deposit_id;
+      son_create_op.pay_vb = pay_vb_id;
+      son_create_op.sidechain_public_keys = sidechain_public_keys;
+
+      if (_remote_db->get_son_by_account(son_create_op.owner_account))
+         FC_THROW("Account ${owner_account} is already a SON", ("owner_account", owner_account));
+
+      signed_transaction tx;
+      tx.operations.push_back( son_create_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account)(broadcast) ) }
+
+   signed_transaction update_son(string owner_account,
+                                 string url,
+                                 string block_signing_key,
+                                 flat_map<sidechain_type, string> sidechain_public_keys,
+                                 bool broadcast /* = false */)
+   { try {
+      son_object son = get_son(owner_account);
+
+      son_update_operation son_update_op;
+      son_update_op.son_id = son.id;
+      son_update_op.owner_account = son.son_account;
+      if( url != "" )
+         son_update_op.new_url = url;
+      if( block_signing_key != "" ) {
+         son_update_op.new_signing_key = public_key_type( block_signing_key );
+      }
+      if( !sidechain_public_keys.empty() ) {
+         son_update_op.new_sidechain_public_keys = sidechain_public_keys;
+      }
+
+      signed_transaction tx;
+      tx.operations.push_back( son_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account)(url)(block_signing_key)(broadcast) ) }
+
+   signed_transaction request_son_maintenance(string owner_account,
+                                           bool broadcast)
+   { try {
+         son_object son = get_son(owner_account);
+
+         son_maintenance_operation op;
+         op.owner_account = son.son_account;
+         op.son_id = son.id;
+         op.request_type = son_maintenance_request_type::request_maintenance;
+
+         signed_transaction tx;
+         tx.operations.push_back( op );
+         set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+         tx.validate();
+
+         return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account) ) }
+
+   signed_transaction cancel_request_son_maintenance(string owner_account,
+                                           bool broadcast)
+   { try {
+         son_object son = get_son(owner_account);
+
+         son_maintenance_operation op;
+         op.owner_account = son.son_account;
+         op.son_id = son.id;
+         op.request_type = son_maintenance_request_type::cancel_request_maintenance;
+
+         signed_transaction tx;
+         tx.operations.push_back( op );
+         set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+         tx.validate();
+
+         return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account) ) }
+
+   map<string, son_id_type> list_active_sons()
+   { try {
+      global_property_object gpo = get_global_properties();
+      vector<son_id_type> son_ids;
+      son_ids.reserve(gpo.active_sons.size());
+      std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                     std::inserter(son_ids, son_ids.end()),
+                     [](const son_info& swi) {
+         return swi.son_id;
+      });
+      std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
+      vector<std::string> owners;
+      for(auto obj: son_objects)
+      {
+         if (obj)
+         {
+            std::string acc_id = account_id_to_string(obj->son_account);
+            owners.push_back(acc_id);
+         }
+      }
+      vector< optional< account_object> > accs = _remote_db->get_accounts(owners);
+      std::remove_if(son_objects.begin(), son_objects.end(),
+                     [](const fc::optional<son_object>& obj) -> bool { return obj.valid(); });
+      map<string, son_id_type> result;
+      std::transform(accs.begin(), accs.end(), son_objects.begin(),
+                     std::inserter(result, result.end()),
+                     [](fc::optional<account_object>& acct, fc::optional<son_object> son) {
+                        FC_ASSERT(acct, "Invalid active SONs list in global properties.");
+                        if (son.valid() && son->status != son_status::deregistered)
+                           return std::make_pair<string, son_id_type>(string(acct->name), std::move(son->id));
+                        return std::make_pair<string, son_id_type>(string(acct->name), std::move(son_id_type()));
+                     });
+      return result;
+   } FC_CAPTURE_AND_RETHROW() }
+
+   optional<son_wallet_object> get_active_son_wallet()
+   { try {
+       return _remote_db->get_active_son_wallet();
+   } FC_CAPTURE_AND_RETHROW() }
+
+   optional<son_wallet_object> get_son_wallet_by_time_point(time_point_sec time_point)
+   { try {
+       return _remote_db->get_son_wallet_by_time_point(time_point);
+   } FC_CAPTURE_AND_RETHROW() }
+
+   vector<optional<son_wallet_object>> get_son_wallets(uint32_t limit)
+   { try {
+      return _remote_db->get_son_wallets(limit);
+   } FC_CAPTURE_AND_RETHROW() }
+
+   signed_transaction add_sidechain_address(string account,
+                                            sidechain_type sidechain,
+                                            string deposit_public_key,
+                                            string withdraw_public_key,
+                                            string withdraw_address,
+                                            bool broadcast /* = false */)
+   { try {
+      account_id_type sidechain_address_account_id = get_account_id(account);
+
+      sidechain_address_add_operation op;
+      op.payer = sidechain_address_account_id;
+      op.sidechain_address_account = sidechain_address_account_id;
+      op.sidechain = sidechain;
+      op.deposit_public_key = deposit_public_key;
+      op.withdraw_public_key = withdraw_public_key;
+      op.withdraw_address = withdraw_address;
+
+      signed_transaction tx;
+      tx.operations.push_back( op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW() }
+
+   signed_transaction delete_sidechain_address(string account,
+                                               sidechain_type sidechain,
+                                               bool broadcast /* = false */)
+   { try {
+      account_id_type sidechain_address_account_id = get_account_id(account);
+      fc::optional<sidechain_address_object> sao = _remote_db->get_sidechain_address_by_account_and_sidechain(sidechain_address_account_id, sidechain);
+      if (!sao)
+         FC_THROW("No sidechain address for account ${account} and sidechain ${sidechain}", ("account", sidechain_address_account_id)("sidechain", sidechain));
+
+      sidechain_address_delete_operation op;
+      op.payer = sidechain_address_account_id;
+      op.sidechain_address_id = sao->id;
+      op.sidechain_address_account = sidechain_address_account_id;
+      op.sidechain = sidechain;
+
+      signed_transaction tx;
+      tx.operations.push_back( op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+
+   } FC_CAPTURE_AND_RETHROW() }
+
    signed_transaction create_witness(string owner_account,
                                      string url,
                                      bool broadcast /* = false */)
    { try {
+      fc::scoped_lock<fc::mutex> lock(_resync_mutex);
       account_object witness_account = get_account(owner_account);
       fc::ecc::private_key active_private_key = get_private_key_for_account(witness_account);
       int witness_key_index = find_first_unused_derived_key_index(active_private_key);
@@ -2069,6 +2300,33 @@ public:
       return sign_transaction( tx, broadcast );
    }
 
+   signed_transaction create_vesting_balance(string owner_account,
+                                     string amount,
+                                     string asset_symbol,
+                                     vesting_balance_type vesting_type,
+                                     bool broadcast /* = false */)
+   { try {
+      FC_ASSERT( !is_locked() );
+      account_object user_account = get_account(owner_account);
+      fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
+      FC_ASSERT(asset_obj, "Invalid asset symbol {asst}", ("asst", asset_symbol));
+
+      vesting_balance_create_operation op;
+      op.creator = user_account.get_id();
+      op.owner = user_account.get_id();
+      op.amount = asset_obj->amount_from_string(amount);
+      op.balance_type = vesting_type;
+      if (op.balance_type == vesting_balance_type::son)
+          op.policy = dormant_vesting_policy_initializer {};
+
+      signed_transaction tx;
+      tx.operations.push_back( op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account)(broadcast) ) }
+
    vector< vesting_balance_object_with_info > get_vesting_balances( string account_name )
    { try {
       fc::optional<vesting_balance_id_type> vbid = maybe_id<vesting_balance_id_type>( account_name );
@@ -2114,8 +2372,8 @@ public:
 
       vesting_balance_object vbo = get_object< vesting_balance_object >( *vbid );
 
-      if(vbo.balance_type != vesting_balance_type::normal)
-         FC_THROW("Allowed to withdraw only Normal type vest balances with this method");
+      if(vbo.balance_type == vesting_balance_type::gpos)
+         FC_THROW("Allowed to withdraw only Normal and Son type vest balances with this method");
 
       vesting_balance_withdraw_operation vesting_balance_withdraw_op;
 
@@ -2245,6 +2503,95 @@ public:
 
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (voting_account)(committee_member)(approve)(broadcast) ) }
+
+   signed_transaction vote_for_son(string voting_account,
+                                        string son,
+                                        bool approve,
+                                        bool broadcast /* = false */)
+   { try {
+
+      std::vector<vesting_balance_object_with_info> vbo_info = get_vesting_balances(voting_account);
+      std::vector<vesting_balance_object_with_info>::iterator vbo_iter;
+      vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
+      if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
+         FC_THROW("Account ${account} has no core Token ${TOKEN} vested and will not be allowed to vote for the SON account", ("account", voting_account)("TOKEN", GRAPHENE_SYMBOL));
+
+      account_object voting_account_object = get_account(voting_account);
+      account_id_type son_account_id = get_account_id(son);
+      fc::optional<son_object> son_obj = _remote_db->get_son_by_account(son_account_id);
+      if (!son_obj)
+         FC_THROW("Account ${son} is not registered as a son", ("son", son));
+      if (approve)
+      {
+         auto insert_result = voting_account_object.options.votes.insert(son_obj->vote_id);
+         if (!insert_result.second)
+            FC_THROW("Account ${account} was already voting for son ${son}", ("account", voting_account)("son", son));
+      }
+      else
+      {
+         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->vote_id);
+         if (!votes_removed)
+            FC_THROW("Account ${account} is already not voting for son ${son}", ("account", voting_account)("son", son));
+      }
+      account_update_operation account_update_op;
+      account_update_op.account = voting_account_object.id;
+      account_update_op.new_options = voting_account_object.options;
+
+      signed_transaction tx;
+      tx.operations.push_back( account_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (voting_account)(son)(approve)(broadcast) ) }
+
+   signed_transaction update_son_votes(string voting_account,
+                                           std::vector<std::string> sons_to_approve,
+                                           std::vector<std::string> sons_to_reject,
+                                           uint16_t desired_number_of_sons,
+                                           bool broadcast /* = false */)
+   { try {
+      FC_ASSERT(sons_to_approve.size() || sons_to_reject.size(), "Both accepted and rejected lists can't be empty simultaneously");
+      std::vector<vesting_balance_object_with_info> vbo_info = get_vesting_balances(voting_account);
+      std::vector<vesting_balance_object_with_info>::iterator vbo_iter;
+      vbo_iter = std::find_if(vbo_info.begin(), vbo_info.end(), [](vesting_balance_object_with_info const& obj){return obj.balance_type == vesting_balance_type::gpos;});
+      if( vbo_info.size() == 0 ||  vbo_iter == vbo_info.end())
+         FC_THROW("Account ${account} has no core Token ${TOKEN} vested and will not be allowed to vote for the SON account", ("account", voting_account)("TOKEN", GRAPHENE_SYMBOL));
+
+      account_object voting_account_object = get_account(voting_account);
+      for (const std::string& son : sons_to_approve)
+      {
+         account_id_type son_owner_account_id = get_account_id(son);
+         fc::optional<son_object> son_obj = _remote_db->get_son_by_account(son_owner_account_id);
+         if (!son_obj)
+            FC_THROW("Account ${son} is not registered as a SON", ("son", son));
+         auto insert_result = voting_account_object.options.votes.insert(son_obj->vote_id);
+         if (!insert_result.second)
+            FC_THROW("Account ${account} was already voting for SON ${son}", ("account", voting_account)("son", son));
+      }
+      for (const std::string& son : sons_to_reject)
+      {
+         account_id_type son_owner_account_id = get_account_id(son);
+         fc::optional<son_object> son_obj = _remote_db->get_son_by_account(son_owner_account_id);
+         if (!son_obj)
+            FC_THROW("Account ${son} is not registered as a SON", ("son", son));
+         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->vote_id);
+         if (!votes_removed)
+            FC_THROW("Account ${account} is already not voting for SON ${son}", ("account", voting_account)("son", son));
+      }
+      voting_account_object.options.num_son = desired_number_of_sons;
+
+      account_update_operation account_update_op;
+      account_update_op.account = voting_account_object.id;
+      account_update_op.new_options = voting_account_object.options;
+
+      signed_transaction tx;
+      tx.operations.push_back( account_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (voting_account)(sons_to_approve)(sons_to_reject)(desired_number_of_sons)(broadcast) ) }
 
    signed_transaction vote_for_witness(string voting_account,
                                        string witness,
@@ -3147,7 +3494,7 @@ public:
       new_fees.scale = scale;
 
       chain_parameters new_params = current_params;
-      new_params.current_fees = new_fees;
+      new_params.current_fees = std::make_shared<fee_schedule>(new_fees);
 
       committee_member_update_global_parameters_operation update_op;
       update_op.new_parameters = new_params;
@@ -3240,6 +3587,140 @@ public:
       set_operation_fees(tx, get_global_properties().parameters.current_fees);
       tx.validate();
       return sign_transaction(tx, broadcast);
+   }
+
+   signed_transaction create_custom_permission(string owner,
+                                               string permission_name,
+                                               authority auth,
+                                               bool broadcast)
+   {
+      custom_permission_create_operation create_op;
+      create_op.owner_account = get_account(owner).id;
+      create_op.permission_name = permission_name;
+      create_op.auth = auth;
+
+      signed_transaction tx;
+      tx.operations.push_back(create_op);
+      set_operation_fees(tx, get_global_properties().parameters.current_fees);
+      tx.validate();
+      return sign_transaction(tx, broadcast);
+   }
+
+   signed_transaction update_custom_permission(string owner,
+                                               custom_permission_id_type permission_id,
+                                               fc::optional<authority> new_auth,
+                                               bool broadcast)
+   {
+      custom_permission_update_operation update_op;
+      update_op.owner_account = get_account(owner).id;
+      update_op.permission_id = permission_id;
+      update_op.new_auth = new_auth;
+
+      signed_transaction tx;
+      tx.operations.push_back(update_op);
+      set_operation_fees(tx, get_global_properties().parameters.current_fees);
+      tx.validate();
+      return sign_transaction(tx, broadcast);
+   }
+
+   signed_transaction delete_custom_permission(string owner,
+                                               custom_permission_id_type permission_id,
+                                               bool broadcast)
+   {
+      custom_permission_delete_operation delete_op;
+      delete_op.owner_account = get_account(owner).id;
+      delete_op.permission_id = permission_id;
+
+      signed_transaction tx;
+      tx.operations.push_back(delete_op);
+      set_operation_fees(tx, get_global_properties().parameters.current_fees);
+      tx.validate();
+      return sign_transaction(tx, broadcast);
+   }
+
+   signed_transaction create_custom_account_authority(string owner,
+                                                      custom_permission_id_type permission_id,
+                                                      int operation_type,
+                                                      fc::time_point_sec valid_from,
+                                                      fc::time_point_sec valid_to,
+                                                      bool broadcast)
+   {
+      custom_account_authority_create_operation create_op;
+      create_op.owner_account = get_account(owner).id;
+      create_op.permission_id = permission_id;
+      create_op.operation_type = operation_type;
+      create_op.valid_from = valid_from;
+      create_op.valid_to = valid_to;
+
+      signed_transaction tx;
+      tx.operations.push_back(create_op);
+      set_operation_fees(tx, get_global_properties().parameters.current_fees);
+      tx.validate();
+      return sign_transaction(tx, broadcast);
+   }
+
+   signed_transaction update_custom_account_authority(string owner,
+                                                      custom_account_authority_id_type auth_id,
+                                                      fc::optional<fc::time_point_sec> new_valid_from,
+                                                      fc::optional<fc::time_point_sec> new_valid_to,
+                                                      bool broadcast)
+   {
+      custom_account_authority_update_operation update_op;
+      update_op.owner_account = get_account(owner).id;
+      update_op.auth_id = auth_id;
+      update_op.new_valid_from = new_valid_from;
+      update_op.new_valid_to = new_valid_to;
+
+      signed_transaction tx;
+      tx.operations.push_back(update_op);
+      set_operation_fees(tx, get_global_properties().parameters.current_fees);
+      tx.validate();
+      return sign_transaction(tx, broadcast);
+   }
+
+   signed_transaction delete_custom_account_authority(string owner,
+                                                      custom_account_authority_id_type auth_id,
+                                                      bool broadcast)
+   {
+      custom_account_authority_delete_operation delete_op;
+      delete_op.owner_account = get_account(owner).id;
+      delete_op.auth_id = auth_id;
+
+      signed_transaction tx;
+      tx.operations.push_back(delete_op);
+      set_operation_fees(tx, get_global_properties().parameters.current_fees);
+      tx.validate();
+      return sign_transaction(tx, broadcast);
+   }
+
+   vector<custom_permission_object> get_custom_permissions(string owner) const
+   {
+      return _remote_db->get_custom_permissions(get_account(owner).id);
+   }
+
+   fc::optional<custom_permission_object> get_custom_permission_by_name(string owner, string permission_name) const
+   {
+      return _remote_db->get_custom_permission_by_name(get_account(owner).id, permission_name);
+   }
+
+   vector<custom_account_authority_object> get_custom_account_authorities(string owner) const
+   {
+      return _remote_db->get_custom_account_authorities(get_account(owner).id);
+   }
+
+   vector<custom_account_authority_object> get_custom_account_authorities_by_permission_id(custom_permission_id_type permission_id) const
+   {
+      return _remote_db->get_custom_account_authorities_by_permission_id(permission_id);
+   }
+
+   vector<custom_account_authority_object> get_custom_account_authorities_by_permission_name(string owner, string permission_name) const
+   {
+      return _remote_db->get_custom_account_authorities_by_permission_name(get_account(owner).id, permission_name);
+   }
+
+   vector<authority> get_active_custom_account_authorities_by_operation(string owner, int operation_type) const
+   {
+      return _remote_db->get_active_custom_account_authorities_by_operation(get_account(owner).id, operation_type);
    }
 
    void dbg_make_uia(string creator, string symbol)
@@ -4305,6 +4786,11 @@ map<string,committee_member_id_type> wallet_api::list_committee_members(const st
    return my->_remote_db->lookup_committee_member_accounts(lowerbound, limit);
 }
 
+son_object wallet_api::get_son(string owner_account)
+{
+   return my->get_son(owner_account);
+}
+
 witness_object wallet_api::get_witness(string owner_account)
 {
    return my->get_witness(owner_account);
@@ -4318,6 +4804,139 @@ bool wallet_api::is_witness(string owner_account)
 committee_member_object wallet_api::get_committee_member(string owner_account)
 {
    return my->get_committee_member(owner_account);
+}
+
+signed_transaction wallet_api::create_vesting_balance(string owner_account,
+                                              string amount,
+                                              string asset_symbol,
+                                              vesting_balance_type vesting_type,
+                                              bool broadcast /* = false */)
+{
+   return my->create_vesting_balance(owner_account, amount, asset_symbol, vesting_type, broadcast);
+}
+
+signed_transaction wallet_api::create_son(string owner_account,
+                                          string url,
+                                          vesting_balance_id_type deposit_id,
+                                          vesting_balance_id_type pay_vb_id,
+                                          flat_map<sidechain_type, string> sidechain_public_keys,
+                                          bool broadcast /* = false */)
+{
+   return my->create_son(owner_account, url, deposit_id, pay_vb_id, sidechain_public_keys, broadcast);
+}
+
+signed_transaction wallet_api::try_create_son(string owner_account,
+                              string url,
+                              flat_map<sidechain_type, string> sidechain_public_keys,
+                              bool broadcast /* = false */)
+{
+   vesting_balance_id_type deposit_id;
+   bool deposit_found = false;
+   vesting_balance_id_type pay_vb_id;
+   bool pay_vb_found = false;
+   vector<vesting_balance_object_with_info> vbs = get_vesting_balances(owner_account);
+   for(const auto& vb: vbs)
+   {
+      if ((vb.balance_type == vesting_balance_type::son) &&
+          (vb.get_asset_amount() >= my->get_global_properties().parameters.son_vesting_amount()) &&
+          (vb.policy.which() == vesting_policy::tag<dormant_vesting_policy>::value))
+      {
+         deposit_found = true;
+         deposit_id = vb.id;
+      }
+      if ((vb.balance_type == vesting_balance_type::normal) &&
+          (vb.policy.which() == vesting_policy::tag<linear_vesting_policy>::value))
+      {
+         pay_vb_found = true;
+         pay_vb_id = vb.id;
+      }
+   }
+   if (!deposit_found || !pay_vb_found)
+      FC_THROW("Failed to find vesting balance objects");
+   return my->create_son(owner_account, url, deposit_id, pay_vb_id, sidechain_public_keys, broadcast);
+}
+
+signed_transaction wallet_api::update_son(string owner_account,
+                                          string url,
+                                          string block_signing_key,
+                                          flat_map<sidechain_type, string> sidechain_public_keys,
+                                          bool broadcast /* = false */)
+{
+   return my->update_son(owner_account, url, block_signing_key, sidechain_public_keys, broadcast);
+}
+
+signed_transaction wallet_api::request_son_maintenance(string owner_account, bool broadcast)
+{
+   return my->request_son_maintenance(owner_account, broadcast);
+}
+
+signed_transaction wallet_api::cancel_request_son_maintenance(string owner_account, bool broadcast)
+{
+   return my->cancel_request_son_maintenance(owner_account, broadcast);
+}
+
+map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_t limit)
+{
+   return my->_remote_db->lookup_son_accounts(lowerbound, limit);
+}
+
+map<string, son_id_type> wallet_api::list_active_sons()
+{
+    return my->list_active_sons();
+}
+
+optional<son_wallet_object> wallet_api::get_active_son_wallet()
+{
+    return my->get_active_son_wallet();
+}
+
+optional<son_wallet_object> wallet_api::get_son_wallet_by_time_point(time_point_sec time_point)
+{
+    return my->get_son_wallet_by_time_point(time_point);
+}
+
+vector<optional<son_wallet_object>> wallet_api::get_son_wallets(uint32_t limit)
+{
+    return my->get_son_wallets(limit);
+}
+
+signed_transaction wallet_api::add_sidechain_address(string account,
+                                          sidechain_type sidechain,
+                                          string deposit_public_key,
+                                          string withdraw_public_key,
+                                          string withdraw_address,
+                                          bool broadcast /* = false */)
+{
+   return my->add_sidechain_address(account, sidechain, deposit_public_key, withdraw_public_key, withdraw_address, broadcast);
+}
+
+signed_transaction wallet_api::delete_sidechain_address(string account,
+                                          sidechain_type sidechain,
+                                          bool broadcast /* = false */)
+{
+   return my->delete_sidechain_address(account, sidechain, broadcast);
+}
+
+vector<optional<sidechain_address_object>> wallet_api::get_sidechain_addresses_by_account(string account)
+{
+   account_id_type account_id = get_account_id(account);
+   return my->_remote_db->get_sidechain_addresses_by_account(account_id);
+}
+
+vector<optional<sidechain_address_object>> wallet_api::get_sidechain_addresses_by_sidechain(sidechain_type sidechain)
+{
+   return my->_remote_db->get_sidechain_addresses_by_sidechain(sidechain);
+}
+
+fc::optional<sidechain_address_object> wallet_api::get_sidechain_address_by_account_and_sidechain(string account, sidechain_type sidechain)
+{
+   account_id_type account_id = get_account_id(account);
+   return my->_remote_db->get_sidechain_address_by_account_and_sidechain(account_id, sidechain);
+}
+
+uint64_t wallet_api::get_sidechain_addresses_count()
+{
+   return my->_remote_db->get_sidechain_addresses_count();
 }
 
 signed_transaction wallet_api::create_witness(string owner_account,
@@ -4387,6 +5006,23 @@ signed_transaction wallet_api::vote_for_committee_member(string voting_account,
                                                  bool broadcast /* = false */)
 {
    return my->vote_for_committee_member(voting_account, witness, approve, broadcast);
+}
+
+signed_transaction wallet_api::vote_for_son(string voting_account,
+                                                   string son,
+                                                   bool approve,
+                                                   bool broadcast /* = false */)
+{
+   return my->vote_for_son(voting_account, son, approve, broadcast);
+}
+
+signed_transaction wallet_api::update_son_votes(string voting_account,
+                                                    std::vector<std::string> sons_to_approve,
+                                                    std::vector<std::string> sons_to_reject,
+                                                    uint16_t desired_number_of_sons,
+                                                    bool broadcast /* = false */)
+{
+   return my->update_son_votes(voting_account, sons_to_approve, sons_to_reject, desired_number_of_sons, broadcast);
 }
 
 signed_transaction wallet_api::vote_for_witness(string voting_account,
@@ -4541,8 +5177,84 @@ signed_transaction wallet_api::approve_proposal(
    return my->approve_proposal( fee_paying_account, proposal_id, delta, broadcast );
 }
 
+signed_transaction wallet_api::create_custom_permission(string owner,
+                                                        string permission_name,
+                                                        authority auth,
+                                                        bool broadcast)
+{
+   return my->create_custom_permission(owner, permission_name, auth, broadcast);
+}
 
+signed_transaction wallet_api::update_custom_permission(string owner,
+                                                        custom_permission_id_type permission_id,
+                                                        fc::optional<authority> new_auth,
+                                                        bool broadcast)
+{
+   return my->update_custom_permission(owner, permission_id, new_auth, broadcast);
+}
 
+signed_transaction wallet_api::delete_custom_permission(string owner,
+                                                        custom_permission_id_type permission_id,
+                                                        bool broadcast)
+{
+   return my->delete_custom_permission(owner, permission_id, broadcast);
+}
+
+signed_transaction wallet_api::create_custom_account_authority(string owner,
+                                                               custom_permission_id_type permission_id,
+                                                               int operation_type,
+                                                               fc::time_point_sec valid_from,
+                                                               fc::time_point_sec valid_to,
+                                                               bool broadcast)
+{
+   return my->create_custom_account_authority(owner, permission_id, operation_type, valid_from, valid_to, broadcast);
+}
+
+signed_transaction wallet_api::update_custom_account_authority(string owner,
+                                                               custom_account_authority_id_type auth_id,
+                                                               fc::optional<fc::time_point_sec> new_valid_from,
+                                                               fc::optional<fc::time_point_sec> new_valid_to,
+                                                               bool broadcast)
+{
+   return my->update_custom_account_authority(owner, auth_id, new_valid_from, new_valid_to, broadcast);
+}
+
+signed_transaction wallet_api::delete_custom_account_authority(string owner,
+                                                               custom_account_authority_id_type auth_id,
+                                                               bool broadcast)
+{
+   return my->delete_custom_account_authority(owner, auth_id, broadcast);
+}
+
+vector<custom_permission_object> wallet_api::get_custom_permissions(string owner) const
+{
+   return my->get_custom_permissions(owner);
+}
+
+fc::optional<custom_permission_object> wallet_api::get_custom_permission_by_name(string owner, string permission_name) const
+{
+   return my->get_custom_permission_by_name(owner, permission_name);
+}
+
+vector<custom_account_authority_object> wallet_api::get_custom_account_authorities(string owner) const
+{
+   return my->get_custom_account_authorities(owner);
+}
+
+vector<custom_account_authority_object> wallet_api::get_custom_account_authorities_by_permission_id(custom_permission_id_type permission_id) const
+{
+   return my->get_custom_account_authorities_by_permission_id(permission_id);
+}
+
+vector<custom_account_authority_object> wallet_api::get_custom_account_authorities_by_permission_name(string owner, string permission_name) const
+{
+   return my->get_custom_account_authorities_by_permission_name(owner, permission_name);
+}
+
+vector<authority> wallet_api::get_active_custom_account_authorities_by_operation(string owner, int operation_type) const
+{
+   return my->get_active_custom_account_authorities_by_operation(owner, operation_type);
+}
 
 global_property_object wallet_api::get_global_properties() const
 {
@@ -6122,32 +6834,38 @@ signed_transaction wallet_api::rps_throw(game_id_type game_id,
    return my->sign_transaction( tx, broadcast );
 }
 
-signed_transaction wallet_api::create_vesting_balance(string owner,
-                                                      string amount,
-                                                      string asset_symbol,
-                                                      bool is_gpos,
-                                                      bool broadcast)
+signed_transaction wallet_api::nft_metadata_create(string owner_account_id_or_name,
+                                                   string name,
+                                                   string symbol,
+                                                   string base_uri,
+                                                   optional<string> revenue_partner,
+                                                   optional<uint16_t> revenue_split,
+                                                   bool is_transferable,
+                                                   bool is_sellable,
+                                                   optional<account_role_id_type> role_id,
+                                                   bool broadcast)
 {
-   FC_ASSERT( !is_locked() );
-   //Can be deleted after GPOS hardfork time
-   time_point_sec now = time_point::now();
-   if(is_gpos && now < HARDFORK_GPOS_TIME)
-      FC_THROW("GPOS related functionality is not avaiable until next Spring");
+   account_object owner_account = my->get_account(owner_account_id_or_name);
 
-   account_object owner_account = get_account(owner);
-   account_id_type owner_id = owner_account.id;
-
-   fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
-
-   auto type = vesting_balance_type::normal;
-   if(is_gpos)
-      type = vesting_balance_type::gpos;
-
-   vesting_balance_create_operation op;
-   op.creator = owner_id;
-   op.owner = owner_id;
-   op.amount = asset_obj->amount_from_string(amount);
-   op.balance_type = type;
+   nft_metadata_create_operation op;
+   op.owner = owner_account.id;
+   op.name = name;
+   op.symbol = symbol;
+   op.base_uri = base_uri;
+   if( revenue_partner )
+   {
+      account_object partner_account = my->get_account(*revenue_partner);
+      op.revenue_partner = partner_account.id;
+      uint16_t rev_split = 0;
+      if( revenue_split )
+      {
+         rev_split = *revenue_split;
+      }
+      op.revenue_split = rev_split;
+   }
+   op.is_transferable = is_transferable;
+   op.is_sellable = is_sellable;
+   op.account_role = role_id;
 
    signed_transaction trx;
    trx.operations.push_back(op);
@@ -6157,6 +6875,403 @@ signed_transaction wallet_api::create_vesting_balance(string owner,
    return my->sign_transaction( trx, broadcast );
 }
 
+signed_transaction wallet_api::nft_metadata_update(string owner_account_id_or_name,
+                                                   nft_metadata_id_type nft_metadata_id,
+                                                   optional<string> name,
+                                                   optional<string> symbol,
+                                                   optional<string> base_uri,
+                                                   optional<string> revenue_partner,
+                                                   optional<uint16_t> revenue_split,
+                                                   optional<bool> is_transferable,
+                                                   optional<bool> is_sellable,
+                                                   optional<account_role_id_type> role_id,
+                                                   bool broadcast)
+{
+   account_object owner_account = my->get_account(owner_account_id_or_name);
+
+   nft_metadata_update_operation op;
+   op.nft_metadata_id = nft_metadata_id;
+   op.owner = owner_account.id;
+   op.name = name;
+   op.symbol = symbol;
+   op.base_uri = base_uri;
+   if( revenue_partner )
+   {
+      account_object partner_account = my->get_account(*revenue_partner);
+      op.revenue_partner = partner_account.id;
+      uint16_t rev_split = 0;
+      if( revenue_split )
+      {
+         rev_split = *revenue_split;
+      }
+      op.revenue_split = rev_split;
+   }
+   op.is_transferable = is_transferable;
+   op.is_sellable = is_sellable;
+   op.account_role = role_id;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+signed_transaction wallet_api::nft_create(string metadata_owner_account_id_or_name,
+                                          nft_metadata_id_type metadata_id,
+                                          string owner_account_id_or_name,
+                                          string approved_account_id_or_name,
+                                          string token_uri,
+                                          bool broadcast)
+{
+   account_object metadata_owner_account = my->get_account(metadata_owner_account_id_or_name);
+   account_object owner_account = my->get_account(owner_account_id_or_name);
+   account_object approved_account = my->get_account(approved_account_id_or_name);
+
+   nft_mint_operation op;
+   op.payer = metadata_owner_account.id;
+   op.nft_metadata_id = metadata_id;
+   op.owner = owner_account.id;
+   op.approved = approved_account.id;
+   op.token_uri = token_uri;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+uint64_t wallet_api::nft_get_balance(string owner_account_id_or_name) const
+{
+   account_object owner_account = my->get_account(owner_account_id_or_name);
+   return my->_remote_db->nft_get_balance(owner_account.id);
+}
+
+optional<account_id_type> wallet_api::nft_owner_of(const nft_id_type token_id) const
+{
+   return my->_remote_db->nft_owner_of(token_id);
+}
+
+signed_transaction wallet_api::nft_safe_transfer_from(string operator_account_id_or_name,
+                                                      string from_account_id_or_name,
+                                                      string to_account_id_or_name,
+                                                      nft_id_type token_id,
+                                                      string data,
+                                                      bool broadcast)
+{
+   account_object operator_account = my->get_account(operator_account_id_or_name);
+   account_object from_account = my->get_account(from_account_id_or_name);
+   account_object to_account = my->get_account(to_account_id_or_name);
+
+   nft_safe_transfer_from_operation op;
+   op.operator_ = operator_account.id;
+   op.from = from_account.id;
+   op.to = to_account.id;
+   op.token_id = token_id;
+   op.data = data;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+signed_transaction wallet_api::nft_transfer_from(string operator_account_id_or_name,
+                                                 string from_account_id_or_name,
+                                                 string to_account_id_or_name,
+                                                 nft_id_type token_id,
+                                                 bool broadcast)
+{
+   return nft_safe_transfer_from(operator_account_id_or_name, from_account_id_or_name, to_account_id_or_name, token_id, "", broadcast);
+}
+
+signed_transaction wallet_api::nft_approve(string operator_account_id_or_name,
+                                           string approved_account_id_or_name,
+                                           nft_id_type token_id,
+                                           bool broadcast)
+{
+   account_object operator_account = my->get_account(operator_account_id_or_name);
+   account_object approved_account = my->get_account(approved_account_id_or_name);
+
+   nft_approve_operation op;
+   op.operator_ = operator_account.id;
+   op.approved = approved_account.id;
+   op.token_id = token_id;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+signed_transaction wallet_api::nft_set_approval_for_all(string owner_account_id_or_name,
+                                                        string operator_account_id_or_name,
+                                                        bool approved,
+                                                        bool broadcast)
+{
+   account_object owner_account = my->get_account(owner_account_id_or_name);
+   account_object operator_account = my->get_account(operator_account_id_or_name);
+
+   nft_set_approval_for_all_operation op;
+   op.owner = owner_account.id;
+   op.operator_ = operator_account.id;
+   op.approved = approved;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+optional<account_id_type> wallet_api::nft_get_approved(const nft_id_type token_id) const
+{
+   return my->_remote_db->nft_get_approved(token_id);
+}
+
+bool wallet_api::nft_is_approved_for_all(string owner_account_id_or_name, string operator_account_id_or_name) const
+{
+   account_object owner_account = my->get_account(owner_account_id_or_name);
+   account_object operator_account = my->get_account(operator_account_id_or_name);
+   return my->_remote_db->nft_is_approved_for_all(owner_account.id, operator_account.id);
+}
+
+vector<nft_object> wallet_api::nft_get_all_tokens() const
+{
+   return my->_remote_db->nft_get_all_tokens();
+}
+
+signed_transaction wallet_api::create_offer(set<nft_id_type> item_ids,
+                                             string issuer_accound_id_or_name,
+                                             asset minimum_price,
+                                             asset maximum_price,
+                                             bool buying_item,
+                                             time_point_sec offer_expiration_date,
+                                             optional<memo_data> memo,
+                                             bool broadcast)
+{
+   account_object issuer_account = my->get_account(issuer_accound_id_or_name);
+
+   offer_operation op;
+   op.item_ids = item_ids;
+   op.issuer = issuer_account.id;
+   op.minimum_price = minimum_price;
+   op.maximum_price = maximum_price;
+   op.buying_item = buying_item;
+   op.offer_expiration_date = offer_expiration_date;
+   op.memo = memo;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+signed_transaction wallet_api::create_bid(string bidder_account_id_or_name,
+                                          asset bid_price,
+                                          offer_id_type offer_id,
+                                          bool broadcast)
+{
+   account_object bidder_account = my->get_account(bidder_account_id_or_name);
+
+   bid_operation op;
+   op.bidder = bidder_account.id;
+   op.offer_id = offer_id;
+   op.bid_price = bid_price;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+signed_transaction wallet_api::cancel_offer(string issuer_account_id_or_name,
+                                            offer_id_type offer_id,
+                                            bool broadcast)
+{
+   account_object issuer_account = my->get_account(issuer_account_id_or_name);
+
+   cancel_offer_operation op;
+   op.issuer = issuer_account.id;
+   op.offer_id = offer_id;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+vector<offer_object> wallet_api::list_offers(uint32_t limit, optional<offer_id_type> lower_id) const
+{
+   offer_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->list_offers(lb_id, limit);
+}
+
+vector<offer_object> wallet_api::list_sell_offers(uint32_t limit, optional<offer_id_type> lower_id) const
+{
+   offer_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->list_sell_offers(lb_id, limit);
+}
+
+vector<offer_object> wallet_api::list_buy_offers(uint32_t limit, optional<offer_id_type> lower_id) const
+{
+   offer_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->list_buy_offers(lb_id, limit);
+}
+
+vector<offer_history_object> wallet_api::list_offer_history(uint32_t limit, optional<offer_history_id_type> lower_id) const
+{
+   offer_history_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->list_offer_history(lb_id, limit);
+}
+
+vector<offer_object> wallet_api::get_offers_by_issuer(string issuer_account_id_or_name,
+                                                      uint32_t limit, optional<offer_id_type> lower_id) const
+{
+   offer_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   account_object issuer_account = my->get_account(issuer_account_id_or_name);
+   return my->_remote_db->get_offers_by_issuer(lb_id, issuer_account.id, limit);
+}
+
+vector<offer_object> wallet_api::get_offers_by_item(const nft_id_type item, uint32_t limit, optional<offer_id_type> lower_id) const
+{
+   offer_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->get_offers_by_item(lb_id, item, limit);
+}
+
+vector<offer_history_object> wallet_api::get_offer_history_by_issuer(string issuer_account_id_or_name, uint32_t limit, optional<offer_history_id_type> lower_id) const
+{
+   offer_history_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   account_object issuer_account = my->get_account(issuer_account_id_or_name);
+   return my->_remote_db->get_offer_history_by_issuer(lb_id, issuer_account.id, limit);
+}
+
+vector<offer_history_object> wallet_api::get_offer_history_by_item(const nft_id_type item, uint32_t limit, optional<offer_history_id_type> lower_id) const
+{
+   offer_history_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->get_offer_history_by_item(lb_id, item, limit);
+}
+
+vector<offer_history_object> wallet_api::get_offer_history_by_bidder(string bidder_account_id_or_name, uint32_t limit, optional<offer_history_id_type> lower_id) const
+{
+   offer_history_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   account_object bidder_account = my->get_account(bidder_account_id_or_name);
+   return my->_remote_db->get_offer_history_by_bidder(lb_id, bidder_account.id, limit);
+}
+
+signed_transaction wallet_api::create_account_role(string owner_account_id_or_name,
+                                                   string name,
+                                                   string metadata,
+                                                   flat_set<int> allowed_operations,
+                                                   flat_set<account_id_type> whitelisted_accounts,
+                                                   time_point_sec valid_to,
+                                                   bool broadcast)
+{
+   account_object owner_account = my->get_account(owner_account_id_or_name);
+
+   account_role_create_operation op;
+   op.owner = owner_account.id;
+   op.name = name;
+   op.metadata = metadata;
+   op.allowed_operations = allowed_operations;
+   op.whitelisted_accounts = whitelisted_accounts;
+   op.valid_to = valid_to;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+signed_transaction wallet_api::update_account_role(string owner_account_id_or_name,
+                                                   account_role_id_type role_id,
+                                                   optional<string> name,
+                                                   optional<string> metadata,
+                                                   flat_set<int> operations_to_add,
+                                                   flat_set<int> operations_to_remove,
+                                                   flat_set<account_id_type> accounts_to_add,
+                                                   flat_set<account_id_type> accounts_to_remove,
+                                                   optional<time_point_sec> valid_to,
+                                                   bool broadcast)
+{
+   account_object owner_account = my->get_account(owner_account_id_or_name);
+
+   account_role_update_operation op;
+   op.owner = owner_account.id;
+   op.account_role_id = role_id;
+   op.name = name;
+   op.metadata = metadata;
+   op.allowed_operations_to_add = operations_to_add;
+   op.allowed_operations_to_remove = operations_to_remove;
+   op.accounts_to_add = accounts_to_add;
+   op.accounts_to_remove = accounts_to_remove;
+   op.valid_to = valid_to;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+signed_transaction wallet_api::delete_account_role(string owner_account_id_or_name,
+                                                   account_role_id_type role_id,
+                                                   bool broadcast)
+{
+   account_object owner_account = my->get_account(owner_account_id_or_name);
+
+   account_role_delete_operation op;
+   op.owner = owner_account.id;
+   op.account_role_id = role_id;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
+vector<account_role_object> wallet_api::get_account_roles_by_owner(string owner_account_id_or_name) const
+{
+   account_object owner_account = my->get_account(owner_account_id_or_name);
+   return my->_remote_db->get_account_roles_by_owner(owner_account.id);
+}
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info()
 {
@@ -6212,7 +7327,8 @@ vesting_balance_object_with_info::vesting_balance_object_with_info( const vestin
    : vesting_balance_object( vbo )
 {
    allowed_withdraw = get_allowed_withdraw( now );
-   if(vbo.balance_type == vesting_balance_type::gpos)
+   if(vbo.balance_type == vesting_balance_type::gpos ||
+      ((vbo.balance_type == vesting_balance_type::son) && (vbo.policy.which() == vesting_policy::tag<linear_vesting_policy>::value)))
       allowed_withdraw_time = vbo.policy.get<linear_vesting_policy>().begin_timestamp + vbo.policy.get<linear_vesting_policy>().vesting_cliff_seconds;
    else
       allowed_withdraw_time = now;

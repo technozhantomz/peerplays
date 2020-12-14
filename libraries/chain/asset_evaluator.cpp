@@ -42,6 +42,9 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
 
    database& d = db();
 
+   if (d.head_block_time() < HARDFORK_SON_TIME)
+      FC_ASSERT(op.symbol != "BTC", "BTC asset creation before SON hardfork");
+
    const auto& chain_parameters = d.get_global_properties().parameters;
    FC_ASSERT( op.common_options.whitelist_authorities.size() <= chain_parameters.maximum_asset_whitelist_authorities );
    FC_ASSERT( op.common_options.blacklist_authorities.size() <= chain_parameters.maximum_asset_whitelist_authorities );
@@ -58,36 +61,35 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
 
    if( d.head_block_time() > HARDFORK_385_TIME )
    {
-      if( d.head_block_time() <= HARDFORK_409_TIME )
+
+   if( d.head_block_time() <= HARDFORK_409_TIME )
+   {
+      auto dotpos = op.symbol.find( '.' );
+      if( dotpos != std::string::npos )
       {
-         auto dotpos = op.symbol.find( '.' );
-         if( dotpos != std::string::npos )
-         {
-            auto prefix = op.symbol.substr( 0, dotpos );
-            auto asset_symbol_itr = asset_indx.find( op.symbol );
-            FC_ASSERT( asset_symbol_itr != asset_indx.end(),
-                       "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
-                       ("s",op.symbol)("p",prefix) );
-            FC_ASSERT( asset_symbol_itr->issuer == op.issuer,
-                       "Asset ${s} may only be created by issuer of ${p}, ${i}",
-                       ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
-         }
+         auto prefix = op.symbol.substr( 0, dotpos );
+         auto asset_symbol_itr = asset_indx.find( op.symbol );
+         FC_ASSERT( asset_symbol_itr != asset_indx.end(), "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
+                    ("s",op.symbol)("p",prefix) );
+         FC_ASSERT( asset_symbol_itr->issuer == op.issuer, "Asset ${s} may only be created by issuer of ${p}, ${i}",
+                    ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
       }
-      else
+   }
+   else
+   {
+      auto dotpos = op.symbol.rfind( '.' );
+      if( dotpos != std::string::npos )
+
       {
-         auto dotpos = op.symbol.rfind( '.' );
-         if( dotpos != std::string::npos )
-         {
-            auto prefix = op.symbol.substr( 0, dotpos );
-            auto asset_symbol_itr = asset_indx.find( prefix );
-            FC_ASSERT( asset_symbol_itr != asset_indx.end(),
-                       "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
-                       ("s",op.symbol)("p",prefix) );
-            FC_ASSERT( asset_symbol_itr->issuer == op.issuer,
-                       "Asset ${s} may only be created by issuer of ${p}, ${i}",
-                       ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
-         }
+         auto prefix = op.symbol.substr( 0, dotpos );
+         auto asset_symbol_itr = asset_indx.find( prefix );
+         FC_ASSERT( asset_symbol_itr != asset_indx.end(), "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
+                    ("s",op.symbol)("p",prefix) );
+         FC_ASSERT( asset_symbol_itr->issuer == op.issuer, "Asset ${s} may only be created by issuer of ${p}, ${i}",
+                    ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
       }
+   }
+
    }
    else
    {
@@ -120,7 +122,7 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
       FC_ASSERT( op.bitasset_opts );
       FC_ASSERT( op.precision == op.bitasset_opts->short_backing_asset(d).precision );
    }
-   
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -175,7 +177,7 @@ object_id_type asset_create_evaluator::do_apply( const asset_create_operation& o
             a.options.core_exchange_rate.base.asset_id = next_asset_id;
 
          a.dynamic_asset_data_id = dyn_asset.id;
-         
+
          if( op.bitasset_opts.valid() )
             a.bitasset_data_id = bit_asset_id;
       });
@@ -223,7 +225,7 @@ void_result lottery_asset_create_evaluator::do_evaluate( const lottery_asset_cre
    {
       auto dotpos = op.symbol.rfind( '.' );
       if( dotpos != std::string::npos )
-      
+
       {
          auto prefix = op.symbol.substr( 0, dotpos );
          auto asset_symbol_itr = asset_indx.find( prefix );
@@ -576,7 +578,7 @@ void_result asset_update_dividend_evaluator::do_evaluate(const asset_update_divi
    auto& params = db().get_global_properties().parameters;
    if (o.new_options.payout_interval &&
        *o.new_options.payout_interval < params.maintenance_interval)
-      FC_THROW("New payout interval may not be less than the maintenance interval", 
+      FC_THROW("New payout interval may not be less than the maintenance interval",
                ("new_payout_interval", o.new_options.payout_interval)("maintenance_interval", params.maintenance_interval));
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (o) ) }

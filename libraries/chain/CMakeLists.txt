@@ -43,6 +43,7 @@ add_library( graphene_chain
              protocol/assert.cpp
              protocol/account.cpp
              protocol/transfer.cpp
+             protocol/chain_parameters.cpp
              protocol/committee_member.cpp
              protocol/witness.cpp
              protocol/market.cpp
@@ -61,6 +62,9 @@ add_library( graphene_chain
              protocol/vote.cpp
              protocol/tournament.cpp
              protocol/small_ops.cpp
+             protocol/custom_permission.cpp
+             protocol/custom_account_authority.cpp
+             protocol/offer.cpp
 
              genesis_state.cpp
              get_config.cpp
@@ -112,8 +116,27 @@ add_library( graphene_chain
              betting_market_evaluator.cpp
              betting_market_object.cpp
              betting_market_group_object.cpp
+             custom_permission_evaluator.cpp
+             custom_account_authority_evaluator.cpp
 
              affiliate_payout.cpp
+
+             offer_object.cpp
+             offer_evaluator.cpp
+             nft_evaluator.cpp
+             protocol/nft.cpp
+             protocol/account_role.cpp
+             account_role_evaluator.cpp
+
+             son_evaluator.cpp
+             son_object.cpp
+
+             son_wallet_evaluator.cpp
+             son_wallet_deposit_evaluator.cpp
+             son_wallet_withdraw_evaluator.cpp
+
+             sidechain_address_evaluator.cpp
+             sidechain_transaction_evaluator.cpp
 
              ${HEADERS}
              ${PROTOCOL_HEADERS}

@@ -9,10 +9,8 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/protocol/committee_member.hpp>
-#include <graphene/chain/protocol/sport.hpp>
 #include <graphene/app/api.hpp>
 #include <fc/crypto/digest.hpp>
-#include <graphene/app/database_api.hpp>
 
 #include "../common/database_fixture.hpp"
 
@@ -29,27 +27,6 @@ namespace
         transfer.amount = amount;
 
         return transfer;
-    }
-
-    sport_create_operation make_sport_create_operation(std::string s1, std::string s2)
-    {
-        sport_create_operation op;
-        op.name = {{ s1, s2 }};
-        return op;
-    }
-
-    betting_market_group_create_operation make_betting_market_group_create(string s1, string s2)
-    {
-        betting_market_group_create_operation op;
-        op.description = {{ s1, s2 }};
-        return op;
-    }
-
-    betting_market_create_operation make_betting_market_operation(string s1, string s2)
-    {
-        betting_market_create_operation op;
-        op.description = {{ s1, s2 }};
-        return op;
     }
 
     committee_member_create_operation make_committee_member_create_operation(const asset& fee, const account_id_type& member, const string& url)
@@ -72,7 +49,6 @@ namespace
         fixture.db.create<proposal_object>([&](proposal_object& proposal)
         {
             proposal.proposed_transaction = transaction;
-            proposal.required_active_approvals = { GRAPHENE_WITNESS_ACCOUNT };
         });
     }
 
@@ -115,14 +91,17 @@ namespace
 
 BOOST_FIXTURE_TEST_SUITE( check_transaction_for_duplicated_operations, database_fixture )
 
-BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_proposed_for_witness_twice )
+BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_proposed_twice )
 {
     try
     {
-        create_proposal(*this, {make_sport_create_operation("SPORT1", "S1")});
+        ACTORS((alice))
 
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_sport_create_operation("SPORT1", "S1")} );
-        BOOST_CHECK_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx), fc::exception);
+        create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+        BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -135,8 +114,10 @@ BOOST_AUTO_TEST_CASE( check_passes_without_duplication )
 {
     try
     {
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_sport_create_operation("SPORT1", "S1")});
-        BOOST_CHECK_NO_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx));
+        ACTORS((alice))
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -145,14 +126,16 @@ BOOST_AUTO_TEST_CASE( check_passes_without_duplication )
     }
 }
 
-BOOST_AUTO_TEST_CASE( check_passes_for_the_same_operation_with_different_names )
+BOOST_AUTO_TEST_CASE( check_passes_for_the_same_operation_with_different_assets )
 {
     try
     {
-        create_proposal(*this, {make_sport_create_operation("SPORT1", "S1")});
+        ACTORS((alice))
 
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_sport_create_operation("SPORT2", "S2")});
-        BOOST_CHECK_NO_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx));
+        create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501))});
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -165,11 +148,14 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplication_in_transaction_with_several_op
 {
     try
     {
-        create_proposal(*this, {make_sport_create_operation("SPORT1", "S1")});
+        ACTORS((alice))
 
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_sport_create_operation("SPORT2", "S2"),
-                                                                           make_sport_create_operation("SPORT1", "S1") }); //duplicated one
-        BOOST_CHECK_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx), fc::exception);
+        create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)),
+                                                                           make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+	BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -182,12 +168,15 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplicated_operation_in_existed_proposal_w
 {
     try
     {
-        create_proposal(*this, {make_sport_create_operation("SPORT1", "S1"),
-                                make_sport_create_operation("SPORT2", "S2") }); //duplicated one
+        ACTORS((alice))
 
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_sport_create_operation("SPORT3", "S3"),
-                                                                           make_sport_create_operation("SPORT2", "S2")}); //duplicated one
-        BOOST_CHECK_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx), fc::exception);
+        create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(499)),
+                                make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)),
+                                                                           make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+	BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -200,11 +189,14 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplicated_operation_in_existed_proposal_w
 {
     try
     {
-        create_proposal(*this, {make_sport_create_operation("SPORT1", "S1"),
-                                make_sport_create_operation("SPORT2", "S2")}); //duplicated one
+        ACTORS((alice))
 
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_sport_create_operation("SPORT2", "S2")}); //duplicated one
-        BOOST_CHECK_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx), fc::exception);
+        create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(499)),
+                                make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+        BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -217,12 +209,12 @@ BOOST_AUTO_TEST_CASE( check_passes_for_different_operations_types )
 {
     try
     {
-        ACTOR( alice );
+        ACTORS((alice))
 
         create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
-        BOOST_CHECK_NO_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx));
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -238,7 +230,8 @@ BOOST_AUTO_TEST_CASE( check_fails_for_same_member_create_operations )
         create_proposal(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
-        BOOST_CHECK_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx), fc::exception);
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+        BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -254,7 +247,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_different_member_create_operations )
         create_proposal(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1001), account_id_type(), "test url")});
-        BOOST_CHECK_NO_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx));
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -278,7 +271,8 @@ BOOST_AUTO_TEST_CASE( check_failes_for_several_operations_of_mixed_type )
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)), //duplicate
                                                                            make_committee_member_create_operation(asset(1002), account_id_type(), "test url")});
 
-        BOOST_CHECK_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx), fc::exception);
+	//Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+        BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -291,16 +285,20 @@ BOOST_AUTO_TEST_CASE( check_failes_for_duplicates_in_pending_transactions_list )
 {
     try
     {
-        ACTOR( alice );
-        generate_blocks( HARDFORK_1000_TIME + 15 );
+        ACTORS((alice))
 
-        auto duplicate = make_sport_create_operation("SPORT1", "S1");
+        fc::ecc::private_key committee_key = init_account_priv_key;
 
-        push_proposal( *this, GRAPHENE_WITNESS_ACCOUNT(db), {duplicate} );
+        const account_object& moneyman = create_account("moneyman", init_account_pub_key);
+        const asset_object& core = asset_id_type()(db);
 
-        auto trx = make_signed_transaction_with_proposed_operation( *this, {duplicate} );
+        transfer(account_id_type()(db), moneyman, core.amount(1000000));
 
-        BOOST_CHECK_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx), fc::exception);
+        auto duplicate = make_transfer_operation(alice.id, moneyman.get_id(), asset(100));
+        push_proposal(*this, moneyman, {duplicate});
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate});
+        BOOST_CHECK_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -325,7 +323,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_no_duplicates_in_pending_transactions_lis
         push_proposal(*this, moneyman, {make_transfer_operation(alice.id, moneyman.get_id(), asset(100))});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(alice.id, moneyman.get_id(), asset(101))});
-        BOOST_CHECK_NO_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx));
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -341,19 +339,19 @@ BOOST_AUTO_TEST_CASE( check_fails_for_several_transactions_with_duplicates_in_pe
         ACTORS((alice))
 
         fc::ecc::private_key committee_key = init_account_priv_key;
-        
+
         const account_object& moneyman = create_account("moneyman", init_account_pub_key);
         const asset_object& core = asset_id_type()(db);
 
         transfer(account_id_type()(db), moneyman, core.amount(1000000));
-        generate_blocks( HARDFORK_1000_TIME + 15 );
-        auto duplicate = make_sport_create_operation("SPORT1", "S1");
-        push_proposal(*this, moneyman, {make_sport_create_operation("SPORT2", "S2"), duplicate} );
 
-        auto trx = make_signed_transaction_with_proposed_operation(*this, 
-            {duplicate, make_sport_create_operation("SPORT3", "S3")} );
-        
-        BOOST_CHECK_THROW(graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx), fc::exception);
+        auto duplicate = make_transfer_operation(alice.id, moneyman.get_id(), asset(100));
+        push_proposal(*this, moneyman, {make_transfer_operation(alice.id, moneyman.get_id(), asset(101)),
+                                        duplicate});
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate,
+                                                                           make_transfer_operation(alice.id, moneyman.get_id(), asset(102))});
+        BOOST_CHECK_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -362,80 +360,63 @@ BOOST_AUTO_TEST_CASE( check_fails_for_several_transactions_with_duplicates_in_pe
     }
 }
 
-BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_group_create )
+BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
 {
-    try 
-    {
-        auto duplicate = make_betting_market_group_create( "BMGROUP1", "BMG1" );
+    generate_blocks( HARDFORK_1000_TIME + fc::seconds(300) );
 
-        create_proposal(*this, {duplicate} );
-
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate} );
-
-        BOOST_CHECK_NO_THROW( graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx) );
-    }
-    catch( const fc::exception &e )
-    {
-        edump( ( e.to_detail_string() ) );
-        throw;
-    }
-}
-
-BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_create )
-{
     try
     {
-        auto duplicate = make_betting_market_operation( "BMARKET1", "BM1" );
+        const sport_id_type sport_id = create_sport( {{"SN","SPORT_NAME"}} ).id;
+        const event_group_id_type event_group_id = create_event_group( {{"EG", "EVENT_GROUP"}}, sport_id ).id;
+        const betting_market_rules_id_type betting_market_rules_id =
+            create_betting_market_rules( {{"EN", "Rules"}}, {{"EN", "Some rules"}} ).id;
 
-        create_proposal( *this, {duplicate} );
+        event_create_operation evcop1;
+        evcop1.event_group_id = event_group_id;
+        evcop1.name           = {{"NO", "NAME_ONE"}};
+        evcop1.season         = {{"NO", "NAME_ONE"}};
 
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate} );
+        event_create_operation evcop2;
+        evcop2.event_group_id = event_group_id;
+        evcop2.name           = {{"NT", "NAME_TWO"}};
+        evcop2.season         = {{"NT", "NAME_TWO"}};
 
-        BOOST_CHECK_NO_THROW( graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx) );
+        betting_market_group_create_operation bmgcop;
+        bmgcop.description = {{"NN", "NO_NAME"}};
+        bmgcop.event_id = object_id_type(relative_protocol_ids, 0, 0);
+        bmgcop.rules_id = betting_market_rules_id;
+        bmgcop.asset_id = asset_id_type();
+
+        betting_market_create_operation bmcop;
+        bmcop.group_id = object_id_type(relative_protocol_ids, 0, 1);
+        bmcop.payout_condition.insert( internationalized_string_type::value_type( "CN", "CONDI_NAME" ) );
+
+        proposal_create_operation pcop1 = proposal_create_operation::committee_proposal(
+            db.get_global_properties().parameters,
+            db.head_block_time()
+        );
+        pcop1.review_period_seconds.reset();
+
+        proposal_create_operation pcop2 = pcop1;
+
+        trx.clear();
+
+        pcop1.proposed_ops.emplace_back( evcop1 );
+        pcop1.proposed_ops.emplace_back( bmgcop );
+        pcop1.proposed_ops.emplace_back( bmcop  );
+
+        pcop2.proposed_ops.emplace_back( evcop2 );
+        pcop2.proposed_ops.emplace_back( bmgcop );
+        pcop2.proposed_ops.emplace_back( bmcop  );
+
+        create_proposal(*this, { pcop1, pcop2 });
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, { pcop1, pcop2 });
+        BOOST_CHECK_NO_THROW( db.check_transaction_for_duplicated_operations(trx) );
     }
-    catch( const fc::exception &e )
+    catch( const fc::exception& e )
     {
-        edump( ( e.to_detail_string() ) );
-        throw;
-    }
-}
-
-BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_and_betting_market_group_create )
-{
-    try
-    {
-        auto duplicate_market = make_betting_market_operation( "BMARKET1", "BM1" );
-        auto duplicate_group  = make_betting_market_group_create( "BMGROUP1", "BMG1" ); 
-        
-        create_proposal( *this, {duplicate_market, duplicate_group} );
-
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate_market, duplicate_group} );
-
-        BOOST_CHECK_NO_THROW( graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx) );
-    }
-    catch( const fc::exception &e )
-    {
-        edump( ( e.to_detail_string() ) );
-        throw;
-    } 
-}
-
-BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_in_one_operation )
-{
-    try
-    {
-        auto duplicate = make_betting_market_operation( "BMARKET1", "BM1" );
-        
-        create_proposal( *this, {duplicate, duplicate} );
-
-        auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate, duplicate} );
-
-        BOOST_CHECK_NO_THROW( graphene::app::database_api(db).check_transaction_for_duplicated_operations(trx) );
-    }
-    catch( const fc::exception &e )
-    {
-        edump( ( e.to_detail_string() ) );
-
+        edump((e.to_detail_string()));
         throw;
     }
 }

@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include <fc/smart_ref_impl.hpp>
 #include <graphene/chain/protocol/balance.hpp>
 #include <graphene/chain/protocol/buyback.hpp>
 #include <graphene/chain/protocol/fba.hpp>

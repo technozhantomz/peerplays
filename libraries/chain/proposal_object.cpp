@@ -24,18 +24,22 @@
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/hardfork.hpp>
 
 namespace graphene { namespace chain {
 
-bool proposal_object::is_authorized_to_execute(database& db) const
+bool proposal_object::is_authorized_to_execute( database& db ) const
 {
-   transaction_evaluation_state dry_run_eval(&db);
+   transaction_evaluation_state dry_run_eval( &db );
 
    try {
       verify_authority( proposed_transaction.operations, 
                         available_key_approvals,
                         [&]( account_id_type id ){ return &id(db).active; },
                         [&]( account_id_type id ){ return &id(db).owner;  },
+                        [&]( account_id_type id, const operation& op ){
+                           return db.get_account_custom_authorities(id, op); },
+                        MUST_IGNORE_CUSTOM_OP_REQD_AUTHS( db.head_block_time() ),
                         db.get_global_properties().parameters.max_authority_depth,
                         true, /* allow committee */
                         available_active_approvals,

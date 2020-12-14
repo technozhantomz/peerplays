@@ -30,8 +30,6 @@
 #include <fc/network/http/websocket.hpp>
 #include <fc/rpc/websocket_api.hpp>
 #include <fc/api.hpp>
-#include <fc/smart_ref_impl.hpp>
-
 
 namespace graphene { namespace delayed_node {
 namespace bpo = boost::program_options;
@@ -65,7 +63,7 @@ void delayed_node_plugin::plugin_set_program_options(bpo::options_description& c
 
 void delayed_node_plugin::connect()
 {
-   my->client_connection = std::make_shared<fc::rpc::websocket_api_connection>(*my->client.connect(my->remote_endpoint), GRAPHENE_MAX_NESTED_OBJECTS);
+   my->client_connection = std::make_shared<fc::rpc::websocket_api_connection>(my->client.connect(my->remote_endpoint), GRAPHENE_MAX_NESTED_OBJECTS);
    my->database_api = my->client_connection->get_remote_api<graphene::app::database_api>(0);
    my->client_connection_closed = my->client_connection->closed.connect([this] {
       connection_failed();

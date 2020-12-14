@@ -630,6 +630,7 @@ BOOST_AUTO_TEST_CASE( voting )
       generate_blocks( HARDFORK_GPOS_TIME );
       generate_block();
 
+      auto now = HARDFORK_GPOS_TIME;
       const auto& core = asset_id_type()(db);
 
       // send some asset to alice and bob
@@ -651,7 +652,6 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), HARDFORK_GPOS_TIME.sec_since_epoch());
 
       // update default gpos for test speed
-      auto now = db.head_block_time();
       // 5184000 = 60x60x24x60 = 60 days
       // 864000 = 60x60x24x10 = 10 days
       update_gpos_global(5184000, 864000, now);
@@ -754,7 +754,7 @@ BOOST_AUTO_TEST_CASE( voting )
       advance_x_maint(5);
       // a new GPOS period is in but vote from user is before the start. Whoever votes in 6th sub-period, votes will carry
       now = db.head_block_time();
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), HARDFORK_GPOS_TIME.sec_since_epoch() + db.get_global_properties().parameters.gpos_period());
 
       generate_block();
 
@@ -905,7 +905,7 @@ BOOST_AUTO_TEST_CASE( worker_dividends_voting )
       vote_for(voter1_id, worker.vote_for, voter1_private_key);
 
       // first maint pass, coefficient will be 1
-      generate_blocks(HARDFORK_GPOS_TIME + fc::hours(12));
+      generate_blocks(HARDFORK_GPOS_TIME + fc::hours(12)); //forward 1/2 sub-period so that it consider only gpos votes
       worker = worker_id_type()(db);
       BOOST_CHECK_EQUAL(worker.total_votes_for, 100);
 
@@ -1010,7 +1010,7 @@ BOOST_AUTO_TEST_CASE( account_multiple_vesting )
       vote_for(patty_id, witness1.vote_id, patty_private_key);
 
       generate_blocks(HARDFORK_GPOS_TIME + fc::hours(12)); //forward 1/2 sub-period so that it consider only gpos votes
-      
+
       // amount in vested balanced will sum up as voting power
       witness1 = witness_id_type(1)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 400);

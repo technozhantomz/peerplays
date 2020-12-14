@@ -44,7 +44,6 @@
 #include <graphene/chain/worker_object.hpp>
 
 #include <fc/io/raw.hpp>
-#include <fc/smart_ref_impl.hpp>
 
 GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::balance_object )
 GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::block_summary_object )
