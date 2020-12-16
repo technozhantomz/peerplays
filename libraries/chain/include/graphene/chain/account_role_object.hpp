@@ -28,10 +28,10 @@ namespace graphene
         using account_role_multi_index_type = multi_index_container<
             account_role_object,
             indexed_by<
-                ordered_unique< tag<by_id>, 
+                ordered_unique< tag<by_id>,
                                     member<object, object_id_type, &object::id>
                 >,
-                ordered_non_unique< tag<by_owner>, 
+                ordered_non_unique< tag<by_owner>,
                                     member<account_role_object, account_id_type, &account_role_object::owner>
                 >,
                 ordered_unique< tag<by_expiration>,
