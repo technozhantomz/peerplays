@@ -201,9 +201,39 @@ cli_fixture::~cli_fixture()
 #endif
 }
 
+void cli_fixture::generate_blocks(fc::time_point_sec timestamp, bool miss_intermediate_blocks, uint32_t skip)
+{
+   auto db = app1->chain_database();
+
+   if( miss_intermediate_blocks )
+   {
+      generate_block(skip);
+      auto slots_to_miss = db->get_slot_at_time(timestamp);
+      if( slots_to_miss <= 1 )
+         return;
+      --slots_to_miss;
+      generate_block(skip, fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key"))), slots_to_miss);
+      return;
+   }
+   while( db->head_block_time() < timestamp )
+      generate_block(skip);
+}
+
+signed_block cli_fixture::generate_block(uint32_t skip, const fc::ecc::private_key& key, int miss_blocks)
+{
+   skip |= database::skip_undo_history_check;
+   // skip == ~0 will skip checks specified in database::validation_steps
+   auto db = app1->chain_database();
+   auto block = db->generate_block(db->get_slot_time(miss_blocks + 1),
+                            db->get_scheduled_witness(miss_blocks + 1),
+                            key, skip);
+   db->clear_pending();
+   return block;
+}
+
 bool cli_fixture::generate_maintenance_block() {
    try {
-      fc::ecc::private_key committee_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+      fc::ecc::private_key committee_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")));
       uint32_t skip = ~database::skip_fork_db;
       auto db = app1->chain_database();
       auto maint_time = db->get_dynamic_global_properties().next_maintenance_time;
@@ -215,27 +245,6 @@ bool cli_fixture::generate_maintenance_block() {
       return true;
    } catch (exception& e)
    {
-      return false;
-   }
-}
-
-bool cli_fixture::generate_block()
-{
-   graphene::chain::signed_block returned_block;
-   return generate_block(returned_block);
-}
-
-bool cli_fixture::generate_block(graphene::chain::signed_block& returned_block)
-{
-   try {
-      fc::ecc::private_key committee_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
-      auto db = app1->chain_database();
-      returned_block = db->generate_block( db->get_slot_time(1),
-                                           db->get_scheduled_witness(1),
-                                           committee_key,
-                                           database::skip_nothing );
-      return true;
-   } catch (exception &e) {
       return false;
    }
 }
@@ -254,7 +263,7 @@ void cli_fixture::init_nathan()
        import_txs = con.wallet_api_ptr->import_balance("nathan", nathan_keys, true);
        nathan_acct_before_upgrade = con.wallet_api_ptr->get_account("nathan");
 
-       BOOST_CHECK(generate_block());
+       generate_block();
 
        // upgrade nathan
        BOOST_TEST_MESSAGE("Upgrading Nathan to LTM");

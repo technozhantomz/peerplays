@@ -1005,7 +1005,7 @@ BOOST_AUTO_TEST_CASE( issue_429_test )
 
       const auto& fees = *db.get_global_properties().parameters.current_fees;
       auto fees_to_pay = fees.get<asset_create_operation>();
-      
+
       {
          signed_transaction tx;
          asset_create_operation op;

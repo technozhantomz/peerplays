@@ -27,6 +27,9 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <graphene/chain/config.hpp>
+#include <graphene/chain/hardfork.hpp>
+
 class son_test_helper
 {
     cli_fixture& fixture_;
@@ -36,6 +39,8 @@ public:
         fixture_(fixture)
     {
         fixture_.init_nathan();
+        fixture_.generate_blocks(HARDFORK_SON_TIME);
+        fixture_.generate_block();
     }
 
     void create_son(const std::string& account_name, const std::string& son_url,
@@ -65,7 +70,7 @@ public:
               "nathan", account_name, "65000", "1.3.0", "Here are some CORE token for your new account", true
         );
 
-        BOOST_CHECK(fixture_.generate_block());
+        fixture_.generate_block();
 
         // upgrade son account
         BOOST_TEST_MESSAGE("Upgrading son account to LTM");
@@ -75,16 +80,16 @@ public:
         // verify that the upgrade was successful
         BOOST_CHECK(son_account.is_lifetime_member());
 
-        BOOST_CHECK(fixture_.generate_block());
+        fixture_.generate_block();
 
         // create deposit vesting
         fixture_.con.wallet_api_ptr->create_vesting_balance(account_name,
                                                             "50", "1.3.0", vesting_balance_type::son, true);
-        BOOST_CHECK(fixture_.generate_block());
+        fixture_.generate_block();
 
         // create pay_vb vesting
         fixture_.con.wallet_api_ptr->create_vesting_balance(account_name, "1", "1.3.0", vesting_balance_type::normal, true);
-        BOOST_CHECK(fixture_.generate_block());
+        fixture_.generate_block();
 
         // check deposits are here
         auto deposits = fixture_.con.wallet_api_ptr->get_vesting_balances(account_name);
@@ -169,10 +174,11 @@ BOOST_AUTO_TEST_CASE( cli_update_son )
 
       // update SON signing key
       sidechain_public_keys.clear();
-      con.wallet_api_ptr->update_son("sonmember", "http://sonmember_updated2", "TEST6Yaq5ZNTTkMM2kBBzV5jktr8ETsniCC3bnVD7eFmegRrLXfGGG", sidechain_public_keys, true);
+      std::string new_key = GRAPHENE_ADDRESS_PREFIX + std::string("6Yaq5ZNTTkMM2kBBzV5jktr8ETsniCC3bnVD7eFmegRrLXfGGG");
+      con.wallet_api_ptr->update_son("sonmember", "http://sonmember_updated2", new_key, sidechain_public_keys, true);
       son_data = con.wallet_api_ptr->get_son("sonmember");
       BOOST_CHECK(son_data.url == "http://sonmember_updated2");
-      BOOST_CHECK(std::string(son_data.signing_key) == "TEST6Yaq5ZNTTkMM2kBBzV5jktr8ETsniCC3bnVD7eFmegRrLXfGGG");
+      BOOST_CHECK(std::string(son_data.signing_key) == new_key);
 
    } catch( fc::exception& e ) {
       edump((e.to_detail_string()));
@@ -421,7 +427,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        con.wallet_api_ptr->create_vesting_balance("nathan", "1000", "1.3.0", vesting_balance_type::gpos, true);
        update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
                                                               rejected, 2, true);
-       BOOST_CHECK(generate_block());
+       generate_block();
        BOOST_CHECK(generate_maintenance_block());
 
        // Verify the votes
@@ -461,7 +467,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        rejected.push_back("son1accnt");
        BOOST_CHECK_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
                                                               rejected, 1, true), fc::exception);
-       BOOST_CHECK(generate_block());
+       generate_block();
 
        // Verify the votes
        son1_obj = con.wallet_api_ptr->get_son("son1account");
@@ -675,7 +681,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
 
       // put SON in maintenance mode
       con.wallet_api_ptr->request_son_maintenance(name, true);
-      BOOST_CHECK(generate_block());
+      generate_block();
 
       // check SON is in request_maintenance
       son_obj = con.wallet_api_ptr->get_son(name);
@@ -683,7 +689,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
 
       // restore SON activity
       con.wallet_api_ptr->cancel_request_son_maintenance(name, true);
-      BOOST_CHECK(generate_block());
+      generate_block();
 
       // check SON is active
       son_obj = con.wallet_api_ptr->get_son(name);
@@ -691,7 +697,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
 
       // put SON in maintenance mode
       con.wallet_api_ptr->request_son_maintenance(name, true);
-      BOOST_CHECK(generate_block());
+      generate_block();
 
       // check SON is in request_maintenance
       son_obj = con.wallet_api_ptr->get_son(name);

@@ -89,7 +89,7 @@ namespace
     }
 }
 
-BOOST_FIXTURE_TEST_SUITE( check_tansaction_for_duplicated_operations, database_fixture )
+BOOST_FIXTURE_TEST_SUITE( check_transaction_for_duplicated_operations, database_fixture )
 
 BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_proposed_twice )
 {
@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_proposed_tw
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
         //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
-        BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE( check_passes_without_duplication )
         ACTORS((alice))
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
-        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_the_same_operation_with_different_assets 
         create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501))});
-        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplication_in_transaction_with_several_op
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)),
                                                                            make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
         //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
-	BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+	BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplicated_operation_in_existed_proposal_w
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)),
                                                                            make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
         //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
-	BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+	BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -196,7 +196,7 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplicated_operation_in_existed_proposal_w
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
         //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
-        BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -214,7 +214,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_different_operations_types )
         create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
-        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -231,7 +231,7 @@ BOOST_AUTO_TEST_CASE( check_fails_for_same_member_create_operations )
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
         //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
-        BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_different_member_create_operations )
         create_proposal(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1001), account_id_type(), "test url")});
-        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -272,7 +272,7 @@ BOOST_AUTO_TEST_CASE( check_failes_for_several_operations_of_mixed_type )
                                                                            make_committee_member_create_operation(asset(1002), account_id_type(), "test url")});
 
 	//Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
-        BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_WARN_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -298,7 +298,7 @@ BOOST_AUTO_TEST_CASE( check_failes_for_duplicates_in_pending_transactions_list )
         push_proposal(*this, moneyman, {duplicate});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate});
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -323,7 +323,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_no_duplicates_in_pending_transactions_lis
         push_proposal(*this, moneyman, {make_transfer_operation(alice.id, moneyman.get_id(), asset(100))});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(alice.id, moneyman.get_id(), asset(101))});
-        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
+        BOOST_CHECK_NO_THROW(db.check_transaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -351,7 +351,7 @@ BOOST_AUTO_TEST_CASE( check_fails_for_several_transactions_with_duplicates_in_pe
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate,
                                                                            make_transfer_operation(alice.id, moneyman.get_id(), asset(102))});
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_transaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -412,7 +412,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
         create_proposal(*this, { pcop1, pcop2 });
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, { pcop1, pcop2 });
-        BOOST_CHECK_NO_THROW( db.check_tansaction_for_duplicated_operations(trx) );
+        BOOST_CHECK_NO_THROW( db.check_transaction_for_duplicated_operations(trx) );
     }
     catch( const fc::exception& e )
     {

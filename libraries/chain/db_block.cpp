@@ -44,11 +44,11 @@
 
 
 namespace {
-    
+
    struct proposed_operations_digest_accumulator
    {
       typedef void result_type;
-      
+
       void operator()(const graphene::chain::proposal_create_operation& proposal)
       {
          for (auto& operation: proposal.proposed_ops)
@@ -56,20 +56,20 @@ namespace {
             proposed_operations_digests.push_back(fc::digest(operation.op));
          }
       }
-       
+
       //empty template method is needed for all other operation types
       //we can ignore them, we are interested in only proposal_create_operation
       template<class T>
-      void operator()(const T&) 
+      void operator()(const T&)
       {}
-      
+
       std::vector<fc::sha256> proposed_operations_digests;
    };
-   
+
    std::vector<fc::sha256> gather_proposed_operations_digests(const graphene::chain::transaction& trx)
    {
       proposed_operations_digest_accumulator digest_accumulator;
-      
+
       for (auto& operation: trx.operations)
       {
          if( operation.which() != graphene::chain::operation::tag<graphene::chain::betting_market_group_create_operation>::value
@@ -78,7 +78,7 @@ namespace {
          else
             edump( ("Found dup"));
       }
-       
+
       return digest_accumulator.proposed_operations_digests;
    }
 }
@@ -148,24 +148,24 @@ std::vector<block_id_type> database::get_block_ids_on_fork(block_id_type head_of
   result.emplace_back(branches.first.back()->previous_id());
   return result;
 }
-    
-void database::check_tansaction_for_duplicated_operations(const signed_transaction& trx)
+
+void database::check_transaction_for_duplicated_operations(const signed_transaction& trx)
 {
    const auto& proposal_index = get_index<proposal_object>();
    std::set<fc::sha256> existed_operations_digests;
-   
+
    proposal_index.inspect_all_objects( [&](const object& obj){
       const proposal_object& proposal = static_cast<const proposal_object&>(obj);
       auto proposed_operations_digests = gather_proposed_operations_digests( proposal.proposed_transaction );
       existed_operations_digests.insert( proposed_operations_digests.begin(), proposed_operations_digests.end() );
    });
-   
+
    for (auto& pending_transaction: _pending_tx)
    {
       auto proposed_operations_digests = gather_proposed_operations_digests(pending_transaction);
       existed_operations_digests.insert(proposed_operations_digests.begin(), proposed_operations_digests.end());
    }
-    
+
    auto proposed_operations_digests = gather_proposed_operations_digests(trx);
    for (auto& digest: proposed_operations_digests)
    {
@@ -337,7 +337,7 @@ void database::verify_signing_witness( const signed_block& new_block, const fork
       FC_ASSERT( new_block.witness == wid, "Witness produced block at wrong time",
                ("block witness",new_block.witness)("scheduled",wid)("slot_num",slot_num) );
       FC_ASSERT( new_block.validate_signee( wid(*this).signing_key ) );
-   }   
+   }
 }
 
 void database::update_witnesses( fork_item& fork_entry )const
@@ -351,7 +351,7 @@ void database::update_witnesses( fork_item& fork_entry )const
    const witness_schedule_object& wso = get_witness_schedule_object();
    fork_entry.scheduled_witnesses = std::make_shared< vector< pair< witness_id_type, public_key_type > > >();
    fork_entry.scheduled_witnesses->reserve( wso.current_shuffled_witnesses.size() );
-   
+
    for( size_t i = 0; i < wso.current_shuffled_witnesses.size(); ++i )
    {
       const auto& witness = wso.current_shuffled_witnesses[i](*this);
@@ -551,7 +551,7 @@ signed_block database::_generate_block(
    pending_block.timestamp = when;
    pending_block.transaction_merkle_root = pending_block.calculate_merkle_root();
    pending_block.witness = witness_id;
-   
+
    // Genesis witnesses start with a default initial secret
    if( witness_obj.next_secret_hash == secret_hash_type::hash( secret_hash_type() ) ) {
          pending_block.previous_secret = secret_hash_type();
@@ -561,7 +561,7 @@ signed_block database::_generate_block(
          fc::raw::pack( last_enc, witness_obj.previous_secret );
          pending_block.previous_secret = last_enc.result();
    }
-      
+
    secret_hash_type::encoder next_enc;
    fc::raw::pack( next_enc, block_signing_private_key );
    fc::raw::pack( next_enc, pending_block.previous_secret );
@@ -692,10 +692,10 @@ void database::_apply_block( const signed_block& next_block )
       // For VOPs derived directly from a real op,
       //     use the real op's (block_num,trx_in_block,op_in_trx), virtual_op starts from 1.
       // For VOPs created after processed all transactions,
-      //     trx_in_block = the_block.trsanctions.size(), virtual_op starts from 0.      
+      //     trx_in_block = the_block.trsanctions.size(), virtual_op starts from 0.
       ++_current_trx_in_block;
       _current_op_in_trx  = 0;
-      _current_virtual_op = 0;   
+      _current_virtual_op = 0;
    }
 
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM) {
@@ -713,9 +713,9 @@ void database::_apply_block( const signed_block& next_block )
    // Are we at the maintenance interval?
    if( maint_needed )
       perform_chain_maintenance(next_block, global_props);
-   
+
    check_ending_lotteries();
-   
+
    create_block_summary(next_block);
    place_delayed_bets(); // must happen after update_global_dynamic_data() updates the time
    clear_expired_transactions();
@@ -786,7 +786,7 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
    auto& trx_idx = get_mutable_index_type<transaction_index>();
    const chain_id_type& chain_id = get_chain_id();
    transaction_id_type trx_id;
-   
+
    if( !(skip & skip_transaction_dupe_check) )
    {
       trx_id = trx.id();
@@ -884,7 +884,7 @@ const witness_object& database::validate_block_header( uint32_t skip, const sign
       FC_ASSERT( secret_hash_type::hash( next_block.previous_secret ) == witness.next_secret_hash, "",
                ( "previous_secret", next_block.previous_secret )( "next_secret_hash", witness.next_secret_hash ) );
 
-   if( !(skip&skip_witness_signature) ) 
+   if( !(skip&skip_witness_signature) )
       FC_ASSERT( next_block.validate_signee( witness.signing_key ) );
 
    if( !(skip&skip_witness_schedule_check) )

@@ -60,13 +60,12 @@ struct cli_fixture
    cli_fixture();
    ~cli_fixture();
 
-   ///////////
-   /// Send a block to the db
-   /// @param returned_block the signed block
-   /// @returns true on success
-   ///////////
-   bool generate_block(graphene::chain::signed_block& returned_block);
-   bool generate_block();
+   signed_block generate_block(uint32_t skip = ~0,
+                               const fc::ecc::private_key& key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key"))),
+                               int miss_blocks = 0);
+
+   void generate_blocks(fc::time_point_sec timestamp, bool miss_intermediate_blocks = true, uint32_t skip = ~0);
+
    ///////////
    /// @brief Skip intermediate blocks, and generate a maintenance block
    /// @returns true on success

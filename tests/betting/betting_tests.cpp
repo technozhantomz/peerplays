@@ -1838,14 +1838,17 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test_with_matched_bets)
         transfer(account_id_type(), bob_id, asset(initialAccountAsset));
         generate_blocks(1);
 
-        const auto& event = create_event({{"en", "event"}}, {{"en", "2016-17"}}, nhl.id);
+        create_event({{"en", "event"}}, {{"en", "2016-17"}}, nhl.id);
         generate_blocks(1);
+        const event_object& event = *db.get_index_type<event_object_index>().indices().get<by_id>().rbegin();
 
-        const auto& market_group = create_betting_market_group({{"en", "market group"}}, event.id, betting_market_rules.id, asset_id_type(), false, 0);
+        create_betting_market_group({{"en", "market group"}}, event.id, betting_market_rules.id, asset_id_type(), false, 0);
         generate_blocks(1);
+        const betting_market_group_object& market_group = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin();
 
-        const auto& market = create_betting_market(market_group.id, {{"en", "market"}});
+        create_betting_market(market_group.id, {{"en", "market"}});
         generate_blocks(1);
+        const betting_market_object& market = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin();
 
         place_bet(alice_id, market.id, bet_type::back, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
         place_bet(bob_id, market.id, bet_type::lay, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -1877,9 +1880,8 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test_not_existed_event_group)
     try
     {
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-	event_group_id_type nhl_id = nhl.id;
-	delete_event_group(nhl_id);
-
+        event_group_id_type nhl_id = nhl.id;
+        delete_event_group(nhl_id);
 
         BOOST_CHECK_THROW(delete_event_group(nhl_id), fc::exception);
     } FC_LOG_AND_RETHROW()
@@ -3013,7 +3015,8 @@ boost::unit_test::test_suite* init_unit_test_suite(int argc, char* argv[]) {
     std::cout << "Random number generator seeded to " << time(NULL) << std::endl;
 
     // betting operations don't take effect until HARDFORK 1000
-    GRAPHENE_TESTING_GENESIS_TIMESTAMP = HARDFORK_1000_TIME.sec_since_epoch() + 2;
+    GRAPHENE_TESTING_GENESIS_TIMESTAMP =
+            (HARDFORK_1000_TIME.sec_since_epoch() + 15) / GRAPHENE_DEFAULT_BLOCK_INTERVAL * GRAPHENE_DEFAULT_BLOCK_INTERVAL;
 
     return nullptr;
 }

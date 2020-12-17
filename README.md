@@ -88,14 +88,14 @@ then proceed with:
     cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release .
     make
     ./programs/witness_node/witness_node
-    
+
 Launching the witness creates required directories. Next, **stop the witness** and continue.
 
     $ vi witness_node_data_dir/config.ini
     p2p-endpoint = 0.0.0.0:9777
     rpc-endpoint = 127.0.0.1:8090
     seed-node = 213.184.225.234:59500
-    
+
 Start the witness back up
 
     ./programs/witness_node/witness_node
@@ -155,7 +155,7 @@ Create your witness (substitute the url for your witness information)
 ```
 create_witness your_witness_username "url" true
 ```
-**Be sure to take note of the block_signing_key** 
+**Be sure to take note of the block_signing_key**
 
 IMPORTANT (issue below command using block_signing_key just obtained)
 ```
