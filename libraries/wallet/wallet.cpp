@@ -5561,8 +5561,15 @@ signed_transaction wallet_api::sell( string seller_account,
                                      double amount,
                                      bool broadcast )
 {
-   return my->sell_asset( seller_account, std::to_string( amount ), base,
-                          std::to_string( rate * amount ), quote, 0, false, broadcast );
+   std::stringstream ss;
+   ss.str(std::string());
+   ss << std::noshowpoint << amount;
+   std::string amount_to_sell = ss.str();
+   ss.str(std::string());
+   ss << std::noshowpoint << rate * amount;
+   std::string min_to_receive = ss.str();
+   return my->sell_asset( seller_account, amount_to_sell, base,
+                          min_to_receive, quote, 0, false, broadcast );
 }
 
 signed_transaction wallet_api::buy( string buyer_account,
@@ -5572,8 +5579,15 @@ signed_transaction wallet_api::buy( string buyer_account,
                                     double amount,
                                     bool broadcast )
 {
-   return my->sell_asset( buyer_account, std::to_string( rate * amount ), quote,
-                          std::to_string( amount ), base, 0, false, broadcast );
+   std::stringstream ss;
+   ss.str(std::string());
+   ss << std::noshowpoint << rate * amount;
+   std::string amount_to_sell = ss.str();
+   ss.str(std::string());
+   ss << std::noshowpoint << amount;
+   std::string min_to_receive = ss.str();
+   return my->sell_asset( buyer_account, amount_to_sell, quote,
+                          min_to_receive, base, 0, false, broadcast );
 }
 
 signed_transaction wallet_api::borrow_asset(string seller_name, string amount_to_sell,
