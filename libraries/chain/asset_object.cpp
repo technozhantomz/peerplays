@@ -266,7 +266,7 @@ map< account_id_type, vector< uint16_t > > asset_object::distribute_winners_part
          *t += percents_to_distribute / holders.size();
    }
    auto sweeps_distribution_percentage = db.get_global_properties().parameters.sweeps_distribution_percentage();
-   for( int c = 0; c < winner_numbers.size(); ++c ) {
+   for( size_t c = 0; c < winner_numbers.size(); ++c ) {
       auto winner_num = winner_numbers[c];
       lottery_reward_operation reward_op;
       reward_op.lottery = get_id();

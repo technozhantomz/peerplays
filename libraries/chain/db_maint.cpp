@@ -51,8 +51,6 @@
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/worker_object.hpp>
 
-#define USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX // vesting_balance_object by_asset_balance index needed
-
 namespace graphene { namespace chain {
 
 template<class Index>
@@ -1192,7 +1190,6 @@ uint32_t database::get_gpos_current_subperiod()
    const auto period_start = fc::time_point_sec(gpo.parameters.gpos_period_start());
 
    //  variables needed
-   const fc::time_point_sec period_end = period_start + vesting_period;
    const auto number_of_subperiods = vesting_period / vesting_subperiod;
    const auto now = this->head_block_time();
    auto seconds_since_period_start = now.sec_since_epoch() - period_start.sec_since_epoch();
@@ -1385,7 +1382,6 @@ void schedule_pending_dividend_balances(database& db,
 
    uint32_t holder_account_count = 0;
 
-#ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
    // get only once a collection of accounts that hold nonzero vesting balances of the dividend asset
    auto vesting_balances_begin =
       vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(dividend_holder_asset_obj.id, balance_type));
@@ -1400,22 +1396,6 @@ void schedule_pending_dividend_balances(database& db,
              ("owner", vesting_balance_obj.owner(db).name)
              ("amount", vesting_balance_obj.balance.amount));
    }
-#else
-   // get only once a collection of accounts that hold nonzero vesting balances of the dividend asset
-   const auto& vesting_balances = vesting_index.indices().get<by_id>();
-   for (const vesting_balance_object& vesting_balance_obj : vesting_balances)
-   {
-        if (vesting_balance_obj.balance.asset_id == dividend_holder_asset_obj.id && vesting_balance_obj.balance.amount &&
-        vesting_balance_object.balance_type == balance_type)
-        {
-            vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
-            ++gpos_holder_account_count;
-            dlog("Vesting balance for account: ${owner}, amount: ${amount}",
-                 ("owner", vesting_balance_obj.owner(db).name)
-                 ("amount", vesting_balance_obj.balance.amount));
-        }
-   }
-#endif
 
    auto current_distribution_account_balance_iter = current_distribution_account_balance_range.begin();
    if(db.head_block_time() < HARDFORK_GPOS_TIME)
@@ -1869,7 +1849,6 @@ void process_dividend_assets(database& db)
                   {
                      // if there was a previous payout, make our next payment one interval
                      uint32_t current_time_sec = current_head_block_time.sec_since_epoch();
-                     fc::time_point_sec reference_time = *dividend_data_obj.last_scheduled_payout_time;
                      uint32_t next_possible_time_sec = dividend_data_obj.last_scheduled_payout_time->sec_since_epoch();
                      do
                         next_possible_time_sec += *dividend_data_obj.options.payout_interval;
@@ -1990,7 +1969,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             balance_type = vesting_balance_type::gpos;
 
          const vesting_balance_index& vesting_index = d.get_index_type<vesting_balance_index>();
-#ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
+
          auto vesting_balances_begin =
               vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(asset_id_type(), balance_type));
          auto vesting_balances_end =
@@ -2002,19 +1981,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                  ("owner", vesting_balance_obj.owner(d).name)
                  ("amount", vesting_balance_obj.balance.amount));
          }
-#else
-         const auto& vesting_balances = vesting_index.indices().get<by_id>();
-         for (const vesting_balance_object& vesting_balance_obj : vesting_balances)
-         {
-            if (vesting_balance_obj.balance.asset_id == asset_id_type() && vesting_balance_obj.balance.amount && vesting_balance_obj.balance_type == balance_type)
-            {
-                vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
-                dlog("Vesting balance for account: ${owner}, amount: ${amount}",
-                     ("owner", vesting_balance_obj.owner(d).name)
-                     ("amount", vesting_balance_obj.balance.amount));
-            }
-         }
-#endif
+
       }
 
       void operator()( const account_object& stake_account, const account_statistics_object& stats )

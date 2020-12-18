@@ -1005,6 +1005,7 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
 
    int32_t op_idx_1 = -1;
    chain::operation op_obj_idx_1;
+   (void) op_idx_1;
 
    if (po.proposed_transaction.operations.size() >= 2) {
       op_idx_1 = po.proposed_transaction.operations[1].which();
@@ -1107,8 +1108,8 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
             std::string tx_txid = tx_json.get<std::string>("result.txid");
             uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
             std::string tx_address = "";
-            int64_t tx_amount = -1;
-            int64_t tx_vout = -1;
+            uint64_t tx_amount = -1;
+            uint64_t tx_vout = -1;
 
             for (auto &input : tx_json.get_child("result.vout")) {
                std::string tx_vout_s = input.second.get<std::string>("n");
@@ -1349,6 +1350,7 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
    const auto &sidechain_addresses_by_sidechain_range = sidechain_addresses_by_sidechain_idx.equal_range(sidechain);
    std::for_each(sidechain_addresses_by_sidechain_range.first, sidechain_addresses_by_sidechain_range.second,
                  [&](const sidechain_address_object &sao) {
+                    bool retval = true;
                     if (sao.expires == time_point_sec::maximum()) {
                        auto usr_pubkey = fc::ecc::public_key(create_public_key_data(parse_hex(sao.deposit_public_key)));
 
@@ -1374,13 +1376,14 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
                              database.push_transaction(trx, database::validation_steps::skip_block_size_check);
                              if (plugin.app().p2p_node())
                                 plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-                             return true;
+                             retval = true;
                           } catch (fc::exception &e) {
                              elog("Sending proposal for deposit sidechain transaction create operation failed with exception ${e}", ("e", e.what()));
-                             return false;
+                             retval = false;
                           }
                        }
                     }
+                    return retval;
                  });
 }
 
@@ -1658,11 +1661,11 @@ std::string sidechain_net_handler_bitcoin::create_withdrawal_transaction(const s
    std::string pw_address = json.get<std::string>("address");
    std::string redeem_script = json.get<std::string>("redeemScript");
 
-   uint64_t fee_rate = bitcoin_client->estimatesmartfee();
-   uint64_t min_fee_rate = 1000;
+   int64_t fee_rate = bitcoin_client->estimatesmartfee();
+   int64_t min_fee_rate = 1000;
    fee_rate = std::max(fee_rate, min_fee_rate);
 
-   uint64_t total_amount = 0;
+   int64_t total_amount = 0;
    std::vector<btc_txout> inputs = bitcoin_client->listunspent_by_address_and_amount(pw_address, 0);
 
    if (inputs.size() == 0) {

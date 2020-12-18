@@ -127,7 +127,9 @@ extern uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP;
 
 #define PREP_ACTOR(name) \
    fc::ecc::private_key name ## _private_key = generate_private_key(BOOST_PP_STRINGIZE(name));   \
-   public_key_type name ## _public_key = name ## _private_key.get_public_key();
+   public_key_type name ## _public_key = name ## _private_key.get_public_key(); \
+   (void) name ## _private_key; \
+   (void) name ## _public_key;
 
 #define ACTOR(name) \
    PREP_ACTOR(name) \

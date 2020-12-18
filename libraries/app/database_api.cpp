@@ -2570,18 +2570,8 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
 
    share_type total_amount;
    auto balance_type = vesting_balance_type::gpos;
-#ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
-   // get only once a collection of accounts that hold nonzero vesting balances of the dividend asset
-   auto vesting_balances_begin =
-      vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(asset_id_type(), balance_type));
-   auto vesting_balances_end =
-      vesting_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(asset_id_type(), balance_type, share_type()));
 
-   for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
-   {
-        total_amount += vesting_balance_obj.balance.amount;
-   }
-#else
+   // get only once a collection of accounts that hold nonzero vesting balances of the dividend asset
    const vesting_balance_index& vesting_index = _db.get_index_type<vesting_balance_index>();
    const auto& vesting_balances = vesting_index.indices().get<by_id>();
    for (const vesting_balance_object& vesting_balance_obj : vesting_balances)
@@ -2591,7 +2581,6 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
          total_amount += vesting_balance_obj.balance.amount;
       }
    }
-#endif
 
    vector<vesting_balance_object> account_vbos;
    const time_point_sec now = _db.head_block_time();

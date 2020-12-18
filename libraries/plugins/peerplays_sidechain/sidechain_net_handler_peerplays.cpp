@@ -131,6 +131,7 @@ void sidechain_net_handler_peerplays::process_sidechain_addresses() {
    const auto &sidechain_addresses_by_sidechain_range = sidechain_addresses_by_sidechain_idx.equal_range(sidechain);
    std::for_each(sidechain_addresses_by_sidechain_range.first, sidechain_addresses_by_sidechain_range.second,
                  [&](const sidechain_address_object &sao) {
+                     bool retval = true;
                     if (sao.expires == time_point_sec::maximum()) {
                        if (sao.deposit_address == "") {
                           sidechain_address_update_operation op;
@@ -150,13 +151,14 @@ void sidechain_net_handler_peerplays::process_sidechain_addresses() {
                               database.push_transaction(trx, database::validation_steps::skip_block_size_check);
                               if (plugin.app().p2p_node())
                                  plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-                              return true;
+                              retval = true;
                            } catch (fc::exception &e) {
                               elog("Sending transaction for update deposit address operation failed with exception ${e}", ("e", e.what()));
-                              return false;
+                              retval = false;
                            }
                        }
                     }
+                     return retval;
                  });
    return;
 }

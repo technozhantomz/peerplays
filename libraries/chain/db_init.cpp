@@ -933,7 +933,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
    const auto& idx = get_index_type<asset_index>().indices().get<by_symbol>();
    auto it = idx.begin();
-   bool has_imbalanced_assets = false;
 
    while( it != idx.end() )
    {
@@ -945,7 +944,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          FC_ASSERT( debt_itr != total_debts.end() );
          if( supply_itr->second != debt_itr->second )
          {
-            has_imbalanced_assets = true;
             elog( "Genesis for asset ${aname} is not balanced\n"
                   "   Debt is ${debt}\n"
                   "   Supply is ${supply}\n",
@@ -957,10 +955,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       }
       ++it;
    }
-// @romek
-#if 0
-   FC_ASSERT( !has_imbalanced_assets );
-#endif
 
    // Save tallied supplies
    for( const auto& item : total_supplies )

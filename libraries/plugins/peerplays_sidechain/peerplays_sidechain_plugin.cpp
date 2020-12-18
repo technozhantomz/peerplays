@@ -138,8 +138,10 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
    config_ready_son = (options.count("son-id") || options.count("son-ids")) && options.count("peerplays-private-key");
    if (config_ready_son) {
       LOAD_VALUE_SET(options, "son-id", sons, chain::son_id_type)
-      if (options.count("son-ids"))
-         boost::insert(sons, fc::json::from_string(options.at("son-ids").as<string>()).as<vector<chain::son_id_type>>(5));
+      if (options.count("son-ids")) {
+         vector<chain::son_id_type> v = fc::json::from_string(options.at("son-ids").as<string>()).as<vector<chain::son_id_type>>(5);
+         sons.insert(v.begin(), v.end());
+      }
       config_ready_son = config_ready_son && !sons.empty();
 
 #ifndef ENABLE_MULTIPLE_SONS

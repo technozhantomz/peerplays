@@ -546,7 +546,6 @@ BOOST_AUTO_TEST_CASE( votes_on_gpos_activation )
       generate_block();
 
       // update default gpos
-      auto now = db.head_block_time();
       // 5184000 = 60x60x24x6 = 6 days
       // 864000 = 60x60x24x1 = 1 days
       update_gpos_global(518400, 86400, HARDFORK_GPOS_TIME);

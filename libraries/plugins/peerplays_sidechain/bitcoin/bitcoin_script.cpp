@@ -1,5 +1,6 @@
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_script.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/serialize.hpp>
+#include <fc/io/raw.hpp>
 
 namespace graphene { namespace peerplays_sidechain { namespace bitcoin {
 
