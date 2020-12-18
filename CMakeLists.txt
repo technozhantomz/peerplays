@@ -22,6 +22,34 @@ endif()
 
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules" )
 
+# function to help with cUrl
+macro(FIND_CURL)
+   if (NOT WIN32 AND NOT APPLE AND CURL_STATICLIB)
+      find_package(OpenSSL REQUIRED)
+      set (OLD_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+      set (CMAKE_FIND_LIBRARY_SUFFIXES .a)
+      find_package(CURL REQUIRED)
+      list(APPEND CURL_LIBRARIES ${OPENSSL_LIBRARIES} ${BOOST_THREAD_LIBRARY} ${CMAKE_DL_LIBS})
+      set (CMAKE_FIND_LIBRARY_SUFFIXES ${OLD_SUFFIXES})
+   else (NOT WIN32 AND NOT APPLE AND CURL_STATICLIB)
+      find_package(CURL REQUIRED)
+   endif (NOT WIN32 AND NOT APPLE AND CURL_STATICLIB)
+
+   if( WIN32 )
+     if ( MSVC )
+       list( APPEND CURL_LIBRARIES Wldap32 )
+     endif( MSVC )
+
+     if( MINGW )
+       # MinGW requires a specific order of included libraries ( CURL before ZLib )
+       find_package( ZLIB REQUIRED )
+       list( APPEND CURL_LIBRARIES ${ZLIB_LIBRARY} pthread )
+     endif( MINGW )
+
+     list( APPEND CURL_LIBRARIES ${PLATFORM_SPECIFIC_LIBS} )
+   endif( WIN32 )
+endmacro()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
 set(GRAPHENE_EGENESIS_JSON "${CMAKE_CURRENT_SOURCE_DIR}/genesis.json" CACHE PATH "location of the genesis.json to embed in the executable" )
 
