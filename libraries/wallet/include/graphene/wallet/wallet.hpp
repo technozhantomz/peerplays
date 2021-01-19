@@ -62,6 +62,11 @@ struct brain_key_info
    public_key_type pub_key;
 };
 
+enum authority_type
+{
+   owner,
+   active
+};
 
 /**
  *  Contains the confirmation receipt the sender must give the receiver and
@@ -739,6 +744,41 @@ class wallet_api
                                           string  referrer_account,
                                           uint32_t referrer_percent,
                                           bool broadcast = false);
+
+      /** Updates account public keys
+       *
+       * @param name the name of the existing account
+       * @param old_owner the owner key for the named account to be replaced
+       * @param new_owner the owner key for the named account to be set as new
+       * @param old_active the active key for the named account to be replaced
+       * @param new_active the active key for the named account to be set as new
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction updating account public keys
+       */
+      signed_transaction update_account_keys(string name,
+                                             public_key_type old_owner,
+                                             public_key_type new_owner,
+                                             public_key_type old_active,
+                                             public_key_type new_active,
+                                             bool broadcast = false);
+
+      /**
+       * This method updates the key of an authority for an exisiting account.
+       * Warning: You can create impossible authorities using this method. The method
+       * will fail if you create an impossible owner authority, but will allow impossible
+       * active and posting authorities.
+       *
+       * @param account_name The name of the account whose authority you wish to update
+       * @param type The authority type. e.g. owner or active
+       * @param key The public key to add to the authority
+       * @param weight The weight the key should have in the authority. A weight of 0 indicates the removal of the key.
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction update_account_auth_key(string account_name,
+                                                 authority_type type,
+                                                 public_key_type key,
+                                                 weight_type weight,
+                                                 bool broadcast);
 
       /**
        *  Upgrades an account to prime status.
@@ -2433,6 +2473,8 @@ FC_REFLECT( graphene::wallet::brain_key_info,
             (pub_key)
           )
 
+FC_REFLECT_ENUM( graphene::wallet::authority_type, (owner)(active) )
+
 FC_REFLECT( graphene::wallet::exported_account_keys, (account_name)(encrypted_private_keys)(public_keys) )
 
 FC_REFLECT( graphene::wallet::exported_keys, (password_checksum)(account_keys) )
@@ -2496,6 +2538,8 @@ FC_API( graphene::wallet::wallet_api,
         (derive_owner_keys_from_brain_key)
         (get_private_key_from_password)
         (register_account)
+        (update_account_keys)
+        (update_account_auth_key)
         (upgrade_account)
         (create_account_with_brain_key)
         (sell_asset)
