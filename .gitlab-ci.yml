@@ -12,7 +12,7 @@ stages:
 build:
   stage: build
   script:
-    - rm -rf .git/modules/* ./docs ./libraries/fc
+    - rm -rf .git/modules/docs .git/modules/libraries/fc ./docs ./libraries/fc
     - git submodule sync
     - git submodule update --init --recursive
     - rm -rf build

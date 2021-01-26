@@ -35,6 +35,7 @@
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
+#include <graphene/chain/son_object.hpp>
 #include <graphene/chain/special_authority_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
@@ -62,6 +63,8 @@ GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::dynamic_global
 GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::global_property_object )
 GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::operation_history_object )
 GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::account_transaction_history_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::son_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::son_statistics_object )
 GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::special_authority_object )
 GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::transaction_object )
 GRAPHENE_EXTERNAL_SERIALIZATION( /*not extern*/, graphene::chain::withdraw_permission_object )
