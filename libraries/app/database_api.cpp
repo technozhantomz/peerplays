@@ -2110,7 +2110,7 @@ vector<variant> database_api_impl::lookup_vote_ids( const vector<vote_id_type>& 
          {
             auto itr = son_idx.find( id );
             if( itr != son_idx.end() )
-               result.emplace_back( variant( *itr, 1 ) );
+               result.emplace_back( variant( *itr, 5 ) );
             else
                result.emplace_back( variant() );
             break;

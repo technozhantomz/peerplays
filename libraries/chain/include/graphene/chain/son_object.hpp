@@ -115,7 +115,17 @@ namespace graphene { namespace chain {
 FC_REFLECT_ENUM(graphene::chain::son_status, (inactive)(active)(request_maintenance)(in_maintenance)(deregistered) )
 
 FC_REFLECT_DERIVED( graphene::chain::son_object, (graphene::db::object),
-                    (son_account)(vote_id)(total_votes)(url)(deposit)(signing_key)(pay_vb)(statistics)(status)(sidechain_public_keys) )
+                    (son_account)
+                    (vote_id)
+                    (total_votes)
+                    (url)
+                    (deposit)
+                    (signing_key)
+                    (pay_vb)
+                    (statistics)
+                    (status)
+                    (sidechain_public_keys)
+                  )
 
 FC_REFLECT_DERIVED( graphene::chain::son_statistics_object,
                     (graphene::db::object),
@@ -131,3 +141,6 @@ FC_REFLECT_DERIVED( graphene::chain::son_statistics_object,
                     (total_sidechain_txs_reported)
                     (sidechain_txs_reported)
                   )
+
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::son_object )
+GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::son_statistics_object )
