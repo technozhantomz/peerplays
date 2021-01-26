@@ -1335,6 +1335,102 @@ public:
    } FC_CAPTURE_AND_RETHROW( (name)(owner)(active)(registrar_account)(referrer_account)(referrer_percent)(broadcast) ) }
 
 
+   signed_transaction update_account_keys(string name,
+                                          public_key_type old_owner,
+                                          public_key_type new_owner,
+                                          public_key_type old_active,
+                                          public_key_type new_active,
+                                          bool broadcast)
+   { try {
+      FC_ASSERT( !self.is_locked() );
+      account_object account_obj = get_account(name);
+
+      authority owner = account_obj.owner;
+      owner.key_auths[new_owner] = owner.key_auths[old_owner];
+      owner.key_auths.erase(old_owner);
+
+      authority active = account_obj.active;
+      active.key_auths[new_active] = active.key_auths[old_active];
+      active.key_auths.erase(old_active);
+
+      signed_transaction tx;
+      account_update_operation op;
+
+      op.account = account_obj.get_id();
+      op.owner = owner;
+      op.active = active;
+
+      ilog("account_update_operation: ${op}", ("op", op));
+
+      tx.operations = {op};
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (name) ) }
+
+
+   signed_transaction update_account_auth_key(string account_name,
+                                              authority_type type,
+                                              public_key_type key,
+                                              weight_type weight,
+                                              bool broadcast)
+   {
+      FC_ASSERT( !is_locked() );
+      account_object account_obj = get_account(account_name);
+
+      account_update_operation op;
+      op.account = account_obj.get_id();
+
+      authority new_auth;
+
+      switch( type )
+      {
+         case( owner ):
+            new_auth = account_obj.owner;
+            break;
+         case( active ):
+            new_auth = account_obj.active;
+            break;
+      }
+
+      if( weight == 0 ) // Remove the key
+      {
+         new_auth.key_auths.erase( key );
+      }
+      else
+      {
+         new_auth.add_authority( key, weight );
+      }
+
+      if( new_auth.is_impossible() )
+      {
+         if ( type == owner )
+         {
+            FC_ASSERT( false, "Owner authority change would render account irrecoverable." );
+         }
+
+         wlog( "Authority is now impossible." );
+      }
+
+      switch( type )
+      {
+         case( owner ):
+            op.owner = new_auth;
+            break;
+         case( active ):
+            op.active = new_auth;
+            break;
+      }
+
+      signed_transaction tx;
+      tx.operations.push_back(op);
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   }
+
    signed_transaction upgrade_account(string name, bool broadcast)
    { try {
       FC_ASSERT( !self.is_locked() );
@@ -5534,6 +5630,25 @@ map<public_key_type, string> wallet_api::dump_private_keys()
 {
    FC_ASSERT(!is_locked());
    return my->_keys;
+}
+
+signed_transaction wallet_api::update_account_keys(string name,
+                                          public_key_type old_owner,
+                                          public_key_type new_owner,
+                                          public_key_type old_active,
+                                          public_key_type new_active,
+                                          bool broadcast )
+{
+   return my->update_account_keys(name, old_owner, new_owner, old_active, new_active, broadcast);
+}
+
+signed_transaction wallet_api::update_account_auth_key(string account_name,
+                                                       authority_type type,
+                                                       public_key_type key,
+                                                       weight_type weight,
+                                                       bool broadcast)
+{
+   return my->update_account_auth_key(account_name, type, key, weight, broadcast);
 }
 
 signed_transaction wallet_api::upgrade_account( string name, bool broadcast )
