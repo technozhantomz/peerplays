@@ -107,7 +107,6 @@ void database::reindex( fc::path data_dir )
    ilog( "reindexing blockchain" );
    auto start = fc::time_point::now();
    const auto last_block_num = last_block->block_num();
-   uint32_t flush_point = last_block_num < 10000 ? 0 : last_block_num - 10000;
    uint32_t undo_point = last_block_num < 50 ? 0 : last_block_num - 50;
 
    ilog( "Replaying blocks, starting at ${next}...", ("next",head_block_num() + 1) );
@@ -123,8 +122,7 @@ void database::reindex( fc::path data_dir )
    }
    for( uint32_t i = head_block_num() + 1; i <= last_block_num; ++i )
    {
-      if( i % 10000 == 0 ) std::cerr << "   " << double(i*100)/last_block_num << "%   "<<i << " of " <<last_block_num<<"   \n";
-      if( i == flush_point )
+      if( i % 10000 == 0 )
       {
          ilog( "Writing database to disk at block ${i}", ("i",i) );
          flush();
@@ -244,7 +242,7 @@ void database::close(bool rewind)
 {
    if (!_opened)
       return;
-      
+
    // TODO:  Save pending tx's on close()
    clear_pending();
 
@@ -294,7 +292,7 @@ void database::force_slow_replays()
 void database::check_ending_lotteries()
 {
    try {
-      const auto& lotteries_idx = get_index_type<asset_index>().indices().get<active_lotteries>();      
+      const auto& lotteries_idx = get_index_type<asset_index>().indices().get<active_lotteries>();
       for( auto checking_asset: lotteries_idx )
       {
          FC_ASSERT( checking_asset.is_lottery() );
