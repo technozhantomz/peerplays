@@ -851,7 +851,10 @@ BOOST_AUTO_TEST_CASE( worker_dividends_voting )
 {
    try {
       // advance to HF
-      generate_blocks(HARDFORK_GPOS_TIME);
+      fc::time_point_sec GPOS_HARDFORK_TIME =
+              fc::time_point_sec(1581976800); // Use mainnet GPOS hardfork time
+
+      generate_blocks(GPOS_HARDFORK_TIME);
       generate_block();
 
       // update default gpos global parameters to 4 days
@@ -905,7 +908,7 @@ BOOST_AUTO_TEST_CASE( worker_dividends_voting )
       vote_for(voter1_id, worker.vote_for, voter1_private_key);
 
       // first maint pass, coefficient will be 1
-      generate_blocks(HARDFORK_GPOS_TIME + fc::hours(12)); //forward 1/2 sub-period so that it consider only gpos votes
+      generate_blocks(GPOS_HARDFORK_TIME + fc::hours(12)); //forward 1/2 sub-period so that it consider only gpos votes
       worker = worker_id_type()(db);
       BOOST_CHECK_EQUAL(worker.total_votes_for, 100);
 
@@ -966,7 +969,10 @@ BOOST_AUTO_TEST_CASE( account_multiple_vesting )
 {
    try {
       // advance to HF
-      generate_blocks(HARDFORK_GPOS_TIME);
+      fc::time_point_sec GPOS_HARDFORK_TIME =
+              fc::time_point_sec(1581976800); // Use mainnet GPOS hardfork time
+
+      generate_blocks(GPOS_HARDFORK_TIME);
       generate_block();
       set_expiration(db, trx);
 
@@ -1009,7 +1015,7 @@ BOOST_AUTO_TEST_CASE( account_multiple_vesting )
       vote_for(sam_id, witness1.vote_id, sam_private_key);
       vote_for(patty_id, witness1.vote_id, patty_private_key);
 
-      generate_blocks(HARDFORK_GPOS_TIME + fc::hours(12)); //forward 1/2 sub-period so that it consider only gpos votes
+      generate_blocks(GPOS_HARDFORK_TIME + fc::hours(12)); //forward 1/2 sub-period so that it consider only gpos votes
 
       // amount in vested balanced will sum up as voting power
       witness1 = witness_id_type(1)(db);
