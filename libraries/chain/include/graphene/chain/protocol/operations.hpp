@@ -50,12 +50,14 @@
 #include <graphene/chain/protocol/offer.hpp>
 #include <graphene/chain/protocol/nft_ops.hpp>
 #include <graphene/chain/protocol/account_role.hpp>
+#include <graphene/chain/protocol/nft_lottery.hpp>
 #include <graphene/chain/protocol/son.hpp>
 #include <graphene/chain/protocol/sidechain_address.hpp>
 #include <graphene/chain/protocol/son_wallet.hpp>
 #include <graphene/chain/protocol/son_wallet_deposit.hpp>
 #include <graphene/chain/protocol/son_wallet_withdraw.hpp>
 #include <graphene/chain/protocol/sidechain_transaction.hpp>
+#include <graphene/chain/protocol/random_number.hpp>
 
 namespace graphene { namespace chain {
 
@@ -184,7 +186,11 @@ namespace graphene { namespace chain {
             sidechain_transaction_create_operation,
             sidechain_transaction_sign_operation,
             sidechain_transaction_send_operation,
-            sidechain_transaction_settle_operation
+            sidechain_transaction_settle_operation,
+            nft_lottery_token_purchase_operation,
+            nft_lottery_reward_operation,
+            nft_lottery_end_operation,
+            random_number_store_operation
          > operation;
 
    /// @} // operations group

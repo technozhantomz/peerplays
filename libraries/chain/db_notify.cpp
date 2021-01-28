@@ -364,6 +364,13 @@ struct get_impacted_account_visitor
    void operator()( const account_role_delete_operation& op ){
       _impacted.insert( op.owner );
    }
+   void operator()( const nft_lottery_token_purchase_operation& op ){
+      _impacted.insert( op.buyer );
+   }
+   void operator()( const nft_lottery_reward_operation& op ) {
+      _impacted.insert( op.winner );
+   }
+   void operator()( const nft_lottery_end_operation& op ) {}
    void operator()( const son_create_operation& op ) {
       _impacted.insert( op.owner_account );
    }
@@ -420,6 +427,9 @@ struct get_impacted_account_visitor
    }
    void operator()( const sidechain_transaction_settle_operation& op ) {
       _impacted.insert( op.payer );
+   }
+   void operator()( const random_number_store_operation& op ) {
+      _impacted.insert( op.account );
    }
 };
 
@@ -589,6 +599,8 @@ void get_relevant_accounts( const object* obj, flat_set<account_id_type>& accoun
              case impl_buyback_object_type:
               break;
              case impl_fba_accumulator_object_type:
+              break;
+             case impl_nft_lottery_balance_object_type:
               break;
             default:
               break;

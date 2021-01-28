@@ -934,7 +934,28 @@ class database_api
       // ACCOUNT ROLE //
       //////////////////
       vector<account_role_object> get_account_roles_by_owner(account_id_type owner) const;
-private:
+
+      /////////////////////////////
+      // Random number generator //
+      /////////////////////////////
+      /**
+       * @brief Returns the random number
+       * @param minimum Lower bound of segment containing random number
+       * @param maximum Upper bound of segment containing random number
+       * @param selections Number of random numbers to return
+       * @param duplicates Allow duplicated numbers
+       * @return Vector containing random numbers from segment [minimum, maximum)
+       */
+      vector<uint64_t> get_random_number_ex(uint64_t minimum, uint64_t maximum, uint64_t selections, bool duplicates) const;
+
+      /**
+       * @brief Returns the random number
+       * @param bound Upper bound of segment containing random number
+       * @return Random number from segment [0, bound)
+       */
+      uint64_t get_random_number(uint64_t bound) const;
+
+   private:
       std::shared_ptr< database_api_impl > my;
 };
 
@@ -1125,4 +1146,7 @@ FC_API(graphene::app::database_api,
 
    // Account Roles
    (get_account_roles_by_owner)
+   // rngs
+   (get_random_number_ex)
+   (get_random_number)
 )

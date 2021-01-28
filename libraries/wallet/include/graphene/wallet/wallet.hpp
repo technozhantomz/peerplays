@@ -73,7 +73,7 @@ enum authority_type
  *  the meta data about the receipt that helps the sender identify which receipt is
  *  for the receiver and which is for the change address.
  */
-struct blind_confirmation 
+struct blind_confirmation
 {
    struct output
    {
@@ -317,7 +317,7 @@ class wallet_api
        */
       uint64_t                          get_account_count()const;
       /** Lists all accounts controlled by this wallet.
-       * This returns a list of the full account objects for all accounts whose private keys 
+       * This returns a list of the full account objects for all accounts whose private keys
        * we possess.
        * @returns a list of account objects
        */
@@ -329,14 +329,14 @@ class wallet_api
        * start by setting \c lowerbound to the empty string \c "", and then each iteration, pass
        * the last account name returned as the \c lowerbound for the next \c list_accounts() call.
        *
-       * @param lowerbound the name of the first account to return.  If the named account does not exist, 
+       * @param lowerbound the name of the first account to return.  If the named account does not exist,
        *                   the list will start at the account that comes after \c lowerbound
        * @param limit the maximum number of accounts to return (max: 1000)
        * @returns a list of accounts mapping account names to account ids
        */
       map<string,account_id_type>       list_accounts(const string& lowerbound, uint32_t limit);
       /** List the balances of an account.
-       * Each account can have multiple balances, one for each type of asset owned by that 
+       * Each account can have multiple balances, one for each type of asset owned by that
        * account.  The returned list will only contain assets for which the account has a
        * nonzero balance
        * @param id the name or id of the account whose balances you want
@@ -344,7 +344,7 @@ class wallet_api
        */
       vector<asset>                     list_account_balances(const string& id);
       /** Lists all assets registered on the blockchain.
-       * 
+       *
        * To list all assets, pass the empty string \c "" for the lowerbound to start
        * at the beginning of the list, and iterate as necessary.
        *
@@ -355,12 +355,12 @@ class wallet_api
       vector<asset_object>              list_assets(const string& lowerbound, uint32_t limit)const;
 
       /** Returns assets count registered on the blockchain.
-       * 
+       *
        * @returns assets count
        */
       uint64_t get_asset_count()const;
-   
-   
+
+
       vector<asset_object>              get_lotteries( asset_id_type stop = asset_id_type(),
                                                        unsigned limit = 100,
                                                        asset_id_type start = asset_id_type() )const;
@@ -396,7 +396,7 @@ class wallet_api
       vector<limit_order_object>        get_limit_orders(string a, string b, uint32_t limit)const;
       vector<call_order_object>         get_call_orders(string a, uint32_t limit)const;
       vector<force_settlement_object>   get_settle_orders(string a, uint32_t limit)const;
-      
+
       /** Returns the block chain's slowly-changing settings.
        * This object contains all of the properties of the blockchain that are fixed
        * or that change only once per maintenance interval (daily) such as the
@@ -452,8 +452,8 @@ class wallet_api
        * Returns the blockchain object corresponding to the given id.
        *
        * This generic function can be used to retrieve any object from the blockchain
-       * that is assigned an ID.  Certain types of objects have specialized convenience 
-       * functions to return their objects -- e.g., assets have \c get_asset(), accounts 
+       * that is assigned an ID.  Certain types of objects have specialized convenience
+       * functions to return their objects -- e.g., assets have \c get_asset(), accounts
        * have \c get_account(), but this function will work for any object.
        *
        * @param id the id of the object to return
@@ -461,7 +461,7 @@ class wallet_api
        */
       variant                           get_object(object_id_type id) const;
 
-      /** Returns the current wallet filename.  
+      /** Returns the current wallet filename.
        *
        * This is the filename that will be used when automatically saving the wallet.
        *
@@ -537,21 +537,21 @@ class wallet_api
        * @ingroup Wallet Management
        */
       bool    is_new()const;
-      
-      /** Checks whether the wallet is locked (is unable to use its private keys).  
+
+      /** Checks whether the wallet is locked (is unable to use its private keys).
        *
        * This state can be changed by calling \c lock() or \c unlock().
        * @return true if the wallet is locked
        * @ingroup Wallet Management
        */
       bool    is_locked()const;
-      
+
       /** Locks the wallet immediately.
        * @ingroup Wallet Management
        */
       void    lock();
-      
-      /** Unlocks the wallet.  
+
+      /** Unlocks the wallet.
        *
        * The wallet remain unlocked until the \c lock is called
        * or the program exits.
@@ -559,7 +559,7 @@ class wallet_api
        * @ingroup Wallet Management
        */
       void    unlock(string password);
-      
+
       /** Sets a new password on the wallet.
        *
        * The wallet must be either 'new' or 'unlocked' to
@@ -572,7 +572,7 @@ class wallet_api
        *
        * The keys are printed in WIF format.  You can import these keys into another wallet
        * using \c import_key()
-       * @returns a map containing the private keys, indexed by their public key 
+       * @returns a map containing the private keys, indexed by their public key
        */
       map<public_key_type, string> dump_private_keys();
 
@@ -607,13 +607,13 @@ class wallet_api
       bool    load_wallet_file(string wallet_filename = "");
 
       /** Quitting from Peerplays wallet.
-       * 
+       *
        * The current wallet will be closed.
        */
       void    quit();
 
       /** Saves the current wallet to the given filename.
-       * 
+       *
        * @warning This does not change the wallet filename that will be used for future
        * writes, so think of this function as 'Save a Copy As...' instead of
        * 'Save As...'.  Use \c set_wallet_filename() to make the filename
@@ -682,7 +682,7 @@ class wallet_api
       /** Imports the private key for an existing account.
        *
        * The private key must match either an owner key or an active key for the
-       * named account.  
+       * named account.
        *
        * @see dump_private_keys()
        *
@@ -820,7 +820,7 @@ class wallet_api
        * @param to the name or id of the account receiving the funds
        * @param amount the amount to send (in nominal units -- to send half of a BTS, specify 0.5)
        * @param asset_symbol the symbol or id of the asset to send
-       * @param memo a memo to attach to the transaction.  The memo will be encrypted in the 
+       * @param memo a memo to attach to the transaction.  The memo will be encrypted in the
        *             transaction and readable for the receiver.  There is no length limit
        *             other than the limit imposed by maximum transaction size, but transaction
        *             increase with transaction size
@@ -895,7 +895,7 @@ class wallet_api
        *  who sent it.
        *
        *  @param opt_from - if not empty and the sender is a unknown public key, then the unknown public key will be given the label opt_from
-       *  @param confirmation_receipt - a base58 encoded stealth confirmation 
+       *  @param confirmation_receipt - a base58 encoded stealth confirmation
        */
       blind_receipt receive_blind_transfer( string confirmation_receipt, string opt_from, string opt_memo );
 
@@ -903,18 +903,18 @@ class wallet_api
        *  Transfers a public balance from @from to one or more blinded balances using a
        *  stealth transfer.
        */
-      blind_confirmation transfer_to_blind( string from_account_id_or_name, 
+      blind_confirmation transfer_to_blind( string from_account_id_or_name,
                                             string asset_symbol,
                                             /** map from key or label to amount */
-                                            vector<pair<string, string>> to_amounts, 
+                                            vector<pair<string, string>> to_amounts,
                                             bool broadcast = false );
 
       /**
        * Transfers funds from a set of blinded balances to a public account balance.
        */
-      blind_confirmation transfer_from_blind( 
+      blind_confirmation transfer_from_blind(
                                             string from_blind_account_key_or_label,
-                                            string to_account_id_or_name, 
+                                            string to_account_id_or_name,
                                             string amount,
                                             string asset_symbol,
                                             bool broadcast = false );
@@ -930,14 +930,14 @@ class wallet_api
 
       /** Place a limit order attempting to sell one asset for another.
        *
-       * Buying and selling are the same operation on Graphene; if you want to buy BTS 
+       * Buying and selling are the same operation on Graphene; if you want to buy BTS
        * with USD, you should sell USD for BTS.
        *
        * The blockchain will attempt to sell the \c symbol_to_sell for as
-       * much \c symbol_to_receive as possible, as long as the price is at 
-       * least \c min_to_receive / \c amount_to_sell.   
+       * much \c symbol_to_receive as possible, as long as the price is at
+       * least \c min_to_receive / \c amount_to_sell.
        *
-       * In addition to the transaction fees, market fees will apply as specified 
+       * In addition to the transaction fees, market fees will apply as specified
        * by the issuer of both the selling asset and the receiving asset as
        * a percentage of the amount exchanged.
        *
@@ -950,16 +950,16 @@ class wallet_api
        *
        * @todo Allow order expiration to be set here.  Document default/max expiration time
        *
-       * @param seller_account the account providing the asset being sold, and which will 
+       * @param seller_account the account providing the asset being sold, and which will
        *                       receive the proceeds of the sale.
        * @param amount_to_sell the amount of the asset being sold to sell (in nominal units)
        * @param symbol_to_sell the name or id of the asset to sell
        * @param min_to_receive the minimum amount you are willing to receive in return for
        *                       selling the entire amount_to_sell
        * @param symbol_to_receive the name or id of the asset you wish to receive
-       * @param timeout_sec if the order does not fill immediately, this is the length of 
-       *                    time the order will remain on the order books before it is 
-       *                    cancelled and the un-spent funds are returned to the seller's 
+       * @param timeout_sec if the order does not fill immediately, this is the length of
+       *                    time the order will remain on the order books before it is
+       *                    cancelled and the un-spent funds are returned to the seller's
        *                    account
        * @param fill_or_kill if true, the order will only be included in the blockchain
        *                     if it is filled immediately; if false, an open order will be
@@ -976,12 +976,12 @@ class wallet_api
                                     uint32_t timeout_sec = 0,
                                     bool     fill_or_kill = false,
                                     bool     broadcast = false);
-                                    
+
       /** Place a limit order attempting to sell one asset for another.
-       * 
+       *
        * This API call abstracts away some of the details of the sell_asset call to be more
        * user friendly. All orders placed with sell never timeout and will not be killed if they
-       * cannot be filled immediately. If you wish for one of these parameters to be different, 
+       * cannot be filled immediately. If you wish for one of these parameters to be different,
        * then sell_asset should be used instead.
        *
        * @param seller_account the account providing the asset being sold, and which will
@@ -991,7 +991,7 @@ class wallet_api
        * @param rate The rate in base:quote at which you want to sell.
        * @param amount The amount of base you want to sell.
        * @param broadcast true to broadcast the transaction on the network.
-       * @returns The signed transaction selling the funds.                 
+       * @returns The signed transaction selling the funds.
        */
       signed_transaction sell( string seller_account,
                                string base,
@@ -999,7 +999,7 @@ class wallet_api
                                double rate,
                                double amount,
                                bool broadcast );
-                               
+
       /** Place a limit order attempting to buy one asset with another.
        *
        * This API call abstracts away some of the details of the sell_asset call to be more
@@ -1054,14 +1054,14 @@ class wallet_api
        * Right now this function is difficult to use because you must provide raw JSON data
        * structures for the options objects, and those include prices and asset ids.
        *
-       * @param issuer the name or id of the account who will pay the fee and become the 
+       * @param issuer the name or id of the account who will pay the fee and become the
        *               issuer of the new asset.  This can be updated later
        * @param symbol the ticker symbol of the new asset
        * @param precision the number of digits of precision to the right of the decimal point,
        *                  must be less than or equal to 12
        * @param common asset options required for all new assets.
-       *               Note that core_exchange_rate technically needs to store the asset ID of 
-       *               this new asset. Since this ID is not known at the time this operation is 
+       *               Note that core_exchange_rate technically needs to store the asset ID of
+       *               this new asset. Since this ID is not known at the time this operation is
        *               created, create this price as though the new asset has instance ID 1, and
        *               the chain will overwrite it with the new asset's ID.
        * @param bitasset_opts options specific to BitAssets.  This may be null unless the
@@ -1081,7 +1081,7 @@ class wallet_api
                                           asset_options common,
                                           lottery_asset_options lottery_opts,
                                           bool broadcast = false);
-   
+
       signed_transaction buy_ticket( asset_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy );
 
       /** Issue new shares of an asset.
@@ -1099,8 +1099,8 @@ class wallet_api
                                      bool broadcast = false);
 
       /** Update the core options on an asset.
-       * There are a number of options which all assets in the network use. These options are 
-       * enumerated in the asset_object::asset_options struct. This command is used to update 
+       * There are a number of options which all assets in the network use. These options are
+       * enumerated in the asset_object::asset_options struct. This command is used to update
        * these options for an existing asset.
        *
        * @note This operation cannot be used to update BitAsset-specific options. For these options,
@@ -1164,7 +1164,7 @@ class wallet_api
       signed_transaction update_asset_feed_producers(string symbol,
                                                      flat_set<string> new_feed_producers,
                                                      bool broadcast = false);
-      
+
       /** Publishes a price feed for the named asset.
        *
        * Price feed providers use this command to publish their price feeds for market-issued assets. A price feed is
@@ -1192,7 +1192,7 @@ class wallet_api
 
       /** Pay into the fee pool for the given asset.
        *
-       * User-issued assets can optionally have a pool of the core asset which is 
+       * User-issued assets can optionally have a pool of the core asset which is
        * automatically used to pay transaction fees for any transaction using that
        * asset (using the asset's core exchange rate).
        *
@@ -1233,7 +1233,7 @@ class wallet_api
        * used as backing for other bitassets, those bitassets will be force settled at their current
        * feed price.
        *
-       * @note this operation is used only by the asset issuer, \c settle_asset() may be used by 
+       * @note this operation is used only by the asset issuer, \c settle_asset() may be used by
        *       any user owning the asset
        *
        * @param symbol the name or id of the asset to force settlement on
@@ -1301,7 +1301,7 @@ class wallet_api
        * @returns the signed transaction registering a committee_member
        */
       signed_transaction create_committee_member(string owner_account,
-                                         string url, 
+                                         string url,
                                          bool broadcast = false);
 
       /** Lists all witnesses registered in the blockchain.
@@ -1312,7 +1312,7 @@ class wallet_api
        * start by setting \c lowerbound to the empty string \c "", and then each iteration, pass
        * the last witness name returned as the \c lowerbound for the next \c list_witnesss() call.
        *
-       * @param lowerbound the name of the first witness to return.  If the named witness does not exist, 
+       * @param lowerbound the name of the first witness to return.  If the named witness does not exist,
        *                   the list will start at the witness that comes after \c lowerbound
        * @param limit the maximum number of witnesss to return (max: 1000)
        * @returns a list of witnesss mapping witness names to witness ids
@@ -1327,7 +1327,7 @@ class wallet_api
        * start by setting \c lowerbound to the empty string \c "", and then each iteration, pass
        * the last committee_member name returned as the \c lowerbound for the next \c list_committee_members() call.
        *
-       * @param lowerbound the name of the first committee_member to return.  If the named committee_member does not exist, 
+       * @param lowerbound the name of the first committee_member to return.  If the named committee_member does not exist,
        *                   the list will start at the committee_member that comes after \c lowerbound
        * @param limit the maximum number of committee_members to return (max: 1000)
        * @returns a list of committee_members mapping committee_member names to committee_member ids
@@ -1647,7 +1647,7 @@ class wallet_api
 
       /** Vote for a given committee_member.
        *
-       * An account can publish a list of all committee_memberes they approve of.  This 
+       * An account can publish a list of all committee_memberes they approve of.  This
        * command allows you to add or remove committee_memberes from this list.
        * Each account's vote is weighted according to the number of shares of the
        * core asset owned by that account at the time the votes are tallied.
@@ -1657,7 +1657,7 @@ class wallet_api
        *
        * @param voting_account the name or id of the account who is voting with their shares
        * @param committee_member the name or id of the committee_member' owner account
-       * @param approve true if you wish to vote in favor of that committee_member, false to 
+       * @param approve true if you wish to vote in favor of that committee_member, false to
        *                remove your vote in favor of that committee_member
        * @param broadcast true if you wish to broadcast the transaction
        * @return the signed transaction changing your vote for the given committee_member
@@ -1724,7 +1724,7 @@ class wallet_api
 
       /** Vote for a given witness.
        *
-       * An account can publish a list of all witnesses they approve of.  This 
+       * An account can publish a list of all witnesses they approve of.  This
        * command allows you to add or remove witnesses from this list.
        * Each account's vote is weighted according to the number of shares of the
        * core asset owned by that account at the time the votes are tallied.
@@ -1734,7 +1734,7 @@ class wallet_api
        *
        * @param voting_account the name or id of the account who is voting with their shares
        * @param witness the name or id of the witness' owner account
-       * @param approve true if you wish to vote in favor of that witness, false to 
+       * @param approve true if you wish to vote in favor of that witness, false to
        *                remove your vote in favor of that witness
        * @param broadcast true if you wish to broadcast the transaction
        * @return the signed transaction changing your vote for the given witness
@@ -1746,12 +1746,12 @@ class wallet_api
 
       /** Change your witness votes.
        *
-       * An account can publish a list of all witnesses they approve of.  
+       * An account can publish a list of all witnesses they approve of.
        * Each account's vote is weighted according to the number of shares of the
        * core asset owned by that account at the time the votes are tallied.
-       * This command allows you to add or remove one or more witnesses from this list 
+       * This command allows you to add or remove one or more witnesses from this list
        * in one call.  When you are changing your vote on several witnesses, this
-       * may be easier than multiple `vote_for_witness` and 
+       * may be easier than multiple `vote_for_witness` and
        * `set_desired_witness_and_committee_member_count` calls.
        *
        * @note you cannot vote against a witness, you can only vote for the witness
@@ -1766,7 +1766,7 @@ class wallet_api
        *                            you currently approve).  This list can be empty.
        * @param desired_number_of_witnesses the number of witnesses you believe the network
        *                                    should have.  You must vote for at least this many
-       *                                    witnesses.  You can set this to 0 to abstain from 
+       *                                    witnesses.  You can set this to 0 to abstain from
        *                                    voting on the number of witnesses.
        * @param broadcast true if you wish to broadcast the transaction
        * @return the signed transaction changing your vote for the given witnesses
@@ -1797,23 +1797,23 @@ class wallet_api
       signed_transaction set_voting_proxy(string account_to_modify,
                                           optional<string> voting_account,
                                           bool broadcast = false);
-      
+
       /** Set your vote for the number of witnesses and committee_members in the system.
        *
-       * Each account can voice their opinion on how many committee_members and how many 
+       * Each account can voice their opinion on how many committee_members and how many
        * witnesses there should be in the active committee_member/active witness list.  These
        * are independent of each other.  You must vote your approval of at least as many
        * committee_members or witnesses as you claim there should be (you can't say that there should
-       * be 20 committee_members but only vote for 10). 
+       * be 20 committee_members but only vote for 10).
        *
-       * There are maximum values for each set in the blockchain parameters (currently 
+       * There are maximum values for each set in the blockchain parameters (currently
        * defaulting to 1001).
        *
        * This setting can be changed at any time.  If your account has a voting proxy
        * set, your preferences will be ignored.
        *
        * @param account_to_modify the name or id of the account to update
-       * @param number_of_committee_members the number 
+       * @param number_of_committee_members the number
        *
        * @param broadcast true if you wish to broadcast the transaction
        * @return the signed transaction changing your vote proxy settings
@@ -1866,16 +1866,16 @@ class wallet_api
 
       /** Returns an uninitialized object representing a given blockchain operation.
        *
-       * This returns a default-initialized object of the given type; it can be used 
+       * This returns a default-initialized object of the given type; it can be used
        * during early development of the wallet when we don't yet have custom commands for
-       * creating all of the operations the blockchain supports.  
+       * creating all of the operations the blockchain supports.
        *
        * Any operation the blockchain supports can be created using the transaction builder's
-       * \c add_operation_to_builder_transaction() , but to do that from the CLI you need to 
+       * \c add_operation_to_builder_transaction() , but to do that from the CLI you need to
        * know what the JSON form of the operation looks like.  This will give you a template
        * you can fill in.  It's better than nothing.
-       * 
-       * @param operation_type the type of operation to return, must be one of the 
+       *
+       * @param operation_type the type of operation to return, must be one of the
        *                       operations defined in `graphene/chain/operations.hpp`
        *                       (e.g., "global_parameters_update_operation")
        * @return a default-constructed operation of the given type
@@ -1900,7 +1900,7 @@ class wallet_api
          bool broadcast = false);
 
       /** Propose a fee change.
-       * 
+       *
        * @param proposing_account The account paying the fee to propose the tx
        * @param expiration_time Timestamp specifying when the proposal will either take effect or expire.
        * @param changed_values Map of operation type to new fee.  Operations may be specified by name or ID.
@@ -1942,7 +1942,33 @@ class wallet_api
          const approval_delta& delta,
          bool broadcast /* = false */
          );
-         
+
+      /** Get random numbers
+       * @brief Returns the random number
+       * @param minimum Lower bound of segment containing random number
+       * @param maximum Upper bound of segment containing random number
+       * @param selections Number of random numbers to return
+       * @param duplicates Allow duplicated numbers
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       * @return Vector containing random numbers from segment [minimum, maximum)
+       */
+      vector<uint64_t> get_random_number_ex(string account,
+                                            uint64_t minimum,
+                                            uint64_t maximum,
+                                            uint64_t selections,
+                                            bool duplicates,
+                                            bool broadcast);
+
+      /** Get random number
+       * @brief Returns the random number
+       * @param bound Upper bound of segment containing random number
+       * @return Random number from segment [0, bound)
+       */
+      uint64_t get_random_number(string account,
+                                 uint64_t bound,
+                                 bool broadcast);
+
       order_book get_order_book( const string& base, const string& quote, unsigned limit = 50);
 
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
@@ -1981,7 +2007,7 @@ class wallet_api
               sport_id_type sport_id,
               fc::optional<internationalized_string_type> name,
               bool broadcast = false);
-    
+
       signed_transaction propose_delete_sport(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
@@ -2008,7 +2034,7 @@ class wallet_api
               fc::time_point_sec expiration_time,
               event_group_id_type event_group,
               bool broadcast = false);
-    
+
       signed_transaction propose_create_event(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
@@ -2079,7 +2105,7 @@ class wallet_api
               fc::optional<internationalized_string_type> payout_condition,
               bool broadcast = false);
 
-      /** Place a bet  
+      /** Place a bet
        * @param bettor the account placing the bet
        * @param betting_market_id the market on which to bet
        * @param back_or_lay back or lay
@@ -2155,7 +2181,7 @@ class wallet_api
                                                          tournament_state state);
 
       /** Get specific information about a tournament
-       * @param tournament_id the ID of the tournament 
+       * @param tournament_id the ID of the tournament
        */
       tournament_object get_tournament(tournament_id_type id);
 
@@ -2201,6 +2227,7 @@ class wallet_api
       vector<custom_account_authority_object> get_custom_account_authorities_by_permission_id(custom_permission_id_type permission_id) const;
       vector<custom_account_authority_object> get_custom_account_authorities_by_permission_name(string owner, string permission_name) const;
       vector<authority> get_active_custom_account_authorities_by_operation(string owner, int operation_type) const;
+
       /////////
       // NFT //
       /////////
@@ -2226,6 +2253,8 @@ class wallet_api
                                     bool is_transferable,
                                     bool is_sellable,
                                     optional<account_role_id_type> role_id,
+                                    optional<share_type> max_supply,
+                                    optional<nft_lottery_options> lottery_options,
                                     bool broadcast);
 
       /**
@@ -2363,6 +2392,7 @@ class wallet_api
        * @return Returns vector of NFT objects, empty vector if none
        */
       vector<nft_object> nft_get_all_tokens() const;
+      signed_transaction nft_lottery_buy_ticket( nft_metadata_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy, bool broadcast );
 
       signed_transaction create_offer(set<nft_id_type> item_ids,
                                       string issuer_accound_id_or_name,
@@ -2503,7 +2533,7 @@ FC_REFLECT_DERIVED( graphene::wallet::signed_block_with_info, (graphene::chain::
 FC_REFLECT_DERIVED( graphene::wallet::vesting_balance_object_with_info, (graphene::chain::vesting_balance_object),
    (allowed_withdraw)(allowed_withdraw_time) )
 
-FC_REFLECT( graphene::wallet::operation_detail, 
+FC_REFLECT( graphene::wallet::operation_detail,
             (memo)(description)(op) )
 
 FC_API( graphene::wallet::wallet_api,
@@ -2634,6 +2664,8 @@ FC_API( graphene::wallet::wallet_api,
         (propose_fee_change)
         (propose_dividend_asset_update)
         (approve_proposal)
+        (get_random_number_ex)
+        (get_random_number)
         (dbg_make_uia)
         (dbg_make_mia)
         (dbg_push_blocks)
@@ -2697,6 +2729,7 @@ FC_API( graphene::wallet::wallet_api,
         (nft_get_approved)
         (nft_is_approved_for_all)
         (nft_get_all_tokens)
+        (nft_lottery_buy_ticket)
         (create_offer)
         (create_bid)
         (cancel_offer)

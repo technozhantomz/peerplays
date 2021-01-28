@@ -44,6 +44,7 @@
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/offer_object.hpp>
+#include <graphene/chain/nft_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 
@@ -332,6 +333,14 @@ void database_fixture::verify_asset_supplies( const database& db )
          {
             total_balances[o.bid_price->asset_id] += o.bid_price->amount;
          }
+      }
+   }
+
+   for (const nft_metadata_object &o : db.get_index_type<nft_metadata_index>().indices())
+   {
+      if (o.lottery_data)
+      {
+         total_balances[o.get_lottery_jackpot(db).asset_id] += o.get_lottery_jackpot(db).amount;
       }
    }
 

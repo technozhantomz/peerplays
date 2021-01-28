@@ -28,6 +28,7 @@
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/special_authority_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
+#include <graphene/chain/nft_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
 #include <fc/io/fstream.hpp>
@@ -300,6 +301,24 @@ void database::check_ending_lotteries()
          FC_ASSERT( checking_asset.lottery_options->end_date != time_point_sec() );
          if( checking_asset.lottery_options->end_date > head_block_time() ) continue;
          checking_asset.end_lottery(*this);
+      }
+   } catch( ... ) {}
+}
+
+void database::check_ending_nft_lotteries()
+{
+   try {
+      const auto &nft_lotteries_idx = get_index_type<nft_metadata_index>().indices().get<active_nft_lotteries>();
+      for (auto checking_token : nft_lotteries_idx)
+      {
+         FC_ASSERT(checking_token.is_lottery());
+         const auto &lottery_options = checking_token.lottery_data->lottery_options;
+         FC_ASSERT(lottery_options.is_active);
+         // Check the current supply of lottery tokens
+         auto current_supply = checking_token.get_token_current_supply(*this);
+         if ((lottery_options.ending_on_soldout && (current_supply == checking_token.max_supply)) ||
+             (lottery_options.end_date != time_point_sec() && (lottery_options.end_date <= head_block_time())))
+            checking_token.end_lottery(*this);
       }
    } catch( ... ) {}
 }

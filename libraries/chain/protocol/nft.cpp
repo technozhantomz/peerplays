@@ -45,6 +45,10 @@ void nft_metadata_create_operation::validate() const
    FC_ASSERT(fee.amount >= 0, "Fee must not be negative");
    FC_ASSERT(is_valid_nft_token_name(name), "Invalid NFT name provided");
    FC_ASSERT(is_valid_nft_token_name(symbol), "Invalid NFT symbol provided");
+   if (lottery_options)
+   {
+      (*lottery_options).validate();
+   }
 }
 
 void nft_metadata_update_operation::validate() const

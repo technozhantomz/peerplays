@@ -53,6 +53,7 @@
 #include <graphene/chain/custom_account_authority_object.hpp>
 #include <graphene/chain/offer_object.hpp>
 #include <graphene/chain/account_role_object.hpp>
+#include <graphene/chain/random_number_object.hpp>
 
 #include <graphene/chain/nft_object.hpp>
 
@@ -94,12 +95,14 @@
 #include <graphene/chain/offer_evaluator.hpp>
 #include <graphene/chain/nft_evaluator.hpp>
 #include <graphene/chain/account_role_evaluator.hpp>
+#include <graphene/chain/nft_lottery_evaluator.hpp>
 #include <graphene/chain/son_evaluator.hpp>
 #include <graphene/chain/son_wallet_evaluator.hpp>
 #include <graphene/chain/son_wallet_deposit_evaluator.hpp>
 #include <graphene/chain/son_wallet_withdraw_evaluator.hpp>
 #include <graphene/chain/sidechain_address_evaluator.hpp>
 #include <graphene/chain/sidechain_transaction_evaluator.hpp>
+#include <graphene/chain/random_number_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -203,6 +206,12 @@ const uint8_t offer_history_object::type_id;
 const uint8_t account_role_object::space_id;
 const uint8_t account_role_object::type_id;
 
+const uint8_t nft_lottery_balance_object::space_id;
+const uint8_t nft_lottery_balance_object::type_id;
+
+const uint8_t random_number_object::space_id;
+const uint8_t random_number_object::type_id;
+
 void database::initialize_evaluators()
 {
    _operation_evaluators.resize(255);
@@ -295,6 +304,9 @@ void database::initialize_evaluators()
    register_evaluator<account_role_create_evaluator>();
    register_evaluator<account_role_update_evaluator>();
    register_evaluator<account_role_delete_evaluator>();
+   register_evaluator<nft_lottery_token_purchase_evaluator>();
+   register_evaluator<nft_lottery_reward_evaluator>();
+   register_evaluator<nft_lottery_end_evaluator>();
    register_evaluator<create_son_evaluator>();
    register_evaluator<update_son_evaluator>();
    register_evaluator<deregister_son_evaluator>();
@@ -314,6 +326,7 @@ void database::initialize_evaluators()
    register_evaluator<sidechain_transaction_sign_evaluator>();
    register_evaluator<sidechain_transaction_send_evaluator>();
    register_evaluator<sidechain_transaction_settle_evaluator>();
+   register_evaluator<random_number_store_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -403,7 +416,9 @@ void database::initialize_indexes()
    add_index< primary_index<lottery_balance_index                         > >();
    add_index< primary_index<sweeps_vesting_balance_index                  > >();
    add_index< primary_index<offer_history_index                           > >();
+   add_index< primary_index<nft_lottery_balance_index                     > >();
    add_index< primary_index<son_stats_index                               > >();
+   add_index< primary_index<random_number_index                           > >();
 
 }
 
