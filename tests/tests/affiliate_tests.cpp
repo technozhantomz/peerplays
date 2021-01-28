@@ -524,17 +524,17 @@ BOOST_AUTO_TEST_CASE( bookie_payout_test )
    CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
 
    // place bets at 10:1
-   place_bet(ath.paula_id, capitals_win_market.id, bet_type::back, asset(10000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
-   place_bet(ath.penny_id, capitals_win_market.id, bet_type::lay, asset(100000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
+   place_bet(ath.paula_id, capitals_win_market_id, bet_type::back, asset(10000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
+   place_bet(ath.penny_id, capitals_win_market_id, bet_type::lay, asset(100000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
 
    // reverse positions at 1:1
-   place_bet(ath.paula_id, capitals_win_market.id, bet_type::lay, asset(110000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
-   place_bet(ath.penny_id, capitals_win_market.id, bet_type::back, asset(110000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+   place_bet(ath.paula_id, capitals_win_market_id, bet_type::lay, asset(110000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+   place_bet(ath.penny_id, capitals_win_market_id, bet_type::back, asset(110000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-   update_betting_market_group(moneyline_betting_markets.id, graphene::chain::keywords::_status = betting_market_group_status::closed);
-   resolve_betting_market_group(moneyline_betting_markets.id,
-                                {{capitals_win_market.id, betting_market_resolution_type::win},
-                                 {blackhawks_win_market.id, betting_market_resolution_type::not_win}});
+   update_betting_market_group(moneyline_betting_markets_id, graphene::chain::keywords::_status = betting_market_group_status::closed);
+   resolve_betting_market_group(moneyline_betting_markets_id,
+                                {{capitals_win_market_id, betting_market_resolution_type::win},
+                                 {blackhawks_win_market_id, betting_market_resolution_type::not_win}});
    generate_block();
 
    uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
@@ -559,31 +559,31 @@ BOOST_AUTO_TEST_CASE( bookie_payout_test )
       issue_uia( ath.paula_id, asset( 1000000, btc_id ) );
       issue_uia( ath.petra_id, asset( 1000000, btc_id ) );
 
-      create_event({{"en", "Washington Capitals/Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑鷹"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"}}, {{"en", "2016-17"}}, nhl.id); \
+      create_event({{"en", "Washington Capitals/Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑鷹"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"}}, {{"en", "2016-17"}}, nhl_id); \
       generate_blocks(1); \
-      const event_object& capitals_vs_blackhawks2 = *db.get_index_type<event_object_index>().indices().get<by_id>().rbegin(); \
-      create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks2.id, betting_market_rules.id, btc_id, false, 0);
+      const event_id_type capitals_vs_blackhawks2_id = (*db.get_index_type<event_object_index>().indices().get<by_id>().rbegin()).id; \
+      create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks2_id, betting_market_rules_id, btc_id, false, 0);
       generate_blocks(1);
-      const betting_market_group_object& moneyline_betting_markets2 = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin();
-      create_betting_market(moneyline_betting_markets2.id, {{"en", "Washington Capitals win"}});
+      const betting_market_group_id_type moneyline_betting_markets2_id = (*db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin()).id;
+      create_betting_market(moneyline_betting_markets2_id, {{"en", "Washington Capitals win"}});
       generate_blocks(1);
-      const betting_market_object& capitals_win_market2 = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin();
-      create_betting_market(moneyline_betting_markets2.id, {{"en", "Chicago Blackhawks win"}});
+      const betting_market_id_type capitals_win_market2_id = (*db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin()).id;
+      create_betting_market(moneyline_betting_markets2_id, {{"en", "Chicago Blackhawks win"}});
       generate_blocks(1);
-      const betting_market_object& blackhawks_win_market2 = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin();
+      const betting_market_id_type blackhawks_win_market2_id = (*db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin()).id;
 
       // place bets at 10:1
-      place_bet(ath.paula_id, capitals_win_market2.id, bet_type::back, asset(10000, btc_id), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
-      place_bet(ath.petra_id, capitals_win_market2.id, bet_type::lay, asset(100000, btc_id), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(ath.paula_id, capitals_win_market2_id, bet_type::back, asset(10000, btc_id), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(ath.petra_id, capitals_win_market2_id, bet_type::lay, asset(100000, btc_id), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       // reverse positions at 1:1
-      place_bet(ath.paula_id, capitals_win_market2.id, bet_type::lay, asset(110000, btc_id), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
-      place_bet(ath.petra_id, capitals_win_market2.id, bet_type::back, asset(110000, btc_id), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(ath.paula_id, capitals_win_market2_id, bet_type::lay, asset(110000, btc_id), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(ath.petra_id, capitals_win_market2_id, bet_type::back, asset(110000, btc_id), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-      update_betting_market_group(moneyline_betting_markets2.id, graphene::chain::keywords::_status = betting_market_group_status::closed);
-      resolve_betting_market_group(moneyline_betting_markets2.id,
-                                   {{capitals_win_market2.id, betting_market_resolution_type::not_win},
-                                    {blackhawks_win_market2.id, betting_market_resolution_type::win}});
+      update_betting_market_group(moneyline_betting_markets2_id, graphene::chain::keywords::_status = betting_market_group_status::closed);
+      resolve_betting_market_group(moneyline_betting_markets2_id,
+                                   {{capitals_win_market2_id, betting_market_resolution_type::not_win},
+                                    {blackhawks_win_market2_id, betting_market_resolution_type::win}});
       generate_block();
 
       rake_value = (-10000 + 0 - 110000 + 220000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;

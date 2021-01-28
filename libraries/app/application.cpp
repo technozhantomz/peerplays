@@ -380,7 +380,6 @@ namespace detail {
             _chain_db->enable_standby_votes_tracking( _options->at("enable-standby-votes-tracking").as<bool>() );
          }
          
-         bool replay = false;
          std::string replay_reason = "reason not provided";
 
          if( _options->count("replay-blockchain") )

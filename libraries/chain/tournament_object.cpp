@@ -605,8 +605,9 @@ namespace graphene { namespace chain {
          return;
 
       // We shouldn't be here if the final match is complete
-      assert(last_complete_round != num_rounds - 1);
-      if (last_complete_round == num_rounds - 1)
+      uint32_t last_complete_round_uint32 = last_complete_round;
+      assert(last_complete_round_uint32 != num_rounds - 1);
+      if (last_complete_round_uint32 == num_rounds - 1)
          return;
 
       if (first_incomplete_match_was_waiting)

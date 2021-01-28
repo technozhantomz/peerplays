@@ -303,8 +303,6 @@ void database::settle_betting_market_group(const betting_market_group_object& be
       remove(betting_market);
    }
 
-   const event_object& event = betting_market_group.event_id(*this);
-
    fc_dlog(fc::logger::get("betting"), "removing betting market group ${id}", ("id", betting_market_group.id));
    remove(betting_market_group);
 
@@ -537,11 +535,9 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
          // because we matched at the maker's odds and not the taker's odds, the remaining amount to match
          // may not be an even multiple of the taker's odds; round it down.
          share_type taker_remaining_factor = unrounded_taker_remaining_amount_to_match / takers_odds_maker_odds_ratio;
-         share_type taker_remaining_maker_amount_to_match = taker_remaining_factor * takers_odds_maker_odds_ratio;
          share_type taker_remaining_bet_amount = taker_remaining_factor * takers_odds_taker_odds_ratio;
 
          taker_refund_amount = taker_bet.amount_to_bet.amount - taker_amount_to_match - taker_remaining_bet_amount;
-         //idump((taker_remaining_factor)(taker_remaining_maker_amount_to_match)(taker_remaining_bet_amount)(taker_refund_amount));
       }
 
       if (taker_refund_amount > share_type())

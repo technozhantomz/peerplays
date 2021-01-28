@@ -283,6 +283,7 @@ void sidechain_net_handler::process_proposals() {
 
          int32_t op_idx_1 = -1;
          chain::operation op_obj_idx_1;
+         (void) op_idx_1;
 
          if (po->proposed_transaction.operations.size() >= 2) {
             op_idx_1 = po->proposed_transaction.operations[1].which();

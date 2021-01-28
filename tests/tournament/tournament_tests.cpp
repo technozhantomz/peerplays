@@ -1731,7 +1731,8 @@ BOOST_FIXTURE_TEST_CASE( ties, database_fixture )
                         share_type rake_amount = (fc::uint128_t(tournament.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
                         optional<account_id_type> dividend_account = tournament_helper.get_asset_dividend_account(tournament.options.buy_in.asset_id);
                         if (dividend_account.valid())
-                            players_balances[*dividend_account][tournament.options.buy_in.asset_id] += rake_amount;                    players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
+                            players_balances[*dividend_account][tournament.options.buy_in.asset_id] += rake_amount;
+                        players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
 
                         tournaments.erase(tournament_id);
                         --tournaments_to_complete;
@@ -1943,7 +1944,8 @@ BOOST_FIXTURE_TEST_CASE( assets, database_fixture )
                     share_type rake_amount = (fc::uint128_t(tournament.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
                     optional<account_id_type> dividend_account = tournament_helper.get_asset_dividend_account(tournament.options.buy_in.asset_id);
                     if (dividend_account.valid())
-                        players_balances[*dividend_account][tournament.options.buy_in.asset_id] += rake_amount;                    players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
+                        players_balances[*dividend_account][tournament.options.buy_in.asset_id] += rake_amount;
+                    players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
 
                     tournaments.erase(tournament_id);
                     --tournaments_to_complete;
