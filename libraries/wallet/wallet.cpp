@@ -2038,6 +2038,31 @@ public:
       account_object son_account = get_account(owner_account);
       auto son_public_key = son_account.active.get_keys()[0];
 
+      bool deposit_vb_ok = false;
+      bool pay_vb_ok = false;
+      vector<vesting_balance_object_with_info> vbs = get_vesting_balances(owner_account);
+      for(const auto& vb: vbs)
+      {
+         if (vb.id  == deposit_id) {
+            deposit_vb_ok = (vb.balance_type == vesting_balance_type::son) &&
+                            (vb.get_asset_amount() >= _remote_db->get_global_properties().parameters.son_vesting_amount()) &&
+                            (vb.policy.which() == vesting_policy::tag<dormant_vesting_policy>::value);
+         }
+         if (vb.id  == pay_vb_id) {
+            pay_vb_ok = (vb.balance_type == vesting_balance_type::normal) &&
+                        (vb.policy.which() == vesting_policy::tag<linear_vesting_policy>::value);
+         }
+      }
+
+      if (deposit_vb_ok == false) {
+          FC_THROW("Deposit vesting balance ${deposit_id} must be of SON type, with minimum amount of ${son_vesting_amount}",
+                  ("deposit_id", deposit_id) ("son_vesting_amount", _remote_db->get_global_properties().parameters.son_vesting_amount()));
+      }
+      if (pay_vb_ok == false) {
+          FC_THROW("Payment vesting balance ${pay_vb_id} must be of NORMAL type",
+                  ("pay_vb_id", pay_vb_id));
+      }
+
       son_create_operation son_create_op;
       son_create_op.owner_account = son_account.id;
       son_create_op.signing_key = son_public_key;
@@ -2084,6 +2109,28 @@ public:
 
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account)(url)(block_signing_key)(broadcast) ) }
+
+   signed_transaction update_son_vesting_balances(string owner_account,
+                                                  optional<vesting_balance_id_type> new_deposit,
+                                                  optional<vesting_balance_id_type> new_pay_vb,
+                                                  bool broadcast /* = false */)
+   { try {
+      son_object son = get_son(owner_account);
+
+      son_update_operation son_update_op;
+      son_update_op.son_id = son.id;
+      son_update_op.owner_account = son.son_account;
+      if (new_deposit.valid())
+         son_update_op.new_deposit = new_deposit;
+      if (new_pay_vb.valid())
+         son_update_op.new_pay_vb = new_pay_vb;
+      signed_transaction tx;
+      tx.operations.push_back( son_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account)(new_deposit)(new_pay_vb)(broadcast) ) }
 
    signed_transaction request_son_maintenance(string owner_account,
                                            bool broadcast)
@@ -4991,6 +5038,14 @@ signed_transaction wallet_api::update_son(string owner_account,
                                           bool broadcast /* = false */)
 {
    return my->update_son(owner_account, url, block_signing_key, sidechain_public_keys, broadcast);
+}
+
+signed_transaction wallet_api::update_son_vesting_balances(string owner_account,
+                                                           optional<vesting_balance_id_type> new_deposit,
+                                                           optional<vesting_balance_id_type> new_pay_vb,
+                                                           bool broadcast /* = false */)
+{
+   return my->update_son_vesting_balances(owner_account, new_deposit, new_pay_vb, broadcast);
 }
 
 signed_transaction wallet_api::request_son_maintenance(string owner_account, bool broadcast)
