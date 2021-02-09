@@ -1373,6 +1373,19 @@ class wallet_api
                                     flat_map<sidechain_type, string> sidechain_public_keys,
                                     bool broadcast = false);
 
+      /**
+       * Updates vesting balances of the SON object owned by the given account.
+       *
+       * @param owner_account The name of the SON's owner account.  Also accepts the ID of the owner account or the ID of the SON.
+       * @param new_deposit New deposit vesting balance id.  The empty string makes it remain the same.
+       * @param new_pay_vb New payment vesting balance id.  The empty string makes it remain the same.
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction update_son_vesting_balances(string owner_account,
+                                                     optional<vesting_balance_id_type> new_deposit,
+                                                     optional<vesting_balance_id_type> new_pay_vb,
+                                                     bool broadcast = false);
+
       /** Modify status of the SON owned by the given account to maintenance.
        *
        * @param owner_account the name or id of the account which is owning the SON
@@ -2534,6 +2547,7 @@ FC_API( graphene::wallet::wallet_api,
         (create_son)
         (try_create_son)
         (update_son)
+        (update_son_vesting_balances)
         (list_sons)
         (list_active_sons)
         (request_son_maintenance)

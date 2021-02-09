@@ -39,6 +39,7 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
       op.amount = asset(10*GRAPHENE_BLOCKCHAIN_PRECISION);
       op.balance_type = vesting_balance_type::son;
       op.policy = dormant_vesting_policy_initializer {};
+      trx.clear();
       trx.operations.push_back(op);
 
       // amount in the son balance need to be at least 50
@@ -68,9 +69,10 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
       op.owner = alice_id;
       op.amount = asset(1*GRAPHENE_BLOCKCHAIN_PRECISION);
       op.balance_type = vesting_balance_type::normal;
-
+      op.policy = linear_vesting_policy_initializer {};
       op.validate();
 
+      trx.clear();
       trx.operations.push_back(op);
       trx.validate();
       processed_transaction ptx = PUSH_TX(db, trx, ~0);
@@ -93,9 +95,12 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
       op.pay_vb = payment;
       op.signing_key = alice_public_key;
       op.sidechain_public_keys = sidechain_public_keys;
+
+      trx.clear();
       trx.operations.push_back(op);
       sign(trx, alice_private_key);
       PUSH_TX(db, trx, ~0);
+      trx.clear();
    }
    generate_block();
 
