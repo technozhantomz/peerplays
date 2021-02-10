@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(lottery_idx_test)
         {
             if (!met_not_active && (!test_itr->is_lottery() || !test_itr->lottery_data->lottery_options.is_active))
                 met_not_active = true;
-            FC_ASSERT(!met_not_active || met_not_active && (!test_itr->is_lottery() || !test_itr->lottery_data->lottery_options.is_active), "MET ACTIVE LOTTERY AFTER NOT ACTIVE");
+            FC_ASSERT((!met_not_active) || (met_not_active && (!test_itr->is_lottery() || !test_itr->lottery_data->lottery_options.is_active)), "MET ACTIVE LOTTERY AFTER NOT ACTIVE");
             ++test_itr;
         }
     }
