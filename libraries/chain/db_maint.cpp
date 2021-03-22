@@ -1939,6 +1939,21 @@ void database::perform_son_tasks()
    }
 }
 
+void update_son_asset(database& db)
+{
+   if( db.head_block_time() >= HARDFORK_NEXT_TIME )
+   {
+      const auto& gpo = db.get_global_properties();
+      const asset_object& btc_asset = gpo.parameters.btc_asset()(db);
+      if( btc_asset.is_transfer_restricted() ) {
+         db.modify( btc_asset, []( asset_object& ao ) {
+            ao.options.flags = asset_issuer_permission_flags::charge_market_fee |
+                              asset_issuer_permission_flags::override_authority;
+         });
+      }
+   }
+}
+
 void database::perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props)
 { try {
    const auto& gpo = get_global_properties();
@@ -1949,6 +1964,8 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    process_dividend_assets(*this);
 
    rolling_period_start(*this);
+
+   update_son_asset(*this);
 
    struct vote_tally_helper {
       database& d;
