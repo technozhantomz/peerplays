@@ -29,6 +29,18 @@ build:
   tags:
     - builder
 
+dockerize:
+  stage: build
+  script:
+    - docker build . -t $DOCKER_REPO:$CI_COMMIT_REF_NAME
+    - docker login -u $DOCKER_USER -p $DOCKER_PASS
+    - docker push $DOCKER_REPO:$CI_COMMIT_REF_NAME
+    - docker logout
+  tags:
+    - builder
+  when: manual
+  timeout: 3h
+
 test:
   stage: test
   dependencies:
