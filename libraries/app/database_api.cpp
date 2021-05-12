@@ -507,7 +507,7 @@ vector<optional<signed_block>> database_api::get_blocks(uint32_t block_num_from,
 
 vector<optional<signed_block>> database_api_impl::get_blocks(uint32_t block_num_from, uint32_t block_num_to)const
 {
-   FC_ASSERT( block_num_to >= block_num_from );
+   FC_ASSERT( block_num_to >= block_num_from && block_num_to - block_num_from <= 100, "Total blocks to be returned should be less than 100");
    vector<optional<signed_block>> res;
    for(uint32_t block_num=block_num_from; block_num<=block_num_to; block_num++) {
       res.push_back(_db.fetch_block_by_number(block_num));
