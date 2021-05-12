@@ -71,6 +71,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       optional<block_header> get_block_header(uint32_t block_num)const;
       map<uint32_t, optional<block_header>> get_block_header_batch(const vector<uint32_t> block_nums)const;
       optional<signed_block> get_block(uint32_t block_num)const;
+      vector<optional<signed_block>> get_blocks(uint32_t block_num_from, uint32_t block_num_to)const;
       processed_transaction get_transaction( uint32_t block_num, uint32_t trx_in_block )const;
 
       // Globals
@@ -497,6 +498,21 @@ optional<signed_block> database_api::get_block(uint32_t block_num)const
 optional<signed_block> database_api_impl::get_block(uint32_t block_num)const
 {
    return _db.fetch_block_by_number(block_num);
+}
+
+vector<optional<signed_block>> database_api::get_blocks(uint32_t block_num_from, uint32_t block_num_to)const
+{
+   return my->get_blocks( block_num_from,  block_num_to );
+}
+
+vector<optional<signed_block>> database_api_impl::get_blocks(uint32_t block_num_from, uint32_t block_num_to)const
+{
+   FC_ASSERT( block_num_to >= block_num_from );
+   vector<optional<signed_block>> res;
+   for(uint32_t block_num=block_num_from; block_num<=block_num_to; block_num++) {
+      res.push_back(_db.fetch_block_by_number(block_num));
+   }
+   return res;
 }
 
 processed_transaction database_api::get_transaction( uint32_t block_num, uint32_t trx_in_block )const
