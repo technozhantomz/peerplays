@@ -4351,6 +4351,11 @@ optional<signed_block_with_info> wallet_api::get_block(uint32_t num)
    return my->_remote_db->get_block(num);
 }
 
+vector<optional<signed_block>> wallet_api::get_blocks(uint32_t block_num_from, uint32_t block_num_to) const
+{
+   return my->_remote_db->get_blocks(block_num_from, block_num_to);
+}
+
 uint64_t wallet_api::get_account_count() const
 {
    return my->_remote_db->get_account_count();
