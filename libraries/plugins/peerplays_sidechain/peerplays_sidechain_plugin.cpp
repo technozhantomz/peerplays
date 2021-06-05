@@ -41,6 +41,8 @@ public:
    bool is_valid_son_proposal(const chain::proposal_object &proposal);
    fc::ecc::private_key get_private_key(son_id_type son_id);
    fc::ecc::private_key get_private_key(chain::public_key_type public_key);
+   void log_son_proposal_retry(int op_type, object_id_type object_id);
+   bool can_son_participate(int op_type, object_id_type object_id);
 
    void schedule_heartbeat_loop();
    void heartbeat_loop();
@@ -75,6 +77,8 @@ private:
    std::map<chain::public_key_type, fc::ecc::private_key> private_keys;
    fc::future<void> _heartbeat_task;
    fc::future<void> _son_processing_task;
+   std::map<son_proposal_type, uint16_t> son_retry_count;
+   uint16_t retries_threshold;
 
    bool first_block_skipped;
    void on_applied_block(const signed_block &b);
@@ -130,6 +134,7 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("bitcoin-wallet-password", bpo::value<string>(), "Bitcoin wallet password");
    cli.add_options()("bitcoin-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("02d0f137e717fb3aab7aff99904001d49a0a636c5e1342f8927a4ba2eaee8e9772", "cVN31uC9sTEr392DLVUEjrtMgLA8Yb3fpYmTRj7bomTm6nn2ANPr")),
                      "Tuple of [Bitcoin public key, Bitcoin private key] (may specify multiple times)");
+   cli.add_options()("sidechain-retry-threshold", bpo::value<uint16_t>()->default_value(150), "Sidechain retry throttling threshold");
    cfg.add(cli);
 }
 
@@ -169,6 +174,8 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
          }
          config_ready_son = config_ready_son && !private_keys.empty();
       }
+      retries_threshold = options.at("sidechain-retry-threshold").as<uint16_t>();
+      ilog("sidechain-retry-threshold: ${sidechain-retry-threshold}", ("sidechain-retry-threshold", retries_threshold));
    }
    if (!config_ready_son) {
       wlog("Haven't set up SON parameters");
@@ -279,7 +286,7 @@ bool peerplays_sidechain_plugin_impl::is_son_deregistered(son_id_type son_id) {
    if (son_obj == idx.end())
       return true;
 
-   if(son_obj->status == chain::son_status::deregistered) {
+   if (son_obj->status == chain::son_status::deregistered) {
       return true;
    }
 
@@ -447,6 +454,22 @@ bool peerplays_sidechain_plugin_impl::is_valid_son_proposal(const chain::proposa
    }
 
    return false;
+}
+
+void peerplays_sidechain_plugin_impl::log_son_proposal_retry(int op_type, object_id_type object_id) {
+   son_proposal_type prop_type(op_type, get_current_son_id(), object_id);
+   auto itr = son_retry_count.find(prop_type);
+   if (itr != son_retry_count.end()) {
+      itr->second++;
+   } else {
+      son_retry_count[prop_type] = 1;
+   }
+}
+
+bool peerplays_sidechain_plugin_impl::can_son_participate(int op_type, object_id_type object_id) {
+   son_proposal_type prop_type(op_type, get_current_son_id(), object_id);
+   auto itr = son_retry_count.find(prop_type);
+   return (itr == son_retry_count.end() || itr->second < retries_threshold);
 }
 
 void peerplays_sidechain_plugin_impl::approve_proposals() {
@@ -693,6 +716,14 @@ fc::ecc::private_key peerplays_sidechain_plugin::get_private_key(son_id_type son
 
 fc::ecc::private_key peerplays_sidechain_plugin::get_private_key(chain::public_key_type public_key) {
    return my->get_private_key(public_key);
+}
+
+void peerplays_sidechain_plugin::log_son_proposal_retry(int op_type, object_id_type object_id) {
+   my->log_son_proposal_retry(op_type, object_id);
+}
+
+bool peerplays_sidechain_plugin::can_son_participate(int op_type, object_id_type object_id) {
+   return my->can_son_participate(op_type, object_id);
 }
 
 }} // namespace graphene::peerplays_sidechain
