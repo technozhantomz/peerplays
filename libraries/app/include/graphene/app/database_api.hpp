@@ -200,6 +200,14 @@ class database_api
       optional<signed_block> get_block(uint32_t block_num)const;
 
       /**
+       * @brief Retrieve a list of signed blocks
+       * @param block_num_from start
+       * @param block_num_to end
+       * @return list of referenced blocks
+       */
+      vector<optional<signed_block>> get_blocks(uint32_t block_num_from, uint32_t block_num_to)const;
+
+      /**
        * @brief used to fetch an individual transaction.
        */
       processed_transaction get_transaction( uint32_t block_num, uint32_t trx_in_block )const;
@@ -935,26 +943,6 @@ class database_api
       //////////////////
       vector<account_role_object> get_account_roles_by_owner(account_id_type owner) const;
 
-      /////////////////////////////
-      // Random number generator //
-      /////////////////////////////
-      /**
-       * @brief Returns the random number
-       * @param minimum Lower bound of segment containing random number
-       * @param maximum Upper bound of segment containing random number
-       * @param selections Number of random numbers to return
-       * @param duplicates Allow duplicated numbers
-       * @return Vector containing random numbers from segment [minimum, maximum)
-       */
-      vector<uint64_t> get_random_number_ex(uint64_t minimum, uint64_t maximum, uint64_t selections, bool duplicates) const;
-
-      /**
-       * @brief Returns the random number
-       * @param bound Upper bound of segment containing random number
-       * @return Random number from segment [0, bound)
-       */
-      uint64_t get_random_number(uint64_t bound) const;
-
    private:
       std::shared_ptr< database_api_impl > my;
 };
@@ -985,6 +973,7 @@ FC_API(graphene::app::database_api,
    (get_block_header)
    (get_block_header_batch)
    (get_block)
+   (get_blocks)
    (get_transaction)
    (get_recent_transaction_by_id)
 
@@ -1146,7 +1135,4 @@ FC_API(graphene::app::database_api,
 
    // Account Roles
    (get_account_roles_by_owner)
-   // rngs
-   (get_random_number_ex)
-   (get_random_number)
 )

@@ -1,0 +1,4 @@
+// SON2 HARDFORK Friday, June 11, 2021 00:00:00 GMT
+#ifndef HARDFORK_SON2_TIME
+#define HARDFORK_SON2_TIME (fc::time_point_sec( 1623369600 ))
+#endif
