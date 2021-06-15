@@ -183,7 +183,7 @@ void database::pay_sons()
    // Current requirement is that we have to pay every 24 hours, so the following check
    if( dpo.son_budget.value > 0 && ((now - dpo.last_son_payout_time) >= fc::seconds(get_global_properties().parameters.son_pay_time()))) {
       auto sons = sort_votable_objects<son_index>(get_global_properties().parameters.maximum_son_count());
-      // After NEXT HF
+      // After SON2 HF
       uint64_t total_votes = 0;
       for( const son_object& son : sons )
       {
@@ -194,32 +194,35 @@ void database::pay_sons()
          uint16_t weight = std::max((son_votes >> bits_to_drop), uint64_t(1) );
          return weight;
       };
-      // Before NEXT HF
-      auto get_weight_next_hf = []( uint64_t son_votes ) {
+      // Before SON2 HF
+      auto get_weight_before_son2_hf = []( uint64_t son_votes ) {
          int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(son_votes)) - 15, 0);
          uint16_t weight = std::max((son_votes >> bits_to_drop), uint64_t(1) );
          return weight;
       };
       uint64_t weighted_total_txs_signed = 0;
       share_type son_budget = dpo.son_budget;
-      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &get_weight, &now, &get_weight_next_hf](const object& o) {
+      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &get_weight, &now, &get_weight_before_son2_hf](const object& o) {
          const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
          const auto& idx = get_index_type<son_index>().indices().get<by_id>();
          auto son_obj = idx.find( s.owner );
          auto son_weight = get_weight(_vote_tally_buffer[son_obj->vote_id]);
-         if( now < HARDFORK_NEXT_TIME ) {
-            son_weight = get_weight_next_hf(_vote_tally_buffer[son_obj->vote_id]);
+         if( now < HARDFORK_SON2_TIME ) {
+            son_weight = get_weight_before_son2_hf(_vote_tally_buffer[son_obj->vote_id]);
          }
          weighted_total_txs_signed += (s.txs_signed * son_weight);
       });
 
       // Now pay off each SON proportional to the number of transactions signed.
-      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &dpo, &son_budget, &get_weight](const object& o) {
+      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &dpo, &son_budget, &get_weight, &get_weight_before_son2_hf, &now](const object& o) {
          const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
          if(s.txs_signed > 0){
             const auto& idx = get_index_type<son_index>().indices().get<by_id>();
             auto son_obj = idx.find( s.owner );
             auto son_weight = get_weight(_vote_tally_buffer[son_obj->vote_id]);
+            if( now < HARDFORK_SON2_TIME ) {
+               son_weight = get_weight_before_son2_hf(_vote_tally_buffer[son_obj->vote_id]);
+            }
             share_type pay = (s.txs_signed * son_weight * son_budget.value)/weighted_total_txs_signed;
             modify( *son_obj, [&]( son_object& _son_obj)
             {
@@ -1954,7 +1957,7 @@ void database::perform_son_tasks()
 
 void update_son_asset(database& db)
 {
-   if( db.head_block_time() >= HARDFORK_NEXT_TIME )
+   if( db.head_block_time() >= HARDFORK_SON2_TIME )
    {
       const auto& gpo = db.get_global_properties();
       const asset_object& btc_asset = gpo.parameters.btc_asset()(db);

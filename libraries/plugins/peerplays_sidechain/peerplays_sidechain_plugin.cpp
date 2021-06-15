@@ -134,7 +134,7 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("bitcoin-wallet-password", bpo::value<string>(), "Bitcoin wallet password");
    cli.add_options()("bitcoin-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("02d0f137e717fb3aab7aff99904001d49a0a636c5e1342f8927a4ba2eaee8e9772", "cVN31uC9sTEr392DLVUEjrtMgLA8Yb3fpYmTRj7bomTm6nn2ANPr")),
                      "Tuple of [Bitcoin public key, Bitcoin private key] (may specify multiple times)");
-   cli.add_options()("sidechain-retry-threshold", bpo::value<uint16_t>()->default_value(15), "Sidechain retry throttling threshold");
+   cli.add_options()("sidechain-retry-threshold", bpo::value<uint16_t>()->default_value(150), "Sidechain retry throttling threshold");
    cfg.add(cli);
 }
 
