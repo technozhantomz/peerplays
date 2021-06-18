@@ -1,4 +1,0 @@
-// NEXT HARDFORK Wednesday, March 17, 2021 23:00:00 GMT
-#ifndef HARDFORK_NEXT_TIME
-#define HARDFORK_NEXT_TIME (fc::time_point_sec( 1615982400 ))
-#endif

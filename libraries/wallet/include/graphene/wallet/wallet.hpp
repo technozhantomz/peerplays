@@ -1957,32 +1957,6 @@ class wallet_api
          bool broadcast /* = false */
          );
 
-      /** Get random numbers
-       * @brief Returns the random number
-       * @param minimum Lower bound of segment containing random number
-       * @param maximum Upper bound of segment containing random number
-       * @param selections Number of random numbers to return
-       * @param duplicates Allow duplicated numbers
-       * @param broadcast true if you wish to broadcast the transaction
-       * @return the signed version of the transaction
-       * @return Vector containing random numbers from segment [minimum, maximum)
-       */
-      vector<uint64_t> get_random_number_ex(string account,
-                                            uint64_t minimum,
-                                            uint64_t maximum,
-                                            uint64_t selections,
-                                            bool duplicates,
-                                            bool broadcast);
-
-      /** Get random number
-       * @brief Returns the random number
-       * @param bound Upper bound of segment containing random number
-       * @return Random number from segment [0, bound)
-       */
-      uint64_t get_random_number(string account,
-                                 uint64_t bound,
-                                 bool broadcast);
-
       order_book get_order_book( const string& base, const string& quote, unsigned limit = 50);
 
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
@@ -2680,8 +2654,6 @@ FC_API( graphene::wallet::wallet_api,
         (propose_fee_change)
         (propose_dividend_asset_update)
         (approve_proposal)
-        (get_random_number_ex)
-        (get_random_number)
         (dbg_make_uia)
         (dbg_make_mia)
         (dbg_push_blocks)

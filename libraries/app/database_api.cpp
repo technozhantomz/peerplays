@@ -248,9 +248,6 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Account Role
       vector<account_role_object> get_account_roles_by_owner(account_id_type owner) const;
-      // rng
-      vector<uint64_t> get_random_number_ex(uint64_t minimum, uint64_t maximum, uint64_t selections, bool duplicates) const;
-      uint64_t get_random_number(uint64_t bound) const;
 
    //private:
       const account_object* get_account_from_string( const std::string& name_or_id,
@@ -3191,31 +3188,6 @@ vector<account_role_object> database_api_impl::get_account_roles_by_owner(accoun
       result.push_back(*itr);
    }
    return result;
-}
-//////////////////////////////////////////////////////////////////////
-//                                                                  //
-// Random numbers                                                   //
-//                                                                  //
-//////////////////////////////////////////////////////////////////////
-
-vector<uint64_t> database_api::get_random_number_ex(uint64_t minimum, uint64_t maximum, uint64_t selections, bool duplicates) const
-{
-   return my->get_random_number_ex(minimum, maximum, selections, duplicates);
-}
-
-vector<uint64_t> database_api_impl::get_random_number_ex(uint64_t minimum, uint64_t maximum, uint64_t selections, bool duplicates) const
-{
-   return _db.get_random_numbers(minimum, maximum, selections, duplicates);
-}
-
-uint64_t database_api::get_random_number(uint64_t bound) const
-{
-   return my->get_random_number(bound);
-}
-
-uint64_t database_api_impl::get_random_number(uint64_t bound) const {
-    vector<uint64_t> v = get_random_number_ex(0, bound, 1, false);
-    return v.at(0);
 }
 
 //////////////////////////////////////////////////////////////////////
