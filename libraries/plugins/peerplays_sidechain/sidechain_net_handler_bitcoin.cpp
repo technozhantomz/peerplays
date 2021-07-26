@@ -1005,6 +1005,7 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
 
    int32_t op_idx_1 = -1;
    chain::operation op_obj_idx_1;
+   (void)op_idx_1;
 
    if (po.proposed_transaction.operations.size() >= 2) {
       op_idx_1 = po.proposed_transaction.operations[1].which();
@@ -1286,6 +1287,9 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
          boost::property_tree::ptree active_pw_pt;
          boost::property_tree::read_json(active_pw_ss, active_pw_pt);
          if (active_pw_pt.count("error") && active_pw_pt.get_child("error").empty()) {
+            if (!plugin.can_son_participate(chain::operation::tag<chain::son_wallet_update_operation>::value, active_sw->id)) {
+               return;
+            }
 
             proposal_create_operation proposal_op;
             proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
@@ -1324,6 +1328,7 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
                database.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+               plugin.log_son_proposal_retry(chain::operation::tag<chain::son_wallet_update_operation>::value, active_sw->id);
             } catch (fc::exception &e) {
                elog("Sending proposal for son wallet update operation failed with exception ${e}", ("e", e.what()));
                return;

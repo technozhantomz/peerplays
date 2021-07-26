@@ -34,6 +34,7 @@
 #include <fc/rpc/cli.hpp>
 #include <fc/rpc/http_api.hpp>
 #include <fc/rpc/websocket_api.hpp>
+#include <fc/smart_ref_impl.hpp>
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/config.hpp>
@@ -74,6 +75,7 @@ int main( int argc, char** argv )
       boost::program_options::options_description opts;
          opts.add_options()
          ("help,h", "Print this help message and exit.")
+         ("version", "Display the version info and exit")
          ("server-rpc-endpoint,s", bpo::value<string>()->implicit_value("ws://127.0.0.1:8090"), "Server websocket RPC endpoint")
          ("server-rpc-user,u", bpo::value<string>(), "Server Username")
          ("server-rpc-password,p", bpo::value<string>(), "Server Password")
@@ -92,6 +94,20 @@ int main( int argc, char** argv )
       if( options.count("help") )
       {
          std::cout << opts << "\n";
+         return 0;
+      }
+
+      if (options.count("version"))
+      {
+         std::string wallet_version(graphene::utilities::git_revision_description);
+         const size_t pos = wallet_version.find('/');
+         if( pos != std::string::npos && wallet_version.size() > pos )
+            wallet_version = wallet_version.substr( pos + 1 );
+         std::cerr << "Version: " << wallet_version << "\n";
+         std::cerr << "Git Revision: " << graphene::utilities::git_revision_sha << "\n";
+         std::cerr << "Built: " << __DATE__ " at " __TIME__ << "\n";
+         std::cout << "SSL: " << OPENSSL_VERSION_TEXT << "\n";
+         std::cout << "Boost: " << boost::replace_all_copy(std::string(BOOST_LIB_VERSION), "_", ".") << "\n";
          return 0;
       }
 
