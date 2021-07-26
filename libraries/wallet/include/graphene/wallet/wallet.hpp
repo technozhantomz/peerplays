@@ -307,6 +307,7 @@ class wallet_api
        */
       variant_object                    about() const;
       optional<signed_block_with_info>    get_block( uint32_t num );
+      vector<optional<signed_block>>      get_blocks(uint32_t block_num_from, uint32_t block_num_to)const;
       /** Returns the number of accounts registered on the blockchain
        * @returns the number of registered accounts
        */
@@ -1915,7 +1916,7 @@ class wallet_api
          const approval_delta& delta,
          bool broadcast /* = false */
          );
-         
+
       order_book get_order_book( const string& base, const string& quote, unsigned limit = 50);
 
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
@@ -2578,6 +2579,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_account)
         (get_account_id)
         (get_block)
+        (get_blocks)
         (get_account_count)
         (get_account_history)
         (get_relative_account_history)

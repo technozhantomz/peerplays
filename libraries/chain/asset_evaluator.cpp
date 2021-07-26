@@ -42,8 +42,7 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
 
    database& d = db();
 
-   if (d.head_block_time() < HARDFORK_SON_TIME)
-      FC_ASSERT(op.symbol != "BTC", "BTC asset creation before SON hardfork");
+   FC_ASSERT(d.is_asset_creation_allowed(op.symbol), "Asset creation not allowed at current time");
 
    const auto& chain_parameters = d.get_global_properties().parameters;
    FC_ASSERT( op.common_options.whitelist_authorities.size() <= chain_parameters.maximum_asset_whitelist_authorities );
@@ -190,6 +189,8 @@ void_result lottery_asset_create_evaluator::do_evaluate( const lottery_asset_cre
 { try {
 
    database& d = db();
+
+   FC_ASSERT(d.is_asset_creation_allowed(op.symbol), "Lottery asset creation not allowed at current time");
 
    const auto& chain_parameters = d.get_global_properties().parameters;
    FC_ASSERT( op.common_options.whitelist_authorities.size() <= chain_parameters.maximum_asset_whitelist_authorities );

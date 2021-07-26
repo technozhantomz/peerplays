@@ -12,6 +12,20 @@ namespace detail {
 class peerplays_sidechain_plugin_impl;
 }
 
+struct son_proposal_type {
+   son_proposal_type(int op, son_id_type son, object_id_type object) :
+         op_type(op),
+         son_id(son),
+         object_id(object) {
+   }
+   int op_type;
+   son_id_type son_id;
+   object_id_type object_id;
+   bool operator<(const son_proposal_type &other) const {
+      return std::tie(op_type, son_id, object_id) < std::tie(other.op_type, other.son_id, other.object_id);
+   }
+};
+
 class peerplays_sidechain_plugin : public graphene::app::plugin {
 public:
    peerplays_sidechain_plugin();
@@ -34,6 +48,8 @@ public:
    bool is_son_deregistered(son_id_type son_id);
    fc::ecc::private_key get_private_key(son_id_type son_id);
    fc::ecc::private_key get_private_key(chain::public_key_type public_key);
+   void log_son_proposal_retry(int op_type, object_id_type object_id);
+   bool can_son_participate(int op_type, object_id_type object_id);
 };
 
 }} // namespace graphene::peerplays_sidechain
