@@ -312,6 +312,7 @@ namespace graphene { namespace chain {
          signed_transaction                     create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op );
          bool                                   is_son_dereg_valid( son_id_type son_id );
          bool                                   is_son_active( son_id_type son_id );
+         bool                                   is_asset_creation_allowed(const string& symbol);
 
          time_point_sec   head_block_time()const;
          uint32_t         head_block_num()const;

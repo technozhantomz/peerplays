@@ -315,6 +315,27 @@ bool database::is_son_active( son_id_type son_id )
    return (it_son != active_son_ids.end());
 }
 
+bool database::is_asset_creation_allowed(const string &symbol)
+{
+   time_point_sec now = head_block_time();
+   std::unordered_set<std::string> post_son_hf_symbols = {"ETH", "USDT", "BNB", "ADA", "DOGE", "XRP", "USDC", "DOT", "UNI", "BUSD", "BCH", "LTC", "SOL", "LINK", "MATIC", "THETA",
+                                                          "WBTC", "XLM", "ICP", "DAI", "VET", "ETC", "TRX", "FIL", "XMR", "EGR", "EOS", "SHIB", "AAVE", "CRO", "ALGO", "AMP", "BTCB",
+                                                          "BSV", "KLAY", "CAKE", "FTT", "LEO", "XTZ", "TFUEL", "MIOTA", "LUNA", "NEO", "ATOM", "MKR", "FEI", "WBNB", "UST", "AVAX",
+                                                          "STEEM", "HIVE", "HBD", "SBD", "BTS"};
+   if (symbol == "BTC")
+   {
+      if (now < HARDFORK_SON_TIME)
+         return false;
+   }
+
+   if (post_son_hf_symbols.find(symbol) != post_son_hf_symbols.end())
+   {
+      if (now >= HARDFORK_SON_TIME)
+         return false;
+   }
+   return true;
+}
+
 vector<uint64_t> database::get_random_numbers(uint64_t minimum, uint64_t maximum, uint64_t selections, bool duplicates)
 {
    FC_ASSERT( selections <= 100000 );
