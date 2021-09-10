@@ -345,7 +345,7 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
       BOOST_TEST_MESSAGE("gpo: " << gpo.active_sons.size());
       BOOST_CHECK(generate_maintenance_block());
 
-      BOOST_CHECK(gpo.active_sons.size() == 15);
+      BOOST_CHECK(gpo.active_sons.size() == gpo.parameters.maximum_son_count());
 
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");

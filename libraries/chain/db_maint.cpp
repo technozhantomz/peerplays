@@ -1955,7 +1955,7 @@ void database::perform_son_tasks()
    }
 }
 
-void update_son_asset(database& db)
+void update_son_params(database& db)
 {
    if( db.head_block_time() >= HARDFORK_SON2_TIME )
    {
@@ -1967,6 +1967,9 @@ void update_son_asset(database& db)
                               asset_issuer_permission_flags::override_authority;
          });
       }
+      db.modify( gpo, []( global_property_object& gpo ) {
+            gpo.parameters.extensions.value.maximum_son_count = 7;
+      });
    }
 }
 
@@ -1981,7 +1984,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
 
    rolling_period_start(*this);
 
-   update_son_asset(*this);
+   update_son_params(*this);
 
    struct vote_tally_helper {
       database& d;
