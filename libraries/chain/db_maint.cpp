@@ -210,20 +210,29 @@ void database::pay_sons()
          if( now < HARDFORK_SON2_TIME ) {
             son_weight = get_weight_before_son2_hf(_vote_tally_buffer[son_obj->vote_id]);
          }
-         weighted_total_txs_signed += (s.txs_signed * son_weight);
+         uint64_t txs_signed = 0;
+         for (const auto &ts : s.txs_signed) {
+            txs_signed = txs_signed + ts.second;
+         }
+         weighted_total_txs_signed += (txs_signed * son_weight);
       });
 
       // Now pay off each SON proportional to the number of transactions signed.
       get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &dpo, &son_budget, &get_weight, &get_weight_before_son2_hf, &now](const object& o) {
          const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
-         if(s.txs_signed > 0){
+         uint64_t txs_signed = 0;
+         for (const auto &ts : s.txs_signed) {
+            txs_signed = txs_signed + ts.second;
+         }
+
+         if(txs_signed > 0){
             const auto& idx = get_index_type<son_index>().indices().get<by_id>();
             auto son_obj = idx.find( s.owner );
             auto son_weight = get_weight(_vote_tally_buffer[son_obj->vote_id]);
             if( now < HARDFORK_SON2_TIME ) {
                son_weight = get_weight_before_son2_hf(_vote_tally_buffer[son_obj->vote_id]);
             }
-            share_type pay = (s.txs_signed * son_weight * son_budget.value)/weighted_total_txs_signed;
+            share_type pay = (txs_signed * son_weight * son_budget.value)/weighted_total_txs_signed;
             modify( *son_obj, [&]( son_object& _son_obj)
             {
                _son_obj.pay_son_fee(pay, *this);
@@ -236,8 +245,9 @@ void database::pay_sons()
             //Reset the tx counter in each son statistics object
             modify( s, [&]( son_statistics_object& _s)
             {
-               _s.total_txs_signed += _s.txs_signed;
-               _s.txs_signed = 0;
+               for (const auto &ts : s.txs_signed) {
+                  _s.txs_signed.at(ts.first) = 0;
+               }
             });
          }
       });
@@ -267,11 +277,13 @@ void database::update_son_metrics(const vector<son_info>& curr_active_sons)
       bool is_active_son = (std::find(current_sons.begin(), current_sons.end(), son.id) != current_sons.end());
       modify( stats, [&]( son_statistics_object& _stats )
       {
+         if(is_active_son) {
+            _stats.total_voted_time = _stats.total_voted_time + get_global_properties().parameters.maintenance_interval;
+         }
          _stats.total_downtime += _stats.current_interval_downtime;
          _stats.current_interval_downtime = 0;
-         if(is_active_son)
-         {
-            _stats.total_voted_time = _stats.total_voted_time + get_global_properties().parameters.maintenance_interval;
+         for (const auto &str : _stats.sidechain_txs_reported) {
+            _stats.sidechain_txs_reported.at(str.first) = 0;
          }
       });
    }
@@ -593,7 +605,7 @@ void database::update_active_committee_members()
          update_committee_member_total_votes( cm );
       }
    }
-   
+
    // Update committee authorities
    if( !committee_members.empty() )
    {
@@ -1243,13 +1255,13 @@ double database::calculate_vesting_factor(const account_object& stake_account)
    //  variables needed
    const auto number_of_subperiods = vesting_period / vesting_subperiod;
    double vesting_factor;
-  
+
     // get in what sub period we are
    uint32_t current_subperiod = get_gpos_current_subperiod();
- 
+
    if(current_subperiod == 0 || current_subperiod > number_of_subperiods) return 0;
 
-   // On starting new vesting period, all votes become zero until someone votes, To avoid a situation of zero votes, 
+   // On starting new vesting period, all votes become zero until someone votes, To avoid a situation of zero votes,
    // changes were done to roll in GPOS rules, the vesting factor will be 1 for whoever votes in 6th sub-period of last vesting period
    // BLOCKBACK-174 fix
    if(current_subperiod == 1 && this->head_block_time() >= HARDFORK_GPOS_TIME + vesting_period)   //Applicable only from 2nd vesting period
@@ -1925,10 +1937,7 @@ void database::perform_son_tasks()
             a.options.market_fee_percent = 500; // 5%
             a.options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
             a.options.flags = asset_issuer_permission_flags::charge_market_fee |
-                              //asset_issuer_permission_flags::white_list |
-                              asset_issuer_permission_flags::override_authority |
-                              asset_issuer_permission_flags::transfer_restricted |
-                              asset_issuer_permission_flags::disable_confidential;
+                              asset_issuer_permission_flags::override_authority;
             a.options.core_exchange_rate.base.amount = 100000;
             a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
             a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
@@ -1943,6 +1952,74 @@ void database::perform_son_tasks()
             gpo.parameters.extensions.value.btc_asset = btc_asset.get_id();
             if( gpo.pending_parameters )
                gpo.pending_parameters->extensions.value.btc_asset = btc_asset.get_id();
+      });
+   }
+   // create HBD asset here because son_account is the issuer of the HBD
+   if (gpo.parameters.hbd_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_FOR_HIVE_TIME)
+   {
+      const asset_dynamic_data_object& dyn_asset =
+         create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
+            a.current_supply = 0;
+         });
+
+      const asset_object& hbd_asset =
+         create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
+            a.symbol = "HBD";
+            a.precision = 3;
+            a.issuer = gpo.parameters.son_account();
+            a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+            a.options.market_fee_percent = 500; // 5%
+            a.options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
+            a.options.flags = asset_issuer_permission_flags::charge_market_fee |
+                              asset_issuer_permission_flags::override_authority;
+            a.options.core_exchange_rate.base.amount = 100000;
+            a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
+            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
+            a.options.core_exchange_rate.quote.asset_id = a.id;
+            a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
+            a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
+            a.options.whitelist_markets.clear(); // might be traded with
+            a.options.blacklist_markets.clear(); // might not be traded with
+            a.dynamic_asset_data_id = dyn_asset.id;
+         });
+      modify( gpo, [&hbd_asset]( global_property_object& gpo ) {
+            gpo.parameters.extensions.value.hbd_asset = hbd_asset.get_id();
+            if( gpo.pending_parameters )
+               gpo.pending_parameters->extensions.value.hbd_asset = hbd_asset.get_id();
+      });
+   }
+   // create HIVE asset here because son_account is the issuer of the HIVE
+   if (gpo.parameters.hive_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_TIME)
+   {
+      const asset_dynamic_data_object& dyn_asset =
+         create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
+            a.current_supply = 0;
+         });
+
+      const asset_object& hive_asset =
+         create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
+            a.symbol = "HIVE";
+            a.precision = 3;
+            a.issuer = gpo.parameters.son_account();
+            a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+            a.options.market_fee_percent = 500; // 5%
+            a.options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
+            a.options.flags = asset_issuer_permission_flags::charge_market_fee |
+                              asset_issuer_permission_flags::override_authority;
+            a.options.core_exchange_rate.base.amount = 100000;
+            a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
+            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
+            a.options.core_exchange_rate.quote.asset_id = a.id;
+            a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
+            a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
+            a.options.whitelist_markets.clear(); // might be traded with
+            a.options.blacklist_markets.clear(); // might not be traded with
+            a.dynamic_asset_data_id = dyn_asset.id;
+         });
+      modify( gpo, [&hive_asset]( global_property_object& gpo ) {
+            gpo.parameters.extensions.value.hive_asset = hive_asset.get_id();
+            if( gpo.pending_parameters )
+               gpo.pending_parameters->extensions.value.hive_asset = hive_asset.get_id();
       });
    }
    // Pay the SONs
@@ -2114,7 +2191,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          }
       }
    } tally_helper(*this, gpo);
-   
+
    perform_account_maintenance( tally_helper );
    struct clear_canary {
       clear_canary(vector<uint64_t>& target): target(target){}
@@ -2160,7 +2237,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          if( !p.pending_parameters->extensions.value.gpos_subperiod.valid() )
             p.pending_parameters->extensions.value.gpos_subperiod = p.parameters.extensions.value.gpos_subperiod;
          if( !p.pending_parameters->extensions.value.gpos_vesting_lockin_period.valid() )
-            p.pending_parameters->extensions.value.gpos_vesting_lockin_period = p.parameters.extensions.value.gpos_vesting_lockin_period;                              
+            p.pending_parameters->extensions.value.gpos_vesting_lockin_period = p.parameters.extensions.value.gpos_vesting_lockin_period;
          if( !p.pending_parameters->extensions.value.rbac_max_permissions_per_account.valid() )
             p.pending_parameters->extensions.value.rbac_max_permissions_per_account = p.parameters.extensions.value.rbac_max_permissions_per_account;
          if( !p.pending_parameters->extensions.value.rbac_max_account_authority_lifetime.valid() )
@@ -2193,6 +2270,10 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
 	 if( !p.pending_parameters->extensions.value.maximum_son_count.valid() )
             p.pending_parameters->extensions.value.maximum_son_count = p.parameters.extensions.value.maximum_son_count;
+         if( !p.pending_parameters->extensions.value.hbd_asset.valid() )
+            p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
+         if( !p.pending_parameters->extensions.value.hive_asset.valid() )
+            p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }

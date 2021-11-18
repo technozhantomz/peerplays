@@ -1,0 +1,4 @@
+// Wednesday, March 31, 2021 0:00:00
+#ifndef HARDFORK_SON_FOR_HIVE_TIME
+#define HARDFORK_SON_FOR_HIVE_TIME (fc::time_point_sec( 1617148800 ))
+#endif

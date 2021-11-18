@@ -26,6 +26,7 @@ namespace graphene { namespace chain {
          static const uint8_t space_id = protocol_ids;
          static const uint8_t type_id  = sidechain_transaction_object_type;
 
+         time_point_sec timestamp;
          sidechain_type sidechain = sidechain_type::unknown;
          object_id_type object_id;
          std::string transaction;
@@ -70,6 +71,7 @@ FC_REFLECT_ENUM( graphene::chain::sidechain_transaction_status,
                  (settled) )
 
 FC_REFLECT_DERIVED( graphene::chain::sidechain_transaction_object, (graphene::db::object ),
+                    (timestamp)
                     (sidechain)
                     (object_id)
                     (transaction)
