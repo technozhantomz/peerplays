@@ -68,6 +68,8 @@ namespace graphene { namespace chain {
       optional < account_id_type >    son_account                       = GRAPHENE_NULL_ACCOUNT;
       optional < asset_id_type >      btc_asset                         = asset_id_type();
       optional < uint16_t >           maximum_son_count                 = GRAPHENE_DEFAULT_MAX_SONS; ///< maximum number of active SONS
+      optional < asset_id_type >      hbd_asset                         = asset_id_type();
+      optional < asset_id_type >      hive_asset                        = asset_id_type();
    };
 
    struct chain_parameters
@@ -212,6 +214,12 @@ namespace graphene { namespace chain {
       inline uint16_t maximum_son_count()const {
          return extensions.value.maximum_son_count.valid() ? *extensions.value.maximum_son_count : GRAPHENE_DEFAULT_MAX_SONS;
       }
+      inline asset_id_type hbd_asset() const {
+         return extensions.value.hbd_asset.valid() ? *extensions.value.hbd_asset : asset_id_type();
+      }
+      inline asset_id_type hive_asset() const {
+         return extensions.value.hive_asset.valid() ? *extensions.value.hive_asset : asset_id_type();
+      }
       private:
       static void safe_copy(chain_parameters& to, const chain_parameters& from);
    };
@@ -247,6 +255,8 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (son_account)
    (btc_asset)
    (maximum_son_count)
+   (hbd_asset)
+   (hive_asset)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,
