@@ -734,12 +734,16 @@ public:
    {
       return _remote_db->get_dynamic_global_properties();
    }
+   std::string object_id_to_string(object_id_type id) const
+   {
+      std::string object_id = fc::to_string(id.space())
+                              + "." + fc::to_string(id.type())
+                              + "." + fc::to_string(id.instance());
+      return object_id;
+   }
    std::string account_id_to_string(account_id_type id) const
    {
-      std::string account_id = fc::to_string(id.space_id)
-                               + "." + fc::to_string(id.type_id)
-                               + "." + fc::to_string(id.instance.value);
-      return account_id;
+      return object_id_to_string(id);
    }
    account_object get_account(account_id_type id) const
    {
@@ -2203,6 +2207,40 @@ public:
       return result;
    } FC_CAPTURE_AND_RETHROW() }
 
+   map<son_id_type, string> get_son_network_status()
+   { try {
+      global_property_object gpo = get_global_properties();
+      vector<son_id_type> son_ids;
+      son_ids.reserve(gpo.active_sons.size());
+      std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                     std::inserter(son_ids, son_ids.end()),
+                     [](const son_info& swi) {
+         return swi.son_id;
+      });
+
+      map<son_id_type, string> result;
+      std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
+      for(auto son_obj: son_objects) {
+         string status;
+         if (son_obj) {
+            son_statistics_object sso = get_object(son_obj->statistics);
+            if (sso.last_active_timestamp + fc::seconds(gpo.parameters.son_heartbeat_frequency()) > time_point::now()) {
+               status = "OK, regular SON heartbeat";
+            } else {
+               if (sso.last_active_timestamp + fc::seconds(gpo.parameters.son_down_time()) > time_point::now()) {
+                  status = "OK, irregular SON heartbeat, but not triggering SON down proposal";
+               } else {
+                  status = "NOT OK, irregular SON heartbeat, triggering SON down proposal";
+               }
+            }
+         } else {
+            status = "NOT OK, invalid SON id";
+         }
+         result[son_obj->id] = status;
+      }
+      return result;
+   } FC_CAPTURE_AND_RETHROW() }
+
    optional<son_wallet_object> get_active_son_wallet()
    { try {
        return _remote_db->get_active_son_wallet();
@@ -2221,6 +2259,7 @@ public:
    signed_transaction add_sidechain_address(string account,
                                             sidechain_type sidechain,
                                             string deposit_public_key,
+                                            string deposit_address,
                                             string withdraw_public_key,
                                             string withdraw_address,
                                             bool broadcast /* = false */)
@@ -2232,6 +2271,7 @@ public:
       op.sidechain_address_account = sidechain_address_account_id;
       op.sidechain = sidechain;
       op.deposit_public_key = deposit_public_key;
+      op.deposit_address = deposit_address;
       op.withdraw_public_key = withdraw_public_key;
       op.withdraw_address = withdraw_address;
 
@@ -5041,6 +5081,11 @@ map<string, son_id_type> wallet_api::list_active_sons()
     return my->list_active_sons();
 }
 
+map<son_id_type, string> wallet_api::get_son_network_status()
+{
+    return my->get_son_network_status();
+}
+
 optional<son_wallet_object> wallet_api::get_active_son_wallet()
 {
     return my->get_active_son_wallet();
@@ -5059,11 +5104,12 @@ vector<optional<son_wallet_object>> wallet_api::get_son_wallets(uint32_t limit)
 signed_transaction wallet_api::add_sidechain_address(string account,
                                           sidechain_type sidechain,
                                           string deposit_public_key,
+                                          string deposit_address,
                                           string withdraw_public_key,
                                           string withdraw_address,
                                           bool broadcast /* = false */)
 {
-   return my->add_sidechain_address(account, sidechain, deposit_public_key, withdraw_public_key, withdraw_address, broadcast);
+   return my->add_sidechain_address(account, sidechain, deposit_public_key, deposit_address, withdraw_public_key, withdraw_address, broadcast);
 }
 
 signed_transaction wallet_api::delete_sidechain_address(string account,

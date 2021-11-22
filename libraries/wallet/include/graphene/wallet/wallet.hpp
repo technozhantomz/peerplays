@@ -652,7 +652,7 @@ class wallet_api
       * @see suggest_brain_key()
       *
       * @param brain_key    Brain key
-      * @param numberOfDesiredKeys  Number of desired keys
+      * @param number_of_desired_keys  Number of desired keys
       * @return A list of keys that are deterministically derived from the brainkey
       */
      vector<brain_key_info> derive_owner_keys_from_brain_key(string brain_key, int number_of_desired_keys = 1) const;
@@ -667,7 +667,12 @@ class wallet_api
      bool is_public_key_registered(string public_key) const;
 
       /**
-       *  @param role - active | owner | memo
+       * Gets private key from password
+       *
+       * @param account Account name
+       * @param role Account role - active | owner | memo
+       * @param password Account password
+       * @return public/private key pair
        */
       pair<public_key_type,string>  get_private_key_from_password( string account, string role, string password )const;
 
@@ -895,18 +900,24 @@ class wallet_api
        *  that it exists in the blockchain.  If it exists then it will report the amount received and
        *  who sent it.
        *
-       *  @param opt_from - if not empty and the sender is a unknown public key, then the unknown public key will be given the label opt_from
        *  @param confirmation_receipt - a base58 encoded stealth confirmation
+       *  @param opt_from - if not  empty and the sender is a unknown public key, then the unknown public key will be given the label opt_from
+       *  @param opt_memo - optional memo
        */
       blind_receipt receive_blind_transfer( string confirmation_receipt, string opt_from, string opt_memo );
 
       /**
-       *  Transfers a public balance from @from to one or more blinded balances using a
+       *  Transfers a public balance from from_account_id_or_name to one or more blinded balances using a
        *  stealth transfer.
+       *
+       *  @param from_account_id_or_name account id or name
+       *  @param asset_symbol asset symbol
+       *  @param to_amounts map from key or label to amount
+       *  @param broadcast true to broadcast the transaction on the network
+       *  @returns blind confirmation structure
        */
       blind_confirmation transfer_to_blind( string from_account_id_or_name,
                                             string asset_symbol,
-                                            /** map from key or label to amount */
                                             vector<pair<string, string>> to_amounts,
                                             bool broadcast = false );
 
@@ -1010,11 +1021,11 @@ class wallet_api
        *
        * @param buyer_account The account buying the asset for another asset.
        * @param base The name or id of the asset to buy.
-       * @param quote The name or id of the assest being offered as payment.
+       * @param quote The name or id of the asset being offered as payment.
        * @param rate The rate in base:quote at which you want to buy.
        * @param amount the amount of base you want to buy.
        * @param broadcast true to broadcast the transaction on the network.
-       * @param The signed transaction selling the funds.
+       * @returns The signed transaction buying the funds.
        */
       signed_transaction buy( string buyer_account,
                               string base,
@@ -1468,6 +1479,12 @@ class wallet_api
       map<string, son_id_type> list_active_sons();
 
       /**
+       * @brief Get SON network status
+       * @return SON network status description
+       */
+      map<son_id_type, string>  get_son_network_status();
+
+      /**
        * @brief Get active SON wallet
        * @return Active SON wallet object
        */
@@ -1494,6 +1511,7 @@ class wallet_api
        * @param account the name or id of the account who owns the address
        * @param sidechain a sidechain to whom address belongs
        * @param deposit_public_key sidechain public key used for deposit address
+       * @param deposit_address sidechain address for deposits
        * @param withdraw_public_key sidechain public key used for withdraw address
        * @param withdraw_address sidechain address for withdrawals
        * @param broadcast true to broadcast the transaction on the network
@@ -1502,6 +1520,7 @@ class wallet_api
       signed_transaction add_sidechain_address(string account,
                                           sidechain_type sidechain,
                                           string deposit_public_key,
+                                          string deposit_address,
                                           string withdraw_public_key,
                                           string withdraw_address,
                                           bool broadcast = false);
@@ -1562,7 +1581,7 @@ class wallet_api
       /**
        * Update a witness object owned by the given account.
        *
-       * @param witness The name of the witness's owner account.  Also accepts the ID of the owner account or the ID of the witness.
+       * @param witness_name The name of the witness's owner account.  Also accepts the ID of the owner account or the ID of the witness.
        * @param url Same as for create_witness.  The empty string makes it remain the same.
        * @param block_signing_key The new block signing public key.  The empty string makes it remain the same.
        * @param broadcast true if you wish to broadcast the transaction.
@@ -1600,7 +1619,7 @@ class wallet_api
        * Update your votes for a worker
        *
        * @param account The account which will pay the fee and update votes.
-       * @param worker_vote_delta {"vote_for" : [...], "vote_against" : [...], "vote_abstain" : [...]}
+       * @param delta {"vote_for" : [...], "vote_against" : [...], "vote_abstain" : [...]}
        * @param broadcast true if you wish to broadcast the transaction.
        */
       signed_transaction update_worker_votes(
@@ -1733,7 +1752,7 @@ class wallet_api
       signed_transaction update_son_votes(string voting_account,
                                               std::vector<std::string> sons_to_approve,
                                               std::vector<std::string> sons_to_reject,
-                                              uint16_t desired_number_of_son,
+                                              uint16_t desired_number_of_sons,
                                               bool broadcast = false);
 
       /** Vote for a given witness.
@@ -1827,8 +1846,8 @@ class wallet_api
        * set, your preferences will be ignored.
        *
        * @param account_to_modify the name or id of the account to update
-       * @param number_of_committee_members the number
-       *
+       * @param desired_number_of_witnesses desired number of witnesses
+       * @param desired_number_of_committee_members desired number of committee members
        * @param broadcast true if you wish to broadcast the transaction
        * @return the signed transaction changing your vote proxy settings
        */
@@ -2130,6 +2149,7 @@ class wallet_api
       /** Creates a new tournament
        * @param creator the accout that is paying the fee to create the tournament
        * @param options the options detailing the specifics of the tournament
+       * @param broadcast true if you wish to broadcast the transaction
        * @return the signed version of the transaction
        */
       signed_transaction tournament_create( string creator, tournament_options options, bool broadcast = false );
@@ -2169,7 +2189,7 @@ class wallet_api
                                                          tournament_state state);
 
       /** Get specific information about a tournament
-       * @param tournament_id the ID of the tournament
+       * @param id the ID of the tournament
        */
       tournament_object get_tournament(tournament_id_type id);
 
@@ -2177,6 +2197,7 @@ class wallet_api
        * @param game_id the id of the game
        * @param player_account the name of the player
        * @param gesture rock, paper, or scissors
+       * @param broadcast true if you wish to broadcast the transaction
        * @return the signed version of the transaction
        */
       signed_transaction rps_throw(game_id_type game_id,
@@ -2229,6 +2250,9 @@ class wallet_api
        * @param revenue_split revenue split for the sale
        * @param is_transferable can transfer the NFT or not
        * @param is_sellable can sell NFT or not
+       * @param role_id account role id
+       * @param max_supply max supply of NTFs
+       * @param lottery_options lottery options
        * @param broadcast  true to broadcast transaction to the network
        * @return Signed transaction transfering the funds
        */
@@ -2256,6 +2280,7 @@ class wallet_api
        * @param revenue_split revenue split for the sale
        * @param is_transferable can transfer the NFT or not
        * @param is_sellable can sell NFT or not
+       * @param role_id account role id
        * @param broadcast  true to broadcast transaction to the network
        * @return Signed transaction transfering the funds
        */
@@ -2369,8 +2394,8 @@ class wallet_api
 
       /**
        * @brief Returns operator approved state for all NFT owned by owner
-       * @param owner NFT owner account ID
-       * @param token_id NFT ID
+       * @param owner_account_id_or_name NFT owner account ID or name
+       * @param operator_account_id_or_name NFT operator account ID or name
        * @return True if operator is approved for all NFT owned by owner, else False
        */
       bool nft_is_approved_for_all(string owner_account_id_or_name, string operator_account_id_or_name) const;
@@ -2599,6 +2624,7 @@ FC_API( graphene::wallet::wallet_api,
         (update_son_vesting_balances)
         (list_sons)
         (list_active_sons)
+        (get_son_network_status)
         (request_son_maintenance)
         (cancel_request_son_maintenance)
         (get_active_son_wallet)

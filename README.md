@@ -44,7 +44,6 @@ make -j$(nproc)
 make install # this can install the executable files under /usr/local
 ```
 
-docker build -t peerplays .
 
 ## Docker image
 

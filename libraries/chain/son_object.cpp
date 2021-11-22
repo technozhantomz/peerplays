@@ -10,6 +10,8 @@ namespace graphene { namespace chain {
       return ((std::string(signing_key).length() > 0) &&
              (sidechain_public_keys.size() > 0) &&
              (sidechain_public_keys.find( sidechain_type::bitcoin ) != sidechain_public_keys.end()) &&
-             (sidechain_public_keys.at(sidechain_type::bitcoin).length() > 0));
+             (sidechain_public_keys.at(sidechain_type::bitcoin).length() > 0) &&
+             (sidechain_public_keys.find( sidechain_type::hive ) != sidechain_public_keys.end()) &&
+             (sidechain_public_keys.at(sidechain_type::hive).length() > 0));
    }
 }}
