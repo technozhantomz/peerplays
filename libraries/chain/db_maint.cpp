@@ -84,7 +84,7 @@ vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<
    std::vector<std::reference_wrapper<const son_object>> refs;
    for( auto& son : all_sons )
    {
-      if(son.has_valid_config() && son.status != son_status::deregistered)
+      if(son.has_valid_config(head_block_time()) && son.status != son_status::deregistered)
       {
          refs.push_back(std::cref(son));
       }
@@ -1989,7 +1989,7 @@ void database::perform_son_tasks()
       });
    }
    // create HIVE asset here because son_account is the issuer of the HIVE
-   if (gpo.parameters.hive_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_TIME)
+   if (gpo.parameters.hive_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_FOR_HIVE_TIME)
    {
       const asset_dynamic_data_object& dyn_asset =
          create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {

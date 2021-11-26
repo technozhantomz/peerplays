@@ -76,6 +76,7 @@ namespace graphene { namespace chain {
 
          void pay_son_fee(share_type pay, database& db);
          bool has_valid_config()const;
+         bool has_valid_config(time_point_sec head_block_time)const;
    };
 
    struct by_account;
