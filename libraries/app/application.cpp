@@ -933,7 +933,8 @@ void application::set_program_options(boost::program_options::options_descriptio
          ("enable-standby-votes-tracking", bpo::value<bool>()->implicit_value(true),
           "Whether to enable tracking of votes of standby witnesses and committee members. "
           "Set it to true to provide accurate data to API clients, set to false for slightly better performance.")
-         ("plugins", bpo::value<string>(), "Space-separated list of plugins to activate")
+         ("plugins", bpo::value<string>()->default_value("account_history accounts_list affiliate_stats bookie market_history witness"),
+          "Space-separated list of plugins to activate")
          ;
    command_line_options.add(configuration_file_options);
    command_line_options.add_options()

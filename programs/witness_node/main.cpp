@@ -71,10 +71,7 @@ int main(int argc, char** argv) {
             ("help,h", "Print this help message and exit.")
             ("data-dir,d", bpo::value<boost::filesystem::path>()->default_value("witness_node_data_dir"),
                     "Directory containing databases, configuration file, etc.")
-            ("version,v", "Display version information")
-            ("plugins", bpo::value<std::string>()
-                            ->default_value("witness account_history market_history accounts_list affiliate_stats bookie"),
-                    "Space-separated list of plugins to activate");
+            ("version,v", "Display version information");
 
       bpo::variables_map options;
 
