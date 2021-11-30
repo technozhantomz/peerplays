@@ -1801,38 +1801,39 @@ std::string sidechain_net_handler_bitcoin::send_transaction(const sidechain_tran
 
 void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) {
    std::string block = bitcoin_client->getblock(event_data);
-   if (block != "") {
-      const auto &vins = extract_info_from_block(block);
+   if (block.empty())
+      return;
 
-      const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address_and_expires>();
+   auto vins = extract_info_from_block(block);
+   scoped_lock interlock(event_handler_mutex);
+   const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address_and_expires>();
 
-      for (const auto &v : vins) {
-         // !!! EXTRACT DEPOSIT ADDRESS FROM SIDECHAIN ADDRESS OBJECT
-         const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, v.address, time_point_sec::maximum()));
-         if (addr_itr == sidechain_addresses_idx.end())
-            continue;
+   for (const auto &v : vins) {
+      // !!! EXTRACT DEPOSIT ADDRESS FROM SIDECHAIN ADDRESS OBJECT
+      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, v.address, time_point_sec::maximum()));
+      if (addr_itr == sidechain_addresses_idx.end())
+         continue;
 
-         std::stringstream ss;
-         ss << "bitcoin"
-            << "-" << v.out.hash_tx << "-" << v.out.n_vout;
-         std::string sidechain_uid = ss.str();
+      std::stringstream ss;
+      ss << "bitcoin"
+         << "-" << v.out.hash_tx << "-" << v.out.n_vout;
+      std::string sidechain_uid = ss.str();
 
-         sidechain_event_data sed;
-         sed.timestamp = database.head_block_time();
-         sed.block_num = database.head_block_num();
-         sed.sidechain = addr_itr->sidechain;
-         sed.sidechain_uid = sidechain_uid;
-         sed.sidechain_transaction_id = v.out.hash_tx;
-         sed.sidechain_from = v.address;
-         sed.sidechain_to = "";
-         sed.sidechain_currency = "BTC";
-         sed.sidechain_amount = v.out.amount;
-         sed.peerplays_from = addr_itr->sidechain_address_account;
-         sed.peerplays_to = database.get_global_properties().parameters.son_account();
-         price btc_price = database.get<asset_object>(database.get_global_properties().parameters.btc_asset()).options.core_exchange_rate;
-         sed.peerplays_asset = asset(sed.sidechain_amount * btc_price.base.amount / btc_price.quote.amount);
-         sidechain_event_data_received(sed);
-      }
+      sidechain_event_data sed;
+      sed.timestamp = database.head_block_time();
+      sed.block_num = database.head_block_num();
+      sed.sidechain = addr_itr->sidechain;
+      sed.sidechain_uid = sidechain_uid;
+      sed.sidechain_transaction_id = v.out.hash_tx;
+      sed.sidechain_from = v.address;
+      sed.sidechain_to = "";
+      sed.sidechain_currency = "BTC";
+      sed.sidechain_amount = v.out.amount;
+      sed.peerplays_from = addr_itr->sidechain_address_account;
+      sed.peerplays_to = database.get_global_properties().parameters.son_account();
+      price btc_price = database.get<asset_object>(database.get_global_properties().parameters.btc_asset()).options.core_exchange_rate;
+      sed.peerplays_asset = asset(sed.sidechain_amount * btc_price.base.amount / btc_price.quote.amount);
+      sidechain_event_data_received(sed);
    }
 }
 

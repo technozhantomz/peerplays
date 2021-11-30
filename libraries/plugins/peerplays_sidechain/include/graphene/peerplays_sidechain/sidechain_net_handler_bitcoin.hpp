@@ -7,6 +7,8 @@
 
 #include <boost/signals2.hpp>
 
+#include <mutex>
+
 #include <fc/network/http/connection.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_address.hpp>
 
@@ -113,6 +115,9 @@ private:
 
    fc::future<void> on_changed_objects_task;
    bitcoin::bitcoin_address::network network_type;
+
+   std::mutex event_handler_mutex;
+   typedef std::lock_guard<decltype(event_handler_mutex)> scoped_lock;
 
    std::string create_primary_wallet_address(const std::vector<son_info> &son_pubkeys);
 

@@ -156,8 +156,8 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
                      "Tuple of [Bitcoin public key, Bitcoin private key] (may specify multiple times)");
 
    cli.add_options()("hive-sidechain-enabled", bpo::value<bool>()->default_value(false), "Hive sidechain handler enabled");
-   cli.add_options()("hive-node-ip", bpo::value<string>()->default_value("127.0.0.1"), "Hive node IP address");
-   cli.add_options()("hive-node-rpc-port", bpo::value<uint32_t>()->default_value(28090), "Hive node RPC port");
+   cli.add_options()("hive-node-rpc-url", bpo::value<string>()->default_value("127.0.0.1"), "Hive node URL (http(s)://host:port/)");
+   //cli.add_options()("hive-node-rpc-port", bpo::value<uint32_t>()->default_value(28090), "Deprecated: Hive node RPC port. See: hive-node-rpc-url");
    cli.add_options()("hive-node-rpc-user", bpo::value<string>(), "Hive node RPC user");
    cli.add_options()("hive-node-rpc-password", bpo::value<string>(), "Hive node RPC password");
    cli.add_options()("hive-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("TST6LLegbAgLAy28EHrffBVuANFWcFgmqRMW13wBmTExqFE9SCkg4", "5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n")),
