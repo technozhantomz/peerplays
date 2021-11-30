@@ -32,35 +32,8 @@
 
 namespace graphene { namespace peerplays_sidechain {
 
-std::string resolve_host_addr(const std::string &host_name) {
-   using namespace boost::asio;
-   io_service service;
-   ip::tcp::resolver resolver(service);
-   auto query = ip::tcp::resolver::query(host_name, std::string());
-   auto iter = resolver.resolve(query);
-   auto endpoint = *iter;
-   auto addr = ((ip::tcp::endpoint)endpoint).address();
-   return addr.to_string();
-}
-
-std::string strip_proto_name(const std::string &url, std::string *schema) {
-   auto index = url.find("://");
-   if (index == std::string::npos) {
-      if (schema)
-         schema->clear();
-      return url;
-   }
-   if (schema)
-      schema->assign(&url[0], &url[index + 3]);
-   return url.substr(index + 3);
-}
-
-}} // namespace graphene::peerplays_sidechain
-
-namespace graphene { namespace peerplays_sidechain {
-
-hive_node_rpc_client::hive_node_rpc_client(std::string _ip, uint32_t _port, std::string _user, std::string _password, bool _debug_rpc_calls) :
-      rpc_client(_ip, _port, _user, _password, _debug_rpc_calls) {
+hive_node_rpc_client::hive_node_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls) :
+      rpc_client(url, user_name, password, debug_rpc_calls) {
 }
 
 std::string hive_node_rpc_client::account_history_api_get_transaction(std::string transaction_id) {
@@ -149,8 +122,14 @@ sidechain_net_handler_hive::sidechain_net_handler_hive(peerplays_sidechain_plugi
       debug_rpc_calls = options.at("debug-rpc-calls").as<bool>();
    }
 
-   node_ip = options.at("hive-node-ip").as<std::string>();
-   node_rpc_port = options.at("hive-node-rpc-port").as<uint32_t>();
+   if (options.count("hive-node-rpc-url"))
+      node_rpc_url = options.at("hive-node-rpc-url").as<std::string>();
+
+   //   if (options.count("hive-node-rpc-port"))
+   //      node_rpc_port = options.at("hive-node-rpc-port").as<uint32_t>();
+   //   else
+   //      node_rpc_port = 0;
+
    if (options.count("hive-node-rpc-user")) {
       node_rpc_user = options.at("hive-node-rpc-user").as<std::string>();
    } else {
@@ -174,11 +153,12 @@ sidechain_net_handler_hive::sidechain_net_handler_hive(peerplays_sidechain_plugi
       }
    }
 
-   node_rpc_client = new hive_node_rpc_client(node_ip, node_rpc_port, node_rpc_user, node_rpc_password, debug_rpc_calls);
+   node_rpc_client = new hive_node_rpc_client(node_rpc_url, node_rpc_user, node_rpc_password, debug_rpc_calls);
 
    std::string chain_id_str = node_rpc_client->get_chain_id();
    if (chain_id_str.empty()) {
-      elog("No Hive node running at ${ip} or wrong rpc port: ${port}", ("ip", node_ip)("port", node_rpc_port));
+      //      elog("No Hive node running at ${url} or wrong rpc port: ${port}", ("url", node_rpc_url)("port", node_rpc_port));
+      elog("No Hive node running at ${url}", ("url", node_rpc_url));
       FC_ASSERT(false);
    }
    chain_id = chain_id_type(chain_id_str);
