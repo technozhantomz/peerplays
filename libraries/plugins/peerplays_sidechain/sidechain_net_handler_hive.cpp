@@ -122,14 +122,7 @@ sidechain_net_handler_hive::sidechain_net_handler_hive(peerplays_sidechain_plugi
       debug_rpc_calls = options.at("debug-rpc-calls").as<bool>();
    }
 
-   if (options.count("hive-node-rpc-url"))
-      node_rpc_url = options.at("hive-node-rpc-url").as<std::string>();
-
-   //   if (options.count("hive-node-rpc-port"))
-   //      node_rpc_port = options.at("hive-node-rpc-port").as<uint32_t>();
-   //   else
-   //      node_rpc_port = 0;
-
+   node_rpc_url = options.at("hive-node-rpc-url").as<std::string>();
    if (options.count("hive-node-rpc-user")) {
       node_rpc_user = options.at("hive-node-rpc-user").as<std::string>();
    } else {
@@ -157,7 +150,6 @@ sidechain_net_handler_hive::sidechain_net_handler_hive(peerplays_sidechain_plugi
 
    std::string chain_id_str = node_rpc_client->get_chain_id();
    if (chain_id_str.empty()) {
-      //      elog("No Hive node running at ${url} or wrong rpc port: ${port}", ("url", node_rpc_url)("port", node_rpc_port));
       elog("No Hive node running at ${url}", ("url", node_rpc_url));
       FC_ASSERT(false);
    }
