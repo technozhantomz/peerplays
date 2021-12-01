@@ -47,7 +47,11 @@ namespace graphene { namespace chain {
          optional<signed_block> fetch_by_number( uint32_t block_num )const;
          optional<signed_block> last()const;
          optional<block_id_type> last_id()const;
+	 
+         void set_replay_mode(bool mode);
       private:
+         bool replay_mode = false;
+
          optional<index_entry> last_index_entry()const;
          fc::path _index_filename;
          mutable std::fstream _blocks;
