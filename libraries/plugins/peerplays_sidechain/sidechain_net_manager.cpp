@@ -3,6 +3,7 @@
 #include <fc/log/logger.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_handler_bitcoin.hpp>
+#include <graphene/peerplays_sidechain/sidechain_net_handler_hive.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_handler_peerplays.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
@@ -10,6 +11,10 @@ namespace graphene { namespace peerplays_sidechain {
 sidechain_net_manager::sidechain_net_manager(peerplays_sidechain_plugin &_plugin) :
       plugin(_plugin),
       database(_plugin.database()) {
+
+   //database.applied_block.connect([&](const signed_block &b) {
+   //   on_applied_block(b);
+   //});
 }
 
 sidechain_net_manager::~sidechain_net_manager() {
@@ -22,6 +27,12 @@ bool sidechain_net_manager::create_handler(sidechain_type sidechain, const boost
    switch (sidechain) {
    case sidechain_type::bitcoin: {
       std::unique_ptr<sidechain_net_handler> h = std::unique_ptr<sidechain_net_handler>(new sidechain_net_handler_bitcoin(plugin, options));
+      net_handlers.push_back(std::move(h));
+      ret_val = true;
+      break;
+   }
+   case sidechain_type::hive: {
+      std::unique_ptr<sidechain_net_handler> h = std::unique_ptr<sidechain_net_handler>(new sidechain_net_handler_hive(plugin, options));
       net_handlers.push_back(std::move(h));
       ret_val = true;
       break;
@@ -85,6 +96,9 @@ void sidechain_net_manager::settle_sidechain_transactions() {
    for (size_t i = 0; i < net_handlers.size(); i++) {
       net_handlers.at(i)->settle_sidechain_transactions();
    }
+}
+
+void sidechain_net_manager::on_applied_block(const signed_block &b) {
 }
 
 }} // namespace graphene::peerplays_sidechain

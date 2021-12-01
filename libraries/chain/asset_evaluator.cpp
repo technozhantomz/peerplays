@@ -597,7 +597,6 @@ void_result asset_update_dividend_evaluator::do_apply( const asset_update_divide
             obj.referrer = op.issuer;
             obj.lifetime_referrer = op.issuer(db()).lifetime_referrer;
 
-            auto& params = db().get_global_properties().parameters;
             obj.network_fee_percentage = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
             obj.lifetime_referrer_fee_percentage = GRAPHENE_DEFAULT_LIFETIME_REFERRER_PERCENT_OF_FEE;
             obj.referrer_rewards_percentage = GRAPHENE_DEFAULT_LIFETIME_REFERRER_PERCENT_OF_FEE;

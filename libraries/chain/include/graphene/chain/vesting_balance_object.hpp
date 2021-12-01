@@ -200,6 +200,20 @@ namespace graphene { namespace chain {
     */
    struct by_account;
    struct by_asset_balance;
+
+   struct by_asset_balance_helper_asset_id {
+      typedef asset_id_type result_type;
+      result_type operator()(const vesting_balance_object& vbo) const {
+         return vbo.balance.asset_id;
+      }
+   };
+   struct by_asset_balance_helper_asset_amount {
+      typedef share_type result_type;
+      result_type operator()(const vesting_balance_object& vbo) const {
+         return vbo.balance.amount;
+      }
+   };
+
    typedef multi_index_container<
       vesting_balance_object,
       indexed_by<
@@ -210,11 +224,9 @@ namespace graphene { namespace chain {
         ordered_non_unique< tag<by_asset_balance>,
            composite_key<
               vesting_balance_object,
-              member_offset<vesting_balance_object, asset_id_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,asset_id))>,
+              by_asset_balance_helper_asset_id,
               member<vesting_balance_object, vesting_balance_type, &vesting_balance_object::balance_type>,
-              member_offset<vesting_balance_object, share_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,amount))>
-              //member<vesting_balance_object, account_id_type, &vesting_balance_object::owner>
-              //member_offset<vesting_balance_object, account_id_type, (size_t) (offsetof(vesting_balance_object,owner))>
+              by_asset_balance_helper_asset_amount
            >,
            composite_key_compare<
               std::less< asset_id_type >,

@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(last_voting_date_proxy)
          PUSH_TX( db, trx, ~0 );
       }
       // last_vote_time is not updated
-      auto round2 = db.head_block_time().sec_since_epoch();
+      db.head_block_time().sec_since_epoch();
       alice_stats_obj = alice_id(db).statistics(db);
       BOOST_CHECK_EQUAL(alice_stats_obj.last_vote_time.sec_since_epoch(), round1);
 

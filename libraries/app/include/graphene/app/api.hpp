@@ -150,6 +150,9 @@ namespace graphene { namespace app {
                                                    fc::time_point_sec start, fc::time_point_sec end )const;
          vector<account_balance_object> list_core_accounts()const;
          flat_set<uint32_t> get_market_history_buckets()const;
+         uint32_t api_limit_get_account_history_operations = 100;
+         uint32_t api_limit_get_account_history = 100;
+         uint32_t api_limit_get_relative_account_history = 100;
       private:
            application& _app;
            graphene::app::database_api database_api;
@@ -354,6 +357,7 @@ namespace graphene { namespace app {
           */
          vector<asset_holders> get_all_asset_holders() const;
 
+         uint32_t api_limit_get_asset_holders = 100;
       private:
          graphene::app::application& _app;
          graphene::chain::database& _db;

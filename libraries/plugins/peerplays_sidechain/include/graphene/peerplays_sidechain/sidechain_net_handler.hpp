@@ -4,7 +4,6 @@
 
 #include <boost/program_options.hpp>
 
-#include <fc/signals.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/sidechain_address_object.hpp>
 #include <graphene/chain/sidechain_transaction_object.hpp>
@@ -46,14 +45,18 @@ public:
    virtual bool process_withdrawal(const son_wallet_withdraw_object &swwo) = 0;
    virtual std::string process_sidechain_transaction(const sidechain_transaction_object &sto) = 0;
    virtual std::string send_sidechain_transaction(const sidechain_transaction_object &sto) = 0;
-   virtual int64_t settle_sidechain_transaction(const sidechain_transaction_object &sto) = 0;
+   virtual bool settle_sidechain_transaction(const sidechain_transaction_object &sto, asset &settle_amount) = 0;
 
 protected:
    peerplays_sidechain_plugin &plugin;
    graphene::chain::database &database;
    sidechain_type sidechain;
 
+   bool debug_rpc_calls;
+
    std::map<std::string, std::string> private_keys;
+
+   void on_applied_block(const signed_block &b);
 
 private:
 };
