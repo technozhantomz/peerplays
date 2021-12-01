@@ -24,6 +24,26 @@ void_result nft_metadata_create_evaluator::do_evaluate( const nft_metadata_creat
       const auto& ar_obj = (*op.account_role)(db());
       FC_ASSERT(ar_obj.owner == op.owner, "Only the Account Role created by the owner can be attached");
    }
+
+   // Lottery Related
+   if (!op.lottery_options) {
+      return void_result();
+   }
+   FC_ASSERT((*op.lottery_options).end_date > now || (*op.lottery_options).end_date == time_point_sec());
+   if (op.max_supply) {
+      FC_ASSERT(*op.max_supply >= 5);
+   }
+
+   for(auto lottery_id: (*op.lottery_options).progressive_jackpots) {
+      const auto& lottery_obj = lottery_id(db());
+      FC_ASSERT(lottery_obj.owner == op.owner, "Only the Owner can attach progressive jackpots");
+      FC_ASSERT(lottery_obj.is_lottery(), "Only lottery objects can be attached as progressive jackpots");
+      FC_ASSERT(lottery_obj.lottery_data->lottery_options.is_active == false, "Lottery should not be active");
+      FC_ASSERT(lottery_obj.lottery_data->lottery_options.ticket_price.asset_id == (*op.lottery_options).ticket_price.asset_id, "Lottery asset type should be same");
+      const auto& lottery_balance_obj = lottery_obj.lottery_data->lottery_balance_id(db());
+      FC_ASSERT(lottery_balance_obj.jackpot.amount > 0, "Non zero progressive jackpot not allowed");
+   }
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -39,6 +59,26 @@ object_id_type nft_metadata_create_evaluator::do_apply( const nft_metadata_creat
       obj.is_transferable = op.is_transferable;
       obj.is_sellable = op.is_sellable;
       obj.account_role = op.account_role;
+      if (op.max_supply) {
+         obj.max_supply = *op.max_supply;
+      }
+      if (op.lottery_options) {
+         asset jackpot_sum(0,(*op.lottery_options).ticket_price.asset_id);
+         for(auto lottery_id: (*op.lottery_options).progressive_jackpots) {
+            const auto& lottery_obj = lottery_id(db());
+            const auto& lottery_balance_obj = lottery_obj.lottery_data->lottery_balance_id(db());
+            FC_ASSERT(lottery_balance_obj.jackpot.amount > 0, "Non zero progressive jackpot not allowed");
+            db().modify(lottery_balance_obj, [&] ( nft_lottery_balance_object& nlbo ) {
+               jackpot_sum += nlbo.jackpot;
+               nlbo.jackpot -= nlbo.jackpot;
+            });
+         }
+         const auto& new_lottery_balance_obj = db().create<nft_lottery_balance_object>([&](nft_lottery_balance_object& nlbo) {
+            nlbo.total_progressive_jackpot = jackpot_sum;
+            nlbo.jackpot = jackpot_sum;
+         });
+         obj.lottery_data = nft_lottery_data(*op.lottery_options, new_lottery_balance_obj.id);
+      }
    });
    return new_nft_metadata_object.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -110,6 +150,7 @@ void_result nft_mint_evaluator::do_evaluate( const nft_mint_operation& op )
    FC_ASSERT( itr_nft_md != idx_nft_md.end(), "NFT metadata not found" );
    FC_ASSERT( itr_nft_md->owner == op.payer, "Only metadata owner can mint NFT" );
 
+   FC_ASSERT(itr_nft_md->get_token_current_supply(db()) < itr_nft_md->max_supply, "NFTs can't be minted more than max_supply");
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 

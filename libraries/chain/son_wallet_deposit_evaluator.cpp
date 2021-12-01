@@ -84,9 +84,16 @@ object_id_type create_son_wallet_deposit_evaluator::do_apply(const son_wallet_de
 
             auto stats_itr = db().get_index_type<son_stats_index>().indices().get<by_owner>().find(si.son_id);
             db().modify(*stats_itr, [&op, &si](son_statistics_object &sso) {
-               sso.total_sidechain_txs_reported = sso.total_sidechain_txs_reported + 1;
+               if (sso.total_sidechain_txs_reported.find(op.sidechain) == sso.total_sidechain_txs_reported.end()) {
+                  sso.total_sidechain_txs_reported[op.sidechain] = 0;
+               }
+               sso.total_sidechain_txs_reported[op.sidechain] += 1;
+
                if (si.son_id == op.son_id) {
-                  sso.sidechain_txs_reported = sso.sidechain_txs_reported + 1;
+                  if (sso.sidechain_txs_reported.find(op.sidechain) == sso.sidechain_txs_reported.end()) {
+                     sso.sidechain_txs_reported[op.sidechain] = 0;
+                  }
+                  sso.sidechain_txs_reported[op.sidechain] += 1;
                }
             });
          }
@@ -122,7 +129,10 @@ object_id_type create_son_wallet_deposit_evaluator::do_apply(const son_wallet_de
       });
       auto stats_itr = db().get_index_type<son_stats_index>().indices().get<by_owner>().find(op.son_id);
       db().modify(*stats_itr, [&op](son_statistics_object &sso) {
-         sso.sidechain_txs_reported = sso.sidechain_txs_reported + 1;
+         if (sso.sidechain_txs_reported.find(op.sidechain) == sso.sidechain_txs_reported.end()) {
+            sso.sidechain_txs_reported[op.sidechain] = 0;
+         }
+         sso.sidechain_txs_reported[op.sidechain] += 1;
       });
       return (*itr).id;
    }

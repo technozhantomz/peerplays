@@ -37,7 +37,7 @@ class global_betting_statistics_object : public graphene::db::abstract_object< g
       static const uint8_t space_id = implementation_ids;
       static const uint8_t type_id = impl_global_betting_statistics_object_type;
 
-      uint32_t number_of_active_events;
+      uint32_t number_of_active_events = 0;
       map<asset_id_type, share_type> total_amount_staked;
 };
 

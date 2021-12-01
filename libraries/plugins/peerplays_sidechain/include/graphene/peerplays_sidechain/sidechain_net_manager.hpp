@@ -29,6 +29,8 @@ private:
    peerplays_sidechain_plugin &plugin;
    graphene::chain::database &database;
    std::vector<std::unique_ptr<sidechain_net_handler>> net_handlers;
+
+   void on_applied_block(const signed_block &b);
 };
 
 }} // namespace graphene::peerplays_sidechain

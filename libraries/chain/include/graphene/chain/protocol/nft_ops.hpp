@@ -4,6 +4,29 @@
 
 namespace graphene { namespace chain {
 
+   struct nft_lottery_benefactor   {
+      account_id_type id;
+      uint16_t share; // percent * GRAPHENE_1_PERCENT
+      nft_lottery_benefactor() = default;
+      nft_lottery_benefactor( const nft_lottery_benefactor & ) = default;
+      nft_lottery_benefactor( account_id_type _id, uint16_t _share ) : id( _id ), share( _share ) {}
+   };
+
+   struct nft_lottery_options
+   {
+      std::vector<nft_lottery_benefactor> benefactors;
+      // specifying winning tickets as shares that will be issued
+      std::vector<uint16_t>   winning_tickets;
+      asset                   ticket_price;
+      time_point_sec          end_date;
+      bool                    ending_on_soldout;
+      bool                    is_active;
+      bool                    delete_tickets_after_draw = false;
+      std::vector<nft_metadata_id_type> progressive_jackpots;
+
+      void validate() const;
+   };
+
    struct nft_metadata_create_operation : public base_operation
    {
       struct fee_parameters_type
@@ -23,6 +46,10 @@ namespace graphene { namespace chain {
       bool is_sellable = true;
       // Accounts Role
       optional<account_role_id_type> account_role;
+      // Max number of NFTs that can be minted from the metadata
+      optional<share_type> max_supply;
+      // Lottery configuration
+      optional<nft_lottery_options> lottery_options;
       extensions_type    extensions;
 
       account_id_type fee_payer()const { return owner; }
@@ -133,6 +160,9 @@ namespace graphene { namespace chain {
 
 } } // graphene::chain
 
+FC_REFLECT( graphene::chain::nft_lottery_benefactor, (id)(share) )
+FC_REFLECT( graphene::chain::nft_lottery_options, (benefactors)(winning_tickets)(ticket_price)(end_date)(ending_on_soldout)(is_active)(delete_tickets_after_draw)(progressive_jackpots) )
+
 FC_REFLECT( graphene::chain::nft_metadata_create_operation::fee_parameters_type, (fee) (price_per_kbyte) )
 FC_REFLECT( graphene::chain::nft_metadata_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::nft_mint_operation::fee_parameters_type, (fee) (price_per_kbyte) )
@@ -140,7 +170,7 @@ FC_REFLECT( graphene::chain::nft_safe_transfer_from_operation::fee_parameters_ty
 FC_REFLECT( graphene::chain::nft_approve_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::nft_set_approval_for_all_operation::fee_parameters_type, (fee) )
 
-FC_REFLECT( graphene::chain::nft_metadata_create_operation, (fee) (owner) (name) (symbol) (base_uri) (revenue_partner) (revenue_split) (is_transferable) (is_sellable) (account_role) (extensions) )
+FC_REFLECT( graphene::chain::nft_metadata_create_operation, (fee) (owner) (name) (symbol) (base_uri) (revenue_partner) (revenue_split) (is_transferable) (is_sellable) (account_role) (max_supply) (lottery_options) (extensions) )
 FC_REFLECT( graphene::chain::nft_metadata_update_operation, (fee) (owner) (nft_metadata_id) (name) (symbol) (base_uri) (revenue_partner) (revenue_split) (is_transferable) (is_sellable) (account_role) (extensions) )
 FC_REFLECT( graphene::chain::nft_mint_operation, (fee) (payer) (nft_metadata_id) (owner) (approved) (approved_operators) (token_uri) (extensions) )
 FC_REFLECT( graphene::chain::nft_safe_transfer_from_operation, (fee) (operator_) (from) (to) (token_id) (data) (extensions) )

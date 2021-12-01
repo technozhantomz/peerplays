@@ -9,7 +9,8 @@ enum class sidechain_type {
    bitcoin,
    ethereum,
    eos,
-   peerplays
+   peerplays,
+   hive
 };
 
 } }
@@ -19,4 +20,5 @@ FC_REFLECT_ENUM(graphene::chain::sidechain_type,
         (bitcoin)
         (ethereum)
         (eos)
+        (hive)
         (peerplays) )

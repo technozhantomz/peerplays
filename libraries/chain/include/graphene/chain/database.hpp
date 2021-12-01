@@ -286,6 +286,7 @@ namespace graphene { namespace chain {
       
          void check_lottery_end_by_participants( asset_id_type asset_id );
          void check_ending_lotteries();
+         void check_ending_nft_lotteries();
 
          //////////////////// db_getter.cpp ////////////////////
 
@@ -325,6 +326,7 @@ namespace graphene { namespace chain {
 
          uint32_t last_non_undoable_block_num() const;
          vector<authority> get_account_custom_authorities(account_id_type account, const operation& op)const;
+         vector<uint64_t> get_random_numbers(uint64_t minimum, uint64_t maximum, uint64_t selections, bool duplicates);
          //////////////////// db_init.cpp ////////////////////
 
          void initialize_evaluators();

@@ -8,143 +8,29 @@ add_dependencies( build_hardfork_hpp cat-parts )
 file(GLOB HEADERS "include/graphene/chain/*.hpp")
 file(GLOB PROTOCOL_HEADERS "include/graphene/chain/protocol/*.hpp")
 
-if( GRAPHENE_DISABLE_UNITY_BUILD )
-   set( GRAPHENE_DB_FILES
-        db_balance.cpp
-        db_bet.cpp
-        db_block.cpp
-        db_debug.cpp
-        db_getter.cpp
-        db_init.cpp
-        db_maint.cpp
-        db_management.cpp
-        db_market.cpp
-        db_update.cpp
-        db_witness_schedule.cpp
-      )
+file(GLOB CPP_FILES "*.cpp")
+file(GLOB PROTOCOL_CPP_FILES "protocol/*.cpp")
+
+#if( GRAPHENE_DISABLE_UNITY_BUILD )
+   list(FILTER CPP_FILES EXCLUDE REGEX "[/]database[.]cpp$")
+   #message ("--- ${CPP_FILES}")
    message( STATUS "Graphene database unity build disabled" )
-else( GRAPHENE_DISABLE_UNITY_BUILD )
-   set( GRAPHENE_DB_FILES
-        database.cpp )
-   message( STATUS "Graphene database unity build enabled" )
-endif( GRAPHENE_DISABLE_UNITY_BUILD )
+#else( GRAPHENE_DISABLE_UNITY_BUILD )
+#   list(FILTER CPP_FILES EXCLUDE REGEX ".*db_.*[.]cpp$")
+#   #message ("--- ${CPP_FILES}")
+#   message( STATUS "Graphene database unity build enabled" )
+#endif( GRAPHENE_DISABLE_UNITY_BUILD )
 
-## SORT .cpp by most likely to change / break compile
 add_library( graphene_chain
-
-             # As database takes the longest to compile, start it first
-             ${GRAPHENE_DB_FILES}
-             fork_database.cpp
-
-             protocol/types.cpp
-             protocol/address.cpp
-             protocol/authority.cpp
-             protocol/asset.cpp
-             protocol/assert.cpp
-             protocol/account.cpp
-             protocol/transfer.cpp
-             protocol/chain_parameters.cpp
-             protocol/committee_member.cpp
-             protocol/witness.cpp
-             protocol/market.cpp
-             protocol/proposal.cpp
-             protocol/withdraw_permission.cpp
-             protocol/asset_ops.cpp
-             protocol/lottery_ops.cpp
-             protocol/memo.cpp
-             protocol/worker.cpp
-             protocol/custom.cpp
-             protocol/operations.cpp
-             protocol/transaction.cpp
-             protocol/block.cpp
-             protocol/fee_schedule.cpp
-             protocol/confidential.cpp
-             protocol/vote.cpp
-             protocol/tournament.cpp
-             protocol/small_ops.cpp
-             protocol/custom_permission.cpp
-             protocol/custom_account_authority.cpp
-             protocol/offer.cpp
-
-             genesis_state.cpp
-             get_config.cpp
-
-             pts_address.cpp
-
-             evaluator.cpp
-             balance_evaluator.cpp
-             account_evaluator.cpp
-             assert_evaluator.cpp
-             witness_evaluator.cpp
-             committee_member_evaluator.cpp
-             asset_evaluator.cpp
-             lottery_evaluator.cpp
-             transfer_evaluator.cpp
-             proposal_evaluator.cpp
-             market_evaluator.cpp
-             vesting_balance_evaluator.cpp
-             tournament_evaluator.cpp
-             tournament_object.cpp
-             match_object.cpp
-             game_object.cpp
-             withdraw_permission_evaluator.cpp
-             worker_evaluator.cpp
-             confidential_evaluator.cpp
-             special_authority.cpp
-             buyback.cpp
-
-             account_object.cpp
-             asset_object.cpp
-             fba_object.cpp
-             proposal_object.cpp
-             vesting_balance_object.cpp
-             small_objects.cpp
-
-             block_database.cpp
-
-             is_authorized_asset.cpp
-
-             protocol/sport.cpp
-             sport_evaluator.cpp
-             protocol/event_group.cpp
-             event_group_evaluator.cpp
-             event_group_object.cpp
-             protocol/event.cpp
-             event_evaluator.cpp
-             event_object.cpp
-             protocol/betting_market.cpp
-             betting_market_evaluator.cpp
-             betting_market_object.cpp
-             betting_market_group_object.cpp
-             custom_permission_evaluator.cpp
-             custom_account_authority_evaluator.cpp
-
-             affiliate_payout.cpp
-
-             offer_object.cpp
-             offer_evaluator.cpp
-             nft_evaluator.cpp
-             protocol/nft.cpp
-             protocol/account_role.cpp
-             account_role_evaluator.cpp
-
-             son_evaluator.cpp
-             son_object.cpp
-
-             son_wallet_evaluator.cpp
-             son_wallet_deposit_evaluator.cpp
-             son_wallet_withdraw_evaluator.cpp
-
-             sidechain_address_evaluator.cpp
-             sidechain_transaction_evaluator.cpp
-
+             ${CPP_FILES}
+             ${PROTOCOL_CPP_FILES}
              ${HEADERS}
              ${PROTOCOL_HEADERS}
              "${CMAKE_CURRENT_BINARY_DIR}/include/graphene/chain/hardfork.hpp"
            )
 
 add_dependencies( graphene_chain build_hardfork_hpp )
-target_link_libraries( graphene_chain fc graphene_db )
+target_link_libraries( graphene_chain graphene_db )
 target_include_directories( graphene_chain
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_BINARY_DIR}/include" )
 

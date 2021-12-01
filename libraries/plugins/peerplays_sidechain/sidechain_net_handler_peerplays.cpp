@@ -25,6 +25,15 @@ namespace graphene { namespace peerplays_sidechain {
 sidechain_net_handler_peerplays::sidechain_net_handler_peerplays(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
       sidechain_net_handler(_plugin, options) {
    sidechain = sidechain_type::peerplays;
+   //const auto &assets_by_symbol = database.get_index_type<asset_index>().indices().get<by_symbol>();
+   //const auto get_asset_id = [&assets_by_symbol](const string &symbol) {
+   //   auto asset_itr = assets_by_symbol.find(symbol);
+   //   FC_ASSERT(asset_itr != assets_by_symbol.end(), "Unable to find asset '${sym}'", ("sym", symbol));
+   //   return asset_itr->get_id();
+   //};
+   //tracked_assets.push_back(get_asset_id("PBTC"));
+   //tracked_assets.push_back(get_asset_id("PETH"));
+   //tracked_assets.push_back(get_asset_id("PEOS"));
 
    if (options.count("peerplays-private-key")) {
       const std::vector<std::string> pub_priv_keys = options["peerplays-private-key"].as<std::vector<std::string>>();
@@ -37,10 +46,6 @@ sidechain_net_handler_peerplays::sidechain_net_handler_peerplays(peerplays_sidec
          private_keys[key_pair.first] = key_pair.second;
       }
    }
-
-   database.applied_block.connect([&](const signed_block &b) {
-      on_applied_block(b);
-   });
 }
 
 sidechain_net_handler_peerplays::~sidechain_net_handler_peerplays() {
@@ -131,32 +136,34 @@ void sidechain_net_handler_peerplays::process_sidechain_addresses() {
    const auto &sidechain_addresses_by_sidechain_range = sidechain_addresses_by_sidechain_idx.equal_range(sidechain);
    std::for_each(sidechain_addresses_by_sidechain_range.first, sidechain_addresses_by_sidechain_range.second,
                  [&](const sidechain_address_object &sao) {
+                    bool retval = true;
                     if (sao.expires == time_point_sec::maximum()) {
                        if (sao.deposit_address == "") {
                           sidechain_address_update_operation op;
-                           op.payer = plugin.get_current_son_object().son_account;
-                           op.sidechain_address_id = sao.id;
-                           op.sidechain_address_account = sao.sidechain_address_account;
-                           op.sidechain = sao.sidechain;
-                           op.deposit_public_key = sao.deposit_public_key;
-                           op.deposit_address = sao.withdraw_address;
-                           op.deposit_address_data = sao.withdraw_address;
-                           op.withdraw_public_key = sao.withdraw_public_key;
-                           op.withdraw_address = sao.withdraw_address;
+                          op.payer = plugin.get_current_son_object().son_account;
+                          op.sidechain_address_id = sao.id;
+                          op.sidechain_address_account = sao.sidechain_address_account;
+                          op.sidechain = sao.sidechain;
+                          op.deposit_public_key = sao.deposit_public_key;
+                          op.deposit_address = sao.withdraw_address;
+                          op.deposit_address_data = sao.withdraw_address;
+                          op.withdraw_public_key = sao.withdraw_public_key;
+                          op.withdraw_address = sao.withdraw_address;
 
-                           signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), op);
-                           try {
-                              trx.validate();
-                              database.push_transaction(trx, database::validation_steps::skip_block_size_check);
-                              if (plugin.app().p2p_node())
-                                 plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-                              return true;
-                           } catch (fc::exception &e) {
-                              elog("Sending transaction for update deposit address operation failed with exception ${e}", ("e", e.what()));
-                              return false;
-                           }
+                          signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), op);
+                          try {
+                             trx.validate();
+                             database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+                             if (plugin.app().p2p_node())
+                                plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+                             retval = true;
+                          } catch (fc::exception &e) {
+                             elog("Sending transaction for update deposit address operation failed with exception ${e}", ("e", e.what()));
+                             retval = false;
+                          }
                        }
                     }
+                    return retval;
                  });
    return;
 }
@@ -264,45 +271,23 @@ std::string sidechain_net_handler_peerplays::send_sidechain_transaction(const si
    return "";
 }
 
-int64_t sidechain_net_handler_peerplays::settle_sidechain_transaction(const sidechain_transaction_object &sto) {
-   int64_t settle_amount = 0;
-   return settle_amount;
-}
+bool sidechain_net_handler_peerplays::settle_sidechain_transaction(const sidechain_transaction_object &sto, asset &settle_amount) {
 
-void sidechain_net_handler_peerplays::on_applied_block(const signed_block &b) {
-   for (const auto &trx : b.transactions) {
-      size_t operation_index = -1;
-      for (auto op : trx.operations) {
-         operation_index = operation_index + 1;
-         if (op.which() == operation::tag<transfer_operation>::value) {
-            transfer_operation transfer_op = op.get<transfer_operation>();
-            if (transfer_op.to != plugin.database().get_global_properties().parameters.son_account()) {
-               continue;
-            }
-
-            std::stringstream ss;
-            ss << "peerplays"
-               << "-" << trx.id().str() << "-" << operation_index;
-            std::string sidechain_uid = ss.str();
-
-            sidechain_event_data sed;
-            sed.timestamp = database.head_block_time();
-            sed.block_num = database.head_block_num();
-            sed.sidechain = sidechain_type::peerplays;
-            sed.sidechain_uid = sidechain_uid;
-            sed.sidechain_transaction_id = trx.id().str();
-            sed.sidechain_from = fc::to_string(transfer_op.from.space_id) + "." + fc::to_string(transfer_op.from.type_id) + "." + fc::to_string((uint64_t)transfer_op.from.instance);
-            sed.sidechain_to = fc::to_string(transfer_op.to.space_id) + "." + fc::to_string(transfer_op.to.type_id) + "." + fc::to_string((uint64_t)transfer_op.to.instance);
-            sed.sidechain_currency = fc::to_string(transfer_op.amount.asset_id.space_id) + "." + fc::to_string(transfer_op.amount.asset_id.type_id) + "." + fc::to_string((uint64_t)transfer_op.amount.asset_id.instance);
-            sed.sidechain_amount = transfer_op.amount.amount;
-            sed.peerplays_from = transfer_op.from;
-            sed.peerplays_to = transfer_op.to;
-            price asset_price = database.get<asset_object>(transfer_op.amount.asset_id).options.core_exchange_rate;
-            sed.peerplays_asset = asset(transfer_op.amount.amount * asset_price.base.amount / asset_price.quote.amount);
-            sidechain_event_data_received(sed);
-         }
-      }
+   if (sto.object_id.is<son_wallet_id_type>()) {
+      settle_amount = asset(0);
    }
+
+   if (sto.object_id.is<son_wallet_deposit_id_type>()) {
+      //auto swdo = database.get<son_wallet_deposit_object>(sto.object_id);
+      //settle_amount = asset(swdo.sidechain_amount, swdo.sidechain_currency);
+   }
+
+   if (sto.object_id.is<son_wallet_withdraw_id_type>()) {
+      auto swwo = database.get<son_wallet_withdraw_object>(sto.object_id);
+      settle_amount = swwo.peerplays_asset;
+   }
+
+   return true;
 }
 
 }} // namespace graphene::peerplays_sidechain
