@@ -76,6 +76,10 @@ void block_database::flush()
 
 void block_database::store( const block_id_type& _id, const signed_block& b )
 {
+   if (true == replay_mode){
+       return;
+   }
+
    block_id_type id = _id;
    if( id == block_id_type() )
    {
@@ -269,6 +273,11 @@ optional<block_id_type> block_database::last_id()const
    optional<index_entry> entry = last_index_entry();
    if( entry.valid() ) return entry->block_id;
    return optional<block_id_type>();
+}
+
+void block_database::set_replay_mode(bool mode)
+{
+   replay_mode = mode;
 }
 
 } }

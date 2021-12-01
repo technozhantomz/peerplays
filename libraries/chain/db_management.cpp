@@ -232,7 +232,12 @@ void database::open(
          FC_ASSERT( *last_block >= head_block_id(),
                     "last block ID does not match current chain state",
                     ("last_block->id", last_block)("head_block_id",head_block_num()) );
+
+         _block_id_to_block.set_replay_mode(true);
+
          reindex( data_dir );
+
+         _block_id_to_block.set_replay_mode(false);
       }
       _opened = true;
    }
