@@ -1,4 +1,8 @@
 // #516 Special authorities
 #ifndef HARDFORK_516_TIME
-#define HARDFORK_516_TIME (fc::time_point_sec( 1456250400 ))
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_516_TIME (fc::time_point_sec::from_iso_string("2016-02-23T18:00:00"))
+#else
+#define HARDFORK_516_TIME (fc::time_point_sec::from_iso_string("2016-02-23T18:00:00"))
+#endif
 #endif
