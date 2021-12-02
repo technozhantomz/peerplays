@@ -644,13 +644,13 @@ void http_call_impl<s>::read_body_exact() {
 
    auto avail = buf.size();
 
-   if (avail > content_length)
+   if (avail > ((size_t)content_length))
       FC_THROW("invalid response body (content length mismatch)");
 
    body.resize(content_length);
 
    if (avail) {
-      if (avail != buf.sgetn(&body[0], avail))
+      if (avail != ((size_t)buf.sgetn(&body[0], avail)))
          FC_THROW("stream read failed");
    }
 
