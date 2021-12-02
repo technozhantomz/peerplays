@@ -1,4 +1,8 @@
 // #359 Allow digits in asset name
 #ifndef HARDFORK_359_TIME
-#define HARDFORK_359_TIME (fc::time_point_sec( 1444416300 ))
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_359_TIME (fc::time_point_sec::from_iso_string("2015-10-09T18:45:00"))
+#else
+#define HARDFORK_359_TIME (fc::time_point_sec::from_iso_string("2015-10-09T18:45:00"))
+#endif
 #endif

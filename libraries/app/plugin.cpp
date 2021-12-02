@@ -27,54 +27,44 @@
 
 namespace graphene { namespace app {
 
-plugin::plugin()
-{
+plugin::plugin() {
    _app = nullptr;
    return;
 }
 
-plugin::~plugin()
-{
+plugin::~plugin() {
    return;
 }
 
-std::string plugin::plugin_name()const
-{
+std::string plugin::plugin_name() const {
    return "<unknown plugin>";
 }
 
-std::string plugin::plugin_description()const
-{
+std::string plugin::plugin_description() const {
    return "<no description>";
 }
 
-void plugin::plugin_initialize( const boost::program_options::variables_map& options )
-{
+void plugin::plugin_initialize(const boost::program_options::variables_map &options) {
    return;
 }
 
-void plugin::plugin_startup()
-{
+void plugin::plugin_startup() {
    return;
 }
 
-void plugin::plugin_shutdown()
-{
+void plugin::plugin_shutdown() {
    return;
 }
 
-void plugin::plugin_set_app( application* app )
-{
+void plugin::plugin_set_app(application *app) {
    _app = app;
    return;
 }
 
 void plugin::plugin_set_program_options(
-   boost::program_options::options_description& command_line_options,
-   boost::program_options::options_description& config_file_options
-)
-{
+      boost::program_options::options_description &cli,
+      boost::program_options::options_description &cfg) {
    return;
 }
 
-} } // graphene::app
+}} // namespace graphene::app

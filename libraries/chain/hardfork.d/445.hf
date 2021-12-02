@@ -1,4 +1,8 @@
 // #445 Refund create order fees on cancel
 #ifndef HARDFORK_445_TIME
-#define HARDFORK_445_TIME (fc::time_point_sec( 1450288800 ))
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_445_TIME (fc::time_point_sec::from_iso_string("2015-12-16T18:00:00"))
+#else
+#define HARDFORK_445_TIME (fc::time_point_sec::from_iso_string("2015-12-16T18:00:00"))
+#endif
 #endif

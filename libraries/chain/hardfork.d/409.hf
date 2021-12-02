@@ -1,4 +1,8 @@
 // #409 Allow creation of sub-assets
 #ifndef HARDFORK_409_TIME
-#define HARDFORK_409_TIME (fc::time_point_sec( 1446652800 ))
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_409_TIME (fc::time_point_sec::from_iso_string("2015-11-04T16:00:00"))
+#else
+#define HARDFORK_409_TIME (fc::time_point_sec::from_iso_string("2015-11-04T16:00:00"))
+#endif
 #endif

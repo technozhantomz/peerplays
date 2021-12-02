@@ -1,4 +1,8 @@
 // #613 Deprecate annual membership
 #ifndef HARDFORK_613_TIME
-#define HARDFORK_613_TIME (fc::time_point_sec( 1458752400 ))
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_613_TIME (fc::time_point_sec::from_iso_string("2016-03-23T17:00:00"))
+#else
+#define HARDFORK_613_TIME (fc::time_point_sec::from_iso_string("2016-03-23T17:00:00"))
+#endif
 #endif
