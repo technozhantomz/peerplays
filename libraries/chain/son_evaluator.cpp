@@ -79,6 +79,9 @@ void_result update_son_evaluator::do_evaluate(const son_update_operation& op)
        FC_ASSERT(vbo.policy.which() == vesting_policy::tag<linear_vesting_policy>::value,
              "Payment balance must have linear vesting policy");
     }
+    if(op.new_status.valid()) {
+       FC_ASSERT(db().get(op.son_id).status == son_status::deregistered, "SON must be in deregistered state");
+    }
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -94,6 +97,7 @@ object_id_type update_son_evaluator::do_apply(const son_update_operation& op)
            if(op.new_signing_key.valid()) so.signing_key = *op.new_signing_key;
            if(op.new_sidechain_public_keys.valid()) so.sidechain_public_keys = *op.new_sidechain_public_keys;
            if(op.new_pay_vb.valid()) so.pay_vb = *op.new_pay_vb;
+           if(op.new_status.valid()) so.status = son_status::inactive;
        });
    }
    return op.son_id;

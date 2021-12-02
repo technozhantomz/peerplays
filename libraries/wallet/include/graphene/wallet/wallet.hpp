@@ -1426,6 +1426,16 @@ class wallet_api
                                     bool broadcast = false);
 
       /**
+       * Activate deregistered SON object owned by the given account.
+       *
+       * @param owner_account The name of the SON's owner account.  Also accepts the ID of the owner account or the ID of the SON.
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction activate_deregistered_son(const string & owner_account,
+                                                   bool broadcast /* = false */);
+
+
+      /**
        * Updates vesting balances of the SON object owned by the given account.
        *
        * @param owner_account The name of the SON's owner account.  Also accepts the ID of the owner account or the ID of the SON.
@@ -2622,6 +2632,7 @@ FC_API( graphene::wallet::wallet_api,
         (try_create_son)
         (update_son)
         (update_son_vesting_balances)
+        (activate_deregistered_son)
         (list_sons)
         (list_active_sons)
         (get_son_network_status)

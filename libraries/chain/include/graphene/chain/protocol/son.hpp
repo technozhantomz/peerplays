@@ -1,6 +1,7 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
 #include <graphene/chain/sidechain_defs.hpp>
+#include <graphene/chain/son_object.hpp>
 
 namespace graphene { namespace chain {
 
@@ -32,6 +33,7 @@ namespace graphene { namespace chain {
          optional<public_key_type> new_signing_key;
          optional<flat_map<sidechain_type, string>> new_sidechain_public_keys;
          optional<vesting_balance_id_type> new_pay_vb;
+         optional<son_status> new_status;
 
          account_id_type fee_payer()const { return owner_account; }
          share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
@@ -103,7 +105,7 @@ FC_REFLECT(graphene::chain::son_create_operation, (fee)(owner_account)(url)(depo
 
 FC_REFLECT(graphene::chain::son_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_update_operation, (fee)(son_id)(owner_account)(new_url)(new_deposit)
-           (new_signing_key)(new_sidechain_public_keys)(new_pay_vb) )
+           (new_signing_key)(new_sidechain_public_keys)(new_pay_vb)(new_status) )
 
 FC_REFLECT(graphene::chain::son_deregister_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_deregister_operation, (fee)(son_id)(payer) )
