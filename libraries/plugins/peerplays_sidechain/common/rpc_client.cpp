@@ -834,15 +834,17 @@ rpc_client::rpc_client(const std::string &url, const std::string &user_name, con
 }
 
 std::string rpc_client::retrieve_array_value_from_reply(std::string reply_str, std::string array_path, uint32_t idx) {
+   if (reply_str.empty())
+      return std::string();
    std::stringstream ss(reply_str);
    boost::property_tree::ptree json;
    boost::property_tree::read_json(ss, json);
    if (json.find("result") == json.not_found()) {
-      return "";
+      return std::string();
    }
    auto json_result = json.get_child("result");
    if (json_result.find(array_path) == json_result.not_found()) {
-      return "";
+      return std::string();
    }
 
    boost::property_tree::ptree array_ptree = json_result;
@@ -859,19 +861,21 @@ std::string rpc_client::retrieve_array_value_from_reply(std::string reply_str, s
       }
    }
 
-   return "";
+   return std::string();
 }
 
 std::string rpc_client::retrieve_value_from_reply(std::string reply_str, std::string value_path) {
+   if (reply_str.empty())
+      return std::string();
    std::stringstream ss(reply_str);
    boost::property_tree::ptree json;
    boost::property_tree::read_json(ss, json);
    if (json.find("result") == json.not_found()) {
-      return "";
+      return std::string();
    }
    auto json_result = json.get_child("result");
    if (json_result.find(value_path) == json_result.not_found()) {
-      return "";
+      return std::string();
    }
    return json_result.get<std::string>(value_path);
 }
