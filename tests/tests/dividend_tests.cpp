@@ -219,6 +219,8 @@ BOOST_AUTO_TEST_CASE( test_basic_dividend_distribution )
       const account_object& alice = get_account("alice");
       const account_object& bob = get_account("bob");
       const account_object& carol = get_account("carol");
+      const account_object& dave = get_account("dave");
+      const account_object& frank = get_account("frank");
       const auto& test_asset_object = get_asset("TESTB");
 
       auto issue_asset_to_account = [&](const asset_object& asset_to_issue, const account_object& destination_account, int64_t amount_to_issue)
@@ -377,6 +379,7 @@ BOOST_AUTO_TEST_CASE( test_basic_dividend_distribution_to_core_asset )
       const account_object& bob = get_account("bob");
       const account_object& carol = get_account("carol");
       const account_object& dave = get_account("dave");
+      const account_object& frank = get_account("frank");
       const auto& test_asset_object = get_asset("TESTB");
 
       auto issue_asset_to_account = [&](const asset_object& asset_to_issue, const account_object& destination_account, int64_t amount_to_issue)
@@ -510,6 +513,28 @@ BOOST_AUTO_TEST_CASE( test_basic_dividend_distribution_to_core_asset )
    }
 }
 
+BOOST_AUTO_TEST_CASE( test_dividend_distribution_interval )
+{
+   using namespace graphene;
+   try {
+      INVOKE( create_dividend_uia );
+
+      const auto& dividend_holder_asset_object = get_asset("DIVIDEND");
+      const auto& dividend_data = dividend_holder_asset_object.dividend_data(db);
+      const account_object& dividend_distribution_account = dividend_data.dividend_distribution_account(db);
+      const account_object& alice = get_account("alice");
+      const account_object& bob = get_account("bob");
+      const account_object& carol = get_account("carol");
+      const account_object& dave = get_account("dave");
+      const account_object& frank = get_account("frank");
+      const auto& test_asset_object = get_asset("TESTB");
+   } catch(fc::exception& e) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+
+
 BOOST_AUTO_TEST_CASE( check_dividend_corner_cases )
 {
    using namespace graphene;
@@ -522,6 +547,8 @@ BOOST_AUTO_TEST_CASE( check_dividend_corner_cases )
       const account_object& alice = get_account("alice");
       const account_object& bob = get_account("bob");
       const account_object& carol = get_account("carol");
+      const account_object& dave = get_account("dave");
+      const account_object& frank = get_account("frank");
       const auto& test_asset_object = get_asset("TESTB");
 
       auto issue_asset_to_account = [&](const asset_object& asset_to_issue, const account_object& destination_account, int64_t amount_to_issue)
@@ -543,6 +570,16 @@ BOOST_AUTO_TEST_CASE( check_dividend_corner_cases )
          BOOST_CHECK_EQUAL(pending_balance, expected_balance);
       };
 
+      auto reserve_asset_from_account = [&](const asset_object& asset_to_reserve, const account_object& from_account, int64_t amount_to_reserve)
+      {
+         asset_reserve_operation reserve_op;
+         reserve_op.payer = from_account.id;
+         reserve_op.amount_to_reserve = asset(amount_to_reserve, asset_to_reserve.id);
+         trx.operations.push_back(reserve_op);
+         set_expiration(db, trx);
+         PUSH_TX( db, trx, ~0 );
+         trx.operations.clear();
+      };
       auto advance_to_next_payout_time = [&]() {
          // Advance to the next upcoming payout time
          BOOST_REQUIRE(dividend_data.options.next_payout_time);

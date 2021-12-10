@@ -39,7 +39,7 @@ public:
         fixture_(fixture)
     {
         fixture_.init_nathan();
-        fixture_.generate_blocks(HARDFORK_SON_FOR_HIVE_TIME);
+        fixture_.generate_blocks(HARDFORK_SON_TIME);
         fixture_.generate_block();
     }
 
@@ -121,12 +121,10 @@ BOOST_AUTO_TEST_CASE( create_sons )
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       auto son1_obj = con.wallet_api_ptr->get_son("son1account");
@@ -155,7 +153,6 @@ BOOST_AUTO_TEST_CASE( cli_update_son )
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 1";
 
       son_test_helper sth(*this);
       sth.create_son("sonmember", "http://sonmember", sidechain_public_keys);
@@ -170,7 +167,6 @@ BOOST_AUTO_TEST_CASE( cli_update_son )
       // update SON
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 2";
 
       con.wallet_api_ptr->update_son("sonmember", "http://sonmember_updated", "", sidechain_public_keys, true);
       son_data = con.wallet_api_ptr->get_son("sonmember");
@@ -201,12 +197,10 @@ BOOST_AUTO_TEST_CASE( son_voting )
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       BOOST_TEST_MESSAGE("Voting for SONs");
@@ -298,7 +292,6 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
       {
           sidechain_public_keys.clear();
           sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
-          sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
           sth.create_son("sonaccount" + fc::to_pretty_string(i),
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,
@@ -373,12 +366,10 @@ BOOST_AUTO_TEST_CASE( list_son )
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       auto res = con.wallet_api_ptr->list_sons("", 100);
@@ -405,12 +396,10 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
        BOOST_TEST_MESSAGE("Vote for 2 accounts with update_son_votes");
@@ -566,12 +555,10 @@ BOOST_AUTO_TEST_CASE( related_functions )
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
-      sidechain_public_keys[sidechain_type::hive] = "hive account 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       gpo = con.wallet_api_ptr->get_global_properties();
@@ -605,7 +592,6 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
       {
           sidechain_public_keys.clear();
           sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
-          sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
           sth.create_son("sonaccount" + fc::to_pretty_string(i),
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,
@@ -673,7 +659,6 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       {
           sidechain_public_keys.clear();
           sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
-          sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
           sth.create_son("sonaccount" + fc::to_pretty_string(i),
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,

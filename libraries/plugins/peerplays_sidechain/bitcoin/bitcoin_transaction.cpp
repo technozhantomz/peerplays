@@ -1,5 +1,4 @@
 #include <fc/crypto/base58.hpp>
-#include <fc/io/raw.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_script.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_transaction.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/serialize.hpp>

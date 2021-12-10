@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE( lottery_idx_test )
       while( test_itr != test_asset_idx.end() ) {
          if( !met_not_active && (!test_itr->is_lottery() || !test_itr->lottery_options->is_active) )
             met_not_active = true;
-         FC_ASSERT( (!met_not_active) || (met_not_active && (!test_itr->is_lottery() || !test_itr->lottery_options->is_active)), "MET ACTIVE LOTTERY AFTER NOT ACTIVE" );
+         FC_ASSERT( !met_not_active || met_not_active && (!test_itr->is_lottery() || !test_itr->lottery_options->is_active), "MET ACTIVE LOTTERY AFTER NOT ACTIVE" );
          ++test_itr;
       }
    } catch (fc::exception& e) {
@@ -128,8 +128,7 @@ BOOST_AUTO_TEST_CASE( tickets_purchase_test )
       trx.operations.clear();
 
       BOOST_CHECK( tpo.amount == db.get_balance( test_asset.get_id() ) );
-      int64_t tickets_to_buy_int64 = tpo.tickets_to_buy;
-      BOOST_CHECK( tickets_to_buy_int64 == get_balance( account_id_type(), test_asset.id ) );
+      BOOST_CHECK( tpo.tickets_to_buy == get_balance( account_id_type(), test_asset.id ) );
 
    } catch (fc::exception& e) {
       edump((e.to_detail_string()));

@@ -5,7 +5,7 @@ add_library( graphene_bookie
              bookie_api.cpp
            )
 
-target_link_libraries( graphene_bookie PRIVATE graphene_plugin )
+target_link_libraries( graphene_bookie graphene_chain graphene_app )
 target_include_directories( graphene_bookie
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 

@@ -1,5 +1,4 @@
 #include <boost/test/unit_test.hpp>
-#include <fc/io/raw.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_transaction.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/serialize.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/utils.hpp>

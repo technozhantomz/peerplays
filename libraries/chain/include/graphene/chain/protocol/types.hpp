@@ -183,7 +183,6 @@ namespace graphene { namespace chain {
       son_wallet_withdraw_object_type,
       sidechain_address_object_type,
       sidechain_transaction_object_type,
-      random_number_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -215,8 +214,7 @@ namespace graphene { namespace chain {
       impl_sweeps_vesting_balance_object_type,
       impl_offer_history_object_type,
       impl_son_statistics_object_type,
-      impl_son_schedule_object_type,
-      impl_nft_lottery_balance_object_type
+      impl_son_schedule_object_type
    };
 
    //typedef fc::unsigned_int            object_id_type;
@@ -260,7 +258,6 @@ namespace graphene { namespace chain {
    class son_wallet_withdraw_object;
    class sidechain_address_object;
    class sidechain_transaction_object;
-   class random_number_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -300,7 +297,6 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, son_wallet_withdraw_object_type, son_wallet_withdraw_object>  son_wallet_withdraw_id_type;
    typedef object_id< protocol_ids, sidechain_address_object_type,  sidechain_address_object>     sidechain_address_id_type;
    typedef object_id< protocol_ids, sidechain_transaction_object_type,sidechain_transaction_object> sidechain_transaction_id_type;
-   typedef object_id< protocol_ids, random_number_object_type,      random_number_object>         random_number_id_type;
 
    // implementation types
    class global_property_object;
@@ -325,7 +321,6 @@ namespace graphene { namespace chain {
    class lottery_balance_object;
    class sweeps_vesting_balance_object;
    class offer_history_object;
-   class nft_lottery_balance_object;
    class son_statistics_object;
    class son_schedule_object;
 
@@ -357,7 +352,6 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_lottery_balance_object_type, lottery_balance_object >                    lottery_balance_id_type;
    typedef object_id< implementation_ids, impl_sweeps_vesting_balance_object_type, sweeps_vesting_balance_object>       sweeps_vesting_balance_id_type;
    typedef object_id< implementation_ids, impl_offer_history_object_type, offer_history_object>                         offer_history_id_type;
-   typedef object_id< implementation_ids, impl_nft_lottery_balance_object_type, nft_lottery_balance_object>             nft_lottery_balance_id_type;
    typedef object_id< implementation_ids, impl_son_statistics_object_type, son_statistics_object >                      son_statistics_id_type;
    typedef object_id< implementation_ids, impl_son_schedule_object_type, son_schedule_object>                           son_schedule_id_type;
 
@@ -502,7 +496,6 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (son_wallet_withdraw_object_type)
                  (sidechain_address_object_type)
                  (sidechain_transaction_object_type)
-                 (random_number_object_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
@@ -533,7 +526,6 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_offer_history_object_type)
                  (impl_son_statistics_object_type)
                  (impl_son_schedule_object_type)
-                 (impl_nft_lottery_balance_object_type)
                )
 
 FC_REFLECT_TYPENAME( graphene::chain::share_type )
@@ -583,7 +575,6 @@ FC_REFLECT_TYPENAME( graphene::chain::offer_history_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::nft_metadata_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::nft_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::account_role_id_type )
-FC_REFLECT_TYPENAME( graphene::chain::nft_lottery_balance_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_proposal_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_wallet_id_type )
@@ -591,7 +582,7 @@ FC_REFLECT_TYPENAME( graphene::chain::son_wallet_deposit_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_wallet_withdraw_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::sidechain_address_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::sidechain_transaction_id_type )
-FC_REFLECT_TYPENAME( graphene::chain::random_number_id_type )
+
 
 FC_REFLECT( graphene::chain::void_t, )
 

@@ -1,4 +1,3 @@
-#include <fc/io/raw.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_script.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/serialize.hpp>
 

@@ -140,10 +140,8 @@ void database::adjust_sweeps_vesting_balance(account_id_type account, int64_t de
          b.balance = delta;
       });
    } else {
-      if( delta < 0 ) {
-         uint64_t delta_uint64 = -delta;
-         FC_ASSERT( itr->get_balance() >= delta_uint64, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", ("a",account)("b",itr->get_balance())("r",-delta));
-      }
+      if( delta < 0 )
+         FC_ASSERT( itr->get_balance() >= -delta, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", ("a",account)("b",itr->get_balance())("r",-delta));
       modify(*itr, [&delta,&asset_id,this](sweeps_vesting_balance_object& b) {
          b.adjust_balance( asset( delta, asset_id ) );
          b.last_claim_date = head_block_time();

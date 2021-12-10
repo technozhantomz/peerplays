@@ -79,7 +79,7 @@ struct gpos_fixture: database_fixture
       op.owner = owner;
       op.amount = amount;
       //op.balance_type = type;
-
+      
       trx.operations.push_back(op);
       set_expiration(db, trx);
       trx.validate();
@@ -392,7 +392,7 @@ BOOST_AUTO_TEST_CASE( gpos_basic_dividend_distribution_to_core_asset )
          PUSH_TX( db, trx, ~0 );
          trx.operations.clear();
       }
-
+      
       // pass hardfork
       generate_blocks( HARDFORK_GPOS_TIME );
       generate_block();
@@ -475,11 +475,11 @@ BOOST_AUTO_TEST_CASE( gpos_basic_dividend_distribution_to_core_asset )
       vote_for(dave_id, witness1.vote_id, dave_private_key);
 
       // issuing 30000 TESTB to the dividend account
-      // alice and dave should receive 10000 TESTB as they have gpos vesting and
+      // alice and dave should receive 10000 TESTB as they have gpos vesting and 
       // participated in voting
       // bob should not receive any TESTB as he doesn't have gpos vested
       // carol should not receive any TESTB as she doesn't participated in voting
-      // remaining 10000 TESTB should be deposited in commitee_accoount.
+      // remaining 10000 TESTB should be deposited in commitee_accoount. 
       BOOST_TEST_MESSAGE("Issuing 30000 TESTB to the dividend account");
       issue_asset_to_account(test_asset_object, dividend_distribution_account, 30000);
 
@@ -531,7 +531,7 @@ BOOST_AUTO_TEST_CASE( gpos_basic_dividend_distribution_to_core_asset )
    } catch(fc::exception& e) {
       edump((e.to_detail_string()));
       throw;
-   }
+   }   
 }
 
 BOOST_AUTO_TEST_CASE( votes_on_gpos_activation )
@@ -546,6 +546,7 @@ BOOST_AUTO_TEST_CASE( votes_on_gpos_activation )
       generate_block();
 
       // update default gpos
+      auto now = db.head_block_time();
       // 5184000 = 60x60x24x6 = 6 days
       // 864000 = 60x60x24x1 = 1 days
       update_gpos_global(518400, 86400, HARDFORK_GPOS_TIME);
@@ -573,7 +574,7 @@ BOOST_AUTO_TEST_CASE( votes_on_gpos_activation )
       witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
       BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
-
+      
       update_maintenance_interval(3600);  //update maintenance interval to 1hr to evaluate sub-periods
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, 3600);
 
@@ -670,17 +671,9 @@ BOOST_AUTO_TEST_CASE( voting )
       auto witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness2.total_votes, 0);
 
-      // vesting performance is 0 for both alice and bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 0);
-
       // vote for witness1 and witness2 - sub-period 1
       vote_for(alice_id, witness1.vote_id, alice_private_key);
       vote_for(bob_id, witness2.vote_id, bob_private_key);
-
-      // after voting, vesting performance is 1 for both alice and bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
 
       // go to maint
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -691,10 +684,6 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness1.total_votes, 1000);
       BOOST_CHECK_EQUAL(witness2.total_votes, 1000);
 
-      // vesting performance is 1 for both alice and bob during whole gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
       advance_x_maint(6);
 
       witness1 = witness_id_type(1)(db);
@@ -702,29 +691,10 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness1.total_votes, 100);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
-      // vesting performance is 1 for both alice and bob during whole gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(3);
-
-      // vesting performance is 1 for both alice and bob during whole gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(1);
-
-      // new subperiod started, vesting performance is decreased to 5/6 for both alice and bob, until they vote
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 5.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 5.0/6.0);
+      advance_x_maint(4);
 
       //Bob votes for witness2 - sub-period 2
       vote_for(bob_id, witness2.vote_id, bob_private_key);
-
-      // after voting, vesting performance is 5/6 for alice and 1 for bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 5.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
       // go to maint
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // vote decay as time pass
@@ -733,36 +703,10 @@ BOOST_AUTO_TEST_CASE( voting )
 
       BOOST_CHECK_EQUAL(witness1.total_votes, 83);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
-
-      // after voting, vesting performance is 5/6 for alice and 1 for bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 5.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(4);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 5.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(4);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 5.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(1);
-
-      // new subperiod started, vesting performance is decreased to 4/6 for alice and 5/6 for bob, until they vote
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 4.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 5.0/6.0);
-
+      
+      advance_x_maint(10);
       //Bob votes for witness2 - sub-period 3
       vote_for(bob_id, witness2.vote_id, bob_private_key);
-
-      // after voting, vesting performance is 4/6 for alice and 1 for bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 4.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       // decay more
       witness1 = witness_id_type(1)(db);
@@ -770,28 +714,8 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness1.total_votes, 66);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
-      // after voting, vesting performance is 4/6 for alice and 1 for bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 4.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(4);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 4.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(4);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 4.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(1);
-
-      // new subperiod started, vesting performance is decreased to 3/6 for alice and 5/6 for bob, until they vote
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 3.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 5.0/6.0);
-
+      advance_x_maint(10);
+      
       // Bob votes for witness2 - sub-period 4
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -801,28 +725,8 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness1.total_votes, 50);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
-      // after voting, vesting performance is 3/6 for alice and 1 for bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 3.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(4);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 3.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(4);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 3.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(1);
-
-      // new subperiod started, vesting performance is decreased to 2/6 for alice and 5/6 for bob, until they vote
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 2.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 5.0/6.0);
-
+      advance_x_maint(10);
+      
       // Bob votes for witness2 - sub-period 5
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -833,28 +737,8 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness1.total_votes, 33);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
-      // after voting, vesting performance is 2/6 for alice and 1 for bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 2.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(4);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 2.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(4);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 2.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(1);
-
-      // new subperiod started, vesting performance is decreased to 1/6 for alice and 5/6 for bob, until they vote
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 5.0/6.0);
-
+      advance_x_maint(10);
+      
       // Bob votes for witness2 - sub-period 6
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -864,30 +748,13 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness1.total_votes, 16);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
-      // after voting, vesting performance is 1/6 for alice and 1 for bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
       // we are still in gpos period 1
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
 
-      advance_x_maint(8);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(1);
-
+      advance_x_maint(5);
       // a new GPOS period is in but vote from user is before the start. Whoever votes in 6th sub-period, votes will carry
       now = db.head_block_time();
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), HARDFORK_GPOS_TIME.sec_since_epoch() + db.get_global_properties().parameters.gpos_period());
-
-      // new gpos period and his first subperiod started,
-      // vesting performance is decreased to 0 for alice, as she did not vote
-      // but stays 1 for bob, as he voted in last subperiod in previous gpos period
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1 );
 
       generate_block();
 
@@ -896,16 +763,14 @@ BOOST_AUTO_TEST_CASE( voting )
       witness2 = witness_id_type(2)(db);
       BOOST_CHECK_EQUAL(witness1.total_votes, 0);
       //It's critical here, since bob votes in 6th sub-period of last vesting period, witness2 should retain his votes
-      BOOST_CHECK_EQUAL(witness2.total_votes, 100);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 100);   
+
 
       // lets vote here from alice to generate votes for witness 1
       //vote from bob to reatin VF 1
       vote_for(alice_id, witness1.vote_id, alice_private_key);
       vote_for(bob_id, witness2.vote_id, bob_private_key);
-
-      // after voting, vesting performance is 1 for both alice and bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
+      generate_block();
 
       // go to maint
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -916,17 +781,7 @@ BOOST_AUTO_TEST_CASE( voting )
       BOOST_CHECK_EQUAL(witness1.total_votes, 100);
       BOOST_CHECK_EQUAL(witness2.total_votes, 100);
 
-      advance_x_maint(8);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(1);
-
-      // new subperiod started, vesting performance is decreased to 5/6 for both alice and bob, until they vote
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 5.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 5.0/6.0);
+      advance_x_maint(10);
 
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
@@ -937,21 +792,7 @@ BOOST_AUTO_TEST_CASE( voting )
       vote_for(bob_id, witness2.vote_id, bob_private_key);
       generate_block();
 
-      // after voting, vesting performance is 5/6 for alice and 1 for bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 5.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(9);
-
-      // vesting performance does not change during gpos subperiod
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 5.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 1);
-
-      advance_x_maint(1);
-
-      // new subperiod started, vesting performance is decreased to 4/6 for alice and 5/6 for bob, until they vote
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 4.0/6.0);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 5.0/6.0);
+      advance_x_maint(10);
 
       witness1 = witness_id_type(1)(db);
       witness2 = witness_id_type(2)(db);
@@ -961,11 +802,6 @@ BOOST_AUTO_TEST_CASE( voting )
 
       // alice votes again, now for witness 2, her vote worth 100 now
       vote_for(alice_id, witness2.vote_id, alice_private_key);
-
-      // after voting, vesting performance is 1 for alice and 5.0/6.0 for bob
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(alice_id(db)), 1);
-      BOOST_CHECK_EQUAL(db.calculate_vesting_factor(bob_id(db)), 5.0/6.0);
-
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
 
       witness1 = witness_id_type(1)(db);
@@ -992,7 +828,7 @@ BOOST_AUTO_TEST_CASE( rolling_period_start )
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maintenance_interval, 3600);
 
       auto vesting_period_1 = db.get_global_properties().parameters.gpos_period_start();
-
+            
       auto now = db.head_block_time();
       // moving outside period:
       while( db.head_block_time() <= now + fc::days(6) )
@@ -1001,9 +837,9 @@ BOOST_AUTO_TEST_CASE( rolling_period_start )
       }
       generate_block();
       auto vesting_period_2 = db.get_global_properties().parameters.gpos_period_start();
-
-     //difference between start of two consecutive vesting periods should be 6 days
-      BOOST_CHECK_EQUAL(vesting_period_1 + 518400, vesting_period_2);
+     
+     //difference between start of two consecutive vesting periods should be 6 days 
+      BOOST_CHECK_EQUAL(vesting_period_1 + 518400, vesting_period_2); 
    }
    catch (fc::exception &e) {
       edump((e.to_detail_string()));
@@ -1231,7 +1067,7 @@ BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
       vbo1 = create_vesting(alice_id, core.amount(150), vesting_balance_type::gpos);
       vbo2 = create_vesting(bob_id, core.amount(99), vesting_balance_type::gpos);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-
+     
       generate_block();
 
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -1244,12 +1080,12 @@ BOOST_AUTO_TEST_CASE( Withdraw_gpos_vesting_balance )
       BOOST_CHECK_EQUAL(get_balance(alice_id(db), core), 400);
       BOOST_CHECK_EQUAL(get_balance(bob_id(db), core), 99);
 
-      // Add more 50 and 73 vesting objects and withdraw 90 from
+      // Add more 50 and 73 vesting objects and withdraw 90 from 
       // total vesting balance of user
       vbo1 = create_vesting(alice_id, core.amount(50), vesting_balance_type::gpos);
       vbo2 = create_vesting(alice_id, core.amount(73), vesting_balance_type::gpos);
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-
+     
       generate_block();
 
       vector<vesting_balance_object> vbos = db_api1.get_vesting_balances("alice");
@@ -1467,13 +1303,13 @@ BOOST_AUTO_TEST_CASE( proxy_voting )
       // vote for witness1
       auto witness1 = witness_id_type(1)(db);
       vote_for(bob_id, witness1.vote_id, bob_private_key);
-
+      
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-
+      
       // check vesting factor of current subperiod
       BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 1);
       BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 1);
-
+      
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_block();
 
@@ -1481,7 +1317,7 @@ BOOST_AUTO_TEST_CASE( proxy_voting )
       // vesting factor decay
       BOOST_CHECK_EQUAL(db_api.get_gpos_info(alice_id).vesting_factor, 0.83333333333333337);
       BOOST_CHECK_EQUAL(db_api.get_gpos_info(bob_id).vesting_factor, 0.83333333333333337);
-
+      
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_block();
 

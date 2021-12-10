@@ -9,9 +9,7 @@ namespace graphene { namespace chain {
 
 void_result add_sidechain_address_evaluator::do_evaluate(const sidechain_address_add_operation& op)
 { try{
-    if (op.sidechain == sidechain_type::bitcoin) {
-       FC_ASSERT( op.deposit_public_key.length() > 0 && op.deposit_address.length() == 0 && op.deposit_address_data.length() == 0, "ser should add a valid deposit public key and a null deposit address (Bitcoin only)");
-    }
+    FC_ASSERT( op.deposit_public_key.length() > 0 && op.deposit_address.length() == 0 && op.deposit_address_data.length() == 0, "User should add a valid deposit public key and a null deposit address");
     const auto& sdpke_idx = db().get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_public_key_and_expires>();
     FC_ASSERT( sdpke_idx.find(boost::make_tuple(op.sidechain, op.deposit_public_key, time_point_sec::maximum())) == sdpke_idx.end(), "An active deposit key already exists" );
     return void_result();
@@ -33,8 +31,8 @@ object_id_type add_sidechain_address_evaluator::do_apply(const sidechain_address
         obj.sidechain_address_account = op.sidechain_address_account;
         obj.sidechain = op.sidechain;
         obj.deposit_public_key = op.deposit_public_key;
-        obj.deposit_address = op.deposit_address;
-        obj.deposit_address_data = op.deposit_address_data;
+        obj.deposit_address = "";
+        obj.deposit_address_data = "";
         obj.withdraw_public_key = op.withdraw_public_key;
         obj.withdraw_address = op.withdraw_address;
         obj.valid_from = db().head_block_time();

@@ -4,7 +4,7 @@ add_library( graphene_accounts_list
              accounts_list_plugin.cpp
            )
 
-target_link_libraries( graphene_accounts_list PRIVATE graphene_plugin )
+target_link_libraries( graphene_accounts_list graphene_chain graphene_app )
 target_include_directories( graphene_accounts_list
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 

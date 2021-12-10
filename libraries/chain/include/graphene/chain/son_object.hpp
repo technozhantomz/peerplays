@@ -31,9 +31,9 @@ namespace graphene { namespace chain {
 
          son_id_type  owner;
          // Lifetime total transactions signed
-         flat_map<sidechain_type, uint64_t> total_txs_signed;
+         uint64_t total_txs_signed = 0;
          // Transactions signed since the last son payouts
-         flat_map<sidechain_type, uint64_t> txs_signed;
+         uint64_t txs_signed = 0;
          // Total Voted Active time i.e. duration selected as part of voted active SONs
          uint64_t total_voted_time = 0;
          // Total Downtime barring the current down time in seconds, used for stats to present to user
@@ -47,9 +47,9 @@ namespace graphene { namespace chain {
          // Deregistered Timestamp
          fc::time_point_sec deregistered_timestamp;
          // Total sidechain transactions reported by SON network while SON was active
-         flat_map<sidechain_type, uint64_t> total_sidechain_txs_reported;
+         uint64_t total_sidechain_txs_reported = 0;
          // Sidechain transactions reported by this SON
-         flat_map<sidechain_type, uint64_t> sidechain_txs_reported;
+         uint64_t sidechain_txs_reported = 0;
    };
 
    /**
@@ -76,7 +76,6 @@ namespace graphene { namespace chain {
 
          void pay_son_fee(share_type pay, database& db);
          bool has_valid_config()const;
-         bool has_valid_config(time_point_sec head_block_time)const;
    };
 
    struct by_account;

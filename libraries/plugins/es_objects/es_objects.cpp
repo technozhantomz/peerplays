@@ -31,22 +31,6 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/account_object.hpp>
 
-#include <graphene/chain/account_role_object.hpp>
-#include <graphene/chain/committee_member_object.hpp>
-#include <graphene/chain/nft_object.hpp>
-#include <graphene/chain/offer_object.hpp>
-#include <graphene/chain/sidechain_address_object.hpp>
-#include <graphene/chain/sidechain_transaction_object.hpp>
-#include <graphene/chain/son_object.hpp>
-#include <graphene/chain/son_proposal_object.hpp>
-#include <graphene/chain/son_wallet_object.hpp>
-#include <graphene/chain/son_wallet_deposit_object.hpp>
-#include <graphene/chain/son_wallet_withdraw_object.hpp>
-#include <graphene/chain/transaction_object.hpp>
-#include <graphene/chain/vesting_balance_object.hpp>
-#include <graphene/chain/witness_object.hpp>
-#include <graphene/chain/worker_object.hpp>
-
 #include <graphene/utilities/elasticsearch.hpp>
 
 namespace graphene { namespace es_objects {
@@ -77,16 +61,6 @@ class es_objects_plugin_impl
       bool _es_objects_balances = true;
       bool _es_objects_limit_orders = true;
       bool _es_objects_asset_bitasset = true;
-
-      bool _es_objects_account_role = true;
-      bool _es_objects_committee_member = true;
-      bool _es_objects_nft = true;
-      bool _es_objects_son = true;
-      bool _es_objects_transaction = true;
-      bool _es_objects_vesting_balance = true;
-      bool _es_objects_witness = true;
-      bool _es_objects_worker = true;
-
       std::string _es_objects_index_prefix = "ppobjects-";
       uint32_t _es_objects_start_es_after_block = 0;
       CURL *curl; // curl handler
@@ -105,6 +79,7 @@ class es_objects_plugin_impl
 
 bool es_objects_plugin_impl::genesis()
 {
+
    ilog("elasticsearch OBJECTS: inserting data from genesis");
 
    graphene::chain::database &db = _self.database();
@@ -137,142 +112,13 @@ bool es_objects_plugin_impl::genesis()
       });
    }
 
-   if (_es_objects_account_role) {
-      auto &idx = db.get_index_type<graphene::chain::account_role_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const account_role_object *>(obj);
-         prepareTemplate<account_role_object>(*b, "account_role");
-      });
-   }
-   if (_es_objects_committee_member) {
-      auto &idx = db.get_index_type<graphene::chain::committee_member_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const committee_member_object *>(obj);
-         prepareTemplate<committee_member_object>(*b, "committee_member");
-      });
-   }
-   if (_es_objects_nft) {
-      auto &idx = db.get_index_type<graphene::chain::nft_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const nft_object *>(obj);
-         prepareTemplate<nft_object>(*b, "nft");
-      });
-   }
-   if (_es_objects_nft) {
-      auto &idx = db.get_index_type<graphene::chain::nft_metadata_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const nft_metadata_object *>(obj);
-         prepareTemplate<nft_metadata_object>(*b, "nft_metadata");
-      });
-   }
-   if (_es_objects_nft) {
-      auto &idx = db.get_index_type<graphene::chain::offer_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const offer_object *>(obj);
-         prepareTemplate<offer_object>(*b, "offer");
-      });
-   }
-   if (_es_objects_son) {
-      auto &idx = db.get_index_type<graphene::chain::sidechain_address_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const sidechain_address_object *>(obj);
-         prepareTemplate<sidechain_address_object>(*b, "sidechain_address");
-      });
-   }
-   if (_es_objects_son) {
-      auto &idx = db.get_index_type<graphene::chain::sidechain_transaction_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const sidechain_transaction_object *>(obj);
-         prepareTemplate<sidechain_transaction_object>(*b, "sidechain_transaction");
-      });
-   }
-   if (_es_objects_son) {
-      auto &idx = db.get_index_type<graphene::chain::son_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const son_object *>(obj);
-         prepareTemplate<son_object>(*b, "son");
-      });
-   }
-   if (_es_objects_son) {
-      auto &idx = db.get_index_type<graphene::chain::son_proposal_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const son_proposal_object *>(obj);
-         prepareTemplate<son_proposal_object>(*b, "son_proposal");
-      });
-   }
-   if (_es_objects_son) {
-      auto &idx = db.get_index_type<graphene::chain::son_wallet_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const son_wallet_object *>(obj);
-         prepareTemplate<son_wallet_object>(*b, "son_wallet");
-      });
-   }
-   if (_es_objects_son) {
-      auto &idx = db.get_index_type<graphene::chain::son_wallet_deposit_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const son_wallet_deposit_object *>(obj);
-         prepareTemplate<son_wallet_deposit_object>(*b, "son_wallet_deposit");
-      });
-   }
-   if (_es_objects_son) {
-      auto &idx = db.get_index_type<graphene::chain::son_wallet_withdraw_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const son_wallet_withdraw_object *>(obj);
-         prepareTemplate<son_wallet_withdraw_object>(*b, "son_wallet_withdraw");
-      });
-   }
-   if (_es_objects_transaction) {
-      auto &idx = db.get_index_type<graphene::chain::transaction_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const transaction_object *>(obj);
-         prepareTemplate<transaction_object>(*b, "transaction");
-      });
-   }
-   if (_es_objects_vesting_balance) {
-      auto &idx = db.get_index_type<graphene::chain::vesting_balance_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const vesting_balance_object *>(obj);
-         prepareTemplate<vesting_balance_object>(*b, "vesting_balance");
-      });
-   }
-   if (_es_objects_witness) {
-      auto &idx = db.get_index_type<graphene::chain::witness_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const witness_object *>(obj);
-         prepareTemplate<witness_object>(*b, "witness");
-      });
-   }
-   if (_es_objects_worker) {
-      auto &idx = db.get_index_type<graphene::chain::worker_index>();
-      idx.inspect_all_objects([this, &db](const graphene::db::object &o) {
-         auto obj = db.find_object(o.id);
-         auto b = static_cast<const worker_object *>(obj);
-         prepareTemplate<worker_object>(*b, "worker");
-      });
-   }
-
    graphene::utilities::ES es;
    es.curl = curl;
    es.bulk_lines = bulk;
    es.elasticsearch_url = _es_objects_elasticsearch_url;
    es.auth = _es_objects_auth;
    if (!graphene::utilities::SendBulk(es))
-      FC_THROW_EXCEPTION(graphene::chain::plugin_exception, "Error inserting genesis data.");
+      FC_THROW_EXCEPTION(fc::exception, "Error inserting genesis data.");
    else
       bulk.clear();
 
@@ -350,150 +196,6 @@ bool es_objects_plugin_impl::index_database(const vector<object_id_type>& ids, s
                   remove_from_database(ba->id, "bitasset");
                else
                   prepareTemplate<asset_bitasset_data_object>(*ba, "bitasset");
-            }
-         } else if (value.is<account_role_object>() && _es_objects_account_role) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const account_role_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "account_role");
-               else
-                  prepareTemplate<account_role_object>(*ba, "account_role");
-            }
-         } else if (value.is<committee_member_object>() && _es_objects_committee_member) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const committee_member_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "committee_member");
-               else
-                  prepareTemplate<committee_member_object>(*ba, "committee_member");
-            }
-         } else if (value.is<nft_object>() && _es_objects_nft) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const nft_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "nft");
-               else
-                  prepareTemplate<nft_object>(*ba, "nft");
-            }
-         } else if (value.is<nft_metadata_object>() && _es_objects_nft) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const nft_metadata_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "nft_metadata");
-               else
-                  prepareTemplate<nft_metadata_object>(*ba, "nft_metadata");
-            }
-         } else if (value.is<offer_object>() && _es_objects_nft) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const offer_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "offer");
-               else
-                  prepareTemplate<offer_object>(*ba, "offer");
-            }
-         } else if (value.is<sidechain_address_object>() && _es_objects_son) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const sidechain_address_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "sidechain_address");
-               else
-                  prepareTemplate<sidechain_address_object>(*ba, "sidechain_address");
-            }
-         } else if (value.is<sidechain_transaction_object>() && _es_objects_son) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const sidechain_transaction_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "sidechain_transaction");
-               else
-                  prepareTemplate<sidechain_transaction_object>(*ba, "sidechain_transaction");
-            }
-         } else if (value.is<son_object>() && _es_objects_son) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const son_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "son");
-               else
-                  prepareTemplate<son_object>(*ba, "son");
-            }
-         } else if (value.is<son_proposal_object>() && _es_objects_son) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const son_proposal_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "son_proposal");
-               else
-                  prepareTemplate<son_proposal_object>(*ba, "son_proposal");
-            }
-         } else if (value.is<son_wallet_object>() && _es_objects_son) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const son_wallet_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "son_wallet");
-               else
-                  prepareTemplate<son_wallet_object>(*ba, "son_wallet");
-            }
-         } else if (value.is<son_wallet_deposit_object>() && _es_objects_son) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const son_wallet_deposit_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "son_wallet_deposit");
-               else
-                  prepareTemplate<son_wallet_deposit_object>(*ba, "son_wallet_deposit");
-            }
-         } else if (value.is<son_wallet_withdraw_object>() && _es_objects_son) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const son_wallet_withdraw_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "son_wallet_withdraw");
-               else
-                  prepareTemplate<son_wallet_withdraw_object>(*ba, "son_wallet_withdraw");
-            }
-         } else if (value.is<transaction_object>() && _es_objects_transaction) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const transaction_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "transaction");
-               else
-                  prepareTemplate<transaction_object>(*ba, "transaction");
-            }
-         } else if (value.is<vesting_balance_object>() && _es_objects_vesting_balance) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const vesting_balance_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "vesting_balance");
-               else
-                  prepareTemplate<vesting_balance_object>(*ba, "vesting_balance");
-            }
-         } else if (value.is<witness_object>() && _es_objects_witness) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const witness_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "witness");
-               else
-                  prepareTemplate<witness_object>(*ba, "witness");
-            }
-         } else if (value.is<worker_object>() && _es_objects_worker) {
-            auto obj = db.find_object(value);
-            auto ba = static_cast<const worker_object *>(obj);
-            if (ba != nullptr) {
-               if (action == "delete")
-                  remove_from_database(ba->id, "worker");
-               else
-                  prepareTemplate<worker_object>(*ba, "worker");
             }
          }
       }
@@ -594,39 +296,52 @@ void es_objects_plugin::plugin_set_program_options(
    )
 {
    cli.add_options()
-         ("es-objects-elasticsearch-url", boost::program_options::value<std::string>(),
-               "Elasticsearch node url(http://localhost:9200/)")
+         ("es-objects-elasticsearch-url", boost::program_options::value<std::string>(), "Elasticsearch node url(http://localhost:9200/)")
          ("es-objects-auth", boost::program_options::value<std::string>(), "Basic auth username:password('')")
-         ("es-objects-bulk-replay", boost::program_options::value<uint32_t>(),
-               "Number of bulk documents to index on replay(10000)")
-         ("es-objects-bulk-sync", boost::program_options::value<uint32_t>(),
-               "Number of bulk documents to index on a synchronized chain(100)")
+         ("es-objects-bulk-replay", boost::program_options::value<uint32_t>(), "Number of bulk documents to index on replay(10000)")
+         ("es-objects-bulk-sync", boost::program_options::value<uint32_t>(), "Number of bulk documents to index on a synchronized chain(100)")
          ("es-objects-proposals", boost::program_options::value<bool>(), "Store proposal objects(true)")
          ("es-objects-accounts", boost::program_options::value<bool>(), "Store account objects(true)")
          ("es-objects-assets", boost::program_options::value<bool>(), "Store asset objects(true)")
          ("es-objects-balances", boost::program_options::value<bool>(), "Store balances objects(true)")
-         ("es-objects-limit-orders", boost::program_options::value<bool>(), "Store limit order objects(false)")
-         ("es-objects-bitasset", boost::program_options::value<bool>(), "Store feed data(true)")
-         ("es-objects-account-role", boost::program_options::value<bool>(), "Store account role objects (true)")
-         ("es-objects-committee-member", boost::program_options::value<bool>(), "Store committee member objects(true)")
-         ("es-objects-nft", boost::program_options::value<bool>(), "Store nft objects (true)")
-         ("es-objects-son", boost::program_options::value<bool>(), "Store son objects (true)")
-         ("es-objects-transaction", boost::program_options::value<bool>(), "Store transaction objects (true)")
-         ("es-objects-vesting-balance", boost::program_options::value<bool>(), "Store vesting balance objects (true)")
-         ("es-objects-witness", boost::program_options::value<bool>(), "Store witness objects (true)")
-         ("es-objects-worker", boost::program_options::value<bool>(), "Store worker objects (true)")
-         ("es-objects-index-prefix", boost::program_options::value<std::string>(),
-               "Add a prefix to the index(ppobjects-)")
-         ("es-objects-keep-only-current", boost::program_options::value<bool>(),
-               "Keep only current state of the objects(true)")
-         ("es-objects-start-es-after-block", boost::program_options::value<uint32_t>(),
-               "Start doing ES job after block(0)")
+         ("es-objects-limit-orders", boost::program_options::value<bool>(), "Store limit order objects(true)")
+         ("es-objects-asset-bitasset", boost::program_options::value<bool>(), "Store feed data(true)")
+         ("es-objects-index-prefix", boost::program_options::value<std::string>(), "Add a prefix to the index(ppobjects-)")
+         ("es-objects-keep-only-current", boost::program_options::value<bool>(), "Keep only current state of the objects(true)")
+         ("es-objects-start-es-after-block", boost::program_options::value<uint32_t>(), "Start doing ES job after block(0)")
          ;
    cfg.add(cli);
 }
 
 void es_objects_plugin::plugin_initialize(const boost::program_options::variables_map& options)
 {
+   database().applied_block.connect([this](const signed_block &b) {
+      if(b.block_num() == 1) {
+         if (!my->genesis())
+            FC_THROW_EXCEPTION(fc::exception, "Error populating genesis data.");
+      }
+   });
+
+   database().new_objects.connect([this]( const vector<object_id_type>& ids, const flat_set<account_id_type>& impacted_accounts ) {
+      if(!my->index_database(ids, "create"))
+      {
+         FC_THROW_EXCEPTION(fc::exception, "Error creating object from ES database, we are going to keep trying.");
+      }
+   });
+   database().changed_objects.connect([this]( const vector<object_id_type>& ids, const flat_set<account_id_type>& impacted_accounts ) {
+      if(!my->index_database(ids, "update"))
+      {
+         FC_THROW_EXCEPTION(fc::exception, "Error updating object from ES database, we are going to keep trying.");
+      }
+   });
+   database().removed_objects.connect([this](const vector<object_id_type>& ids, const vector<const object*>& objs, const flat_set<account_id_type>& impacted_accounts) {
+       if(!my->index_database(ids, "delete"))
+       {
+          FC_THROW_EXCEPTION(fc::exception, "Error deleting object from ES database, we are going to keep trying.");
+       }
+   });
+
+
    if (options.count("es-objects-elasticsearch-url")) {
       my->_es_objects_elasticsearch_url = options["es-objects-elasticsearch-url"].as<std::string>();
    }
@@ -657,30 +372,6 @@ void es_objects_plugin::plugin_initialize(const boost::program_options::variable
    if (options.count("es-objects-asset-bitasset")) {
       my->_es_objects_asset_bitasset = options["es-objects-asset-bitasset"].as<bool>();
    }
-   if (options.count("es-objects-account-role")) {
-      my->_es_objects_balances = options["es-objects-account-role"].as<bool>();
-   }
-   if (options.count("es-objects-committee-member")) {
-      my->_es_objects_balances = options["es-objects-committee-member"].as<bool>();
-   }
-   if (options.count("es-objects-nft")) {
-      my->_es_objects_balances = options["es-objects-nft"].as<bool>();
-   }
-   if (options.count("es-objects-son")) {
-      my->_es_objects_balances = options["es-objects-son"].as<bool>();
-   }
-   if (options.count("es-objects-transaction")) {
-      my->_es_objects_balances = options["es-objects-transaction"].as<bool>();
-   }
-   if (options.count("es-objects-vesting-balance")) {
-      my->_es_objects_balances = options["es-objects-vesting-balance"].as<bool>();
-   }
-   if (options.count("es-objects-witness")) {
-      my->_es_objects_balances = options["es-objects-witness"].as<bool>();
-   }
-   if (options.count("es-objects-worker")) {
-      my->_es_objects_balances = options["es-objects-worker"].as<bool>();
-   }
    if (options.count("es-objects-index-prefix")) {
       my->_es_objects_index_prefix = options["es-objects-index-prefix"].as<std::string>();
    }
@@ -690,37 +381,6 @@ void es_objects_plugin::plugin_initialize(const boost::program_options::variable
    if (options.count("es-objects-start-es-after-block")) {
       my->_es_objects_start_es_after_block = options["es-objects-start-es-after-block"].as<uint32_t>();
    }
-
-   database().applied_block.connect([this](const signed_block &b) {
-      if(b.block_num() == 1 && my->_es_objects_start_es_after_block == 0) {
-         if (!my->genesis())
-            FC_THROW_EXCEPTION(graphene::chain::plugin_exception, "Error populating genesis data.");
-      }
-   });
-   database().new_objects.connect([this]( const vector<object_id_type>& ids,
-         const flat_set<account_id_type>& impacted_accounts ) {
-      if(!my->index_database(ids, "create"))
-      {
-         FC_THROW_EXCEPTION(graphene::chain::plugin_exception,
-               "Error creating object from ES database, we are going to keep trying.");
-      }
-   });
-   database().changed_objects.connect([this]( const vector<object_id_type>& ids,
-         const flat_set<account_id_type>& impacted_accounts ) {
-      if(!my->index_database(ids, "update"))
-      {
-         FC_THROW_EXCEPTION(graphene::chain::plugin_exception,
-               "Error updating object from ES database, we are going to keep trying.");
-      }
-   });
-   database().removed_objects.connect([this](const vector<object_id_type>& ids,
-         const vector<const object*>& objs, const flat_set<account_id_type>& impacted_accounts) {
-      if(!my->index_database(ids, "delete"))
-      {
-         FC_THROW_EXCEPTION(graphene::chain::plugin_exception,
-               "Error deleting object from ES database, we are going to keep trying.");
-      }
-   });
 }
 
 void es_objects_plugin::plugin_startup()

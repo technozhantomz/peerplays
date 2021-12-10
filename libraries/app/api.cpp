@@ -579,10 +579,7 @@ namespace graphene { namespace app {
     {
         FC_ASSERT( _app.chain_database() );
         const auto& db = *_app.chain_database();
-        FC_ASSERT( limit <= api_limit_get_account_history,
-            "Number of querying accounts can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_get_account_history) );
-
+        FC_ASSERT( limit <= 100 );
         vector<operation_history_object> result;
         account_id_type account;
         try {
@@ -630,16 +627,13 @@ namespace graphene { namespace app {
     {
        FC_ASSERT( _app.chain_database() );
        const auto& db = *_app.chain_database();
-       FC_ASSERT( limit <= api_limit_get_account_history_operations,
-            "Number of querying history accounts can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_get_account_history_operations) );
-
+       FC_ASSERT( limit <= 100 );
        vector<operation_history_object> result;
        account_id_type account;
        try {
          account = database_api.get_account_id_from_string(account_id_or_name);
        } catch (...) { return result; }
-
+       
        const auto& stats = account(db).statistics(db);
        if( stats.most_recent_op == account_transaction_history_id_type() ) return result;
        const account_transaction_history_object* node = &stats.most_recent_op(db);
@@ -673,10 +667,7 @@ namespace graphene { namespace app {
     {
        FC_ASSERT( _app.chain_database() );
        const auto& db = *_app.chain_database();
-       FC_ASSERT( limit <= api_limit_get_relative_account_history,
-            "Number of querying accounts can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_get_relative_account_history) );
-
+       FC_ASSERT(limit <= 100);
        vector<operation_history_object> result;
        account_id_type account;
        try {
@@ -806,16 +797,14 @@ namespace graphene { namespace app {
     }
 
     // asset_api
-    asset_api::asset_api(graphene::app::application& app) :
+    asset_api::asset_api(graphene::app::application& app) : 
          _app(app),
           _db( *app.chain_database()),
           database_api( std::ref(*app.chain_database())) { }
     asset_api::~asset_api() { }
 
     vector<account_asset_balance> asset_api::get_asset_holders( std::string asset, uint32_t start, uint32_t limit ) const {
-      FC_ASSERT( limit <= api_limit_get_asset_holders,
-            "Number of querying asset holder accounts can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_get_asset_holders) );
+      FC_ASSERT(limit <= 100);
 
       asset_id_type asset_id = database_api.get_asset_id_from_string( asset );
       const auto& bal_idx = _db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();

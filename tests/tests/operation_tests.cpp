@@ -1561,6 +1561,7 @@ BOOST_AUTO_TEST_CASE( vesting_balance_create_test )
    op.amount = test_asset.amount( 100 );
    //op.vesting_seconds = 60*60*24;
    op.policy = cdd_vesting_policy_initializer{ 60*60*24 };
+   op.balance_type == vesting_balance_type::normal;
 
    // Fee must be non-negative
    REQUIRE_OP_VALIDATION_SUCCESS( op, fee, core.amount(1) );
