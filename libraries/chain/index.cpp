@@ -21,15 +21,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "db_balance.cpp"
-#include "db_bet.cpp"
-#include "db_block.cpp"
-#include "db_debug.cpp"
-#include "db_getter.cpp"
-#include "db_init.cpp"
-#include "db_maint.cpp"
-#include "db_management.cpp"
-#include "db_market.cpp"
-#include "db_update.cpp"
-#include "db_witness_schedule.cpp"
-#include "db_notify.cpp"
+#include <fc/io/raw.hpp>
+#include <graphene/chain/index.hpp>
+#include <graphene/chain/database.hpp>
+
+namespace graphene { namespace chain {
+   void base_primary_index::save_undo( const object& obj )
+   { _db.save_undo( obj ); }
+
+   void base_primary_index::on_add( const object& obj )
+   {
+      _db.save_undo_add( obj );
+      for( auto ob : _observers ) ob->on_add( obj );
+   }
+
+   void base_primary_index::on_remove( const object& obj )
+   { _db.save_undo_remove( obj ); for( auto ob : _observers ) ob->on_remove( obj ); }
+
+   void base_primary_index::on_modify( const object& obj )
+   {for( auto ob : _observers ) ob->on_modify(  obj ); }
+} } // graphene::chain

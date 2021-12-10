@@ -28,7 +28,6 @@
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/special_authority_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
-#include <graphene/chain/nft_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
 #include <fc/io/fstream.hpp>
@@ -108,6 +107,7 @@ void database::reindex( fc::path data_dir )
    ilog( "reindexing blockchain" );
    auto start = fc::time_point::now();
    const auto last_block_num = last_block->block_num();
+   uint32_t flush_point = last_block_num < 10000 ? 0 : last_block_num - 10000;
    uint32_t undo_point = last_block_num < 50 ? 0 : last_block_num - 50;
 
    ilog( "Replaying blocks, starting at ${next}...", ("next",head_block_num() + 1) );
@@ -123,7 +123,8 @@ void database::reindex( fc::path data_dir )
    }
    for( uint32_t i = head_block_num() + 1; i <= last_block_num; ++i )
    {
-      if( i % 10000 == 0 )
+      if( i % 10000 == 0 ) std::cerr << "   " << double(i*100)/last_block_num << "%   "<<i << " of " <<last_block_num<<"   \n";
+      if( i == flush_point )
       {
          ilog( "Writing database to disk at block ${i}", ("i",i) );
          flush();
@@ -243,7 +244,7 @@ void database::close(bool rewind)
 {
    if (!_opened)
       return;
-
+      
    // TODO:  Save pending tx's on close()
    clear_pending();
 
@@ -293,7 +294,7 @@ void database::force_slow_replays()
 void database::check_ending_lotteries()
 {
    try {
-      const auto& lotteries_idx = get_index_type<asset_index>().indices().get<active_lotteries>();
+      const auto& lotteries_idx = get_index_type<asset_index>().indices().get<active_lotteries>();      
       for( auto checking_asset: lotteries_idx )
       {
          FC_ASSERT( checking_asset.is_lottery() );
@@ -301,24 +302,6 @@ void database::check_ending_lotteries()
          FC_ASSERT( checking_asset.lottery_options->end_date != time_point_sec() );
          if( checking_asset.lottery_options->end_date > head_block_time() ) continue;
          checking_asset.end_lottery(*this);
-      }
-   } catch( ... ) {}
-}
-
-void database::check_ending_nft_lotteries()
-{
-   try {
-      const auto &nft_lotteries_idx = get_index_type<nft_metadata_index>().indices().get<active_nft_lotteries>();
-      for (auto checking_token : nft_lotteries_idx)
-      {
-         FC_ASSERT(checking_token.is_lottery());
-         const auto &lottery_options = checking_token.lottery_data->lottery_options;
-         FC_ASSERT(lottery_options.is_active);
-         // Check the current supply of lottery tokens
-         auto current_supply = checking_token.get_token_current_supply(*this);
-         if ((lottery_options.ending_on_soldout && (current_supply == checking_token.max_supply)) ||
-             (lottery_options.end_date != time_point_sec() && (lottery_options.end_date <= head_block_time())))
-            checking_token.end_lottery(*this);
       }
    } catch( ... ) {}
 }

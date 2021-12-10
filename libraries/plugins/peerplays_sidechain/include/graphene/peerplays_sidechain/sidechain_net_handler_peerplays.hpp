@@ -4,6 +4,8 @@
 
 #include <string>
 
+#include <fc/signals.hpp>
+
 namespace graphene { namespace peerplays_sidechain {
 
 class sidechain_net_handler_peerplays : public sidechain_net_handler {
@@ -18,9 +20,10 @@ public:
    bool process_withdrawal(const son_wallet_withdraw_object &swwo);
    std::string process_sidechain_transaction(const sidechain_transaction_object &sto);
    std::string send_sidechain_transaction(const sidechain_transaction_object &sto);
-   bool settle_sidechain_transaction(const sidechain_transaction_object &sto, asset &settle_amount);
+   int64_t settle_sidechain_transaction(const sidechain_transaction_object &sto);
 
 private:
+   void on_applied_block(const signed_block &b);
 };
 
 }} // namespace graphene::peerplays_sidechain

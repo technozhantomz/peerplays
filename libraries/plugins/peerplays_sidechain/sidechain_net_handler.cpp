@@ -1,21 +1,14 @@
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
-#include <boost/algorithm/string.hpp>
-
 #include <fc/log/logger.hpp>
 #include <graphene/chain/chain_property_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
-#include <graphene/peerplays_sidechain/common/utils.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
 sidechain_net_handler::sidechain_net_handler(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
       plugin(_plugin),
       database(_plugin.database()) {
-
-   database.applied_block.connect([&](const signed_block &b) {
-      on_applied_block(b);
-   });
 }
 
 sidechain_net_handler::~sidechain_net_handler() {
@@ -168,24 +161,20 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 
    const chain::global_property_object &gpo = database.get_global_properties();
 
-   bool enable_peerplays_asset_deposits = false;
+   asset_id_type btc_asset_id = database.get_global_properties().parameters.btc_asset();
+   std::string btc_asset_id_str = fc::to_string(btc_asset_id.space_id) + "." +
+                                  fc::to_string(btc_asset_id.type_id) + "." +
+                                  fc::to_string((uint64_t)btc_asset_id.instance);
+
 #ifdef ENABLE_PEERPLAYS_ASSET_DEPOSITS
-   //enable_peerplays_asset_deposits = (sed.sidechain == sidechain_type::peerplays) &&
-   //                                  (sed.sidechain_currency.compare("BTC") != 0) &&
-   //                                  (sed.sidechain_currency.compare("HBD") != 0) &&
-   //                                  (sed.sidechain_currency.compare("HIVE") != 0);
+   // Accepts BTC and peerplays asset deposits
+   bool deposit_condition = ((sed.peerplays_to == gpo.parameters.son_account()) && (sed.sidechain_currency.compare(btc_asset_id_str) != 0));
+   bool withdraw_condition = ((sed.peerplays_to == gpo.parameters.son_account()) && (sed.sidechain_currency.compare(btc_asset_id_str) == 0));
+#else
+   // Accepts BTC deposits only
+   bool deposit_condition = ((sed.peerplays_to == gpo.parameters.son_account()) && (sed.sidechain_currency.compare("BTC") == 0));
+   bool withdraw_condition = ((sed.peerplays_to == gpo.parameters.son_account()) && (sed.sidechain_currency.compare(btc_asset_id_str) == 0));
 #endif
-
-   bool deposit_condition = (sed.peerplays_to == gpo.parameters.son_account()) &&
-                            (((sed.sidechain == sidechain_type::bitcoin) && (sed.sidechain_currency.compare("BTC") == 0)) ||
-                             ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("HBD") == 0)) ||
-                             ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("HIVE") == 0)) ||
-                             enable_peerplays_asset_deposits);
-
-   bool withdraw_condition = (sed.peerplays_to == gpo.parameters.son_account()) && (sed.sidechain == sidechain_type::peerplays) &&
-                             ((sed.sidechain_currency == object_id_to_string(gpo.parameters.btc_asset())) ||
-                              (sed.sidechain_currency == object_id_to_string(gpo.parameters.hbd_asset())) ||
-                              (sed.sidechain_currency == object_id_to_string(gpo.parameters.hive_asset())));
 
    // Deposit request
    if (deposit_condition) {
@@ -225,32 +214,11 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
 
    // Withdrawal request
    if (withdraw_condition) {
-      std::string withdraw_address = "";
+      // BTC Payout only (for now)
       const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain_and_expires>();
-      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sed.peerplays_from, sidechain, time_point_sec::maximum()));
-      if (addr_itr != sidechain_addresses_idx.end()) {
-         withdraw_address = addr_itr->withdraw_address;
-      } else {
-         withdraw_address = sed.sidechain_from;
-      }
-
-      std::string withdraw_currency = "";
-      price withdraw_currency_price = {};
-      if (sed.sidechain_currency == object_id_to_string(gpo.parameters.btc_asset())) {
-         withdraw_currency = "BTC";
-         withdraw_currency_price = database.get<asset_object>(database.get_global_properties().parameters.btc_asset()).options.core_exchange_rate;
-      }
-      if (sed.sidechain_currency == object_id_to_string(gpo.parameters.hbd_asset())) {
-         withdraw_currency = "HBD";
-         withdraw_currency_price = database.get<asset_object>(database.get_global_properties().parameters.hbd_asset()).options.core_exchange_rate;
-      }
-      if (sed.sidechain_currency == object_id_to_string(gpo.parameters.hive_asset())) {
-         withdraw_currency = "HIVE";
-         withdraw_currency_price = database.get<asset_object>(database.get_global_properties().parameters.hive_asset()).options.core_exchange_rate;
-      }
-      if (withdraw_currency.empty()) {
+      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sed.peerplays_from, sidechain_type::bitcoin, time_point_sec::maximum()));
+      if (addr_itr == sidechain_addresses_idx.end())
          return;
-      }
 
       for (son_id_type son_id : plugin.get_sons()) {
          if (plugin.is_active_son(son_id)) {
@@ -265,10 +233,12 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
             op.peerplays_transaction_id = sed.sidechain_transaction_id;
             op.peerplays_from = sed.peerplays_from;
             op.peerplays_asset = sed.peerplays_asset;
-            op.withdraw_sidechain = sidechain;
-            op.withdraw_address = withdraw_address;
-            op.withdraw_currency = withdraw_currency;
-            op.withdraw_amount = sed.peerplays_asset.amount * withdraw_currency_price.quote.amount / withdraw_currency_price.base.amount;
+            // BTC payout only (for now)
+            op.withdraw_sidechain = sidechain_type::bitcoin;
+            op.withdraw_address = addr_itr->withdraw_address;
+            op.withdraw_currency = "BTC";
+            price btc_price = database.get<asset_object>(database.get_global_properties().parameters.btc_asset()).options.core_exchange_rate;
+            op.withdraw_amount = sed.peerplays_asset.amount * btc_price.quote.amount / btc_price.base.amount;
 
             signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(son_id), op);
             try {
@@ -419,13 +389,9 @@ void sidechain_net_handler::process_deposits() {
       }
       //Ignore the deposits which are not valid anymore, considered refunds.
       const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address_and_expires>();
-      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, swdo.sidechain_from, time_point_sec::maximum()));
+      const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain, swdo.sidechain_to, time_point_sec::maximum()));
       if (addr_itr == sidechain_addresses_idx.end()) {
-         const auto &account_idx = database.get_index_type<account_index>().indices().get<by_name>();
-         const auto &account_itr = account_idx.find(swdo.sidechain_from);
-         if (account_itr == account_idx.end()) {
-            return;
-         }
+         return;
       }
 
       ilog("Deposit to process: ${swdo}", ("swdo", swdo));
@@ -566,10 +532,9 @@ void sidechain_net_handler::settle_sidechain_transactions() {
 
       ilog("Sidechain transaction to settle: ${sto}", ("sto", sto.id));
 
-      asset settle_amount;
-      bool settle_sidechain_result = settle_sidechain_transaction(sto, settle_amount);
+      int64_t settle_amount = settle_sidechain_transaction(sto);
 
-      if (settle_sidechain_result == false) {
+      if (settle_amount < 0) {
          wlog("Sidechain transaction not settled: ${sto}", ("sto", sto.id));
          return;
       }
@@ -586,12 +551,12 @@ void sidechain_net_handler::settle_sidechain_transactions() {
       sts_op.sidechain_transaction_id = sto.id;
       proposal_op.proposed_ops.emplace_back(sts_op);
 
-      if (settle_amount.amount != 0) {
+      if (settle_amount != 0) {
          if (sto.object_id.is<son_wallet_deposit_id_type>()) {
             asset_issue_operation ai_op;
             ai_op.fee = asset(2001000);
             ai_op.issuer = gpo.parameters.son_account();
-            ai_op.asset_to_issue = settle_amount;
+            ai_op.asset_to_issue = asset(settle_amount, database.get_global_properties().parameters.btc_asset());
             ai_op.issue_to_account = database.get<son_wallet_deposit_object>(sto.object_id).peerplays_from;
             proposal_op.proposed_ops.emplace_back(ai_op);
          }
@@ -600,7 +565,7 @@ void sidechain_net_handler::settle_sidechain_transactions() {
             asset_reserve_operation ar_op;
             ar_op.fee = asset(2001000);
             ar_op.payer = gpo.parameters.son_account();
-            ar_op.amount_to_reserve = settle_amount;
+            ar_op.amount_to_reserve = asset(settle_amount, database.get_global_properties().parameters.btc_asset());
             proposal_op.proposed_ops.emplace_back(ar_op);
          }
       }
@@ -616,65 +581,6 @@ void sidechain_net_handler::settle_sidechain_transactions() {
          elog("Sending proposal for sidechain transaction settle operation failed with exception ${e}", ("e", e.what()));
       }
    });
-}
-
-void sidechain_net_handler::on_applied_block(const signed_block &b) {
-
-   const chain::global_property_object &gpo = plugin.database().get_global_properties();
-
-   for (const auto &trx : b.transactions) {
-      size_t operation_index = -1;
-      for (auto op : trx.operations) {
-         operation_index = operation_index + 1;
-         if (op.which() == operation::tag<transfer_operation>::value) {
-            transfer_operation transfer_op = op.get<transfer_operation>();
-
-            if (transfer_op.to != gpo.parameters.son_account()) {
-               continue;
-            }
-
-            bool is_tracked_asset =
-                  ((sidechain == sidechain_type::bitcoin) && (transfer_op.amount.asset_id == gpo.parameters.btc_asset())) ||
-                  ((sidechain == sidechain_type::hive) && (transfer_op.amount.asset_id == gpo.parameters.hbd_asset())) ||
-                  ((sidechain == sidechain_type::hive) && (transfer_op.amount.asset_id == gpo.parameters.hive_asset()));
-
-            if (!is_tracked_asset) {
-               continue;
-            }
-
-            std::string sidechain_from = object_id_to_string(transfer_op.from);
-            std::string memo = "";
-            if (transfer_op.memo) {
-               memo = transfer_op.memo->get_message(fc::ecc::private_key(), public_key_type());
-               boost::trim(memo);
-               if (!memo.empty()) {
-                  sidechain_from = memo;
-               }
-            }
-
-            std::stringstream ss;
-            ss << "peerplays"
-               << "-" << trx.id().str() << "-" << operation_index;
-            std::string sidechain_uid = ss.str();
-
-            sidechain_event_data sed;
-            sed.timestamp = database.head_block_time();
-            sed.block_num = database.head_block_num();
-            sed.sidechain = sidechain_type::peerplays;
-            sed.sidechain_uid = sidechain_uid;
-            sed.sidechain_transaction_id = trx.id().str();
-            sed.sidechain_from = sidechain_from;
-            sed.sidechain_to = object_id_to_string(transfer_op.to);
-            sed.sidechain_currency = object_id_to_string(transfer_op.amount.asset_id);
-            sed.sidechain_amount = transfer_op.amount.amount;
-            sed.peerplays_from = transfer_op.from;
-            sed.peerplays_to = transfer_op.to;
-            price asset_price = database.get<asset_object>(transfer_op.amount.asset_id).options.core_exchange_rate;
-            sed.peerplays_asset = asset(transfer_op.amount.amount * asset_price.base.amount / asset_price.quote.amount);
-            sidechain_event_data_received(sed);
-         }
-      }
-   }
 }
 
 }} // namespace graphene::peerplays_sidechain

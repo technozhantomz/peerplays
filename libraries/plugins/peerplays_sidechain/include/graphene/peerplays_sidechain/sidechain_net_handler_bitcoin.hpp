@@ -1,14 +1,13 @@
 #pragma once
 
+#include <graphene/peerplays_sidechain/bitcoin/bitcoin_address.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
 #include <string>
 #include <zmq.hpp>
 
-#include <boost/signals2.hpp>
-
 #include <fc/network/http/connection.hpp>
-#include <graphene/peerplays_sidechain/bitcoin/bitcoin_address.hpp>
+#include <fc/signals.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
@@ -21,7 +20,7 @@ public:
 
 class bitcoin_rpc_client {
 public:
-   bitcoin_rpc_client(std::string _ip, uint32_t _rpc, std::string _user, std::string _password, std::string _wallet, std::string _wallet_password, bool _debug_rpc_calls);
+   bitcoin_rpc_client(std::string _ip, uint32_t _rpc, std::string _user, std::string _password, std::string _wallet, std::string _wallet_password);
 
    std::string addmultisigaddress(const uint32_t nrequired, const std::vector<std::string> public_keys);
    std::string combinepsbt(const vector<std::string> &psbts);
@@ -51,7 +50,7 @@ public:
    //bool walletpassphrase(const std::string &passphrase, uint32_t timeout = 60);
 
 private:
-   fc::http::reply send_post_request(std::string body, bool show_log);
+   fc::http::reply send_post_request(std::string body, bool show_log = false);
 
    std::string ip;
    uint32_t rpc_port;
@@ -59,7 +58,6 @@ private:
    std::string password;
    std::string wallet;
    std::string wallet_password;
-   bool debug_rpc_calls;
 
    fc::http::header authorization;
 };
@@ -70,7 +68,7 @@ class zmq_listener {
 public:
    zmq_listener(std::string _ip, uint32_t _zmq);
 
-   boost::signals2::signal<void(const std::string &)> event_received;
+   fc::signal<void(const std::string &)> event_received;
 
 private:
    void handle_zmq();
@@ -97,7 +95,7 @@ public:
    bool process_withdrawal(const son_wallet_withdraw_object &swwo);
    std::string process_sidechain_transaction(const sidechain_transaction_object &sto);
    std::string send_sidechain_transaction(const sidechain_transaction_object &sto);
-   bool settle_sidechain_transaction(const sidechain_transaction_object &sto, asset &settle_amount);
+   int64_t settle_sidechain_transaction(const sidechain_transaction_object &sto);
 
 private:
    std::string ip;

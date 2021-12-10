@@ -26,18 +26,16 @@
 #include <graphene/chain/db_with.hpp>
 
 #include <graphene/chain/asset_object.hpp>
-#include <graphene/chain/betting_market_object.hpp>
-#include <graphene/chain/game_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/market_object.hpp>
-#include <graphene/chain/offer_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
-#include <graphene/chain/son_proposal_object.hpp>
-#include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/game_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -48,6 +46,7 @@ namespace graphene { namespace chain {
 void database::update_global_dynamic_data( const signed_block& b, const uint32_t missed_blocks )
 {
    const dynamic_global_property_object& _dgp = get_dynamic_global_properties();
+   const global_property_object& gpo = get_global_properties();
 
    // dynamic global properties updating
    modify( _dgp, [&b,this,missed_blocks]( dynamic_global_property_object& dgp ){

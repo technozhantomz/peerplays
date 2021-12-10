@@ -14,7 +14,6 @@ data
 CMakeDoxyfile.in
 
 build
-build__*
 
 libraries/utilities/git_revision.cpp
 

@@ -235,17 +235,6 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<offer_history_object> get_offer_history_by_item(const offer_history_id_type lower_id, const nft_id_type item, uint32_t limit) const;
       vector<offer_history_object> get_offer_history_by_bidder(const offer_history_id_type lower_id, const account_id_type bidder_account_id, uint32_t limit) const;
 
-      uint32_t api_limit_get_lower_bound_symbol = 100;
-      uint32_t api_limit_get_limit_orders = 300;
-      uint32_t api_limit_get_limit_orders_by_account = 101;
-      uint32_t api_limit_get_order_book = 50;
-      uint32_t api_limit_all_offers_count = 100;
-      uint32_t api_limit_lookup_accounts = 1000;
-      uint32_t api_limit_lookup_witness_accounts = 1000;
-      uint32_t api_limit_lookup_committee_member_accounts = 1000;
-      uint32_t api_limit_get_trade_history = 100;
-      uint32_t api_limit_get_trade_history_by_sequence = 100;
-
       // Account Role
       vector<account_role_object> get_account_roles_by_owner(account_id_type owner) const;
 
@@ -904,9 +893,7 @@ map<string,account_id_type> database_api::lookup_accounts(const string& lower_bo
 
 map<string,account_id_type> database_api_impl::lookup_accounts(const string& lower_bound_name, uint32_t limit)const
 {
-   FC_ASSERT( limit <= api_limit_lookup_accounts,
-            "Number of querying accounts can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_lookup_accounts) );
+   FC_ASSERT( limit <= 1000 );
    const auto& accounts_by_name = _db.get_index_type<account_index>().indices().get<by_name>();
    map<string,account_id_type> result;
 
@@ -943,7 +930,7 @@ vector<asset> database_api::get_account_balances(const std::string& account_name
    return my->get_account_balances( account_name_or_id, assets );
 }
 
-vector<asset> database_api_impl::get_account_balances( const std::string& account_name_or_id,
+vector<asset> database_api_impl::get_account_balances( const std::string& account_name_or_id, 
                                                        const flat_set<asset_id_type>& assets)const
 {
    const account_object* account = get_account_from_string(account_name_or_id);
@@ -1114,9 +1101,7 @@ vector<asset_object> database_api::list_assets(const string& lower_bound_symbol,
 
 vector<asset_object> database_api_impl::list_assets(const string& lower_bound_symbol, uint32_t limit)const
 {
-   FC_ASSERT( limit <= api_limit_get_lower_bound_symbol,
-            "Number of querying accounts can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_get_lower_bound_symbol) );
+   FC_ASSERT( limit <= 100 );
    const auto& assets_by_symbol = _db.get_index_type<asset_index>().indices().get<by_symbol>();
    vector<asset_object> result;
    result.reserve(limit);
@@ -1566,9 +1551,7 @@ order_book database_api::get_order_book( const string& base, const string& quote
 order_book database_api_impl::get_order_book( const string& base, const string& quote, unsigned limit )const
 {
    using boost::multiprecision::uint128_t;
-   FC_ASSERT( limit <= api_limit_get_order_book,
-         "Number of querying accounts can not be greater than ${configured_limit}",
-         ("configured_limit", api_limit_get_order_book) );
+   FC_ASSERT( limit <= 50 );
 
    order_book result;
    result.base = base;
@@ -1630,9 +1613,7 @@ vector<market_trade> database_api_impl::get_trade_history( const string& base,
                                                            fc::time_point_sec stop,
                                                            unsigned limit )const
 {
-   FC_ASSERT( limit <= api_limit_get_trade_history,
-            "Number of querying accounts can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_get_trade_history) );
+   FC_ASSERT( limit <= 100 );
 
    auto assets = lookup_asset_symbols( {base, quote} );
    FC_ASSERT( assets[0], "Invalid base asset symbol: ${s}", ("s",base) );
@@ -1751,9 +1732,7 @@ map<string, witness_id_type> database_api::lookup_witness_accounts(const string&
 
 map<string, witness_id_type> database_api_impl::lookup_witness_accounts(const string& lower_bound_name, uint32_t limit)const
 {
-   FC_ASSERT( limit <= api_limit_lookup_witness_accounts,
-         "Number of querying accounts can not be greater than ${configured_limit}",
-         ("configured_limit", api_limit_lookup_witness_accounts) );
+   FC_ASSERT( limit <= 1000 );
    const auto& witnesses_by_id = _db.get_index_type<witness_index>().indices().get<by_id>();
 
    // we want to order witnesses by account name, but that name is in the account object
@@ -1829,9 +1808,7 @@ map<string, committee_member_id_type> database_api::lookup_committee_member_acco
 
 map<string, committee_member_id_type> database_api_impl::lookup_committee_member_accounts(const string& lower_bound_name, uint32_t limit)const
 {
-   FC_ASSERT( limit <= api_limit_lookup_committee_member_accounts,
-            "Number of querying accounts can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_lookup_committee_member_accounts) );
+   FC_ASSERT( limit <= 1000 );
    const auto& committee_members_by_id = _db.get_index_type<committee_member_index>().indices().get<by_id>();
 
    // we want to order committee_members by account name, but that name is in the account object
@@ -2585,8 +2562,18 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
 
    share_type total_amount;
    auto balance_type = vesting_balance_type::gpos;
-
+#ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
    // get only once a collection of accounts that hold nonzero vesting balances of the dividend asset
+   auto vesting_balances_begin =
+      vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(asset_id_type(), balance_type));
+   auto vesting_balances_end =
+      vesting_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(asset_id_type(), balance_type, share_type()));
+
+   for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
+   {
+        total_amount += vesting_balance_obj.balance.amount;
+   }
+#else
    const vesting_balance_index& vesting_index = _db.get_index_type<vesting_balance_index>();
    const auto& vesting_balances = vesting_index.indices().get<by_id>();
    for (const vesting_balance_object& vesting_balance_obj : vesting_balances)
@@ -2596,6 +2583,7 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
          total_amount += vesting_balance_obj.balance.amount;
       }
    }
+#endif
 
    vector<vesting_balance_object> account_vbos;
    const time_point_sec now = _db.head_block_time();
@@ -2606,9 +2594,9 @@ graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type 
                         && balance.balance.asset_id == asset_id_type())
                         account_vbos.emplace_back(balance);
                   });
-
+                  
    share_type allowed_withdraw_amount = 0, account_vested_balance = 0;
-
+   
    for (const vesting_balance_object& vesting_balance_obj : account_vbos)
    {
       account_vested_balance += vesting_balance_obj.balance.amount;
@@ -2940,9 +2928,7 @@ vector<offer_object> database_api::list_offers(const offer_id_type lower_id, uin
 
 vector<offer_object> database_api_impl::list_offers(const offer_id_type lower_id, uint32_t limit) const
 {
-   FC_ASSERT( limit <= api_limit_all_offers_count,
-            "Number of querying offers can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_all_offers_count) );
+   FC_ASSERT( limit <= 100 );
    const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
    vector<offer_object> result;
    result.reserve(limit);
@@ -2962,9 +2948,7 @@ vector<offer_object> database_api::list_sell_offers(const offer_id_type lower_id
 
 vector<offer_object> database_api_impl::list_sell_offers(const offer_id_type lower_id, uint32_t limit) const
 {
-   FC_ASSERT( limit <= api_limit_all_offers_count,
-            "Number of querying offers can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_all_offers_count) );
+   FC_ASSERT( limit <= 100 );
    const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
    vector<offer_object> result;
    result.reserve(limit);
@@ -2990,9 +2974,7 @@ vector<offer_object> database_api::list_buy_offers(const offer_id_type lower_id,
 
 vector<offer_object> database_api_impl::list_buy_offers(const offer_id_type lower_id, uint32_t limit) const
 {
-   FC_ASSERT( limit <= api_limit_all_offers_count,
-            "Number of querying offers can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_all_offers_count) );
+   FC_ASSERT( limit <= 100 );
    const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
    vector<offer_object> result;
    result.reserve(limit);
@@ -3019,9 +3001,7 @@ vector<offer_history_object> database_api::list_offer_history(const offer_histor
 
 vector<offer_history_object> database_api_impl::list_offer_history(const offer_history_id_type lower_id, uint32_t limit) const
 {
-   FC_ASSERT( limit <= api_limit_all_offers_count,
-            "Number of querying offers can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_all_offers_count) );
+   FC_ASSERT( limit <= 100 );
    const auto& oh_idx = _db.get_index_type<offer_history_index>().indices().get<by_id>();
    vector<offer_history_object> result;
    result.reserve(limit);
@@ -3041,9 +3021,7 @@ vector<offer_object> database_api::get_offers_by_issuer(const offer_id_type lowe
 
 vector<offer_object> database_api_impl::get_offers_by_issuer(const offer_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const
 {
-   FC_ASSERT( limit <= api_limit_all_offers_count,
-            "Number of querying offers can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_all_offers_count) );
+   FC_ASSERT( limit <= 100 );
    const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
    vector<offer_object> result;
    result.reserve(limit);
@@ -3067,9 +3045,7 @@ vector<offer_object> database_api::get_offers_by_item(const offer_id_type lower_
 
 vector<offer_object> database_api_impl::get_offers_by_item(const offer_id_type lower_id, const nft_id_type item, uint32_t limit) const
 {
-   FC_ASSERT( limit <= api_limit_all_offers_count,
-            "Number of querying offers can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_all_offers_count) );
+   FC_ASSERT( limit <= 100 );
    const auto& offers_idx = _db.get_index_type<offer_index>().indices().get<by_id>();
    vector<offer_object> result;
    result.reserve(limit);
@@ -3104,9 +3080,7 @@ vector<offer_history_object> database_api::get_offer_history_by_bidder(const off
 
 vector<offer_history_object> database_api_impl::get_offer_history_by_issuer(const offer_history_id_type lower_id, const account_id_type issuer_account_id, uint32_t limit) const
 {
-   FC_ASSERT( limit <= api_limit_all_offers_count,
-            "Number of querying offers can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_all_offers_count) );
+   FC_ASSERT( limit <= 100 );
    const auto& oh_idx = _db.get_index_type<offer_history_index>().indices().get<by_id>();
    vector<offer_history_object> result;
    result.reserve(limit);
@@ -3127,9 +3101,7 @@ vector<offer_history_object> database_api_impl::get_offer_history_by_issuer(cons
 
 vector<offer_history_object> database_api_impl::get_offer_history_by_item(const offer_history_id_type lower_id, const nft_id_type item, uint32_t limit) const
 {
-   FC_ASSERT( limit <= api_limit_all_offers_count,
-            "Number of querying offers can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_all_offers_count) );
+   FC_ASSERT( limit <= 100 );
    const auto& oh_idx = _db.get_index_type<offer_history_index>().indices().get<by_id>();
    vector<offer_history_object> result;
    result.reserve(limit);
@@ -3151,9 +3123,7 @@ vector<offer_history_object> database_api_impl::get_offer_history_by_item(const 
 
 vector<offer_history_object> database_api_impl::get_offer_history_by_bidder(const offer_history_id_type lower_id, const account_id_type bidder_account_id, uint32_t limit) const
 {
-   FC_ASSERT( limit <= api_limit_all_offers_count,
-            "Number of querying offers can not be greater than ${configured_limit}",
-            ("configured_limit", api_limit_all_offers_count) );
+   FC_ASSERT( limit <= 100 );
    const auto& oh_idx = _db.get_index_type<offer_history_index>().indices().get<by_id>();
    vector<offer_history_object> result;
    result.reserve(limit);

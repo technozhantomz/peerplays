@@ -59,7 +59,17 @@ namespace graphene { namespace db {
                {
                   mv._apply_undo = false;
                }
-               ~session();
+               ~session() {
+                  try {
+                     if( _apply_undo ) _db.undo();
+                  }
+                  catch ( const fc::exception& e )
+                  {
+                     elog( "${e}", ("e",e.to_detail_string() ) );
+                     throw; // maybe crash..
+                  }
+                  if( _disable_on_exit ) _db.disable();
+               }
                void commit() { _apply_undo = false; _db.commit();  }
                void undo()   { if( _apply_undo ) _db.undo(); _apply_undo = false; }
                void merge()  { if( _apply_undo ) _db.merge(); _apply_undo = false; }

@@ -28,7 +28,6 @@ void_result sidechain_transaction_create_evaluator::do_evaluate(const sidechain_
 object_id_type sidechain_transaction_create_evaluator::do_apply(const sidechain_transaction_create_operation &op)
 { try {
    const auto &new_sidechain_transaction_object = db().create<sidechain_transaction_object>([&](sidechain_transaction_object &sto) {
-      sto.timestamp = db().head_block_time();
       sto.sidechain = op.sidechain;
       sto.object_id = op.object_id;
       sto.transaction = op.transaction;
@@ -98,15 +97,7 @@ object_id_type sidechain_transaction_sign_evaluator::do_apply(const sidechain_tr
    });
 
    db().modify(son_obj->statistics(db()), [&](son_statistics_object& sso) {
-      if (sso.total_txs_signed.find(sto_obj->sidechain) == sso.total_txs_signed.end()) {
-         sso.total_txs_signed[sto_obj->sidechain] = 0;
-      }
-      sso.total_txs_signed[sto_obj->sidechain] += 1;
-
-      if (sso.txs_signed.find(sto_obj->sidechain) == sso.txs_signed.end()) {
-         sso.txs_signed[sto_obj->sidechain] = 0;
-      }
-      sso.txs_signed[sto_obj->sidechain] += 1;
+      sso.txs_signed += 1;
    });
 
    return op.sidechain_transaction_id;
