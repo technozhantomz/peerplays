@@ -1,4 +1,8 @@
 // Placeholder HF for affiliate reward system
 #ifndef HARDFORK_999_TIME
-#define HARDFORK_999_TIME (fc::time_point_sec( 1550491200 ))
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_999_TIME (fc::time_point_sec::from_iso_string("2018-10-20T01:46:40"))
+#else
+#define HARDFORK_999_TIME (fc::time_point_sec::from_iso_string("2019-02-18T12:00:00"))
+#endif
 #endif

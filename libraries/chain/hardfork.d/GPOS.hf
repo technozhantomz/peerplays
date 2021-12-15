@@ -1,4 +1,7 @@
-// GPOS HARDFORK Monday, 17 February 2020 22:00:00 GMT
 #ifndef HARDFORK_GPOS_TIME
-#define HARDFORK_GPOS_TIME (fc::time_point_sec( 1581976800 ))
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_GPOS_TIME (fc::time_point_sec::from_iso_string("2020-01-06T01:00:00"))
+#else
+#define HARDFORK_GPOS_TIME (fc::time_point_sec::from_iso_string("2020-02-17T22:00:00"))
+#endif
 #endif

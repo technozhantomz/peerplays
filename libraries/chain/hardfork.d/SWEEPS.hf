@@ -1,3 +1,7 @@
 #ifndef HARDFORK_SWEEPS_TIME
-#define HARDFORK_SWEEPS_TIME (fc::time_point_sec( 1568340000 ))
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_SWEEPS_TIME (fc::time_point_sec::from_iso_string("2019-08-26T02:00:00"))
+#else
+#define HARDFORK_SWEEPS_TIME (fc::time_point_sec::from_iso_string("2019-09-13T02:00:00"))
+#endif
 #endif

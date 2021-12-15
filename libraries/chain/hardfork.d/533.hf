@@ -1,4 +1,8 @@
 // #533 Improve vote counting implementation
 #ifndef HARDFORK_533_TIME
-#define HARDFORK_533_TIME (fc::time_point_sec( 1456250400 ))
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_533_TIME (fc::time_point_sec::from_iso_string("2016-02-23T18:00:00"))
+#else
+#define HARDFORK_533_TIME (fc::time_point_sec::from_iso_string("2016-02-23T18:00:00"))
+#endif
 #endif

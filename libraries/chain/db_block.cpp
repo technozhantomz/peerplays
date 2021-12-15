@@ -715,7 +715,8 @@ void database::_apply_block( const signed_block& next_block )
       perform_chain_maintenance(next_block, global_props);
 
    check_ending_lotteries();
-
+   check_ending_nft_lotteries();
+   
    create_block_summary(next_block);
    place_delayed_bets(); // must happen after update_global_dynamic_data() updates the time
    clear_expired_transactions();

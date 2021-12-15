@@ -57,6 +57,9 @@ namespace graphene
                 case operation::tag<account_role_create_operation>::value:
                 case operation::tag<account_role_update_operation>::value:
                 case operation::tag<account_role_delete_operation>::value:
+                case operation::tag<nft_lottery_token_purchase_operation>::value:
+                case operation::tag<nft_lottery_reward_operation>::value:
+                case operation::tag<nft_lottery_end_operation>::value:
                     FC_ASSERT(block_time >= HARDFORK_NFT_TIME, "Custom permissions and roles not allowed on this operation yet!");
                     break;
                 default:

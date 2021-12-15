@@ -19,7 +19,7 @@ build:
     - mkdir build
     - cd build
     - cmake -DCMAKE_BUILD_TYPE=Release ..
-    - make -j$(nproc)
+    - make -j4
   artifacts:
     untracked: true
     paths:
@@ -31,11 +31,14 @@ build:
 
 dockerize:
   stage: build
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+  before_script:
+    - docker info
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - docker build . -t $DOCKER_REPO:$CI_COMMIT_REF_NAME
-    - docker login -u $DOCKER_USER -p $DOCKER_PASS
-    - docker push $DOCKER_REPO:$CI_COMMIT_REF_NAME
-    - docker logout
+    - docker build -t $IMAGE .
+    - docker push $IMAGE
   tags:
     - builder
   when: manual

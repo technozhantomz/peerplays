@@ -76,6 +76,10 @@ void block_database::flush()
 
 void block_database::store( const block_id_type& _id, const signed_block& b )
 {
+   if (true == replay_mode){
+       return;
+   }
+
    block_id_type id = _id;
    if( id == block_id_type() )
    {
@@ -99,8 +103,15 @@ void block_database::remove( const block_id_type& id )
    index_entry e;
    auto index_pos = sizeof(e)*block_header::num_from_id(id);
    _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
-   if ( _block_num_to_pos.tellg() <= index_pos )
+
+   std::streampos s_pos = _block_num_to_pos.tellg();
+   if (-1 == s_pos){ 
+      FC_THROW_EXCEPTION(fc::key_not_found_exception, "Block ${id} not contained in block database, _block_num_to_pos.tellg failed", ("id", id));
+   }
+
+   if ( static_cast<uint32_t>(s_pos) <= index_pos ){
       FC_THROW_EXCEPTION(fc::key_not_found_exception, "Block ${id} not contained in block database", ("id", id));
+   }
 
    _block_num_to_pos.seekg( index_pos );
    _block_num_to_pos.read( (char*)&e, sizeof(e) );
@@ -114,20 +125,27 @@ void block_database::remove( const block_id_type& id )
 } FC_CAPTURE_AND_RETHROW( (id) ) }
 
 bool block_database::contains( const block_id_type& id )const
-{
+{ try {
    if( id == block_id_type() )
       return false;
 
    index_entry e;
    auto index_pos = sizeof(e)*block_header::num_from_id(id);
    _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
-   if ( _block_num_to_pos.tellg() < index_pos + sizeof(e) )
+
+   std::streampos s_pos = _block_num_to_pos.tellg();
+   if (-1 == s_pos){
+      FC_THROW_EXCEPTION(fc::key_not_found_exception, "Block ${id} not contained in block database, _block_num_to_pos.tellg failed", ("id", id));
+   }
+
+   if ( static_cast<uint32_t>(s_pos) < index_pos + sizeof(e) )
       return false;
+
    _block_num_to_pos.seekg( index_pos );
    _block_num_to_pos.read( (char*)&e, sizeof(e) );
 
    return e.block_id == id && e.block_size > 0;
-}
+} FC_CAPTURE_AND_RETHROW( (id) ) }
 
 block_id_type block_database::fetch_block_id( uint32_t block_num )const
 {
@@ -152,7 +170,13 @@ optional<signed_block> block_database::fetch_optional( const block_id_type& id )
       index_entry e;
       auto index_pos = sizeof(e)*block_header::num_from_id(id);
       _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
-      if ( _block_num_to_pos.tellg() <= index_pos )
+      std::streampos s_pos = _block_num_to_pos.tellg();
+
+      if (-1 == s_pos){
+         FC_THROW_EXCEPTION(fc::key_not_found_exception, "Block ${id} not contained in block database, _block_num_to_pos.tellg failed", ("id", id));
+      }
+
+      if ( static_cast<uint32_t>(s_pos) <= index_pos )
          return {};
 
       _block_num_to_pos.seekg( index_pos );
@@ -184,7 +208,12 @@ optional<signed_block> block_database::fetch_by_number( uint32_t block_num )cons
       index_entry e;
       auto index_pos = sizeof(e)*block_num;
       _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
-      if ( _block_num_to_pos.tellg() <= index_pos )
+      std::streampos s_pos = _block_num_to_pos.tellg();
+      if (-1 == s_pos){
+         FC_THROW_EXCEPTION(fc::key_not_found_exception, "Block ${block_num} not contained in block database, _block_num_to_pos.tellg failed", ("block_num", block_num));
+      }
+
+      if ( static_cast<uint32_t>(s_pos) <= index_pos )
          return {};
 
       _block_num_to_pos.seekg( index_pos, _block_num_to_pos.beg );
@@ -213,7 +242,11 @@ optional<index_entry> block_database::last_index_entry()const {
 
       _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
       std::streampos pos = _block_num_to_pos.tellg();
-      if( pos < sizeof(index_entry) )
+      if (-1 == pos){
+         FC_THROW_EXCEPTION(fc::key_not_found_exception, "last_index_entry tellg failed");
+      }
+
+      if( static_cast<size_t>(pos) < sizeof(index_entry) )
          return optional<index_entry>();
 
       pos -= pos % sizeof(index_entry);
@@ -226,7 +259,7 @@ optional<index_entry> block_database::last_index_entry()const {
          _block_num_to_pos.seekg( pos );
          _block_num_to_pos.read( (char*)&e, sizeof(e) );
          if( _block_num_to_pos.gcount() == sizeof(e) && e.block_size > 0
-                && e.block_pos + e.block_size <= blocks_size )
+                && e.block_pos + static_cast<uint64_t>(e.block_size) <= static_cast<uint64_t>(blocks_size) )
             try
             {
                vector<char> data( e.block_size );
@@ -269,6 +302,11 @@ optional<block_id_type> block_database::last_id()const
    optional<index_entry> entry = last_index_entry();
    if( entry.valid() ) return entry->block_id;
    return optional<block_id_type>();
+}
+
+void block_database::set_replay_mode(bool mode)
+{
+   replay_mode = mode;
 }
 
 } }

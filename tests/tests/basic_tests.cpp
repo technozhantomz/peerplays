@@ -182,21 +182,194 @@ BOOST_AUTO_TEST_CASE( price_test )
 
 BOOST_AUTO_TEST_CASE( memo_test )
 { try {
-   memo_data m;
-   auto sender = generate_private_key("1");
-   auto receiver = generate_private_key("2");
-   m.from = sender.get_public_key();
-   m.to = receiver.get_public_key();
-   m.set_message(sender, receiver.get_public_key(), "Hello, world!", 12345);
+   auto sender_private_key = generate_private_key("1");
+   auto sender_public_key = sender_private_key.get_public_key();
+   auto receiver_private_key = generate_private_key("2");
+   auto receiver_public_key = receiver_private_key.get_public_key();
 
-   decltype(fc::digest(m)) hash("8de72a07d093a589f574460deb19023b4aff354b561eb34590d9f4629f51dbf3");
-   if( fc::digest(m) != hash )
+   auto dummy_private_key = private_key_type();
+   auto dummy_public_key = public_key_type();
+
    {
-      // If this happens, notify the web guys that the memo serialization format changed.
-      edump((m)(fc::digest(m)));
-      BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      memo_data m;
+      m.from = dummy_public_key;
+      m.to = dummy_public_key;
+      m.set_message(dummy_private_key, dummy_public_key, "Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("b9ad6eb2c466678a911f2f10f29d2a0d98600335b00e4c4ffbeabccb76c77bf0");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(dummy_private_key, dummy_public_key), "Hello, world!");
    }
-   BOOST_CHECK_EQUAL(m.get_message(receiver, sender.get_public_key()), "Hello, world!");
+
+   {
+      memo_data m;
+      m.from = dummy_public_key;
+      m.to = receiver_public_key;
+      m.set_message(dummy_private_key, receiver_public_key, "Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("b9ad6eb2c466678a911f2f10f29d2a0d98600335b00e4c4ffbeabccb76c77bf0");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(receiver_private_key, dummy_public_key), "Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = sender_public_key;
+      m.to = dummy_public_key;
+      m.set_message(sender_private_key, dummy_public_key, "Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("b756ef1b27e3bb8e61eea534a0b28e89b0fa72b73f8b7e6bc99b55a92ec3cf9b");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(dummy_private_key, sender_public_key), "Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = sender_public_key;
+      m.to = receiver_public_key;
+      m.set_message(sender_private_key, receiver_public_key, "Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("b756ef1b27e3bb8e61eea534a0b28e89b0fa72b73f8b7e6bc99b55a92ec3cf9b");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(receiver_private_key, sender_public_key), "Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = dummy_public_key;
+      m.to = dummy_public_key;
+      m.set_message(dummy_private_key, dummy_public_key, "#Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("8b17e79255d427b437a8b30beee5d45ca9b0bc8a04afa7a1968a0b73ab6d4b38");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(dummy_private_key, dummy_public_key), "#Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = dummy_public_key;
+      m.to = receiver_public_key;
+      m.set_message(dummy_private_key, receiver_public_key, "#Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("8b17e79255d427b437a8b30beee5d45ca9b0bc8a04afa7a1968a0b73ab6d4b38");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(receiver_private_key, dummy_public_key), "#Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = sender_public_key;
+      m.to = dummy_public_key;
+      m.set_message(sender_private_key, dummy_public_key, "#Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("40dbf5d26ea084d6ab61f9e93de366b7bea6a54eb1203744dd619d878a7d954a");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(dummy_private_key, sender_public_key), "#Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = sender_public_key;
+      m.to = receiver_public_key;
+      m.set_message(sender_private_key, receiver_public_key, "#Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("2f5d44ec922f605663a3b51f1d9633641062c9b669ba4bdd5c60104ceff12c8f");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(receiver_private_key, sender_public_key), "#Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = dummy_public_key;
+      m.to = dummy_public_key;
+      m.set_message(dummy_private_key, dummy_public_key, "# Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("93753b87b409e6532806ea3074553321b04807a675ffc0f41fb270c3141a8af2");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(dummy_private_key, dummy_public_key), "# Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = dummy_public_key;
+      m.to = receiver_public_key;
+      m.set_message(dummy_private_key, receiver_public_key, "# Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("93753b87b409e6532806ea3074553321b04807a675ffc0f41fb270c3141a8af2");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(receiver_private_key, dummy_public_key), "# Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = sender_public_key;
+      m.to = dummy_public_key;
+      m.set_message(sender_private_key, dummy_public_key, "# Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("5a0b4efad48090577a1296fc7221e19bdde4a8067bbbe05faa31c1c9fbdedd19");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(dummy_private_key, sender_public_key), "# Hello, world!");
+   }
+
+   {
+      memo_data m;
+      m.from = sender_public_key;
+      m.to = receiver_public_key;
+      m.set_message(sender_private_key, receiver_public_key, "# Hello, world!", 12345);
+
+      decltype(fc::digest(m)) hash("948b1b3219950dcaf5a376a502ba1b7631825aef85e0c692d192c06d583b2530");
+      if( fc::digest(m) != hash ) {
+         // If this happens, notify the web guys that the memo serialization format changed.
+         edump((m)(fc::digest(m)));
+         BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
+      }
+      BOOST_CHECK_EQUAL(m.get_message(receiver_private_key, sender_public_key), "# Hello, world!");
+   }
+
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_CASE( witness_rng_test_bits )
