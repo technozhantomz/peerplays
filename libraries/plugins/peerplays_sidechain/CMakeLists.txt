@@ -5,6 +5,7 @@ add_library( peerplays_sidechain
              sidechain_net_manager.cpp
              sidechain_net_handler.cpp
              sidechain_net_handler_bitcoin.cpp
+             sidechain_net_handler_hive.cpp
              sidechain_net_handler_peerplays.cpp
              bitcoin/bech32.cpp
              bitcoin/bitcoin_address.cpp
@@ -13,6 +14,12 @@ add_library( peerplays_sidechain
              bitcoin/segwit_addr.cpp
              bitcoin/utils.cpp
              bitcoin/sign_bitcoin_transaction.cpp
+             common/rpc_client.cpp
+             common/utils.cpp
+             hive/asset.cpp
+             hive/operations.cpp
+             hive/transaction.cpp
+             hive/types.cpp
            )
 
 if (ENABLE_DEV_FEATURES)
@@ -36,7 +43,7 @@ endif()
 unset(ENABLE_PEERPLAYS_ASSET_DEPOSITS)
 unset(ENABLE_PEERPLAYS_ASSET_DEPOSITS CACHE)
 
-target_link_libraries( peerplays_sidechain graphene_chain graphene_app fc zmq )
+target_link_libraries( peerplays_sidechain PRIVATE curl graphene_plugin zmq )
 target_include_directories( peerplays_sidechain
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 

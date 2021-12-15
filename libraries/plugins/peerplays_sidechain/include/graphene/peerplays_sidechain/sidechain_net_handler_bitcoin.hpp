@@ -1,13 +1,16 @@
 #pragma once
 
-#include <graphene/peerplays_sidechain/bitcoin/bitcoin_address.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
 #include <string>
 #include <zmq.hpp>
 
+#include <boost/signals2.hpp>
+
+#include <mutex>
+
 #include <fc/network/http/connection.hpp>
-#include <fc/signals.hpp>
+#include <graphene/peerplays_sidechain/bitcoin/bitcoin_address.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
@@ -20,7 +23,7 @@ public:
 
 class bitcoin_rpc_client {
 public:
-   bitcoin_rpc_client(std::string _ip, uint32_t _rpc, std::string _user, std::string _password, std::string _wallet, std::string _wallet_password);
+   bitcoin_rpc_client(std::string _ip, uint32_t _rpc, std::string _user, std::string _password, std::string _wallet, std::string _wallet_password, bool _debug_rpc_calls);
 
    std::string addmultisigaddress(const uint32_t nrequired, const std::vector<std::string> public_keys);
    std::string combinepsbt(const vector<std::string> &psbts);
@@ -50,7 +53,7 @@ public:
    //bool walletpassphrase(const std::string &passphrase, uint32_t timeout = 60);
 
 private:
-   fc::http::reply send_post_request(std::string body, bool show_log = false);
+   fc::http::reply send_post_request(std::string body, bool show_log);
 
    std::string ip;
    uint32_t rpc_port;
@@ -58,6 +61,7 @@ private:
    std::string password;
    std::string wallet;
    std::string wallet_password;
+   bool debug_rpc_calls;
 
    fc::http::header authorization;
 };
@@ -68,7 +72,7 @@ class zmq_listener {
 public:
    zmq_listener(std::string _ip, uint32_t _zmq);
 
-   fc::signal<void(const std::string &)> event_received;
+   boost::signals2::signal<void(const std::string &)> event_received;
 
 private:
    void handle_zmq();
@@ -95,7 +99,7 @@ public:
    bool process_withdrawal(const son_wallet_withdraw_object &swwo);
    std::string process_sidechain_transaction(const sidechain_transaction_object &sto);
    std::string send_sidechain_transaction(const sidechain_transaction_object &sto);
-   int64_t settle_sidechain_transaction(const sidechain_transaction_object &sto);
+   bool settle_sidechain_transaction(const sidechain_transaction_object &sto, asset &settle_amount);
 
 private:
    std::string ip;
@@ -111,6 +115,9 @@ private:
 
    fc::future<void> on_changed_objects_task;
    bitcoin::bitcoin_address::network network_type;
+
+   std::mutex event_handler_mutex;
+   typedef std::lock_guard<decltype(event_handler_mutex)> scoped_lock;
 
    std::string create_primary_wallet_address(const std::vector<son_info> &son_pubkeys);
 

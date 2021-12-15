@@ -44,6 +44,7 @@
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/offer_object.hpp>
+#include <graphene/chain/nft_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 
@@ -203,20 +204,28 @@ database_fixture::database_fixture()
 }
 
 database_fixture::~database_fixture()
-{ try {
-   // If we're unwinding due to an exception, don't do any more checks.
-   // This way, boost test's last checkpoint tells us approximately where the error was.
-   if( !std::uncaught_exception() )
-   {
-      verify_asset_supplies(db);
-      verify_account_history_plugin_index();
-      BOOST_CHECK( db.get_node_properties().skip_flags == database::skip_nothing );
-   }
+{
+   try {
+      // If we're unwinding due to an exception, don't do any more checks.
+      // This way, boost test's last checkpoint tells us approximately where the error was.
+      if( !std::uncaught_exception() )
+      {
+         verify_asset_supplies(db);
+         verify_account_history_plugin_index();
+         BOOST_CHECK( db.get_node_properties().skip_flags == database::skip_nothing );
+      }
 
-   if( data_dir )
-      db.close();
-   return;
-} FC_CAPTURE_AND_RETHROW() }
+      if( data_dir )
+         db.close();
+      return;
+   } catch (fc::exception& ex) {
+      BOOST_FAIL( std::string("fc::exception in ~database_fixture: ") + ex.to_detail_string() );
+   } catch (std::exception& e) {
+      BOOST_FAIL( std::string("std::exception in ~database_fixture:") + e.what() );
+   } catch (...) {
+      BOOST_FAIL( "Uncaught exception in ~database_fixture" );
+   }
+}
 
 fc::ecc::private_key database_fixture::generate_private_key(string seed)
 {
@@ -324,6 +333,14 @@ void database_fixture::verify_asset_supplies( const database& db )
          {
             total_balances[o.bid_price->asset_id] += o.bid_price->amount;
          }
+      }
+   }
+
+   for (const nft_metadata_object &o : db.get_index_type<nft_metadata_index>().indices())
+   {
+      if (o.lottery_data)
+      {
+         total_balances[o.get_lottery_jackpot(db).asset_id] += o.get_lottery_jackpot(db).amount;
       }
    }
 

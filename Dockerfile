@@ -1,13 +1,14 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 MAINTAINER PeerPlays Blockchain Standards Association
 
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US.UTF-8
-ENV LC_ALL en_US.UTF-8
+#===============================================================================
+# Ubuntu setup
+#===============================================================================
 
 RUN \
     apt-get update -y && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      apt-utils \
       autoconf \
       bash \
       build-essential \
@@ -15,82 +16,89 @@ RUN \
       cmake \
       dnsutils \
       doxygen \
+      expect \
       git \
       graphviz \
+      libboost1.67-all-dev \
       libbz2-dev \
       libcurl4-openssl-dev \
       libncurses-dev \
       libreadline-dev \
+      libsnappy-dev \
       libssl-dev \
       libtool \
+      libzip-dev \
       libzmq3-dev \
       locales \
+      mc \
+      nano \
+      net-tools \
       ntp \
+      openssh-server \
       pkg-config \
-      wget \
-    && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+      perl \
+      python3 \
+      python3-jinja2 \
+      sudo \
+      wget
 
+ENV HOME /home/peerplays
+RUN useradd -rm -d /home/peerplays -s /bin/bash -g root -G sudo -u 1000 peerplays
+RUN echo "peerplays  ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/peerplays
+RUN chmod 440 /etc/sudoers.d/peerplays
+
+RUN service ssh start
+RUN echo 'peerplays:peerplays' | chpasswd
+
+# SSH
+EXPOSE 22
+
+#===============================================================================
+# Peerplays setup
+#===============================================================================
+
+WORKDIR /home/peerplays/
+
+## Clone Peerplays
+#RUN \
+#    git clone https://gitlab.com/PBSA/peerplays.git && \
+#    cd peerplays && \
+#    git checkout develop && \
+#    git submodule update --init --recursive && \
+#    git branch --show-current && \
+#    git log --oneline -n 5
+
+# Add local source
+ADD . peerplays
+
+# Configure Peerplays
 RUN \
-    sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
-    locale-gen
-
-# Compile Boost
-RUN \
-    BOOST_ROOT=$HOME/boost_1_67_0 && \
-    wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.gz/download' -O boost_1_67_0.tar.gz &&\
-    tar -zxvf boost_1_67_0.tar.gz && \
-    cd boost_1_67_0/ && \
-    ./bootstrap.sh "--prefix=$BOOST_ROOT" && \
-    ./b2 install && \
-    cd ..
-
-ADD . /peerplays-core
-WORKDIR /peerplays-core
-
-# Compile Peerplays
-RUN \
-    BOOST_ROOT=$HOME/boost_1_67_0 && \
-    git submodule sync --recursive && \
-    git submodule update --init --recursive && \
+    cd peerplays && \
     mkdir build && \
-    mkdir build/release && \
-    cd build/release && \
-    cmake \
-        -DBOOST_ROOT="$BOOST_ROOT" \
-        -DCMAKE_BUILD_TYPE=Debug \
-        ../.. && \
-    make witness_node cli_wallet && \
-    install -s programs/witness_node/witness_node programs/cli_wallet/cli_wallet /usr/local/bin && \
-    #
-    # Obtain version
-    mkdir /etc/peerplays && \
-    git rev-parse --short HEAD > /etc/peerplays/version && \
-    cd / && \
-    rm -rf /peerplays-core
+    cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release ..
 
-# Home directory $HOME
-WORKDIR /
-RUN useradd -s /bin/bash -m -d /var/lib/peerplays peerplays
-ENV HOME /var/lib/peerplays
-RUN chown peerplays:peerplays -R /var/lib/peerplays
+# Build Peerplays
+RUN \
+    cd peerplays/build && \
+    make -j$(nproc) cli_wallet witness_node
 
-# Volume
-VOLUME ["/var/lib/peerplays", "/etc/peerplays"]
+WORKDIR /home/peerplays/peerplays-network
 
-# rpc service:
+# Setup Peerplays runimage
+RUN \
+    ln -s /home/peerplays/peerplays/build/programs/cli_wallet/cli_wallet ./ && \
+    ln -s /home/peerplays/peerplays/build/programs/witness_node/witness_node ./
+
+RUN ./witness_node --create-genesis-json genesis.json && \
+    rm genesis.json
+
+RUN chown peerplays:root -R /home/peerplays/peerplays-network
+
+# Peerplays RPC
 EXPOSE 8090
-# p2p service:
-EXPOSE 1776
+# Peerplays P2P:
+EXPOSE 9777
 
-# default exec/config files
-ADD docker/default_config.ini /etc/peerplays/config.ini
-ADD docker/peerplaysentry.sh /usr/local/bin/peerplaysentry.sh
-RUN chmod a+x /usr/local/bin/peerplaysentry.sh
-
-# Make Docker send SIGINT instead of SIGTERM to the daemon
-STOPSIGNAL SIGINT
-
-# default execute entry
-CMD ["/usr/local/bin/peerplaysentry.sh"]
+# Peerplays
+CMD ["./witness_node", "-d", "./witness_node_data_dir"]

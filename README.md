@@ -38,13 +38,15 @@ export BOOST_ROOT=$HOME/src/boost_1_67_0
 git clone https://github.com/peerplays-network/peerplays.git
 cd peerplays
 git submodule update --init --recursive
+# If you want to build Mainnet node
 cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release
+# If you want to build Testnet node
+cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1
 make -j$(nproc)
 
 make install # this can install the executable files under /usr/local
 ```
 
-docker build -t peerplays .
 
 ## Docker image
 

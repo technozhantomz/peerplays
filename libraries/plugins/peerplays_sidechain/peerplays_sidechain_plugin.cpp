@@ -29,6 +29,7 @@ public:
          boost::program_options::options_description &cfg);
    void plugin_initialize(const boost::program_options::variables_map &opt);
    void plugin_startup();
+   void plugin_shutdown();
 
    std::set<chain::son_id_type> &get_sons();
    const son_id_type get_current_son_id();
@@ -68,7 +69,14 @@ private:
 
    bool config_ready_son;
    bool config_ready_bitcoin;
+   bool config_ready_ethereum;
+   bool config_ready_hive;
    bool config_ready_peerplays;
+
+   bool sidechain_enabled_bitcoin;
+   bool sidechain_enabled_ethereum;
+   bool sidechain_enabled_hive;
+   bool sidechain_enabled_peerplays;
 
    son_id_type current_son_id;
 
@@ -88,7 +96,13 @@ peerplays_sidechain_plugin_impl::peerplays_sidechain_plugin_impl(peerplays_sidec
       plugin(_plugin),
       config_ready_son(false),
       config_ready_bitcoin(false),
+      config_ready_ethereum(false),
+      config_ready_hive(false),
       config_ready_peerplays(false),
+      sidechain_enabled_bitcoin(false),
+      sidechain_enabled_ethereum(false),
+      sidechain_enabled_hive(false),
+      sidechain_enabled_peerplays(false),
       current_son_id(son_id_type(std::numeric_limits<uint32_t>().max())),
       net_manager(nullptr),
       first_block_skipped(false) {
@@ -125,6 +139,12 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("son-ids", bpo::value<string>(), ("IDs of multiple SONs controlled by this node (e.g. [" + son_id_example + ", " + son_id_example2 + "], quotes are required)").c_str());
    cli.add_options()("peerplays-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair(chain::public_key_type(default_priv_key.get_public_key()), graphene::utilities::key_to_wif(default_priv_key))),
                      "Tuple of [PublicKey, WIF private key] (may specify multiple times)");
+
+   cli.add_options()("sidechain-retry-threshold", bpo::value<uint16_t>()->default_value(150), "Sidechain retry throttling threshold");
+
+   cli.add_options()("debug-rpc-calls", bpo::value<bool>()->default_value(false), "Outputs RPC calls to console");
+
+   cli.add_options()("bitcoin-sidechain-enabled", bpo::value<bool>()->default_value(false), "Bitcoin sidechain handler enabled");
    cli.add_options()("bitcoin-node-ip", bpo::value<string>()->default_value("127.0.0.1"), "IP address of Bitcoin node");
    cli.add_options()("bitcoin-node-zmq-port", bpo::value<uint32_t>()->default_value(11111), "ZMQ port of Bitcoin node");
    cli.add_options()("bitcoin-node-rpc-port", bpo::value<uint32_t>()->default_value(8332), "RPC port of Bitcoin node");
@@ -134,7 +154,14 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("bitcoin-wallet-password", bpo::value<string>(), "Bitcoin wallet password");
    cli.add_options()("bitcoin-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("02d0f137e717fb3aab7aff99904001d49a0a636c5e1342f8927a4ba2eaee8e9772", "cVN31uC9sTEr392DLVUEjrtMgLA8Yb3fpYmTRj7bomTm6nn2ANPr")),
                      "Tuple of [Bitcoin public key, Bitcoin private key] (may specify multiple times)");
-   cli.add_options()("sidechain-retry-threshold", bpo::value<uint16_t>()->default_value(150), "Sidechain retry throttling threshold");
+
+   cli.add_options()("hive-sidechain-enabled", bpo::value<bool>()->default_value(false), "Hive sidechain handler enabled");
+   cli.add_options()("hive-node-rpc-url", bpo::value<string>()->default_value("127.0.0.1:28090"), "Hive node RPC URL [http[s]://]host[:port]");
+   cli.add_options()("hive-node-rpc-user", bpo::value<string>(), "Hive node RPC user");
+   cli.add_options()("hive-node-rpc-password", bpo::value<string>(), "Hive node RPC password");
+   cli.add_options()("hive-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("TST6LLegbAgLAy28EHrffBVuANFWcFgmqRMW13wBmTExqFE9SCkg4", "5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n")),
+                     "Tuple of [Hive public key, Hive private key] (may specify multiple times)");
+
    cfg.add(cli);
 }
 
@@ -143,8 +170,10 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
    config_ready_son = (options.count("son-id") || options.count("son-ids")) && options.count("peerplays-private-key");
    if (config_ready_son) {
       LOAD_VALUE_SET(options, "son-id", sons, chain::son_id_type)
-      if (options.count("son-ids"))
-         boost::insert(sons, fc::json::from_string(options.at("son-ids").as<string>()).as<vector<chain::son_id_type>>(5));
+      if (options.count("son-ids")) {
+         vector<chain::son_id_type> v = fc::json::from_string(options.at("son-ids").as<string>()).as<vector<chain::son_id_type>>(5);
+         sons.insert(v.begin(), v.end());
+      }
       config_ready_son = config_ready_son && !sons.empty();
 
 #ifndef ENABLE_MULTIPLE_SONS
@@ -172,7 +201,9 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
          }
          config_ready_son = config_ready_son && !private_keys.empty();
       }
-      retries_threshold = options.at("sidechain-retry-threshold").as<uint16_t>();
+      if (options.count("sidechain-retry-threshold")) {
+         retries_threshold = options.at("sidechain-retry-threshold").as<uint16_t>();
+      }
       ilog("sidechain-retry-threshold: ${sidechain-retry-threshold}", ("sidechain-retry-threshold", retries_threshold));
    }
    if (!config_ready_son) {
@@ -180,27 +211,46 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
       throw;
    }
 
+   sidechain_enabled_bitcoin = options.at("bitcoin-sidechain-enabled").as<bool>();
    config_ready_bitcoin = options.count("bitcoin-node-ip") &&
                           options.count("bitcoin-node-zmq-port") && options.count("bitcoin-node-rpc-port") &&
                           options.count("bitcoin-node-rpc-user") && options.count("bitcoin-node-rpc-password") &&
-                          /*options.count( "bitcoin-wallet" ) && options.count( "bitcoin-wallet-password" ) &&*/
+                          /*options.count("bitcoin-wallet") && options.count("bitcoin-wallet-password") &&*/
                           options.count("bitcoin-private-key");
    if (!config_ready_bitcoin) {
       wlog("Haven't set up Bitcoin sidechain parameters");
    }
 
-   //config_ready_ethereum = options.count( "ethereum-node-ip" ) &&
-   //        options.count( "ethereum-address" ) && options.count( "ethereum-public-key" ) && options.count( "ethereum-private-key" );
+   //sidechain_enabled_ethereum = options.at("ethereum-sidechain-enabled").as<bool>();
+   //config_ready_ethereum = options.count("ethereum-node-ip") &&
+   //                        options.count("ethereum-address") &&
+   //                        options.count("ethereum-public-key") && options.count("ethereum-private-key");
    //if (!config_ready_ethereum) {
    //   wlog("Haven't set up Ethereum sidechain parameters");
    //}
 
+   sidechain_enabled_hive = options.at("hive-sidechain-enabled").as<bool>();
+   config_ready_hive = options.count("hive-node-rpc-url") &&
+                       /*options.count("hive-node-rpc-user") && options.count("hive-node-rpc-password") &&*/
+                       options.count("hive-private-key");
+   if (!config_ready_hive) {
+      wlog("Haven't set up Hive sidechain parameters");
+   }
+
+#ifdef ENABLE_PEERPLAYS_ASSET_DEPOSITS
+   sidechain_enabled_peerplays = true; //options.at("peerplays-sidechain-enabled").as<bool>();
+#else
+   sidechain_enabled_peerplays = false;
+#endif
    config_ready_peerplays = true;
    if (!config_ready_peerplays) {
       wlog("Haven't set up Peerplays sidechain parameters");
    }
 
-   if (!(config_ready_bitcoin /*&& config_ready_ethereum*/ && config_ready_peerplays)) {
+   if (!(config_ready_bitcoin &&
+         /*config_ready_ethereum &&*/
+         config_ready_hive &&
+         config_ready_peerplays)) {
       wlog("Haven't set up any sidechain parameters");
       throw;
    }
@@ -218,17 +268,22 @@ void peerplays_sidechain_plugin_impl::plugin_startup() {
 
    net_manager = std::unique_ptr<sidechain_net_manager>(new sidechain_net_manager(plugin));
 
-   if (config_ready_bitcoin) {
+   if (sidechain_enabled_bitcoin && config_ready_bitcoin) {
       net_manager->create_handler(sidechain_type::bitcoin, options);
       ilog("Bitcoin sidechain handler running");
    }
 
-   //if (config_ready_ethereum) {
+   //if (sidechain_enabled_ethereum && config_ready_ethereum) {
    //   net_manager->create_handler(sidechain_type::ethereum, options);
    //   ilog("Ethereum sidechain handler running");
    //}
 
-   if (config_ready_peerplays) {
+   if (sidechain_enabled_hive && config_ready_hive) {
+      net_manager->create_handler(sidechain_type::hive, options);
+      ilog("Hive sidechain handler running");
+   }
+
+   if (sidechain_enabled_peerplays && config_ready_peerplays) {
       net_manager->create_handler(sidechain_type::peerplays, options);
       ilog("Peerplays sidechain handler running");
    }
@@ -236,6 +291,9 @@ void peerplays_sidechain_plugin_impl::plugin_startup() {
    plugin.database().applied_block.connect([&](const signed_block &b) {
       on_applied_block(b);
    });
+}
+
+void peerplays_sidechain_plugin_impl::plugin_shutdown() {
 }
 
 std::set<chain::son_id_type> &peerplays_sidechain_plugin_impl::get_sons() {
@@ -388,9 +446,15 @@ void peerplays_sidechain_plugin_impl::son_processing() {
       return;
    }
 
+   //fc::time_point now_fine = fc::time_point::now();
+   //fc::time_point_sec now = now_fine + fc::microseconds(500000);
+   //if (plugin.database().get_slot_time(1) < now) {
+   //   return; // Not synced
+   //}
+
    fc::time_point now_fine = fc::time_point::now();
-   fc::time_point_sec now = now_fine + fc::microseconds(500000);
-   if (plugin.database().get_slot_time(1) < now) {
+   fc::time_point_sec now = now_fine - fc::milliseconds(3000);
+   if (plugin.database().head_block_time() < now) {
       return; // Not synced
    }
 
@@ -682,6 +746,12 @@ void peerplays_sidechain_plugin::plugin_startup() {
    ilog("peerplays sidechain plugin:  plugin_startup() begin");
    my->plugin_startup();
    ilog("peerplays sidechain plugin:  plugin_startup() end");
+}
+
+void peerplays_sidechain_plugin::plugin_shutdown() {
+   ilog("peerplays sidechain plugin:  plugin_shutdown() begin");
+   my->plugin_shutdown();
+   ilog("peerplays sidechain plugin:  plugin_shutdown() end");
 }
 
 std::set<chain::son_id_type> &peerplays_sidechain_plugin::get_sons() {

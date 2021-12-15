@@ -1,0 +1,7 @@
+#ifndef HARDFORK_SON_FOR_HIVE_TIME
+#ifdef BUILD_PEERPLAYS_TESTNET
+#define HARDFORK_SON_FOR_HIVE_TIME (fc::time_point_sec::from_iso_string("2021-03-31T00:00:00"))
+#else
+#define HARDFORK_SON_FOR_HIVE_TIME (fc::time_point_sec::from_iso_string("2021-12-21T00:00:00"))
+#endif
+#endif

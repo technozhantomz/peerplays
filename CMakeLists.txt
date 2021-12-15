@@ -1,11 +1,11 @@
-# Defines BitShares library target.
-project( BitShares )
+# Defines Peerplays library target.
+project( Peerplays )
 cmake_minimum_required( VERSION 2.8.12 )
 
-set( BLOCKCHAIN_NAME "BitShares" )
+set( BLOCKCHAIN_NAME "Peerplays" )
 
 set( CLI_CLIENT_EXECUTABLE_NAME graphene_client )
-set( GUI_CLIENT_EXECUTABLE_NAME BitShares )
+set( GUI_CLIENT_EXECUTABLE_NAME Peerplays )
 set( CUSTOM_URL_SCHEME "gcs" )
 set( INSTALLER_APP_ID "68ad7005-8eee-49c9-95ce-9eed97e5b347" )
 
@@ -22,8 +22,45 @@ endif()
 
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules" )
 
+# function to help with cUrl
+macro(FIND_CURL)
+   if (NOT WIN32 AND NOT APPLE AND CURL_STATICLIB)
+      find_package(OpenSSL REQUIRED)
+      set (OLD_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+      set (CMAKE_FIND_LIBRARY_SUFFIXES .a)
+      find_package(CURL REQUIRED)
+      list(APPEND CURL_LIBRARIES ${OPENSSL_LIBRARIES} ${BOOST_THREAD_LIBRARY} ${CMAKE_DL_LIBS})
+      set (CMAKE_FIND_LIBRARY_SUFFIXES ${OLD_SUFFIXES})
+   else (NOT WIN32 AND NOT APPLE AND CURL_STATICLIB)
+      find_package(CURL REQUIRED)
+   endif (NOT WIN32 AND NOT APPLE AND CURL_STATICLIB)
+
+   if( WIN32 )
+     if ( MSVC )
+       list( APPEND CURL_LIBRARIES Wldap32 )
+     endif( MSVC )
+
+     if( MINGW )
+       # MinGW requires a specific order of included libraries ( CURL before ZLib )
+       find_package( ZLIB REQUIRED )
+       list( APPEND CURL_LIBRARIES ${ZLIB_LIBRARY} pthread )
+     endif( MINGW )
+
+     list( APPEND CURL_LIBRARIES ${PLATFORM_SPECIFIC_LIBS} )
+   endif( WIN32 )
+endmacro()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
-set(GRAPHENE_EGENESIS_JSON "${CMAKE_CURRENT_SOURCE_DIR}/genesis.json" CACHE PATH "location of the genesis.json to embed in the executable" )
+
+if (BUILD_PEERPLAYS_TESTNET)
+   set(GRAPHENE_EGENESIS_JSON "${CMAKE_CURRENT_SOURCE_DIR}/genesis-testnet.json" CACHE PATH "location of the genesis.json to embed in the executable" )
+   #add_compile_definitions(BUILD_PEERPLAYS_TESTNET=1)
+   add_definitions(-DBUILD_PEERPLAYS_TESTNET=1)
+   message ("\n====================\nBuilding for Testnet\n====================\n")
+else (BUILD_PEERPLAYS_TESTNET)
+   set(GRAPHENE_EGENESIS_JSON "${CMAKE_CURRENT_SOURCE_DIR}/genesis-mainnet.json" CACHE PATH "location of the genesis.json to embed in the executable" )
+   message ("\n====================\nBuilding for Mainnet\n====================\n")
+endif (BUILD_PEERPLAYS_TESTNET)
 
 #set (ENABLE_INSTALLER 1)
 #set (USE_PCH 1)
@@ -71,7 +108,7 @@ ENDIF()
 
 if( WIN32 )
 
-    message( STATUS "Configuring BitShares on WIN32")
+    message( STATUS "Configuring Peerplays on WIN32")
     set( DB_VERSION 60 )
     set( BDB_STATIC_LIBS 1 )
 
@@ -103,20 +140,13 @@ if( WIN32 )
     SET(TCL_LIBRARY ${TCL_LIBS})
 
 else( WIN32 ) # Apple AND Linux
-
-    find_library(READLINE_LIBRARIES NAMES readline)
-    find_path(READLINE_INCLUDE_DIR readline/readline.h)
-    #if(NOT READLINE_INCLUDE_DIR OR NOT READLINE_LIBRARIES)
-    #  MESSAGE(FATAL_ERROR "Could not find lib readline.")
-    #endif()
-
     if( APPLE )
         # Apple Specific Options Here
-        message( STATUS "Configuring BitShares on OS X" )
+        message( STATUS "Configuring Peerplays on OS X" )
         set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -stdlib=libc++ -Wall" )
     else( APPLE )
         # Linux Specific Options Here
-        message( STATUS "Configuring BitShares on Linux" )
+        message( STATUS "Configuring Peerplays on Linux" )
         set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -Wall" )
         set( rt_library rt )
         #set( pthread_library pthread)
@@ -135,7 +165,7 @@ else( WIN32 ) # Apple AND Linux
     endif( APPLE )
 
     if( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" )
-        set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin-memcmp -Wno-parentheses -Wno-terminate -Wno-invalid-offsetof -Wno-sign-compare" )
+        set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall" )
     elseif( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
         if( CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 4.0.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.0.0 )
             set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-partial-specialization" )
@@ -154,7 +184,7 @@ else( WIN32 ) # Apple AND Linux
 
 endif( WIN32 )
 
-set(ENABLE_COVERAGE_TESTING FALSE CACHE BOOL "Build BitShares for code coverage analysis")
+set(ENABLE_COVERAGE_TESTING FALSE CACHE BOOL "Build Peerplays for code coverage analysis")
 
 if(ENABLE_COVERAGE_TESTING)
     SET(CMAKE_CXX_FLAGS "--coverage ${CMAKE_CXX_FLAGS}")
@@ -163,13 +193,13 @@ endif()
 add_subdirectory( libraries )
 
 
-set(BUILD_BITSHARES_PROGRAMS TRUE CACHE BOOL "Build bitshares executables (witness node, cli wallet, etc)")
+set(BUILD_PEERPLAYS_PROGRAMS TRUE CACHE BOOL "Build peerplays executables (witness node, cli wallet, etc)")
 add_subdirectory( programs )
 
-set(BUILD_BITSHARES_TESTS TRUE CACHE BOOL "Build bitshares unit tests")
-if( BUILD_BITSHARES_TESTS )
+set(BUILD_PEERPLAYS_TESTS TRUE CACHE BOOL "Build peerplays unit tests")
+if( BUILD_PEERPLAYS_TESTS )
   add_subdirectory( tests )
-endif( BUILD_BITSHARES_TESTS )
+endif( BUILD_PEERPLAYS_TESTS )
 
 
 if (ENABLE_INSTALLER)
@@ -191,18 +221,18 @@ set(CPACK_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}")
 set(CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
 set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
-set(CPACK_PACKAGE_DESCRIPTION "A client for the BitShares network")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A client for the BitShares network")
+set(CPACK_PACKAGE_DESCRIPTION "A client for the Peerplays network")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A client for the Peerplays network")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.md")
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "BitShares ${CPACK_PACKAGE_VERSION}")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "Peerplays ${CPACK_PACKAGE_VERSION}")
 
 if(WIN32)
  SET(CPACK_GENERATOR "ZIP;NSIS")
- set(CPACK_PACKAGE_NAME "BitShares") # override above
+ set(CPACK_PACKAGE_NAME "Peerplays") # override above
  set(CPACK_NSIS_EXECUTABLES_DIRECTORY .)
- set(CPACK_NSIS_PACKAGE_NAME "BitShares v${CPACK_PACKAGE_VERSION}")
+ set(CPACK_NSIS_PACKAGE_NAME "Peerplays v${CPACK_PACKAGE_VERSION}")
  set(CPACK_NSIS_DISPLAY_NAME "${CPACK_NSIS_PACKAGE_NAME}")
- set(CPACK_NSIS_DEFINES "  !define MUI_STARTMENUPAGE_DEFAULTFOLDER \\\"BitShares\\\"")
+ set(CPACK_NSIS_DEFINES "  !define MUI_STARTMENUPAGE_DEFAULTFOLDER \\\"Peerplays\\\"")
  # it seems like windows zip files usually don't have a single directory inside them, unix tgz frequently do
  SET(CPACK_INCLUDE_TOPLEVEL_DIRECTORY 0)
 
@@ -220,3 +250,8 @@ endif(LINUX)
 
  include(CPack)
 endif(ENABLE_INSTALLER)
+
+unset(GRAPHENE_EGENESIS_JSON)
+unset(GRAPHENE_EGENESIS_JSON CACHE)
+unset(BUILD_PEERPLAYS_TESTNET)
+unset(BUILD_PEERPLAYS_TESTNET CACHE)
