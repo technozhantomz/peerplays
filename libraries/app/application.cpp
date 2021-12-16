@@ -859,11 +859,11 @@ application::~application() {
 
 void application::set_program_options(boost::program_options::options_description &cli,
                                       boost::program_options::options_description &cfg) const {
-   cfg.add_options()("p2p-endpoint", bpo::value<string>(), "Endpoint for P2P node to listen on");
+   cfg.add_options()("p2p-endpoint", bpo::value<string>()->default_value("0.0.0.0:9777"), "Endpoint for P2P node to listen on");
    cfg.add_options()("seed-node,s", bpo::value<vector<string>>()->composing(), "P2P nodes to connect to on startup (may specify multiple times)");
    cfg.add_options()("seed-nodes", bpo::value<string>()->composing(), "JSON array of P2P nodes to connect to on startup");
    cfg.add_options()("checkpoint,c", bpo::value<vector<string>>()->composing(), "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.");
-   cfg.add_options()("rpc-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8090"), "Endpoint for websocket RPC to listen on");
+   cfg.add_options()("rpc-endpoint", bpo::value<string>()->default_value("127.0.0.1:8090"), "Endpoint for websocket RPC to listen on");
    cfg.add_options()("rpc-tls-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8089"), "Endpoint for TLS websocket RPC to listen on");
    cfg.add_options()("server-pem,p", bpo::value<string>()->implicit_value("server.pem"), "The TLS certificate file for this server");
    cfg.add_options()("server-pem-password,P", bpo::value<string>()->implicit_value(""), "Password for this certificate");

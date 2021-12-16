@@ -2122,7 +2122,6 @@ public:
       son_update_operation son_update_op;
       son_update_op.son_id = son.id;
       son_update_op.owner_account = son.son_account;
-      son_update_op.new_status = son_status::inactive;
       signed_transaction tx;
       tx.operations.push_back( son_update_op );
       set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
