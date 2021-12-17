@@ -123,7 +123,7 @@ void database::reindex( fc::path data_dir )
    }
    for( uint32_t i = head_block_num() + 1; i <= last_block_num; ++i )
    {
-      if( i % 10000 == 0 )
+      if( i % 1000000 == 0 )
       {
          ilog( "Writing database to disk at block ${i}", ("i",i) );
          flush();
