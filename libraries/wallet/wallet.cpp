@@ -2202,11 +2202,8 @@ public:
       vector<std::string> owners;
       for(auto obj: son_objects)
       {
-         if (obj)
-         {
-            std::string acc_id = account_id_to_string(obj->son_account);
-            owners.push_back(acc_id);
-         }
+         std::string acc_id = account_id_to_string(obj->son_account);
+         owners.push_back(acc_id);
       }
       vector< optional< account_object> > accs = _remote_db->get_accounts(owners);
       std::remove_if(son_objects.begin(), son_objects.end(),
@@ -2216,9 +2213,7 @@ public:
                      std::inserter(result, result.end()),
                      [](fc::optional<account_object>& acct, fc::optional<son_object> son) {
                         FC_ASSERT(acct, "Invalid active SONs list in global properties.");
-                        if (son.valid() && son->status != son_status::deregistered)
-                           return std::make_pair<string, son_id_type>(string(acct->name), std::move(son->id));
-                        return std::make_pair<string, son_id_type>(string(acct->name), std::move(son_id_type()));
+                        return std::make_pair<string, son_id_type>(string(acct->name), std::move(son->id));
                      });
       return result;
    } FC_CAPTURE_AND_RETHROW() }
