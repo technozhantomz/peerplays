@@ -24,7 +24,6 @@
 #include <graphene/utilities/elasticsearch.hpp>
 
 #include <boost/algorithm/string/join.hpp>
-#include <boost/algorithm/string.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/io/json.hpp>
 
@@ -47,8 +46,36 @@ bool checkES(ES& es)
    if(doCurl(curl_request).empty())
       return false;
    return true;
-
 }
+
+const std::string getESVersion(ES& es)
+{
+   graphene::utilities::CurlRequest curl_request;
+   curl_request.handler = es.curl;
+   curl_request.url = es.elasticsearch_url;
+   curl_request.auth = es.auth;
+   curl_request.type = "GET";
+
+   fc::variant response = fc::json::from_string(doCurl(curl_request));
+
+   return response["version"]["number"].as_string();
+}
+
+void checkESVersion7OrAbove(ES& es, bool& result) noexcept
+{
+   static const int64_t version_7 = 7;
+   try {
+      const auto es_version = graphene::utilities::getESVersion(es);
+      auto dot_pos = es_version.find('.');
+      result = ( std::stoi(es_version.substr(0,dot_pos)) >= version_7 );
+   }
+   catch( ... )
+   {
+      wlog( "Unable to get ES version, assuming it is 7 or above" );
+      result = true;
+   }
+}
+
 const std::string simpleQuery(ES& es)
 {
    graphene::utilities::CurlRequest curl_request;
@@ -118,13 +145,13 @@ bool handleBulkResponse(long http_code, const std::string& CurlReadBuffer)
    return true;
 }
 
-const std::vector<std::string> createBulk(const fc::mutable_variant_object& bulk_header, const std::string& data)
+const std::vector<std::string> createBulk(const fc::mutable_variant_object& bulk_header, const std::string&& data)
 {
    std::vector<std::string> bulk;
    fc::mutable_variant_object final_bulk_header;
    final_bulk_header["index"] = bulk_header;
    bulk.push_back(fc::json::to_string(final_bulk_header));
-   bulk.push_back(data);
+   bulk.emplace_back(std::move(data));
 
    return bulk;
 }
@@ -152,15 +179,6 @@ const std::string getEndPoint(ES& es)
    curl_request.type = "GET";
 
    return doCurl(curl_request);
-}
-
-const std::string generateIndexName(const fc::time_point_sec& block_date, const std::string& _elasticsearch_index_prefix)
-{
-   auto block_date_string = block_date.to_iso_string();
-   std::vector<std::string> parts;
-   boost::split(parts, block_date_string, boost::is_any_of("-"));
-   std::string index_name = _elasticsearch_index_prefix + parts[0] + "-" + parts[1];
-   return index_name;
 }
 
 const std::string doCurl(CurlRequest& curl)
