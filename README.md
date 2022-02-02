@@ -2,95 +2,73 @@ Intro for new developers and witnesses
 ------------------------
 
 This is a quick introduction to get new developers and witnesses up to speed on Peerplays blockchain. It is intended for witnesses plannig to join a live, already deployed blockchain.
-# Building on Ubuntu 18.04 LTS and Installation Instructions
 
- The following dependencies were necessary for a clean install of Ubuntu 18.04 LTS:
 
- ```
- sudo apt-get install autoconf bash build-essential ca-certificates cmake \
-      doxygen git graphviz libbz2-dev libcurl4-openssl-dev libncurses-dev \
-      libreadline-dev libssl-dev libtool libzmq3-dev locales ntp pkg-config \
-      wget
+# Building and Installation Instructions
+
+Officially supported OS is Ubuntu 20.04.
+
+Following dependencies are needed for a clean install of Ubuntu 20.04:
 ```
-## Build Boost 1.67.0
-
-
-```
-mkdir $HOME/src
-cd $HOME/src
-export BOOST_ROOT=$HOME/src/boost_1_67_0
-sudo apt-get update
-sudo apt-get install -y autotools-dev build-essential  libbz2-dev libicu-dev python-dev
-wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.bz2/download'\
-     -O boost_1_67_0.tar.bz2
-tar xjf boost_1_67_0.tar.bz2
-cd boost_1_67_0/
-./bootstrap.sh "--prefix=$BOOST_ROOT"
-./b2 install
+sudo apt-get install \
+    apt-utils autoconf bash build-essential ca-certificates cmake dnsutils \
+    doxygen expect git graphviz libboost1.67-all-dev libbz2-dev libcurl4-openssl-dev \
+    libncurses-dev libreadline-dev libsnappy-dev libssl-dev libtool libzip-dev \
+    libzmq3-dev locales mc nano net-tools ntp openssh-server pkg-config perl \
+    python3 python3-jinja2 sudo wget
 ```
 
 
 ## Building Peerplays
 
 ```
+mkdir $HOME/src
 cd $HOME/src
-export BOOST_ROOT=$HOME/src/boost_1_67_0
 git clone https://github.com/peerplays-network/peerplays.git
 cd peerplays
 git submodule update --init --recursive
 # If you want to build Mainnet node
-cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release
+cmake -DCMAKE_BUILD_TYPE=Release
 # If you want to build Testnet node
-cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1
+cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1
 make -j$(nproc)
 
 make install # this can install the executable files under /usr/local
 ```
 
 
-## Docker image
+## Docker images
 
+Install docker, and add current user to docker group.
 ```
-# Install docker
 sudo apt install docker.io
-
-
-# Add current user to docker group
 sudo usermod -a -G docker $USER
+
 # You need to restart your shell session, to apply group membership
 # Type 'groups' to verify that you are a member of a docker group
-
-
-# Build docker image (from the project root, must be a docker group member)
-docker build -t peerplays .
-
-
-# Start docker image
-docker start peerplays
-
-# Exposed ports
-# # rpc service:
-# EXPOSE 8090
-# # p2p service:
-# EXPOSE 1776
 ```
 
- Rest of the instructions on starting the chain remains same.
+### Official docker image for Peerplas Mainnet
+
+```
+docker pull datasecuritynode/peerplays:latest
+```
+
+### Building docker image manually
+```
+# Build docker image (from the project root, must be a docker group member)
+docker build -t peerplays .
+```
+
+### Start docker image
+```
+docker start peerplays
+```
+
+Rest of the instructions on starting the chain remains same.
 
 Starting A Peerplays Node
 -----------------
-
-For Ubuntu 14.04 LTS and up users, see
-[this](https://github.com/cryptonomex/graphene/wiki/build-ubuntu) and
-then proceed with:
-
-    git clone https://github.com/peerplays-network/peerplays.git
-    cd peerplays
-    git submodule update --init --recursive
-    cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release .
-    make
-    ./programs/witness_node/witness_node
-
 Launching the witness creates required directories. Next, **stop the witness** and continue.
 
     $ vi witness_node_data_dir/config.ini
