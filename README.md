@@ -24,7 +24,7 @@ sudo apt-get install \
 ```
 mkdir $HOME/src
 cd $HOME/src
-git clone https://github.com/peerplays-network/peerplays.git
+git clone https://gitlab.com/PBSA/peerplays.git
 cd peerplays
 git submodule update --init --recursive
 # If you want to build Mainnet node
