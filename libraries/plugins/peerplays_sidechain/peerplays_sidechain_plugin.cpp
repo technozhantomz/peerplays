@@ -176,12 +176,6 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
       }
       config_ready_son = config_ready_son && !sons.empty();
 
-#ifndef ENABLE_MULTIPLE_SONS
-      if (sons.size() > 1) {
-         FC_THROW("Invalid configuration, multiple SON IDs provided");
-      }
-#endif
-
       if (options.count("peerplays-private-key")) {
          const std::vector<std::string> key_id_to_wif_pair_strings = options["peerplays-private-key"].as<std::vector<std::string>>();
          for (const std::string &key_id_to_wif_pair_string : key_id_to_wif_pair_strings) {
