@@ -627,7 +627,7 @@ bool sidechain_net_handler_hive::process_deposit(const son_wallet_deposit_object
    proposal_op.proposed_ops.emplace_back(swdp_op);
 
    asset_issue_operation ai_op;
-   ai_op.fee = asset(2001000);
+   ai_op.fee = database.current_fee_schedule().calculate_fee(ai_op);
    ai_op.issuer = gpo.parameters.son_account();
    ai_op.asset_to_issue = asset_to_issue;
    ai_op.issue_to_account = swdo.peerplays_from;
