@@ -2487,8 +2487,40 @@ class wallet_api
                                          bool broadcast = false,
                                          bool to_temp = false );
 
-
       std::map<string,std::function<string(fc::variant,const fc::variants&)>> get_result_formatters() const;
+
+      /**
+       * @brief Get a list of vote_id_type that ID votes for
+       * @param account_name_or_id ID or name of the account to get votes for
+       * @return The list of vote_id_type ID votes for
+       *
+       */
+      vector<vote_id_type> get_votes_ids(const string &account_name_or_id) const;
+
+      /**
+       * @brief Return the objects account_name_or_id votes for
+       * @param account_name_or_id ID or name of the account to get votes for
+       * @return The votes_info account_name_or_id votes for
+       *
+       */
+      votes_info get_votes(const string &account_name_or_id) const;
+
+      /**
+       * @brief Get a list of accounts that votes for vote_id
+       * @param vote_id We search accounts that vote for this ID
+       * @return The accounts that votes for provided ID
+       *
+       */
+      vector<account_object> get_voters_by_id(const vote_id_type &vote_id) const;
+
+      /**
+       * @brief Return the accounts that votes for account_name_or_id
+       * @param account_name_or_id ID or name of the account to get voters for
+       * @return The voters_info for account_name_or_id
+       *
+       */
+      voters_info get_voters(const string &account_name_or_id) const;
+
 
       fc::signal<void(bool)> lock_changed;
       std::shared_ptr<detail::wallet_api_impl> my;
@@ -2795,4 +2827,8 @@ FC_API( graphene::wallet::wallet_api,
         (get_custom_account_authorities_by_permission_id)
         (get_custom_account_authorities_by_permission_name)
         (get_active_custom_account_authorities_by_operation)
+        (get_votes_ids)
+        (get_votes)
+        (get_voters_by_id)
+        (get_voters)
       )

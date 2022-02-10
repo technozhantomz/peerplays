@@ -56,6 +56,8 @@
 #include <graphene/chain/custom_permission_object.hpp>
 #include <graphene/chain/nft_object.hpp>
 #include <graphene/chain/offer_object.hpp>
+#include <graphene/chain/votes_info.hpp>
+#include <graphene/chain/voters_info.hpp>
 
 #include <graphene/market_history/market_history_plugin.hpp>
 
@@ -619,7 +621,14 @@ public:
     * @param account The ID of the account whose SON should be retrieved
     * @return The SON object, or null if the account does not have a SON
     */
-   fc::optional<son_object> get_son_by_account(account_id_type account) const;
+   fc::optional<son_object> get_son_by_account_id(account_id_type account) const;
+
+   /**
+    * @brief Get the SON owned by a given account
+    * @param account The ID of the account whose SON should be retrieved
+    * @return The SON object, or null if the account does not have a SON
+    */
+   fc::optional<son_object> get_son_by_account(const std::string account_id_or_name) const;
 
    /**
     * @brief Get names and IDs for registered SONs
@@ -698,7 +707,18 @@ public:
     */
    uint64_t get_sidechain_addresses_count() const;
 
-   /// WORKERS
+   /////////////
+   // Workers //
+   /////////////
+
+   /**
+    * @brief Get a list of workers by ID
+    * @param worker_ids IDs of the workers to retrieve
+    * @return The workers corresponding to the provided IDs
+    *
+    * This function has semantics identical to @ref get_objects
+    */
+   vector<optional<worker_object>> get_workers(const vector<worker_id_type> &worker_ids) const;
 
    /**
     * @brief Return the worker objects associated with this account.
@@ -720,6 +740,39 @@ public:
     *  any vote ids that are not found.
     */
    vector<variant> lookup_vote_ids(const vector<vote_id_type> &votes) const;
+
+   /**
+    * @brief Get a list of vote_id_type that ID votes for
+    * @param account_name_or_id ID or name of the account to get votes for
+    * @return The list of vote_id_type ID votes for
+    *
+    */
+   vector<vote_id_type> get_votes_ids(const string &account_name_or_id) const;
+
+   /**
+    * @brief Return the objects account_name_or_id votes for
+    * @param account_name_or_id ID or name of the account to get votes for
+    * @return The votes_info account_name_or_id votes for
+    *
+    */
+   votes_info get_votes(const string &account_name_or_id) const;
+
+   /**
+    *
+    * @brief Get a list of accounts that votes for vote_id
+    * @param vote_id We search accounts that vote for this ID
+    * @return The accounts that votes for provided ID
+    *
+    */
+   vector<account_object> get_voters_by_id(const vote_id_type &vote_id) const;
+
+   /**
+    * @brief Return the accounts that votes for account_name_or_id
+    * @param account_name_or_id ID or name of the account to get voters for
+    * @return The voters_info for account_name_or_id
+    *
+    */
+   voters_info get_voters(const string &account_name_or_id) const;
 
    ////////////////////////////
    // Authority / validation //
@@ -1044,6 +1097,7 @@ FC_API(graphene::app::database_api,
 
    // SON members
    (get_sons)
+   (get_son_by_account_id)
    (get_son_by_account)
    (lookup_son_accounts)
    (get_son_count)
@@ -1060,10 +1114,16 @@ FC_API(graphene::app::database_api,
    (get_sidechain_address_by_account_and_sidechain)
    (get_sidechain_addresses_count)
 
-   // workers
+   // Workers
+   (get_workers)
    (get_workers_by_account)
+
    // Votes
    (lookup_vote_ids)
+   (get_votes_ids)
+   (get_votes)
+   (get_voters_by_id)
+   (get_voters)
 
    // Authority / validation
    (get_transaction_hex)

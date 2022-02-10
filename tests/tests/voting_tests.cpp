@@ -322,6 +322,18 @@ BOOST_AUTO_TEST_CASE(track_votes_witnesses_enabled)
       auto witness1_object = db_api1.get_witness_by_account(witness1_id(db).name);
       BOOST_CHECK_EQUAL(witness1_object->total_votes, 111);
 
+      //! Check witness1 voters
+      const auto voters_for_witness1 = db_api1.get_voters("witness1");
+      BOOST_REQUIRE(voters_for_witness1.voters_for_witness);
+      BOOST_CHECK_EQUAL(voters_for_witness1.voters_for_witness->voters.size(), 1);
+      BOOST_CHECK_EQUAL((uint32_t)voters_for_witness1.voters_for_witness->voters[0].instance, 18);
+
+      //! Check votes of account
+      const auto account_votes = db_api1.get_votes("1.2.18");
+      BOOST_REQUIRE(account_votes.votes_for_witnesses);
+      BOOST_CHECK_EQUAL(account_votes.votes_for_witnesses->size(), 1);
+      BOOST_CHECK_EQUAL((uint32_t)account_votes.votes_for_witnesses->at(0).id.instance, witness1_object->id.instance());
+
    } FC_LOG_AND_RETHROW()
 }
 
@@ -500,6 +512,17 @@ BOOST_AUTO_TEST_CASE(track_votes_committee_enabled)
       const account_id_type committee1_id= get_account("committee1").id;
       auto committee1_object = db_api1.get_committee_member_by_account(committee1_id(db).name);
       BOOST_CHECK_EQUAL(committee1_object->total_votes, 111);
+
+      //! Check committee1 voters
+      const auto voters_for_committee1 = db_api1.get_voters("committee1");
+      BOOST_REQUIRE(voters_for_committee1.voters_for_committee_member);
+      BOOST_CHECK_EQUAL(voters_for_committee1.voters_for_committee_member->voters.size(), 1);
+      BOOST_CHECK_EQUAL((uint32_t)voters_for_committee1.voters_for_committee_member->voters[0].instance, 18);
+
+      //! Check votes of account
+      const auto account_votes = db_api1.get_votes("1.2.18");
+      BOOST_REQUIRE(account_votes.votes_for_committee_members);
+      BOOST_CHECK_EQUAL((uint32_t)account_votes.votes_for_committee_members->back().id.instance, committee1_object->id.instance());
 
    } FC_LOG_AND_RETHROW()
 }
