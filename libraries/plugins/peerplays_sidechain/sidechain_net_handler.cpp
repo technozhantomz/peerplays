@@ -589,7 +589,7 @@ void sidechain_net_handler::settle_sidechain_transactions() {
       if (settle_amount.amount != 0) {
          if (sto.object_id.is<son_wallet_deposit_id_type>()) {
             asset_issue_operation ai_op;
-            ai_op.fee = asset(2001000);
+            ai_op.fee = database.current_fee_schedule().calculate_fee(ai_op);
             ai_op.issuer = gpo.parameters.son_account();
             ai_op.asset_to_issue = settle_amount;
             ai_op.issue_to_account = database.get<son_wallet_deposit_object>(sto.object_id).peerplays_from;
@@ -598,7 +598,7 @@ void sidechain_net_handler::settle_sidechain_transactions() {
 
          if (sto.object_id.is<son_wallet_withdraw_id_type>()) {
             asset_reserve_operation ar_op;
-            ar_op.fee = asset(2001000);
+            ar_op.fee = database.current_fee_schedule().calculate_fee(ar_op);
             ar_op.payer = gpo.parameters.son_account();
             ar_op.amount_to_reserve = settle_amount;
             proposal_op.proposed_ops.emplace_back(ar_op);
