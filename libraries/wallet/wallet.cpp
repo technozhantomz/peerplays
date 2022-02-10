@@ -1946,7 +1946,7 @@ public:
             try
             {
                account_id_type owner_account_id = get_account_id(owner_account);
-               fc::optional<son_object> son = _remote_db->get_son_by_account(owner_account_id);
+               fc::optional<son_object> son = _remote_db->get_son_by_account_id(owner_account_id);
                if (son)
                   return *son;
                else
@@ -2075,7 +2075,7 @@ public:
       son_create_op.pay_vb = pay_vb_id;
       son_create_op.sidechain_public_keys = sidechain_public_keys;
 
-      if (_remote_db->get_son_by_account(son_create_op.owner_account))
+      if (_remote_db->get_son_by_account_id(son_create_op.owner_account))
          FC_THROW("Account ${owner_account} is already a SON", ("owner_account", owner_account));
 
       signed_transaction tx;
@@ -2712,7 +2712,7 @@ public:
 
       account_object voting_account_object = get_account(voting_account);
       account_id_type son_account_id = get_account_id(son);
-      fc::optional<son_object> son_obj = _remote_db->get_son_by_account(son_account_id);
+      fc::optional<son_object> son_obj = _remote_db->get_son_by_account_id(son_account_id);
       if (!son_obj)
          FC_THROW("Account ${son} is not registered as a son", ("son", son));
       if (approve)
@@ -2756,7 +2756,7 @@ public:
       for (const std::string& son : sons_to_approve)
       {
          account_id_type son_owner_account_id = get_account_id(son);
-         fc::optional<son_object> son_obj = _remote_db->get_son_by_account(son_owner_account_id);
+         fc::optional<son_object> son_obj = _remote_db->get_son_by_account_id(son_owner_account_id);
          if (!son_obj)
             FC_THROW("Account ${son} is not registered as a SON", ("son", son));
          auto insert_result = voting_account_object.options.votes.insert(son_obj->vote_id);
@@ -2766,7 +2766,7 @@ public:
       for (const std::string& son : sons_to_reject)
       {
          account_id_type son_owner_account_id = get_account_id(son);
-         fc::optional<son_object> son_obj = _remote_db->get_son_by_account(son_owner_account_id);
+         fc::optional<son_object> son_obj = _remote_db->get_son_by_account_id(son_owner_account_id);
          if (!son_obj)
             FC_THROW("Account ${son} is not registered as a SON", ("son", son));
          unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->vote_id);
@@ -4080,6 +4080,42 @@ public:
       if( it == _prototype_ops.end() )
          FC_THROW("Unsupported operation: \"${operation_name}\"", ("operation_name", operation_name));
       return it->second;
+   }
+
+   vector<vote_id_type> get_votes_ids(const string &account_name_or_id) const
+   {
+      try
+      {
+         return _remote_db->get_votes_ids(account_name_or_id);
+      }
+      FC_CAPTURE_AND_RETHROW( (account_name_or_id) )
+   }
+
+   votes_info get_votes(const string &account_name_or_id) const
+   {
+      try
+      {
+         return _remote_db->get_votes(account_name_or_id);
+      }
+      FC_CAPTURE_AND_RETHROW( (account_name_or_id) )
+   }
+
+   vector<account_object> get_voters_by_id(const vote_id_type &vote_id) const
+   {
+      try
+      {
+         return _remote_db->get_voters_by_id(vote_id);
+      }
+      FC_CAPTURE_AND_RETHROW( (vote_id) )
+   }
+
+   voters_info get_voters(const string &account_name_or_id) const
+   {
+      try
+      {
+         return _remote_db->get_voters(account_name_or_id);
+      }
+      FC_CAPTURE_AND_RETHROW( (account_name_or_id) )
    }
 
    string                  _wallet_filename;
@@ -7581,6 +7617,26 @@ std::vector<matched_bet_object> wallet_api::get_matched_bets_for_bettor(account_
 std::vector<matched_bet_object> wallet_api::get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start, unsigned limit) const
 {
     return( my->_remote_bookie->get_all_matched_bets_for_bettor(bettor_id, start, limit) );
+}
+
+vector<vote_id_type> wallet_api::get_votes_ids(const string &account_name_or_id) const
+{
+   return my->get_votes_ids(account_name_or_id);
+}
+
+votes_info wallet_api::get_votes(const string &account_name_or_id) const
+{
+   return my->get_votes(account_name_or_id);
+}
+
+vector<account_object> wallet_api::get_voters_by_id(const vote_id_type &vote_id) const
+{
+   return my->get_voters_by_id(vote_id);
+}
+
+voters_info wallet_api::get_voters(const string &account_name_or_id) const
+{
+   return my->get_voters(account_name_or_id);
 }
 
 // default ctor necessary for FC_REFLECT
