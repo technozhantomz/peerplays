@@ -1961,6 +1961,49 @@ public:
       FC_CAPTURE_AND_RETHROW( (owner_account) )
    }
 
+   vector<worker_object> get_workers(string owner_account)
+   {
+      try
+      {
+         fc::optional<worker_id_type> worker_id = maybe_id<worker_id_type>(owner_account);
+         if (worker_id)
+         {
+            std::vector<worker_id_type> ids_to_get;
+            ids_to_get.push_back(*worker_id);
+            std::vector<fc::optional<worker_object>> worker_objects = _remote_db->get_workers(ids_to_get);
+
+            if(!worker_objects.empty()) {
+               std::vector<worker_object> result;
+               for (const auto &worker_object : worker_objects) {
+                  if (worker_object)
+                     result.emplace_back(*worker_object);
+               }
+               return result;
+            }
+            else
+               FC_THROW("No workers is registered for id ${id}", ("id", owner_account));
+         }
+         else
+         {
+            // then maybe it's the owner account
+            try
+            {
+               std::string owner_account_id = account_id_to_string(get_account_id(owner_account));
+               auto workers = _remote_db->get_workers_by_account(owner_account_id);
+               if (!workers.empty())
+                  return workers;
+               else
+                  FC_THROW("No workers is registered for account ${account}", ("account", owner_account));
+            }
+            catch (const fc::exception&)
+            {
+               FC_THROW("No account or worker named ${account}", ("account", owner_account));
+            }
+         }
+      }
+      FC_CAPTURE_AND_RETHROW( (owner_account) )
+   }
+
    bool is_witness(string owner_account)
    {
       try
@@ -5027,6 +5070,11 @@ map<string,committee_member_id_type> wallet_api::list_committee_members(const st
    return my->_remote_db->lookup_committee_member_accounts(lowerbound, limit);
 }
 
+map<string, worker_id_type> wallet_api::list_workers(const string& lowerbound, uint32_t limit)
+{
+   return my->_remote_db->lookup_worker_accounts(lowerbound, limit);
+}
+
 son_object wallet_api::get_son(string owner_account)
 {
    return my->get_son(owner_account);
@@ -5045,6 +5093,11 @@ bool wallet_api::is_witness(string owner_account)
 committee_member_object wallet_api::get_committee_member(string owner_account)
 {
    return my->get_committee_member(owner_account);
+}
+
+vector<worker_object> wallet_api::get_workers(string owner_account)
+{
+   return my->get_workers(owner_account);
 }
 
 signed_transaction wallet_api::create_vesting_balance(string owner_account,

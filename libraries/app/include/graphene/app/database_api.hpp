@@ -560,6 +560,13 @@ public:
     * @param account The ID of the account whose witness should be retrieved
     * @return The witness object, or null if the account does not have a witness
     */
+   fc::optional<witness_object> get_witness_by_account_id(account_id_type account) const;
+
+   /**
+    * @brief Get the witness owned by a given account
+    * @param account_id_or_name The ID or name of the account whose witness should be retrieved
+    * @return The witness object, or null if the account does not have a witness
+    */
    fc::optional<witness_object> get_witness_by_account(const std::string account_name_or_id) const;
 
    /**
@@ -590,6 +597,13 @@ public:
 
    /**
     * @brief Get the committee_member owned by a given account
+    * @param account The ID of the account whose committee_member should be retrieved
+    * @return The committee_member object, or null if the account does not have a committee_member
+    */
+   fc::optional<committee_member_object> get_committee_member_by_account_id(account_id_type account) const;
+
+   /**
+    * @brief Get the committee_member owned by a given account
     * @param account_id_or_name The ID or name of the account whose committee_member should be retrieved
     * @return The committee_member object, or null if the account does not have a committee_member
     */
@@ -602,6 +616,11 @@ public:
     * @return Map of committee_member names to corresponding IDs
     */
    map<string, committee_member_id_type> lookup_committee_member_accounts(const string &lower_bound_name, uint32_t limit) const;
+
+   /**
+    * @brief Get the total number of committee_members registered with the blockchain
+    */
+   uint64_t get_committee_member_count() const;
 
    /////////////////
    // SON members //
@@ -625,7 +644,7 @@ public:
 
    /**
     * @brief Get the SON owned by a given account
-    * @param account The ID of the account whose SON should be retrieved
+    * @param account_id_or_name The ID of the account whose SON should be retrieved
     * @return The SON object, or null if the account does not have a SON
     */
    fc::optional<son_object> get_son_by_account(const std::string account_id_or_name) const;
@@ -722,10 +741,30 @@ public:
 
    /**
     * @brief Return the worker objects associated with this account.
-    * @param account_id_or_name The ID or name of the account whose worker should be retrieved
+    * @param account The ID of the account whose workers should be retrieved
+    * @return The worker object or null if the account does not have a worker
+    */
+   vector<worker_object> get_workers_by_account_id(account_id_type account) const;
+
+   /**
+    * @brief Return the worker objects associated with this account.
+    * @param account_id_or_name The ID or name of the account whose workers should be retrieved
     * @return The worker object or null if the account does not have a worker
     */
    vector<worker_object> get_workers_by_account(const std::string account_id_or_name) const;
+
+   /**
+    * @brief Get names and IDs for registered workers
+    * @param lower_bound_name Lower bound of the first name to return
+    * @param limit Maximum number of results to return -- must not exceed 1000
+    * @return Map of worker names to corresponding IDs
+    */
+   map<string, worker_id_type> lookup_worker_accounts(const string &lower_bound_name, uint32_t limit) const;
+
+   /**
+    * @brief Get the total number of workers registered with the blockchain
+    */
+   uint64_t get_worker_count() const;
 
    ///////////
    // Votes //
@@ -1086,14 +1125,17 @@ FC_API(graphene::app::database_api,
 
    // Witnesses
    (get_witnesses)
+   (get_witness_by_account_id)
    (get_witness_by_account)
    (lookup_witness_accounts)
    (get_witness_count)
 
    // Committee members
    (get_committee_members)
+   (get_committee_member_by_account_id)
    (get_committee_member_by_account)
    (lookup_committee_member_accounts)
+   (get_committee_member_count)
 
    // SON members
    (get_sons)
@@ -1116,7 +1158,10 @@ FC_API(graphene::app::database_api,
 
    // Workers
    (get_workers)
+   (get_workers_by_account_id)
    (get_workers_by_account)
+   (lookup_worker_accounts)
+   (get_worker_count)
 
    // Votes
    (lookup_vote_ids)
