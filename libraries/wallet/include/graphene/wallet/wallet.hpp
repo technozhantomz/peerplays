@@ -1346,6 +1346,21 @@ class wallet_api
        */
       map<string, committee_member_id_type>       list_committee_members(const string& lowerbound, uint32_t limit);
 
+      /** Lists all workers in the blockchain.
+       * This returns a list of all account names that own worker, and the associated worker id,
+       * sorted by name.  This lists workers whether they are currently voted in or not.
+       *
+       * Use the \c lowerbound and limit parameters to page through the list.  To retrieve all workers,
+       * start by setting \c lowerbound to the empty string \c "", and then each iteration, pass
+       * the last worker name returned as the \c lowerbound for the next \c list_workers() call.
+       *
+       * @param lowerbound the name of the first worker to return.  If the named worker does not exist,
+       *                   the list will start at the worker that comes after \c lowerbound
+       * @param limit the maximum number of worker to return (max: 1000)
+       * @returns a list of worker mapping worker names to worker ids
+       */
+      map<string, worker_id_type> list_workers(const string& lowerbound, uint32_t limit);
+
       /** Returns information about the given SON.
        * @param owner_account the name or id of the SON account owner, or the id of the SON
        * @returns the information about the SON stored in the block chain
@@ -1369,6 +1384,12 @@ class wallet_api
        * @returns the information about the committee_member stored in the block chain
        */
       committee_member_object get_committee_member(string owner_account);
+
+      /** Returns information about the given worker.
+       * @param owner_account the name or id of the worker account owner, or the id of the worker
+       * @returns the information about the workers stored in the block chain
+       */
+      vector<worker_object> get_workers(string owner_account);
 
 
       /** Creates a SON object owned by the given account.
@@ -2658,8 +2679,10 @@ FC_API( graphene::wallet::wallet_api,
         (get_witness)
         (is_witness)
         (get_committee_member)
+        (get_workers)
         (list_witnesses)
         (list_committee_members)
+        (list_workers)
         (create_son)
         (try_create_son)
         (update_son)

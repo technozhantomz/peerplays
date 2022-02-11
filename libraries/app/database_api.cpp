@@ -170,14 +170,17 @@ public:
 
    // Witnesses
    vector<optional<witness_object>> get_witnesses(const vector<witness_id_type> &witness_ids) const;
+   fc::optional<witness_object> get_witness_by_account_id(account_id_type account) const;
    fc::optional<witness_object> get_witness_by_account(const std::string account_id_or_name) const;
    map<string, witness_id_type> lookup_witness_accounts(const string &lower_bound_name, uint32_t limit) const;
    uint64_t get_witness_count() const;
 
    // Committee members
    vector<optional<committee_member_object>> get_committee_members(const vector<committee_member_id_type> &committee_member_ids) const;
+   fc::optional<committee_member_object> get_committee_member_by_account_id(account_id_type account) const;
    fc::optional<committee_member_object> get_committee_member_by_account(const std::string account_id_or_name) const;
    map<string, committee_member_id_type> lookup_committee_member_accounts(const string &lower_bound_name, uint32_t limit) const;
+   uint64_t get_committee_member_count() const;
 
    // SON members
    vector<optional<son_object>> get_sons(const vector<son_id_type> &son_ids) const;
@@ -200,7 +203,10 @@ public:
 
    // Workers
    vector<optional<worker_object>> get_workers(const vector<worker_id_type> &witness_ids) const;
+   vector<worker_object> get_workers_by_account_id(account_id_type account) const;
    vector<worker_object> get_workers_by_account(const std::string account_id_or_name) const;
+   map<string, worker_id_type> lookup_worker_accounts(const string &lower_bound_name, uint32_t limit) const;
+   uint64_t get_worker_count() const;
 
    // Votes
    vector<variant> lookup_vote_ids(const vector<vote_id_type> &votes) const;
@@ -292,6 +298,8 @@ public:
    uint32_t api_limit_lookup_accounts = 1000;
    uint32_t api_limit_lookup_witness_accounts = 1000;
    uint32_t api_limit_lookup_committee_member_accounts = 1000;
+   uint32_t api_limit_lookup_son_accounts = 1000;
+   uint32_t api_limit_lookup_worker_accounts = 1000;
    uint32_t api_limit_get_trade_history = 100;
    uint32_t api_limit_get_trade_history_by_sequence = 100;
 
@@ -1611,17 +1619,25 @@ vector<optional<witness_object>> database_api_impl::get_witnesses(const vector<w
    return result;
 }
 
+fc::optional<witness_object> database_api::get_witness_by_account_id(account_id_type account) const {
+   return my->get_witness_by_account_id(account);
+}
+
+fc::optional<witness_object> database_api_impl::get_witness_by_account_id(account_id_type account) const {
+   const auto &idx = _db.get_index_type<witness_index>().indices().get<by_account>();
+   auto itr = idx.find(account);
+   if (itr != idx.end())
+      return *itr;
+   return {};
+}
+
 fc::optional<witness_object> database_api::get_witness_by_account(const std::string account_id_or_name) const {
    return my->get_witness_by_account(account_id_or_name);
 }
 
 fc::optional<witness_object> database_api_impl::get_witness_by_account(const std::string account_id_or_name) const {
-   const auto &idx = _db.get_index_type<witness_index>().indices().get<by_account>();
    const account_id_type account = get_account_from_string(account_id_or_name)->id;
-   auto itr = idx.find(account);
-   if (itr != idx.end())
-      return *itr;
-   return {};
+   return get_witness_by_account_id(account);
 }
 
 map<string, witness_id_type> database_api::lookup_witness_accounts(const string &lower_bound_name, uint32_t limit) const {
@@ -1682,17 +1698,25 @@ vector<optional<committee_member_object>> database_api_impl::get_committee_membe
    return result;
 }
 
+fc::optional<committee_member_object> database_api::get_committee_member_by_account_id(account_id_type account) const {
+   return my->get_committee_member_by_account_id(account);
+}
+
+fc::optional<committee_member_object> database_api_impl::get_committee_member_by_account_id(account_id_type account) const {
+   const auto &idx = _db.get_index_type<committee_member_index>().indices().get<by_account>();
+   auto itr = idx.find(account);
+   if (itr != idx.end())
+      return *itr;
+   return {};
+}
+
 fc::optional<committee_member_object> database_api::get_committee_member_by_account(const std::string account_id_or_name) const {
    return my->get_committee_member_by_account(account_id_or_name);
 }
 
 fc::optional<committee_member_object> database_api_impl::get_committee_member_by_account(const std::string account_id_or_name) const {
-   const auto &idx = _db.get_index_type<committee_member_index>().indices().get<by_account>();
    const account_id_type account = get_account_from_string(account_id_or_name)->id;
-   auto itr = idx.find(account);
-   if (itr != idx.end())
-      return *itr;
-   return {};
+   return get_committee_member_by_account_id(account);
 }
 
 map<string, committee_member_id_type> database_api::lookup_committee_member_accounts(const string &lower_bound_name, uint32_t limit) const {
@@ -1721,6 +1745,14 @@ map<string, committee_member_id_type> database_api_impl::lookup_committee_member
       ++end_iter;
    committee_members_by_account_name.erase(end_iter, committee_members_by_account_name.end());
    return committee_members_by_account_name;
+}
+
+uint64_t database_api::get_committee_member_count() const {
+   return my->get_committee_member_count();
+}
+
+uint64_t database_api_impl::get_committee_member_count() const {
+   return _db.get_index_type<committee_member_index>().indices().size();
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1771,7 +1803,10 @@ map<string, son_id_type> database_api::lookup_son_accounts(const string &lower_b
 }
 
 map<string, son_id_type> database_api_impl::lookup_son_accounts(const string &lower_bound_name, uint32_t limit) const {
-   FC_ASSERT(limit <= 1000);
+   FC_ASSERT(limit <= api_limit_lookup_son_accounts,
+             "Number of querying accounts can not be greater than ${configured_limit}",
+             ("configured_limit", api_limit_lookup_son_accounts));
+
    const auto &sons_by_id = _db.get_index_type<son_index>().indices().get<by_id>();
 
    // we want to order sons by account name, but that name is in the account object
@@ -1927,8 +1962,20 @@ vector<optional<worker_object>> database_api::get_workers(const vector<worker_id
    return my->get_workers(worker_ids);
 }
 
+vector<worker_object> database_api::get_workers_by_account_id(account_id_type account) const {
+   return my->get_workers_by_account_id(account);
+}
+
 vector<worker_object> database_api::get_workers_by_account(const std::string account_id_or_name) const {
    return my->get_workers_by_account(account_id_or_name);
+}
+
+map<string, worker_id_type> database_api::lookup_worker_accounts(const string &lower_bound_name, uint32_t limit) const {
+   return my->lookup_worker_accounts(lower_bound_name, limit);
+}
+
+uint64_t database_api::get_worker_count() const {
+   return my->get_worker_count();
 }
 
 vector<optional<worker_object>> database_api_impl::get_workers(const vector<worker_id_type> &worker_ids) const {
@@ -1943,9 +1990,8 @@ vector<optional<worker_object>> database_api_impl::get_workers(const vector<work
    return result;
 }
 
-vector<worker_object> database_api_impl::get_workers_by_account(const std::string account_id_or_name) const {
+vector<worker_object> database_api_impl::get_workers_by_account_id(account_id_type account) const {
    const auto &idx = _db.get_index_type<worker_index>().indices().get<by_account>();
-   const account_id_type account = get_account_from_string(account_id_or_name)->id;
    auto itr = idx.find(account);
    vector<worker_object> result;
 
@@ -1955,6 +2001,40 @@ vector<worker_object> database_api_impl::get_workers_by_account(const std::strin
    }
 
    return result;
+}
+
+vector<worker_object> database_api_impl::get_workers_by_account(const std::string account_id_or_name) const {
+   const account_id_type account = get_account_from_string(account_id_or_name)->id;
+   return get_workers_by_account_id(account);
+}
+
+map<string, worker_id_type> database_api_impl::lookup_worker_accounts(const string &lower_bound_name, uint32_t limit) const {
+   FC_ASSERT(limit <= api_limit_lookup_worker_accounts,
+             "Number of querying accounts can not be greater than ${configured_limit}",
+             ("configured_limit", api_limit_lookup_worker_accounts));
+
+   const auto &workers_by_id = _db.get_index_type<worker_index>().indices().get<by_id>();
+
+   // we want to order workers by account name, but that name is in the account object
+   // so the worker_index doesn't have a quick way to access it.
+   // get all the names and look them all up, sort them, then figure out what
+   // records to return.  This could be optimized, but we expect the
+   // number of witnesses to be few and the frequency of calls to be rare
+   std::map<std::string, worker_id_type> workers_by_account_name;
+   for (const worker_object &worker : workers_by_id)
+      if (auto account_iter = _db.find(worker.worker_account))
+         if (account_iter->name >= lower_bound_name) // we can ignore anything below lower_bound_name
+            workers_by_account_name.insert(std::make_pair(account_iter->name, worker.id));
+
+   auto end_iter = workers_by_account_name.begin();
+   while (end_iter != workers_by_account_name.end() && limit--)
+      ++end_iter;
+   workers_by_account_name.erase(end_iter, workers_by_account_name.end());
+   return workers_by_account_name;
+}
+
+uint64_t database_api_impl::get_worker_count() const {
+   return _db.get_index_type<worker_index>().indices().size();
 }
 
 //////////////////////////////////////////////////////////////////////
