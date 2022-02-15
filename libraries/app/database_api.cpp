@@ -52,27 +52,19 @@ template class fc::api<graphene::app::database_api>;
 
 namespace graphene { namespace app {
 
-template<class T>
-optional<T> maybe_id( const string& name_or_id )
-{
-   if( std::isdigit( name_or_id.front() ) )
-   {
-      try
-      {
+template <class T>
+optional<T> maybe_id(const string &name_or_id) {
+   if (std::isdigit(name_or_id.front())) {
+      try {
          return fc::variant(name_or_id, 1).as<T>(1);
-      }
-      catch (const fc::exception&)
-      { // not an ID
+      } catch (const fc::exception &) { // not an ID
       }
    }
    return optional<T>();
 }
 
-std::string object_id_to_string(object_id_type id)
-{
-   std::string object_id = fc::to_string(id.space())
-                           + "." + fc::to_string(id.type())
-                           + "." + fc::to_string(id.instance());
+std::string object_id_to_string(object_id_type id) {
+   std::string object_id = fc::to_string(id.space()) + "." + fc::to_string(id.type()) + "." + fc::to_string(id.instance());
    return object_id;
 }
 
@@ -211,17 +203,16 @@ public:
    // Votes
    vector<variant> lookup_vote_ids(const vector<vote_id_type> &votes) const;
    vector<vote_id_type> get_votes_ids(const string &account_name_or_id) const;
-   template<typename IndexType, typename Tag>
-   vector<variant> get_votes_objects(const vector<vote_id_type> &votes, unsigned int variant_max_depth = 1) const
-   {
-      static_assert( std::is_base_of<index,IndexType>::value, "Type must be an index type" );
+   template <typename IndexType, typename Tag>
+   vector<variant> get_votes_objects(const vector<vote_id_type> &votes, unsigned int variant_max_depth = 1) const {
+      static_assert(std::is_base_of<index, IndexType>::value, "Type must be an index type");
 
       vector<variant> result;
       const auto &idx = _db.get_index_type<IndexType>().indices().template get<Tag>();
       for (auto id : votes) {
          auto itr = idx.find(id);
          if (itr != idx.end())
-            result.emplace_back(variant(*itr,variant_max_depth));
+            result.emplace_back(variant(*itr, variant_max_depth));
       }
       return result;
    }
@@ -2129,8 +2120,7 @@ vector<vote_id_type> database_api_impl::get_votes_ids(const string &account_name
    const account_object *account = get_account_from_string(account_name_or_id);
 
    //! Iterate throug votes and fill vector
-   for( const auto& vote : account->options.votes )
-   {
+   for (const auto &vote : account->options.votes) {
       result.emplace_back(vote);
    }
 
@@ -2140,16 +2130,16 @@ vector<vote_id_type> database_api_impl::get_votes_ids(const string &account_name
 votes_info database_api_impl::get_votes(const string &account_name_or_id) const {
    votes_info result;
 
-   const auto& votes_ids = get_votes_ids(account_name_or_id);
-   const auto& committee_ids = get_votes_objects<committee_member_index, by_vote_id>(votes_ids);
-   const auto& witness_ids = get_votes_objects<witness_index, by_vote_id>(votes_ids);
-   const auto& for_worker_ids = get_votes_objects<worker_index, by_vote_for>(votes_ids);
-   const auto& against_worker_ids = get_votes_objects<worker_index, by_vote_against>(votes_ids);
-   const auto& son_ids = get_votes_objects<son_index, by_vote_id>(votes_ids, 5);
+   const auto &votes_ids = get_votes_ids(account_name_or_id);
+   const auto &committee_ids = get_votes_objects<committee_member_index, by_vote_id>(votes_ids);
+   const auto &witness_ids = get_votes_objects<witness_index, by_vote_id>(votes_ids);
+   const auto &for_worker_ids = get_votes_objects<worker_index, by_vote_for>(votes_ids);
+   const auto &against_worker_ids = get_votes_objects<worker_index, by_vote_against>(votes_ids);
+   const auto &son_ids = get_votes_objects<son_index, by_vote_id>(votes_ids, 5);
 
    //! Fill votes info
-   if(!committee_ids.empty()) {
-      vector< votes_info_object<committee_member_id_type> > votes_for_committee_members;
+   if (!committee_ids.empty()) {
+      vector<votes_info_object<committee_member_id_type>> votes_for_committee_members;
       votes_for_committee_members.reserve(committee_ids.size());
       for (const auto &committee : committee_ids) {
          const auto &committee_obj = committee.as<committee_member_object>(2);
@@ -2158,8 +2148,8 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
       result.votes_for_committee_members = std::move(votes_for_committee_members);
    }
 
-   if(!witness_ids.empty()) {
-      vector< votes_info_object<witness_id_type> > votes_for_witnesses;
+   if (!witness_ids.empty()) {
+      vector<votes_info_object<witness_id_type>> votes_for_witnesses;
       votes_for_witnesses.reserve(witness_ids.size());
       for (const auto &witness : witness_ids) {
          const auto &witness_obj = witness.as<witness_object>(2);
@@ -2168,8 +2158,8 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
       result.votes_for_witnesses = std::move(votes_for_witnesses);
    }
 
-   if(!for_worker_ids.empty()) {
-      vector< votes_info_object<worker_id_type> > votes_for_workers;
+   if (!for_worker_ids.empty()) {
+      vector<votes_info_object<worker_id_type>> votes_for_workers;
       votes_for_workers.reserve(for_worker_ids.size());
       for (const auto &for_worker : for_worker_ids) {
          const auto &for_worker_obj = for_worker.as<worker_object>(2);
@@ -2178,8 +2168,8 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
       result.votes_for_workers = std::move(votes_for_workers);
    }
 
-   if(!against_worker_ids.empty()) {
-      vector< votes_info_object<worker_id_type> > votes_against_workers;
+   if (!against_worker_ids.empty()) {
+      vector<votes_info_object<worker_id_type>> votes_against_workers;
       votes_against_workers.reserve(against_worker_ids.size());
       for (const auto &against_worker : against_worker_ids) {
          const auto &against_worker_obj = against_worker.as<worker_object>(2);
@@ -2188,8 +2178,8 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
       result.votes_against_workers = std::move(votes_against_workers);
    }
 
-   if(!son_ids.empty()) {
-      vector< votes_info_object<son_id_type> > votes_for_sons;
+   if (!son_ids.empty()) {
+      vector<votes_info_object<son_id_type>> votes_for_sons;
       votes_for_sons.reserve(son_ids.size());
       for (const auto &son : son_ids) {
          const auto &son_obj = son.as<son_object>(6);
@@ -2205,10 +2195,9 @@ vector<account_object> database_api_impl::get_voters_by_id(const vote_id_type &v
    vector<account_object> result;
 
    //! We search all accounts that have voted for this vote_id
-   const auto& account_index = _db.get_index_type<graphene::chain::account_index>().indices().get<by_id>();
-   for( const auto& account: account_index )
-   {
-      if(account.options.votes.count(vote_id) != 0)
+   const auto &account_index = _db.get_index_type<graphene::chain::account_index>().indices().get<by_id>();
+   for (const auto &account : account_index) {
+      if (account.options.votes.count(vote_id) != 0)
          result.emplace_back(account);
    }
 
@@ -2223,83 +2212,78 @@ voters_info database_api_impl::get_voters(const string &account_name_or_id) cons
    std::string owner_account_id;
 
    //! Check if we have account by name
-   const auto& account_object = get_account_by_name(account_name_or_id);
-   if(account_object) {
+   const auto &account_object = get_account_by_name(account_name_or_id);
+   if (account_object) {
       //! It is account
-      owner_account_id = object_id_to_string( account_object->get_id() );
+      owner_account_id = object_id_to_string(account_object->get_id());
       owner_account_found = true;
-   }
-   else {
+   } else {
       //! Check if we have account id
-      const auto& account_id = maybe_id<account_id_type>(account_name_or_id);
-      if(account_id) {
+      const auto &account_id = maybe_id<account_id_type>(account_name_or_id);
+      if (account_id) {
          //! It may be account id
-         const auto& account_objects = get_accounts({account_name_or_id});
-         if(!account_objects.empty()){
-            const auto& account_object = account_objects.front();
-            if(account_object) {
+         const auto &account_objects = get_accounts({account_name_or_id});
+         if (!account_objects.empty()) {
+            const auto &account_object = account_objects.front();
+            if (account_object) {
                //! It is account object
-               owner_account_id = object_id_to_string( account_object->get_id() );
+               owner_account_id = object_id_to_string(account_object->get_id());
                owner_account_found = true;
             }
          }
-      }
-      else {
+      } else {
          //! Check if we have committee member id
-         const auto& committee_member_id = maybe_id<committee_member_id_type>(account_name_or_id);
-         if(committee_member_id) {
+         const auto &committee_member_id = maybe_id<committee_member_id_type>(account_name_or_id);
+         if (committee_member_id) {
             //! It may be committee member id
-            const auto& committee_member_objects = get_committee_members({*committee_member_id});
-            if(!committee_member_objects.empty()){
-               const auto& committee_member_object = committee_member_objects.front();
-               if(committee_member_object) {
+            const auto &committee_member_objects = get_committee_members({*committee_member_id});
+            if (!committee_member_objects.empty()) {
+               const auto &committee_member_object = committee_member_objects.front();
+               if (committee_member_object) {
                   //! It is committee member object
-                  owner_account_id = object_id_to_string( committee_member_object->committee_member_account );
+                  owner_account_id = object_id_to_string(committee_member_object->committee_member_account);
                   owner_account_found = true;
                }
             }
-         }
-         else {
+         } else {
             //! Check if we have witness id
-            const auto& witness_id = maybe_id<witness_id_type>(account_name_or_id);
-            if(witness_id) {
+            const auto &witness_id = maybe_id<witness_id_type>(account_name_or_id);
+            if (witness_id) {
                //! It may be witness id
-               const auto& witness_objects = get_witnesses({*witness_id});
-               if(!witness_objects.empty()){
-                  const auto& witness_object = witness_objects.front();
-                  if(witness_object) {
+               const auto &witness_objects = get_witnesses({*witness_id});
+               if (!witness_objects.empty()) {
+                  const auto &witness_object = witness_objects.front();
+                  if (witness_object) {
                      //! It is witness object
-                     owner_account_id = object_id_to_string( witness_object->witness_account );
+                     owner_account_id = object_id_to_string(witness_object->witness_account);
                      owner_account_found = true;
                   }
                }
-            }
-            else {
+            } else {
                //! Check if we have worker id
-               const auto& worker_id = maybe_id<worker_id_type>(account_name_or_id);
-               if(worker_id) {
+               const auto &worker_id = maybe_id<worker_id_type>(account_name_or_id);
+               if (worker_id) {
                   //! It may be worker id
-                  const auto& worker_objects = get_workers({*worker_id});
-                  if(!worker_objects.empty()){
-                     const auto& worker_object = worker_objects.front();
-                     if(worker_object) {
+                  const auto &worker_objects = get_workers({*worker_id});
+                  if (!worker_objects.empty()) {
+                     const auto &worker_object = worker_objects.front();
+                     if (worker_object) {
                         //! It is worker object
-                        owner_account_id = object_id_to_string( worker_object->worker_account );
+                        owner_account_id = object_id_to_string(worker_object->worker_account);
                         owner_account_found = true;
                      }
                   }
-               }
-               else {
+               } else {
                   //! Check if we have son id
-                  const auto& son_id = maybe_id<son_id_type>(account_name_or_id);
-                  if(son_id) {
+                  const auto &son_id = maybe_id<son_id_type>(account_name_or_id);
+                  if (son_id) {
                      //! It may be son id
-                     const auto& son_objects = get_sons({*son_id});
-                     if(!son_objects.empty()){
-                        const auto& son_object = son_objects.front();
-                        if(son_object) {
+                     const auto &son_objects = get_sons({*son_id});
+                     if (!son_objects.empty()) {
+                        const auto &son_object = son_objects.front();
+                        if (son_object) {
                            //! It is son object
-                           owner_account_id = object_id_to_string( son_object->son_account );
+                           owner_account_id = object_id_to_string(son_object->son_account);
                            owner_account_found = true;
                         }
                      }
@@ -2311,41 +2295,41 @@ voters_info database_api_impl::get_voters(const string &account_name_or_id) cons
    }
 
    //! We didn't find who it was
-   if(!owner_account_found)
+   if (!owner_account_found)
       FC_THROW_EXCEPTION(database_query_exception, "Wrong account_name_or_id: ${account_name_or_id}", ("account_name_or_id", account_name_or_id));
 
    //! Fill voters_info
-   const auto& committee_member_object = get_committee_member_by_account(owner_account_id);
-   const auto& witness_object = get_witness_by_account(owner_account_id);
-   const auto& worker_objects = get_workers_by_account(owner_account_id);
-   const auto& son_object = get_son_by_account(owner_account_id);
+   const auto &committee_member_object = get_committee_member_by_account(owner_account_id);
+   const auto &witness_object = get_witness_by_account(owner_account_id);
+   const auto &worker_objects = get_workers_by_account(owner_account_id);
+   const auto &son_object = get_son_by_account(owner_account_id);
 
    //! Info for committee member voters
-   if(committee_member_object) {
-      const auto& committee_member_voters = get_voters_by_id(committee_member_object->vote_id);
+   if (committee_member_object) {
+      const auto &committee_member_voters = get_voters_by_id(committee_member_object->vote_id);
       voters_info_object voters_for_committee_member;
       voters_for_committee_member.vote_id = committee_member_object->vote_id;
       voters_for_committee_member.voters.reserve(committee_member_voters.size());
-      for(const auto& voter: committee_member_voters) {
+      for (const auto &voter : committee_member_voters) {
          voters_for_committee_member.voters.emplace_back(voter.get_id());
       }
       result.voters_for_committee_member = std::move(voters_for_committee_member);
    }
 
    //! Info for witness voters
-   if(witness_object) {
-      const auto& witness_voters = get_voters_by_id(witness_object->vote_id);
+   if (witness_object) {
+      const auto &witness_voters = get_voters_by_id(witness_object->vote_id);
       voters_info_object voters_for_witness;
       voters_for_witness.vote_id = witness_object->vote_id;
       voters_for_witness.voters.reserve(witness_voters.size());
-      for(const auto& voter: witness_voters) {
+      for (const auto &voter : witness_voters) {
          voters_for_witness.voters.emplace_back(voter.get_id());
       }
       result.voters_for_witness = std::move(voters_for_witness);
    }
 
    //! Info for worker voters
-   if(!worker_objects.empty()) {
+   if (!worker_objects.empty()) {
       vector<voters_info_object> voters_for_workers(worker_objects.size());
       vector<voters_info_object> voters_against_workers(worker_objects.size());
       for (const auto &worker_object : worker_objects) {
@@ -2372,12 +2356,12 @@ voters_info database_api_impl::get_voters(const string &account_name_or_id) cons
    }
 
    //! Info for son voters
-   if(son_object) {
-      const auto& son_voters = get_voters_by_id(son_object->vote_id);
+   if (son_object) {
+      const auto &son_voters = get_voters_by_id(son_object->vote_id);
       voters_info_object voters_for_son;
       voters_for_son.vote_id = son_object->vote_id;
       voters_for_son.voters.reserve(son_voters.size());
-      for(const auto& voter: son_voters) {
+      for (const auto &voter : son_voters) {
          voters_for_son.voters.emplace_back(voter.get_id());
       }
       result.voters_for_son = std::move(voters_for_son);

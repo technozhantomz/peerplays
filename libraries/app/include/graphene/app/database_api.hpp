@@ -56,8 +56,8 @@
 #include <graphene/chain/custom_permission_object.hpp>
 #include <graphene/chain/nft_object.hpp>
 #include <graphene/chain/offer_object.hpp>
-#include <graphene/chain/votes_info.hpp>
 #include <graphene/chain/voters_info.hpp>
+#include <graphene/chain/votes_info.hpp>
 
 #include <graphene/market_history/market_history_plugin.hpp>
 
