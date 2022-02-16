@@ -54,6 +54,7 @@
 #include <graphene/utilities/git_revision.hpp>
 #include <boost/version.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/program_options/parsers.hpp>
 
 #ifdef WIN32
 # include <signal.h>
@@ -89,7 +90,16 @@ int main( int argc, char** argv )
 
       bpo::variables_map options;
 
-      bpo::store( bpo::parse_command_line(argc, argv, opts), options );
+      bpo::parsed_options po = bpo::command_line_parser(argc, argv).options(opts).allow_unregistered().run();
+      std::vector<std::string> unrecognized = bpo::collect_unrecognized(po.options, bpo::include_positional);
+      if (unrecognized.size() > 0) {
+         std::cout << "Unknown parameter(s): " << std::endl;
+         for (auto s : unrecognized) {
+            std::cout << "  " << s << std::endl;
+         }
+         return 0;
+      }
+      bpo::store( po, options );
 
       if( options.count("help") )
       {
@@ -103,9 +113,9 @@ int main( int argc, char** argv )
          const size_t pos = wallet_version.find('/');
          if( pos != std::string::npos && wallet_version.size() > pos )
             wallet_version = wallet_version.substr( pos + 1 );
-         std::cerr << "Version: " << wallet_version << "\n";
-         std::cerr << "Git Revision: " << graphene::utilities::git_revision_sha << "\n";
-         std::cerr << "Built: " << __DATE__ " at " __TIME__ << "\n";
+         std::cout << "Version: " << wallet_version << "\n";
+         std::cout << "Git Revision: " << graphene::utilities::git_revision_sha << "\n";
+         std::cout << "Built: " << __DATE__ " at " __TIME__ << "\n";
          std::cout << "SSL: " << OPENSSL_VERSION_TEXT << "\n";
          std::cout << "Boost: " << boost::replace_all_copy(std::string(BOOST_LIB_VERSION), "_", ".") << "\n";
          return 0;
