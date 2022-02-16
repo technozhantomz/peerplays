@@ -871,16 +871,11 @@ zmq_listener::zmq_listener(std::string _ip, uint32_t _zmq) :
 std::vector<zmq::message_t> zmq_listener::receive_multipart() {
    std::vector<zmq::message_t> msgs;
 
-   int32_t more;
-   size_t more_size = sizeof(more);
-   while (true) {
-      zmq::message_t msg;
-      socket.recv(&msg, 0);
-      socket.getsockopt(ZMQ_RCVMORE, &more, &more_size);
-
-      if (!more)
-         break;
-      msgs.push_back(std::move(msg));
+   auto res = zmq::recv_multipart(socket, std::back_inserter(msgs));
+   FC_ASSERT(res);
+   if (3 != *res) {
+       elog("zmq::recv_multipart returned: ${res}", ("res", *res));	   
+       throw zmq::error_t();
    }
 
    return msgs;
@@ -902,6 +897,7 @@ void zmq_listener::handle_zmq() {
          const auto block_hash = boost::algorithm::hex(std::string(static_cast<char *>(msg[1].data()), msg[1].size()));
          event_received(block_hash);
       } catch (zmq::error_t &e) {
+          elog("handle_zmq recv_multipart exception ${str}", ("str", e.what()));
       }
    }
 }
