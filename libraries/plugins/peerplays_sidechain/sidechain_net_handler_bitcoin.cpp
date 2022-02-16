@@ -874,8 +874,8 @@ std::vector<zmq::message_t> zmq_listener::receive_multipart() {
    auto res = zmq::recv_multipart(socket, std::back_inserter(msgs));
    FC_ASSERT(res);
    if (3 != *res) {
-       elog("zmq::recv_multipart returned: ${res}", ("res", *res));	   
-       throw zmq::error_t();
+      elog("zmq::recv_multipart returned: ${res}", ("res", *res));
+      throw zmq::error_t();
    }
 
    return msgs;
@@ -897,7 +897,7 @@ void zmq_listener::handle_zmq() {
          const auto block_hash = boost::algorithm::hex(std::string(static_cast<char *>(msg[1].data()), msg[1].size()));
          event_received(block_hash);
       } catch (zmq::error_t &e) {
-          elog("handle_zmq recv_multipart exception ${str}", ("str", e.what()));
+         elog("handle_zmq recv_multipart exception ${str}", ("str", e.what()));
       }
    }
 }
