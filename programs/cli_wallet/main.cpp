@@ -86,16 +86,24 @@ int main(int argc, char **argv) {
 
       bpo::variables_map options;
 
-      bpo::parsed_options po = bpo::command_line_parser(argc, argv).options(opts).allow_unregistered().run();
-      std::vector<std::string> unrecognized = bpo::collect_unrecognized(po.options, bpo::include_positional);
-      if (unrecognized.size() > 0) {
-         std::cout << "Unknown parameter(s): " << std::endl;
-         for (auto s : unrecognized) {
-            std::cout << "  " << s << std::endl;
+      try
+      {
+         bpo::parsed_options po = bpo::command_line_parser(argc, argv).options(opts).allow_unregistered().run();
+         std::vector<std::string> unrecognized = bpo::collect_unrecognized(po.options, bpo::include_positional);
+         if (unrecognized.size() > 0) {
+            std::cout << "Unknown parameter(s): " << std::endl;
+            for (auto s : unrecognized) {
+               std::cout << "  " << s << std::endl;
+            }
+            return 0;
          }
+         bpo::store(po, options);
+      }
+      catch (const boost::program_options::invalid_command_line_syntax & e)
+      {
+         std::cout << e.what() << std::endl;
          return 0;
       }
-      bpo::store(po, options);
 
       if (options.count("help")) {
          std::cout << opts << "\n";
