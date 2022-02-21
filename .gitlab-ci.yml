@@ -49,6 +49,7 @@ test:
   dependencies:
     - build
   script:
+    - ./build/libraries/fc/tests/all_tests
     - ./build/tests/betting_test --log_level=message
     - ./build/tests/chain_test --log_level=message
     - ./build/tests/cli_test --log_level=message
