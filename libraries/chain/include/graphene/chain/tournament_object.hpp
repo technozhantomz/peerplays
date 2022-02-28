@@ -1,8 +1,7 @@
 #pragma once
 #include <graphene/chain/protocol/tournament.hpp>
-#include <graphene/chain/rock_paper_scissors.hpp>
 #include <boost/multi_index/composite_key.hpp>
-#include <graphene/db/flat_index.hpp>
+#include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 #include <fc/crypto/hex.hpp>
 #include <sstream>
@@ -11,7 +10,7 @@ namespace graphene { namespace chain {
    class tournament_object;
 } }
 
-namespace fc { 
+namespace fc {
    void to_variant(const graphene::chain::tournament_object& tournament_obj, fc::variant& v, uint32_t max_depth = 1);
    void from_variant(const fc::variant& v, graphene::chain::tournament_object& tournament_obj, uint32_t max_depth = 1);
 } //end namespace fc
@@ -154,10 +153,9 @@ namespace graphene { namespace chain {
    > tournament_details_object_multi_index_type;
    typedef generic_index<tournament_details_object, tournament_details_object_multi_index_type> tournament_details_index;
 
-
    template<typename Stream>
    inline Stream& operator<<( Stream& s, const tournament_object& tournament_obj )
-   { 
+   {
       fc_elog(fc::logger::get("tournament"), "In tournament_obj to_raw");
       // pack all fields exposed in the header in the usual way
       // instead of calling the derived pack, just serialize the one field in the base class
@@ -175,15 +173,16 @@ namespace graphene { namespace chain {
       std::ostringstream stream;
       tournament_obj.pack_impl(stream);
       std::string stringified_stream(stream.str());
-      fc_elog(fc::logger::get("tournament"), "Serialized state ${state} to bytes ${bytes}", 
+      fc_elog(fc::logger::get("tournament"), "Serialized state ${state} to bytes ${bytes}",
               ("state", tournament_obj.get_state())("bytes", fc::to_hex(stringified_stream.c_str(), stringified_stream.size())));
       fc::raw::pack(s, stream.str());
 
       return s;
    }
+
    template<typename Stream>
    inline Stream& operator>>( Stream& s, tournament_object& tournament_obj )
-   { 
+   {
       fc_elog(fc::logger::get("tournament"), "In tournament_obj from_raw");
       // unpack all fields exposed in the header in the usual way
       //fc::raw::unpack<Stream, graphene::db::abstract_object<tournament_object> >(s, tournament_obj);
@@ -201,9 +200,9 @@ namespace graphene { namespace chain {
       fc::raw::unpack(s, stringified_stream);
       std::istringstream stream(stringified_stream);
       tournament_obj.unpack_impl(stream);
-      fc_elog(fc::logger::get("tournament"), "Deserialized state ${state} from bytes ${bytes}", 
+      fc_elog(fc::logger::get("tournament"), "Deserialized state ${state} from bytes ${bytes}",
               ("state", tournament_obj.get_state())("bytes", fc::to_hex(stringified_stream.c_str(), stringified_stream.size())));
-      
+
       return s;
    }
 
@@ -230,8 +229,6 @@ namespace graphene { namespace chain {
 
          flat_set<account_id_type> before_account_ids;
    };
-
-
 } }
 
 FC_REFLECT_DERIVED(graphene::chain::tournament_details_object, (graphene::db::object),
@@ -240,8 +237,7 @@ FC_REFLECT_DERIVED(graphene::chain::tournament_details_object, (graphene::db::ob
                    (payers)
                    (players_payers)
                    (matches))
-//FC_REFLECT_TYPENAME(graphene::chain::tournament_object) // manually serialized
-FC_REFLECT(graphene::chain::tournament_object, (creator))
+
 FC_REFLECT_ENUM(graphene::chain::tournament_state,
                 (accepting_registrations)
                 (awaiting_start)
@@ -249,3 +245,52 @@ FC_REFLECT_ENUM(graphene::chain::tournament_state,
                 (registration_period_expired)
                 (concluded))
 
+namespace fc {
+
+   template<>
+   template<>
+   inline void if_enum<fc::false_type>::from_variant(const variant &vo, graphene::chain::tournament_object &v, uint32_t max_depth) {
+      from_variant(vo, v, max_depth);
+   }
+
+   template<>
+   template<>
+   inline void if_enum<fc::false_type>::to_variant(const graphene::chain::tournament_object &v, variant &vo, uint32_t max_depth) {
+      to_variant(v, vo, max_depth);
+   }
+
+   namespace raw { namespace detail {
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::pack(fc::datastream<size_t> &s, const graphene::chain::tournament_object &v, uint32_t) {
+         s << v;
+      }
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::pack(fc::datastream<char*> &s, const graphene::chain::tournament_object &v, uint32_t) {
+         s << v;
+      }
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::unpack(fc::datastream<const char*> &s, graphene::chain::tournament_object &v, uint32_t) {
+         s >> v;
+      }
+
+   } } // namespace fc::raw::detail
+
+   template <>
+   struct get_typename<graphene::chain::tournament_object> {
+      static const char *name() {
+         return "graphene::chain::tournament_object";
+      }
+   };
+   template <>
+   struct reflector<graphene::chain::tournament_object> {
+      typedef graphene::chain::tournament_object type;
+      typedef fc::true_type is_defined;
+      typedef fc::false_type is_enum;
+   };
+} // namespace fc

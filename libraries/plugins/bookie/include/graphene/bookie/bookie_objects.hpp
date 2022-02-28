@@ -29,38 +29,20 @@
 namespace graphene { namespace bookie {
 using namespace chain;
 
-enum bookie_object_type
-{
-   persistent_event_object_type,
-   persistent_betting_market_group_object_type,
-   persistent_betting_market_object_type,
-   persistent_bet_object_type,
-   BOOKIE_OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
-};
-
 namespace detail
 {
 
-class persistent_event_object : public graphene::db::abstract_object<persistent_event_object>
+/**
+    *  @brief This secondary index will allow a reverse lookup of all events that happened
+ */
+class persistent_event_index : public secondary_index
 {
-   public:
-      static const uint8_t space_id = bookie_objects;
-      static const uint8_t type_id = persistent_event_object_type;
+public:
+   virtual void object_inserted( const object& obj ) override;
+   virtual void object_modified( const object& after  ) override;
 
-      event_object ephemeral_event_object;
-
-      event_id_type get_event_id() const { return ephemeral_event_object.id; }
+   map< event_id_type, event_object > ephemeral_event_object;
 };
-
-typedef object_id<bookie_objects, persistent_event_object_type, persistent_event_object> persistent_event_id_type;
-
-struct by_event_id;
-typedef multi_index_container<
-   persistent_event_object,
-   indexed_by<
-      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_event_id>, const_mem_fun<persistent_event_object, event_id_type, &persistent_event_object::get_event_id> > > > persistent_event_multi_index_type;
-typedef generic_index<persistent_event_object, persistent_event_multi_index_type> persistent_event_index;
 
 #if 0 // we no longer have competitors, just leaving this here as an example of how to do a secondary index
 class events_by_competitor_index : public secondary_index
@@ -101,95 +83,122 @@ void events_by_competitor_index::object_modified( const object& after )
 }
 #endif
 
-//////////// betting_market_group_object //////////////////
-class persistent_betting_market_group_object : public graphene::db::abstract_object<persistent_betting_market_group_object>
+/**
+    *  @brief This secondary index will allow a reverse lookup of all betting_market_group that happened
+ */
+class persistent_betting_market_group_index : public secondary_index
 {
-   public:
-      static const uint8_t space_id = bookie_objects;
-      static const uint8_t type_id = persistent_betting_market_group_object_type;
+public:
+   struct internal_type
+   {
+      internal_type() = default;
+
+      internal_type(const betting_market_group_object& other)
+            : ephemeral_betting_market_group_object{other}
+      {}
+
+      internal_type& operator=(const betting_market_group_object& other)
+      {
+         ephemeral_betting_market_group_object = other;
+         return *this;
+      }
+
+      friend bool operator==(const internal_type& lhs, const internal_type& rhs);
+      friend bool operator<(const internal_type& lhs, const internal_type& rhs);
+      friend bool operator>(const internal_type& lhs, const internal_type& rhs);
 
       betting_market_group_object ephemeral_betting_market_group_object;
-
       share_type total_matched_bets_amount;
+   };
 
-      betting_market_group_id_type get_betting_market_group_id() const { return ephemeral_betting_market_group_object.id; }
+public:
+   virtual void object_inserted( const object& obj ) override;
+   virtual void object_modified( const object& after  ) override;
+
+   map< betting_market_group_id_type, internal_type > internal;
 };
 
-struct by_betting_market_group_id;
-typedef multi_index_container<
-   persistent_betting_market_group_object,
-   indexed_by<
-      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_betting_market_group_id>, const_mem_fun<persistent_betting_market_group_object, betting_market_group_id_type, &persistent_betting_market_group_object::get_betting_market_group_id> > > > persistent_betting_market_group_multi_index_type;
-
-typedef generic_index<persistent_betting_market_group_object, persistent_betting_market_group_multi_index_type> persistent_betting_market_group_index;
-
-//////////// betting_market_object //////////////////
-class persistent_betting_market_object : public graphene::db::abstract_object<persistent_betting_market_object>
+inline bool operator==(const persistent_betting_market_group_index::internal_type& lhs, const persistent_betting_market_group_index::internal_type& rhs)
 {
-   public:
-      static const uint8_t space_id = bookie_objects;
-      static const uint8_t type_id = persistent_betting_market_object_type;
+   return lhs.ephemeral_betting_market_group_object == rhs.ephemeral_betting_market_group_object;
+}
 
-      betting_market_object ephemeral_betting_market_object;
+inline bool operator<(const persistent_betting_market_group_index::internal_type& lhs, const persistent_betting_market_group_index::internal_type& rhs)
+{
+   return lhs.ephemeral_betting_market_group_object < rhs.ephemeral_betting_market_group_object;
+}
 
-      share_type total_matched_bets_amount;
+inline bool operator>(const persistent_betting_market_group_index::internal_type& lhs, const persistent_betting_market_group_index::internal_type& rhs)
+{
+   return !operator<(lhs, rhs);
+}
 
-      betting_market_id_type get_betting_market_id() const { return ephemeral_betting_market_object.id; }
+/**
+    *  @brief This secondary index will allow a reverse lookup of all betting_market_object that happened
+ */
+class persistent_betting_market_index : public secondary_index
+{
+public:
+   virtual void object_inserted( const object& obj ) override;
+   virtual void object_modified( const object& after  ) override;
+
+   map< betting_market_id_type, betting_market_object > ephemeral_betting_market_object;
 };
 
-struct by_betting_market_id;
-typedef multi_index_container<
-   persistent_betting_market_object,
-   indexed_by<
-      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_betting_market_id>, const_mem_fun<persistent_betting_market_object, betting_market_id_type, &persistent_betting_market_object::get_betting_market_id> > > > persistent_betting_market_multi_index_type;
-
-typedef generic_index<persistent_betting_market_object, persistent_betting_market_multi_index_type> persistent_betting_market_index;
-
-//////////// bet_object //////////////////
-class persistent_bet_object : public graphene::db::abstract_object<persistent_bet_object>
+/**
+    *  @brief This secondary index will allow a reverse lookup of all bet_object that happened
+ */
+class persistent_bet_index : public secondary_index
 {
-   public:
-      static const uint8_t space_id = bookie_objects;
-      static const uint8_t type_id = persistent_bet_object_type;
+public:
+   struct internal_type
+   {
+      internal_type() = default;
 
-      bet_object ephemeral_bet_object;
+      internal_type(const bet_object& other)
+            : ephemeral_bet_object{other}
+      {}
 
-      // total amount of the bet that matched
-      share_type amount_matched;
+      internal_type& operator=(const bet_object& other)
+      {
+         ephemeral_bet_object = other;
+         return *this;
+      }
 
-      std::vector<operation_history_id_type> associated_operations;
-
-      bet_id_type get_bet_id() const { return ephemeral_bet_object.id; }
       account_id_type get_bettor_id() const { return ephemeral_bet_object.bettor_id; }
       bool is_matched() const { return amount_matched != share_type(); }
+
+      friend bool operator==(const internal_type& lhs, const internal_type& rhs);
+      friend bool operator<(const internal_type& lhs, const internal_type& rhs);
+      friend bool operator>(const internal_type& lhs, const internal_type& rhs);
+
+      bet_object ephemeral_bet_object;
+      // total amount of the bet that matched
+      share_type amount_matched;
+      std::vector<operation_history_id_type> associated_operations;
+   };
+
+public:
+   virtual void object_inserted( const object& obj ) override;
+   virtual void object_modified( const object& after  ) override;
+
+   map< bet_id_type, internal_type > internal;
 };
 
-struct by_bet_id;
-struct by_bettor_id;
-typedef multi_index_container<
-   persistent_bet_object,
-   indexed_by<
-      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_bet_id>, const_mem_fun<persistent_bet_object, bet_id_type, &persistent_bet_object::get_bet_id> >,
-      ordered_unique<tag<by_bettor_id>, 
-            composite_key<
-               persistent_bet_object,
-               const_mem_fun<persistent_bet_object, account_id_type, &persistent_bet_object::get_bettor_id>,
-               const_mem_fun<persistent_bet_object, bool, &persistent_bet_object::is_matched>,
-               const_mem_fun<persistent_bet_object, bet_id_type, &persistent_bet_object::get_bet_id> >,
-            composite_key_compare<
-               std::less<account_id_type>,
-               std::less<bool>,
-               std::greater<bet_id_type> > > > > persistent_bet_multi_index_type;
+inline bool operator==(const persistent_bet_index::internal_type& lhs, const persistent_bet_index::internal_type& rhs)
+{
+   return lhs.ephemeral_bet_object == rhs.ephemeral_bet_object;
+}
 
-typedef generic_index<persistent_bet_object, persistent_bet_multi_index_type> persistent_bet_index;
+inline bool operator<(const persistent_bet_index::internal_type& lhs, const persistent_bet_index::internal_type& rhs)
+{
+   return lhs.ephemeral_bet_object < rhs.ephemeral_bet_object;
+}
+
+inline bool operator>(const persistent_bet_index::internal_type& lhs, const persistent_bet_index::internal_type& rhs)
+{
+   return !operator<(lhs, rhs);
+}
 
 } } } //graphene::bookie::detail
-
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_event_object, (graphene::db::object), (ephemeral_event_object) )
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_betting_market_group_object, (graphene::db::object), (ephemeral_betting_market_group_object)(total_matched_bets_amount) )
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_betting_market_object, (graphene::db::object), (ephemeral_betting_market_object) )
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_bet_object, (graphene::db::object), (ephemeral_bet_object)(amount_matched)(associated_operations) )
 
