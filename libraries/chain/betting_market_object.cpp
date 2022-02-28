@@ -466,7 +466,7 @@ void betting_market_object::on_canceled_event(database& db)
 
 } } // graphene::chain
 
-namespace fc { 
+namespace fc {
    // Manually reflect betting_market_object to variant to properly reflect "state"
    void to_variant(const graphene::chain::betting_market_object& event_obj, fc::variant& v, uint32_t max_depth)
    {
@@ -493,4 +493,3 @@ namespace fc {
       const_cast<int*>(event_obj.my->state_machine.current_state())[0] = (int)status;
    }
 } //end namespace fc
-

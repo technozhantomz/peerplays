@@ -1,8 +1,5 @@
 #pragma once
-#include <graphene/chain/protocol/tournament.hpp>
-#include <graphene/chain/rock_paper_scissors.hpp>
-#include <boost/multi_index/composite_key.hpp>
-#include <graphene/db/flat_index.hpp>
+#include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 #include <fc/crypto/hex.hpp>
 #include <sstream>
@@ -11,10 +8,11 @@ namespace graphene { namespace chain {
    class match_object;
 } }
 
-namespace fc { 
+namespace fc {
    void to_variant(const graphene::chain::match_object& match_obj, fc::variant& v, uint32_t max_depth = 1);
    void from_variant(const fc::variant& v, graphene::chain::match_object& match_obj, uint32_t max_depth = 1);
 } //end namespace fc
+
 
 namespace graphene { namespace chain {
    class database;
@@ -89,6 +87,7 @@ namespace graphene { namespace chain {
 
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);
+
       void on_initiate_match(database& db);
       void on_game_complete(database& db, const game_object& game);
       game_id_type start_next_game(database& db, match_id_type match_id);
@@ -106,7 +105,7 @@ namespace graphene { namespace chain {
 
    template<typename Stream>
    inline Stream& operator<<( Stream& s, const match_object& match_obj )
-   { 
+   {
       // pack all fields exposed in the header in the usual way
       // instead of calling the derived pack, just serialize the one field in the base class
       //   fc::raw::pack<Stream, const graphene::db::abstract_object<match_object> >(s, match_obj);
@@ -132,7 +131,7 @@ namespace graphene { namespace chain {
 
    template<typename Stream>
    inline Stream& operator>>( Stream& s, match_object& match_obj )
-   { 
+   {
       // unpack all fields exposed in the header in the usual way
       //fc::raw::unpack<Stream, graphene::db::abstract_object<match_object> >(s, match_obj);
       fc::raw::unpack(s, match_obj.id);
@@ -151,10 +150,9 @@ namespace graphene { namespace chain {
       fc::raw::unpack(s, stringified_stream);
       std::istringstream stream(stringified_stream);
       match_obj.unpack_impl(stream);
-      
+
       return s;
    }
-
 } }
 
 FC_REFLECT_ENUM(graphene::chain::match_state,
@@ -162,6 +160,52 @@ FC_REFLECT_ENUM(graphene::chain::match_state,
                 (match_in_progress)
                 (match_complete))
 
-//FC_REFLECT_TYPENAME(graphene::chain::match_object) // manually serialized
-FC_REFLECT(graphene::chain::match_object, (players))
+namespace fc {
 
+   template<>
+   template<>
+   inline void if_enum<fc::false_type>::from_variant(const variant &vo, graphene::chain::match_object &v, uint32_t max_depth) {
+      from_variant(vo, v, max_depth);
+   }
+
+   template<>
+   template<>
+   inline void if_enum<fc::false_type>::to_variant(const graphene::chain::match_object &v, variant &vo, uint32_t max_depth) {
+      to_variant(v, vo, max_depth);
+   }
+
+   namespace raw { namespace detail {
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::pack(fc::datastream<size_t> &s, const graphene::chain::match_object &v, uint32_t) {
+         s << v;
+      }
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::pack(fc::datastream<char*> &s, const graphene::chain::match_object &v, uint32_t) {
+         s << v;
+      }
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::unpack(fc::datastream<const char*> &s, graphene::chain::match_object &v, uint32_t) {
+         s >> v;
+      }
+
+   } } // namespace fc::raw::detail
+
+   template <>
+   struct get_typename<graphene::chain::match_object> {
+      static const char *name() {
+         return "graphene::chain::match_object";
+      }
+   };
+   template <>
+   struct reflector<graphene::chain::match_object> {
+      typedef graphene::chain::match_object type;
+      typedef fc::true_type is_defined;
+      typedef fc::false_type is_enum;
+   };
+} // namespace fc

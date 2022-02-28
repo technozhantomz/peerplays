@@ -23,10 +23,8 @@
  */
 
 #pragma once
-#include <graphene/chain/match_object.hpp>
 #include <graphene/chain/rock_paper_scissors.hpp>
-#include <boost/multi_index/composite_key.hpp>
-#include <graphene/db/flat_index.hpp>
+#include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 #include <fc/crypto/hex.hpp>
 #include <sstream>
@@ -35,7 +33,7 @@ namespace graphene { namespace chain {
    class game_object;
 } }
 
-namespace fc { 
+namespace fc {
    void to_variant(const graphene::chain::game_object& game_obj, fc::variant& v, uint32_t max_depth = 1);
    void from_variant(const fc::variant& v, graphene::chain::game_object& game_obj, uint32_t max_depth = 1);
 } //end namespace fc
@@ -82,7 +80,7 @@ namespace graphene { namespace chain {
       void on_move(database& db, const game_move_operation& op);
       void on_timeout(database& db);
       void start_game(database& db, const std::vector<account_id_type>& players);
-      
+
       // serialization functions:
       // for serializing to raw, go through a temporary sstream object to avoid
       // having to implement serialization in the header file
@@ -116,7 +114,7 @@ namespace graphene { namespace chain {
 
    template<typename Stream>
    inline Stream& operator<<( Stream& s, const game_object& game_obj )
-   { 
+   {
       // pack all fields exposed in the header in the usual way
       // instead of calling the derived pack, just serialize the one field in the base class
       //   fc::raw::pack<Stream, const graphene::db::abstract_object<game_object> >(s, game_obj);
@@ -138,7 +136,7 @@ namespace graphene { namespace chain {
 
    template<typename Stream>
    inline Stream& operator>>( Stream& s, game_object& game_obj )
-   { 
+   {
       // unpack all fields exposed in the header in the usual way
       //fc::raw::unpack<Stream, graphene::db::abstract_object<game_object> >(s, game_obj);
       fc::raw::unpack(s, game_obj.id);
@@ -153,10 +151,9 @@ namespace graphene { namespace chain {
       fc::raw::unpack(s, stringified_stream);
       std::istringstream stream(stringified_stream);
       game_obj.unpack_impl(stream);
-      
+
       return s;
    }
-
 } }
 
 FC_REFLECT_ENUM(graphene::chain::game_state,
@@ -165,7 +162,52 @@ FC_REFLECT_ENUM(graphene::chain::game_state,
                 (expecting_reveal_moves)
                 (game_complete))
 
-//FC_REFLECT_TYPENAME(graphene::chain::game_object) // manually serialized
-FC_REFLECT(graphene::chain::game_object, (players))
+namespace fc {
 
+   template<>
+   template<>
+   inline void if_enum<fc::false_type>::from_variant(const variant &vo, graphene::chain::game_object &v, uint32_t max_depth) {
+      from_variant(vo, v, max_depth);
+   }
 
+   template<>
+   template<>
+   inline void if_enum<fc::false_type>::to_variant(const graphene::chain::game_object &v, variant &vo, uint32_t max_depth) {
+      to_variant(v, vo, max_depth);
+   }
+
+   namespace raw { namespace detail {
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::pack(fc::datastream<size_t> &s, const graphene::chain::game_object &v, uint32_t) {
+         s << v;
+      }
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::pack(fc::datastream<char*> &s, const graphene::chain::game_object &v, uint32_t) {
+         s << v;
+      }
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::unpack(fc::datastream<const char*> &s, graphene::chain::game_object &v, uint32_t) {
+         s >> v;
+      }
+
+   } } // namespace fc::raw::detail
+
+   template <>
+   struct get_typename<graphene::chain::game_object> {
+      static const char *name() {
+         return "graphene::chain::game_object";
+      }
+   };
+   template <>
+   struct reflector<graphene::chain::game_object> {
+      typedef graphene::chain::game_object type;
+      typedef fc::true_type is_defined;
+      typedef fc::false_type is_enum;
+   };
+} // namespace fc
