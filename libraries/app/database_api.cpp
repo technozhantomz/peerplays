@@ -2139,51 +2139,51 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
 
    //! Fill votes info
    if (!committee_ids.empty()) {
-      vector<votes_info_object<committee_member_id_type>> votes_for_committee_members;
+      vector<votes_info_object> votes_for_committee_members;
       votes_for_committee_members.reserve(committee_ids.size());
       for (const auto &committee : committee_ids) {
          const auto &committee_obj = committee.as<committee_member_object>(2);
-         votes_for_committee_members.emplace_back(votes_info_object<committee_member_id_type>{committee_obj.vote_id, committee_obj.id.instance()});
+         votes_for_committee_members.emplace_back(votes_info_object{committee_obj.vote_id, committee_obj.id});
       }
       result.votes_for_committee_members = std::move(votes_for_committee_members);
    }
 
    if (!witness_ids.empty()) {
-      vector<votes_info_object<witness_id_type>> votes_for_witnesses;
+      vector<votes_info_object> votes_for_witnesses;
       votes_for_witnesses.reserve(witness_ids.size());
       for (const auto &witness : witness_ids) {
          const auto &witness_obj = witness.as<witness_object>(2);
-         votes_for_witnesses.emplace_back(votes_info_object<witness_id_type>{witness_obj.vote_id, witness_obj.id.instance()});
+         votes_for_witnesses.emplace_back(votes_info_object{witness_obj.vote_id, witness_obj.id});
       }
       result.votes_for_witnesses = std::move(votes_for_witnesses);
    }
 
    if (!for_worker_ids.empty()) {
-      vector<votes_info_object<worker_id_type>> votes_for_workers;
+      vector<votes_info_object> votes_for_workers;
       votes_for_workers.reserve(for_worker_ids.size());
       for (const auto &for_worker : for_worker_ids) {
          const auto &for_worker_obj = for_worker.as<worker_object>(2);
-         votes_for_workers.emplace_back(votes_info_object<worker_id_type>{for_worker_obj.vote_for, for_worker_obj.id.instance()});
+         votes_for_workers.emplace_back(votes_info_object{for_worker_obj.vote_for, for_worker_obj.id});
       }
       result.votes_for_workers = std::move(votes_for_workers);
    }
 
    if (!against_worker_ids.empty()) {
-      vector<votes_info_object<worker_id_type>> votes_against_workers;
+      vector<votes_info_object> votes_against_workers;
       votes_against_workers.reserve(against_worker_ids.size());
       for (const auto &against_worker : against_worker_ids) {
          const auto &against_worker_obj = against_worker.as<worker_object>(2);
-         votes_against_workers.emplace_back(votes_info_object<worker_id_type>{against_worker_obj.vote_against, against_worker_obj.id.instance()});
+         votes_against_workers.emplace_back(votes_info_object{against_worker_obj.vote_against, against_worker_obj.id});
       }
       result.votes_against_workers = std::move(votes_against_workers);
    }
 
    if (!son_ids.empty()) {
-      vector<votes_info_object<son_id_type>> votes_for_sons;
+      vector<votes_info_object> votes_for_sons;
       votes_for_sons.reserve(son_ids.size());
       for (const auto &son : son_ids) {
          const auto &son_obj = son.as<son_object>(6);
-         votes_for_sons.emplace_back(votes_info_object<son_id_type>{son_obj.vote_id, son_obj.id.instance()});
+         votes_for_sons.emplace_back(votes_info_object{son_obj.vote_id, son_obj.id});
       }
       result.votes_for_sons = std::move(votes_for_sons);
    }
