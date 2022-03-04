@@ -60,8 +60,14 @@ public:
         create_tx = fixture_.con.wallet_api_ptr->create_account_with_brain_key(
               bki.brain_priv_key, account_name, "nathan", "nathan", true
         );
+
+        fixture_.generate_block();
+
         // save the private key for this new account in the wallet file
         BOOST_CHECK(fixture_.con.wallet_api_ptr->import_key(account_name, bki.wif_priv_key));
+
+        fixture_.generate_block();
+
         fixture_.con.wallet_api_ptr->save_wallet_file(fixture_.con.wallet_filename);
 
         // attempt to give son account some CORE tokens
