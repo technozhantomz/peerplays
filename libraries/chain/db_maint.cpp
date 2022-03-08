@@ -2274,6 +2274,14 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
          if( !p.pending_parameters->extensions.value.hive_asset.valid() )
             p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
+
+         // the following parameters are not allowed to be changed. So take what is in global property
+         p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
+         p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
+         p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
+         p.pending_parameters->extensions.value.son_account = p.parameters.extensions.value.son_account;
+         p.pending_parameters->extensions.value.gpos_period_start = p.parameters.extensions.value.gpos_period_start;
+
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }
