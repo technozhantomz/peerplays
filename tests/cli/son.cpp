@@ -782,6 +782,73 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
    BOOST_TEST_MESSAGE("SON maintenance cli wallet tests end");
 }
 
+BOOST_AUTO_TEST_CASE( sidechain_deposit_transaction_test )
+{
+   BOOST_TEST_MESSAGE("SON sidechain_deposit_transaction_test cli wallet tests begin");
+   try
+   {
+      son_test_helper sth(*this);
+
+      std::string son_name("sonaccount1");
+      std::string account_name("jmjatlanta");
+
+      global_property_object gpo;
+      gpo = con.wallet_api_ptr->get_global_properties();
+      unsigned int son_number = gpo.parameters.maximum_son_count();
+
+      flat_map<sidechain_type, string> sidechain_public_keys;
+
+      // create son accounts
+      for(unsigned int i = 0; i < son_number + 1; i++)
+      {
+         sidechain_public_keys.clear();
+         sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
+         sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
+         sth.create_son("sonaccount" + fc::to_pretty_string(i),
+                        "http://son" + fc::to_pretty_string(i),
+                        sidechain_public_keys,
+                        false);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+
+      BOOST_TEST_MESSAGE("Voting for SONs");
+      for(unsigned int i = 1; i < son_number + 1; i++)
+      {
+         con.wallet_api_ptr->transfer(
+               "nathan", "sonaccount" + fc::to_pretty_string(i), "1000", "1.3.0", "Here are some CORE tokens for your new account", true );
+         con.wallet_api_ptr->create_vesting_balance("sonaccount" + fc::to_pretty_string(i), "500", "1.3.0", vesting_balance_type::gpos, true);
+         con.wallet_api_ptr->vote_for_son("sonaccount" + fc::to_pretty_string(i), son_name, true, true);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+
+      // create a new account
+      graphene::wallet::brain_key_info bki = con.wallet_api_ptr->suggest_brain_key();
+      BOOST_CHECK(!bki.brain_priv_key.empty());
+      signed_transaction create_acct_tx = con.wallet_api_ptr->create_account_with_brain_key(
+            bki.brain_priv_key, account_name, "nathan", "nathan", true
+      );
+
+      generate_block();
+
+      //! sidechain_deposit_transaction for this account
+      for(unsigned int i = 0; i < son_number; i++) {
+         signed_transaction bitcoin_deposit_tx = con.wallet_api_ptr->sidechain_deposit_transaction("sonaccount" + fc::to_pretty_string(i), sidechain_type::bitcoin, "1db35f72d54eae871e9646c21bdba385f1f0920c",
+            0, "bitcoin_address 0", "", "BTC", 1, son_name, account_name);
+
+         signed_transaction hive_deposit_tx = con.wallet_api_ptr->sidechain_deposit_transaction("sonaccount" + fc::to_pretty_string(i), sidechain_type::hive, "1db35f72d54eae871e9646c21bdba385f1f0920d",
+            0, "hive account 0", "son-account", "HIVE", 1, son_name, account_name);
+      }
+
+      generate_block();
+
+   } catch( fc::exception& e ) {
+      BOOST_TEST_MESSAGE("SON cli wallet tests exception");
+      edump((e.to_detail_string()));
+      throw;
+   }
+   BOOST_TEST_MESSAGE("SON sidechain_deposit_transaction_test cli wallet tests end");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 

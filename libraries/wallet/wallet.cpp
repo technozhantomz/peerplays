@@ -2830,6 +2830,81 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (voting_account)(sons_to_approve)(sons_to_reject)(desired_number_of_sons)(broadcast) ) }
 
+   signed_transaction sidechain_deposit_transaction(  const string &son_name_or_id,
+                                                      const sidechain_type& sidechain,
+                                                      const string &transaction_id,
+                                                      uint32_t operation_index,
+                                                      const string &sidechain_from,
+                                                      const string &sidechain_to,
+                                                      const string &sidechain_currency,
+                                                      int64_t sidechain_amount,
+                                                      const string &peerplays_from_name_or_id,
+                                                      const string &peerplays_to_name_or_id )
+   {
+      //! Get data we need to procced transaction
+      const auto dynamic_global_props = get_dynamic_global_properties();
+      const auto global_props = get_global_properties();
+      const auto son_obj = get_son(son_name_or_id);
+      const std::string sidechain_str = [&sidechain](){
+         switch (sidechain) {
+            case sidechain_type::peerplays : return "peerplays";
+            case sidechain_type::bitcoin : return "bitcoin";
+            case sidechain_type::hive : return "hive";
+            default:
+               FC_THROW("Wrong sidechain type: ${sidechain}", ("sidechain", sidechain));
+         }
+      }();
+      const auto peerplays_from_obj = get_account(peerplays_from_name_or_id);
+      const auto peerplays_to_obj = get_account(peerplays_to_name_or_id);
+      const price sidechain_currency_price = [this, &sidechain_currency, &global_props](){
+         if(sidechain_currency == "BTC")
+         {
+            fc::optional<asset_object> asset_obj = get_asset(object_id_to_string(global_props.parameters.btc_asset()));
+            FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", "BTC"));
+            return asset_obj->options.core_exchange_rate;
+         }
+         else if(sidechain_currency == "HBD")
+         {
+            fc::optional<asset_object> asset_obj = get_asset(object_id_to_string(global_props.parameters.hbd_asset()));
+            FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", "HBD"));
+            return asset_obj->options.core_exchange_rate;
+         }
+         else if(sidechain_currency == "HIVE")
+         {
+            fc::optional<asset_object> asset_obj = get_asset(object_id_to_string(global_props.parameters.hive_asset()));
+            FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", "HIVE"));
+            return asset_obj->options.core_exchange_rate;
+         }
+         else
+         {
+            fc::optional<asset_object> asset_obj = get_asset(sidechain_currency);
+            FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", sidechain_currency));
+            return asset_obj->options.core_exchange_rate;
+         }
+      }();
+
+      //! Create transaction
+      signed_transaction son_wallet_deposit_create_transaction;
+      son_wallet_deposit_create_operation op;
+      op.payer = son_obj.son_account;
+      op.son_id = son_obj.id;
+      op.timestamp = dynamic_global_props.time;
+      op.block_num = dynamic_global_props.head_block_number;
+      op.sidechain = sidechain;
+      op.sidechain_uid = sidechain_str + "-" + transaction_id + "-" + std::to_string(operation_index);
+      op.sidechain_transaction_id = transaction_id;
+      op.sidechain_from = sidechain_from;
+      op.sidechain_to = sidechain_to;
+      op.sidechain_currency = sidechain_currency;
+      op.sidechain_amount = sidechain_amount;
+      op.peerplays_from = peerplays_from_obj.id;
+      op.peerplays_to = peerplays_to_obj.id;
+      op.peerplays_asset = asset(op.sidechain_amount * sidechain_currency_price.base.amount / sidechain_currency_price.quote.amount);
+      son_wallet_deposit_create_transaction.operations.push_back(op);
+
+      return sign_transaction(son_wallet_deposit_create_transaction, true);
+   }
+
    signed_transaction vote_for_witness(string voting_account,
                                        string witness,
                                        bool approve,
@@ -5339,6 +5414,29 @@ signed_transaction wallet_api::update_son_votes(string voting_account,
                                                     bool broadcast /* = false */)
 {
    return my->update_son_votes(voting_account, sons_to_approve, sons_to_reject, desired_number_of_sons, broadcast);
+}
+
+signed_transaction wallet_api::sidechain_deposit_transaction(  const string &son_name_or_id,
+                                                               const sidechain_type& sidechain,
+                                                               const string &transaction_id,
+                                                               uint32_t operation_index,
+                                                               const string &sidechain_from,
+                                                               const string &sidechain_to,
+                                                               const string &sidechain_currency,
+                                                               int64_t sidechain_amount,
+                                                               const string &peerplays_from_name_or_id,
+                                                               const string &peerplays_to_name_or_id)
+{
+   return my->sidechain_deposit_transaction(son_name_or_id, 
+      sidechain,
+      transaction_id,
+      operation_index,
+      sidechain_from,
+      sidechain_to,
+      sidechain_currency,
+      sidechain_amount,
+      peerplays_from_name_or_id,
+      peerplays_to_name_or_id);
 }
 
 signed_transaction wallet_api::vote_for_witness(string voting_account,
