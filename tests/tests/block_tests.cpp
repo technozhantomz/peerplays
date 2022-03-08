@@ -934,6 +934,84 @@ BOOST_FIXTURE_TEST_CASE( change_block_interval, database_fixture )
    BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 2);
 } FC_LOG_AND_RETHROW() }
 
+BOOST_FIXTURE_TEST_CASE( prevent_missconfiguration_blockchain_param, database_fixture )
+{ try {
+
+   db.modify(db.get_global_properties(), [](global_property_object& p) {
+      p.parameters.committee_proposal_review_period = fc::hours(1).to_seconds();
+   });
+
+   // remeber global properties before we try to change
+   const global_property_object gpo = db.get_global_properties();
+
+   BOOST_TEST_MESSAGE( "Creating a proposal to try with changing some global parameters" );
+   {
+      proposal_create_operation cop = proposal_create_operation::committee_proposal(db.get_global_properties().parameters, db.head_block_time());
+      cop.fee_paying_account = GRAPHENE_TEMP_ACCOUNT;
+      cop.expiration_time = db.head_block_time() + *cop.review_period_seconds + 10;
+
+      committee_member_update_global_parameters_operation uop;
+
+      // this is allowed values and the proposal change should be visible after approving
+      *uop.new_parameters.extensions.value.son_heartbeat_frequency = 100;
+      *uop.new_parameters.extensions.value.son_deregister_time = 120;
+      *uop.new_parameters.extensions.value.son_down_time = 140;
+      *uop.new_parameters.extensions.value.son_pay_time = 160;
+
+      // this change should not be applied. Changing gpos_period_start is not allowed
+      *uop.new_parameters.extensions.value.gpos_period_start = 50;
+
+      // the following changes should not be applied. Changing the assets is not allowed
+      *uop.new_parameters.extensions.value.btc_asset  = db.get_global_properties().parameters.hbd_asset();
+      *uop.new_parameters.extensions.value.hbd_asset  = db.get_global_properties().parameters.hive_asset();
+      *uop.new_parameters.extensions.value.hive_asset = db.get_global_properties().parameters.btc_asset();
+
+      // this change should not be applied. Changing the son_acccount is not allowed
+      *uop.new_parameters.extensions.value.son_account = GRAPHENE_TEMP_ACCOUNT;
+
+      cop.proposed_ops.emplace_back(uop);
+
+      trx.operations.push_back(cop);
+      db.push_transaction(trx);
+   }
+
+   BOOST_TEST_MESSAGE( "Updating proposal by signing with the committee_member private key" );
+   {
+      proposal_update_operation uop;
+      uop.fee_paying_account = GRAPHENE_TEMP_ACCOUNT;
+      uop.active_approvals_to_add = {get_account("init0").get_id(), get_account("init1").get_id(),
+                                     get_account("init2").get_id(), get_account("init3").get_id(),
+                                     get_account("init4").get_id(), get_account("init5").get_id(),
+                                     get_account("init6").get_id(), get_account("init7").get_id()};
+      trx.operations.push_back(uop);
+      sign( trx, init_account_priv_key );
+
+      db.push_transaction(trx);
+
+      BOOST_CHECK(proposal_id_type()(db).is_authorized_to_execute(db));
+   }
+
+   BOOST_TEST_MESSAGE( "Generating blocks until proposal expires" );
+   generate_blocks(proposal_id_type()(db).expiration_time + 5);
+
+   generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+   generate_block();   // get the maintenance skip slots out of the way*/
+
+   BOOST_CHECK_EQUAL( db.get_global_properties().parameters.son_heartbeat_frequency(), 100 );
+   BOOST_CHECK_EQUAL( db.get_global_properties().parameters.son_deregister_time(), 120 );
+   BOOST_CHECK_EQUAL( db.get_global_properties().parameters.son_down_time(), 140 );
+   BOOST_CHECK_EQUAL( db.get_global_properties().parameters.son_pay_time(), 160 );
+
+   BOOST_CHECK_NE( db.get_global_properties().parameters.gpos_period_start(), 50 );
+
+   BOOST_CHECK( db.get_global_properties().parameters.son_account() != GRAPHENE_TEMP_ACCOUNT );
+
+   BOOST_CHECK( gpo.parameters.hbd_asset()  == db.get_global_properties().parameters.hbd_asset() );
+   BOOST_CHECK( gpo.parameters.hive_asset() == db.get_global_properties().parameters.hive_asset() );
+   BOOST_CHECK( gpo.parameters.btc_asset()  == db.get_global_properties().parameters.btc_asset() );
+
+} FC_LOG_AND_RETHROW() }
+
 BOOST_FIXTURE_TEST_CASE( pop_block_twice, database_fixture )
 {
    try
