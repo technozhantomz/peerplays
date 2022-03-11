@@ -849,6 +849,87 @@ BOOST_AUTO_TEST_CASE( sidechain_deposit_transaction_test )
    BOOST_TEST_MESSAGE("SON sidechain_deposit_transaction_test cli wallet tests end");
 }
 
+BOOST_AUTO_TEST_CASE( sidechain_withdraw_transaction_test )
+{
+   BOOST_TEST_MESSAGE("SON sidechain_withdraw_transaction_test cli wallet tests begin");
+      son_test_helper sth(*this);
+
+      std::string name("sonaccount1");
+
+      global_property_object gpo;
+      gpo = con.wallet_api_ptr->get_global_properties();
+      unsigned int son_number = gpo.parameters.maximum_son_count();
+
+      flat_map<sidechain_type, string> sidechain_public_keys;
+
+      // create son accounts
+      for(unsigned int i = 0; i < son_number + 1; i++)
+      {
+          sidechain_public_keys.clear();
+          sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
+          sth.create_son("sonaccount" + fc::to_pretty_string(i),
+                         "http://son" + fc::to_pretty_string(i),
+                         sidechain_public_keys,
+                         false);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+
+      BOOST_TEST_MESSAGE("Voting for SONs");
+      for(unsigned int i = 1; i < son_number + 1; i++)
+      {
+         con.wallet_api_ptr->transfer(
+              "nathan", "sonaccount" + fc::to_pretty_string(i), "1000", "1.3.0", "Here are some CORE tokens for your new account", true );
+         con.wallet_api_ptr->create_vesting_balance("sonaccount" + fc::to_pretty_string(i), "500", "1.3.0", vesting_balance_type::gpos, true);
+         con.wallet_api_ptr->vote_for_son("sonaccount" + fc::to_pretty_string(i), name, true, true);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+
+      son_object son_obj = con.wallet_api_ptr->get_son(name);
+      BOOST_CHECK(son_obj.status == son_status::active);
+
+      // create son account
+      std::string account_name("peerplaystest");
+      graphene::wallet::brain_key_info bki = con.wallet_api_ptr->suggest_brain_key();
+      BOOST_CHECK(!bki.brain_priv_key.empty());
+      signed_transaction create_tx = con.wallet_api_ptr->create_account_with_brain_key(bki.brain_priv_key, account_name, "nathan", "nathan", true);
+
+      generate_block();
+
+      // Deposit 
+      //BOOST_TEST_MESSAGE("Deposit");
+      //signed_transaction deposit_tx = con.wallet_api_ptr->transfer("nathan", account_name, "5", "BTC", "", true);
+      //generate_block();
+
+      // Withdraw
+      BOOST_TEST_MESSAGE("Withdraw");
+      signed_transaction withdraw_tx = con.wallet_api_ptr->transfer(account_name, "son-acount", "1", "BTC", "", true); 
+      generate_block();
+      BOOST_TEST_MESSAGE("Withdraw done");
+
+      graphene::chain::transaction_id_type trx_id_type = con.wallet_api_ptr->get_transaction_id(withdraw_tx);
+      std::string peerplays_transaction_id = trx_id_type.str();
+
+      std::string peerplays_transaction_id_str = "peerplays_transaction_id = " + peerplays_transaction_id;
+      BOOST_TEST_MESSAGE(peerplays_transaction_id_str);
+
+      std::string peerplays_uid = "peerplays-" + peerplays_transaction_id + "0";
+      graphene::chain::account_id_type peerplays_from = con.wallet_api_ptr->get_account(account_name).id;
+      std::string withdraw_address = "2MtTPtraZawsvNGc8eCdx98hXbi4gaYy8L6";
+
+      signed_transaction txs = con.wallet_api_ptr->sidechain_withdrawal_transaction(account_name, sidechain_type::peerplays,
+                                                      peerplays_uid,
+                                                      peerplays_transaction_id,
+                                                      peerplays_from,
+                                                      sidechain_type::bitcoin,
+                                                      withdraw_address,
+                                                      "BTC",
+                                                      "1");
+
+
+   BOOST_TEST_MESSAGE("SON sidechain_withdraw_transaction_test cli wallet tests end");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 
