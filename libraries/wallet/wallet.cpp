@@ -2361,6 +2361,63 @@ public:
 
    } FC_CAPTURE_AND_RETHROW() }
 
+   signed_transaction sidechain_withdrawal_transaction(const string &son_name_or_id,
+                                                      const sidechain_type& sidechain,
+                                                      const std::string &peerplays_uid,
+                                                      const std::string &peerplays_transaction_id,
+                                                      const chain::account_id_type &peerplays_from,
+                                                      const sidechain_type& withdraw_sidechain,
+                                                      const std::string &withdraw_address,
+                                                      const std::string &withdraw_currency,
+                                                      const string &withdraw_amount)
+    { try{
+      const global_property_object& gpo = get_global_properties();
+      const auto dynamic_props = get_dynamic_global_properties();
+      const auto son_obj = get_son(son_name_or_id);
+
+      fc::optional<asset_object> peerplays_asset = get_asset(withdraw_currency);
+      FC_ASSERT(peerplays_asset, "Could not find asset matching ${asset}", ("asset", peerplays_asset));
+      const auto asset_val = peerplays_asset->amount_from_string(withdraw_amount);
+      const auto asset_price = peerplays_asset->options.core_exchange_rate;
+
+      price withdraw_currency_price = {};
+      if ("BTC" == withdraw_currency) {
+	 fc::optional<asset_object> a  = get_asset( gpo.parameters.btc_asset());
+         withdraw_currency_price = a->options.core_exchange_rate;
+      } else
+      if ("HBD" == withdraw_currency) {
+	 fc::optional<asset_object> a  = get_asset( gpo.parameters.hbd_asset());
+         withdraw_currency_price = a->options.core_exchange_rate;
+      } else
+      if ("HIVE" == withdraw_currency) {
+         fc::optional<asset_object> a  = get_asset( gpo.parameters.hive_asset());
+         withdraw_currency_price = a->options.core_exchange_rate;
+      } else {
+	      FC_THROW("withdraw_currency ${withdraw_currency}", ("withdraw_currency", withdraw_currency));
+      }
+
+      //! Create transaction
+      signed_transaction son_wallet_withdraw_create_transaction;
+      son_wallet_withdraw_create_operation op;
+      op.payer = son_obj.son_account;
+      op.son_id = son_obj.id;
+      op.timestamp = dynamic_props.time;
+      op.block_num = dynamic_props.head_block_number;
+      op.sidechain = sidechain;
+      op.peerplays_uid = peerplays_uid;
+      op.peerplays_transaction_id = peerplays_transaction_id;
+      op.peerplays_from = peerplays_from; 
+      op.peerplays_asset = asset(asset_val.amount * asset_price.base.amount / asset_price.quote.amount);
+      op.withdraw_sidechain = withdraw_sidechain;
+      op.withdraw_address = withdraw_address;
+      op.withdraw_currency = withdraw_currency;
+      op.withdraw_amount = asset_val.amount;
+
+      son_wallet_withdraw_create_transaction.operations.push_back(op);
+
+      return sign_transaction(son_wallet_withdraw_create_transaction, true);
+   } FC_CAPTURE_AND_RETHROW( (withdraw_currency) ) }
+
    signed_transaction create_witness(string owner_account,
                                      string url,
                                      bool broadcast /* = false */)
@@ -5306,6 +5363,27 @@ signed_transaction wallet_api::delete_sidechain_address(string account,
                                           bool broadcast /* = false */)
 {
    return my->delete_sidechain_address(account, sidechain, broadcast);
+}
+
+signed_transaction wallet_api::sidechain_withdrawal_transaction(const string &son_name_or_id,
+                                                      const sidechain_type& sidechain,
+                                                      const std::string &peerplays_uid,
+                                                      const std::string &peerplays_transaction_id,
+                                                      const chain::account_id_type &peerplays_from,
+                                                      const sidechain_type& withdraw_sidechain,
+                                                      const std::string &withdraw_address,
+                                                      const std::string &withdraw_currency,
+                                                      const string &withdraw_amount)
+{
+   return my->sidechain_withdrawal_transaction(son_name_or_id, 
+      sidechain,
+      peerplays_uid,
+      peerplays_transaction_id,
+      peerplays_from,
+      withdraw_sidechain,
+      withdraw_address,
+      withdraw_currency,
+      withdraw_amount);
 }
 
 vector<optional<sidechain_address_object>> wallet_api::get_sidechain_addresses_by_account(string account)

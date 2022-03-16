@@ -1567,6 +1567,28 @@ class wallet_api
                                           sidechain_type sidechain,
                                           bool broadcast = false);
 
+       /** Broadcast signed transaction for manually sidechain withdrawal
+       * @param son_name_or_id ID or name of the son account
+       * @param sidechain Sidechain type (bitcoin, HIVE, etc)
+       * @param peerplays_uid peerplays_uid
+       * @param transaction_id ID of transaction
+       * @param peerplays_from Sidechain address transaction from
+       * @param withdraw_sidechain Withdraw sidechain
+       * @param withdraw_address Withdraw address
+       * @param withdraw_currency Withdraw currency
+       * @param withdraw_amount Withdraw amount
+       * @returns the signed transaction.
+       */
+      signed_transaction sidechain_withdrawal_transaction(const string &son_name_or_id,
+                                                      const sidechain_type& sidechain,
+                                                      const std::string &peerplays_uid,
+                                                      const std::string &peerplays_transaction_id,
+                                                      const chain::account_id_type &peerplays_from,
+                                                      const sidechain_type& withdraw_sidechain,
+                                                      const std::string &withdraw_address,
+                                                      const std::string &withdraw_currency,
+                                                      const string &withdraw_amount);
+
       /** Retrieves all sidechain addresses owned by given account.
        *
        * @param account the name or id of the account who owns the address
@@ -2723,6 +2745,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_son_wallets)
         (add_sidechain_address)
         (delete_sidechain_address)
+	(sidechain_withdrawal_transaction)
         (get_sidechain_addresses_by_account)
         (get_sidechain_addresses_by_sidechain)
         (get_sidechain_address_by_account_and_sidechain)
