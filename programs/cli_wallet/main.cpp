@@ -86,8 +86,7 @@ int main(int argc, char **argv) {
 
       bpo::variables_map options;
 
-      try
-      {
+      try {
          bpo::parsed_options po = bpo::command_line_parser(argc, argv).options(opts).allow_unregistered().run();
          std::vector<std::string> unrecognized = bpo::collect_unrecognized(po.options, bpo::include_positional);
          if (unrecognized.size() > 0) {
@@ -98,9 +97,7 @@ int main(int argc, char **argv) {
             return 0;
          }
          bpo::store(po, options);
-      }
-      catch (const boost::program_options::invalid_command_line_syntax & e)
-      {
+      } catch (const boost::program_options::invalid_command_line_syntax &e) {
          std::cout << e.what() << std::endl;
          return 0;
       }
