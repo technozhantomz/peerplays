@@ -1012,6 +1012,47 @@ BOOST_FIXTURE_TEST_CASE( prevent_missconfiguration_blockchain_param, database_fi
 
 } FC_LOG_AND_RETHROW() }
 
+BOOST_FIXTURE_TEST_CASE( hardfork_son2_time, database_fixture )
+{ try {
+
+   db.modify(db.get_global_properties(), [](global_property_object& p) {
+      p.parameters.committee_proposal_review_period = fc::hours(1).to_seconds();
+   });
+
+   generate_block();
+   // check that maximum_son_count are not yet updated on 7, it should
+   // be updated on HARDFORK_SON2_TIME
+   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), GRAPHENE_DEFAULT_MAX_SONS);
+
+   generate_blocks(HARDFORK_SON2_TIME);
+
+   // check that flags for assets are set after hardfork_son2_time
+   asset_object btc_asset  = get_asset("BTC");
+   uint16_t check_flags{0};
+   check_flags |= asset_issuer_permission_flags::charge_market_fee | asset_issuer_permission_flags::override_authority;
+   uint16_t result = btc_asset.options.flags & check_flags;
+   BOOST_CHECK_EQUAL( result, check_flags);
+
+   // move on next maintenance interval and check that maximum_son_count is updated to 7
+   generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+   generate_block();   // get the maintenance skip slots out of the way*/
+   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), 7);
+
+   generate_blocks(HARDFORK_SON3_TIME);
+   // after this hardfork maximum son account should not reset the value
+   // on 7 after maintenance interval anymore. So change the global parameters
+   // and check the value after maintenance interval
+   db.modify(db.get_global_properties(), [](global_property_object& p) {
+      p.parameters.extensions.value.maximum_son_count = 13;
+   });
+
+   generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+   generate_block();
+
+   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), 13);
+
+} FC_LOG_AND_RETHROW() }
+
 BOOST_FIXTURE_TEST_CASE( pop_block_twice, database_fixture )
 {
    try
