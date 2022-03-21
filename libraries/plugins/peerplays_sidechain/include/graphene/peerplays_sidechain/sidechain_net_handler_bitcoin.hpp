@@ -23,6 +23,23 @@ public:
 
 class bitcoin_rpc_client {
 public:
+   enum class multi_type {
+      script,
+      address
+   };
+   struct multi_params {
+      multi_params(multi_type _type, const std::string &_address_or_script, const std::string &_label = "") :
+            type{_type},
+            address_or_script{_address_or_script},
+            label{_label} {
+      }
+
+      multi_type type;
+      std::string address_or_script;
+      std::string label;
+   };
+
+public:
    bitcoin_rpc_client(std::string _ip, uint32_t _rpc, std::string _user, std::string _password, std::string _wallet, std::string _wallet_password, bool _debug_rpc_calls);
 
    std::string addmultisigaddress(const uint32_t nrequired, const std::vector<std::string> public_keys);
@@ -42,6 +59,7 @@ public:
    std::string gettransaction(const std::string &txid, const bool include_watch_only = false);
    std::string getblockchaininfo();
    void importaddress(const std::string &address_or_script, const std::string &label = "", const bool rescan = true, const bool p2sh = false);
+   void importmulti(const std::vector<multi_params> &address_or_script_array, const bool rescan = true);
    std::vector<btc_txout> listunspent(const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::vector<btc_txout> listunspent_by_address_and_amount(const std::string &address, double transfer_amount, const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::string loadwallet(const std::string &filename);
