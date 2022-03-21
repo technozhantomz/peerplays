@@ -572,6 +572,55 @@ void bitcoin_rpc_client::importaddress(const std::string &address_or_script, con
    }
 }
 
+void bitcoin_rpc_client::importmulti(const std::vector<multi_params> &address_or_script_array, const bool rescan) {
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"importmulti\", "
+                                  "\"method\": \"importmulti\", \"params\": [");
+
+   std::string argument_1 = "[";
+   for (const auto &param : address_or_script_array) {
+      argument_1 += "{\"scriptPubKey\": ";
+      if (param.type == multi_type::address)
+         argument_1 += "{\"address\": \"" + param.address_or_script + "\"}";
+      else if (param.type == multi_type::script)
+         argument_1 += "\"" + param.address_or_script + "\"";
+      else
+         FC_THROW("Invalid multi_type.");
+      argument_1 += ", \"label\": \"" + param.label + "\", \"timestamp\": " + std::to_string(HARDFORK_SON_TIME.sec_since_epoch()) + "}";
+
+      //! Note
+      /* Creation time of the key expressed in UNIX epoch time,
+      or the string "now" to substitute the current synced blockchain time. The timestamp of the oldest
+      key will determine how far back blockchain rescans need to begin for missing wallet transactions.
+      "now" can be specified to bypass scanning, for keys which are known to never have been used, and
+      0 can be specified to scan the entire blockchain. Blocks up to 2 hours before the earliest key
+      creation time of all keys being imported by the importmulti call will be scanned.*/
+
+      if (&param != &address_or_script_array.back())
+         argument_1 += ", ";
+   }
+   argument_1 += "]";
+
+   std::string argument_2 = std::string{"{\"rescan\": "} + (rescan ? "true" : "false") + "}";
+   body += argument_1 + ", " + argument_2 + "]}";
+
+   const auto reply = send_post_request(body, debug_rpc_calls);
+
+   if (reply.body.empty()) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
+      return;
+   }
+
+   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (reply.status == 200) {
+      return;
+   } else if (json.count("error") && !json.get_child("error").empty()) {
+      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
+   }
+}
+
 std::vector<btc_txout> bitcoin_rpc_client::listunspent(const uint32_t minconf, const uint32_t maxconf) {
    const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": "
                                  "\"listunspent\", \"params\": [" +
@@ -1908,6 +1957,8 @@ void sidechain_net_handler_bitcoin::on_changed_objects(const vector<object_id_ty
 }
 
 void sidechain_net_handler_bitcoin::on_changed_objects_cb(const vector<object_id_type> &ids, const flat_set<account_id_type> &accounts) {
+   std::vector<bitcoin_rpc_client::multi_params> address_or_script_array;
+
    for (auto id : ids) {
       if (id.is<son_wallet_object>()) {
          const auto &swi = database.get_index_type<son_wallet_index>().indices().get<by_id>();
@@ -1919,16 +1970,19 @@ void sidechain_net_handler_bitcoin::on_changed_objects_cb(const vector<object_id
 
             if (pw_pt.count("address")) {
                std::string pw_address = pw_pt.get<std::string>("address");
-               bitcoin_client->importaddress(pw_address);
+               address_or_script_array.emplace_back(bitcoin_rpc_client::multi_params{bitcoin_rpc_client::multi_type::address, pw_address});
             }
 
             if (pw_pt.count("redeemScript")) {
                std::string pw_redeem_script = pw_pt.get<std::string>("redeemScript");
-               bitcoin_client->importaddress(pw_redeem_script, "", true, true);
+               address_or_script_array.emplace_back(bitcoin_rpc_client::multi_params{bitcoin_rpc_client::multi_type::script, pw_redeem_script});
             }
          }
       }
    }
+
+   if (!address_or_script_array.empty())
+      bitcoin_client->importmulti(address_or_script_array);
 }
 
 // =============================================================================
