@@ -2362,6 +2362,7 @@ public:
    } FC_CAPTURE_AND_RETHROW() }
 
    signed_transaction sidechain_withdrawal_transaction(const string &son_name_or_id,
+		                                      uint32_t block_num,
                                                       const sidechain_type& sidechain,
                                                       const std::string &peerplays_uid,
                                                       const std::string &peerplays_transaction_id,
@@ -2402,7 +2403,7 @@ public:
       op.payer = son_obj.son_account;
       op.son_id = son_obj.id;
       op.timestamp = dynamic_props.time;
-      op.block_num = dynamic_props.head_block_number;
+      op.block_num = block_num;
       op.sidechain = sidechain;
       op.peerplays_uid = peerplays_uid;
       op.peerplays_transaction_id = peerplays_transaction_id;
@@ -5366,6 +5367,7 @@ signed_transaction wallet_api::delete_sidechain_address(string account,
 }
 
 signed_transaction wallet_api::sidechain_withdrawal_transaction(const string &son_name_or_id,
+		                                      uint32_t block_num,
                                                       const sidechain_type& sidechain,
                                                       const std::string &peerplays_uid,
                                                       const std::string &peerplays_transaction_id,
@@ -5375,7 +5377,8 @@ signed_transaction wallet_api::sidechain_withdrawal_transaction(const string &so
                                                       const std::string &withdraw_currency,
                                                       const string &withdraw_amount)
 {
-   return my->sidechain_withdrawal_transaction(son_name_or_id, 
+   return my->sidechain_withdrawal_transaction(son_name_or_id,
+      block_num, 
       sidechain,
       peerplays_uid,
       peerplays_transaction_id,
