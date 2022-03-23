@@ -1714,7 +1714,7 @@ std::string sidechain_net_handler_bitcoin::create_primary_wallet_transaction(con
       }
 
       if (fee_rate >= total_amount) {
-         elog("Failed not enough BTC to transfer from ${fa}", ("fa", prev_pw_address));
+         elog("Not enough BTC to pay the transfer fee, address ${fa}", ("fa", prev_pw_address));
          return "";
       }
    }
@@ -1748,6 +1748,12 @@ std::string sidechain_net_handler_bitcoin::create_deposit_transaction(const son_
    uint64_t fee_rate = bitcoin_client->estimatesmartfee();
    uint64_t min_fee_rate = 1000;
    fee_rate = std::max(fee_rate, min_fee_rate);
+
+   if (fee_rate >= deposit_amount) {
+      elog("Not enough BTC to pay the transfer fee, address ${da}", ("da", swdo.sidechain_from));
+      return "";
+   }
+
    deposit_amount -= fee_rate; // Deduct minimum relay fee
    double transfer_amount = (double)deposit_amount / 100000000.0;
 
@@ -1798,7 +1804,7 @@ std::string sidechain_net_handler_bitcoin::create_withdrawal_transaction(const s
       }
 
       if ((swwo.withdraw_amount.value > total_amount) || (fee_rate >= swwo.withdraw_amount.value)) {
-         elog("Failed not enough BTC to spend for ${pw}", ("pw", pw_address));
+         elog("Not enough BTC to pay the transfer fee, address ${pw}", ("pw", pw_address));
          return "";
       }
    }
