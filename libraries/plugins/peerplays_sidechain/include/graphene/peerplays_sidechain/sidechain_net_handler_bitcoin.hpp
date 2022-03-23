@@ -56,6 +56,7 @@ public:
    std::string getaddressinfo(const std::string &address);
    std::string getblock(const std::string &block_hash, int32_t verbosity = 2);
    std::string getrawtransaction(const std::string &txid, const bool verbose = false);
+   std::string getnetworkinfo();
    std::string gettransaction(const std::string &txid, const bool include_watch_only = false);
    std::string getblockchaininfo();
    void importaddress(const std::string &address_or_script, const std::string &label = "", const bool rescan = true, const bool p2sh = false);
@@ -123,6 +124,7 @@ private:
    std::string ip;
    uint32_t zmq_port;
    uint32_t rpc_port;
+   uint32_t bitcoin_major_version;
    std::string rpc_user;
    std::string rpc_password;
    std::string wallet;
