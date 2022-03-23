@@ -579,13 +579,14 @@ void bitcoin_rpc_client::importmulti(const std::vector<multi_params> &address_or
    std::string argument_1 = "[";
    for (const auto &param : address_or_script_array) {
       argument_1 += "{\"scriptPubKey\": ";
-      if (param.type == multi_type::address)
+      if (param.type == multi_type::address) {
          argument_1 += "{\"address\": \"" + param.address_or_script + "\"}";
-      else if (param.type == multi_type::script)
+      } else if (param.type == multi_type::script) {
          argument_1 += "\"" + param.address_or_script + "\"";
-      else
+      } else {
          FC_THROW("Invalid multi_type.");
-      argument_1 += ", \"label\": \"" + param.label + "\", \"timestamp\": " + std::to_string(HARDFORK_SON_TIME.sec_since_epoch()) + "}";
+      }
+      argument_1 += ", \"label\": \"" + param.label + "\", \"timestamp\": " + std::to_string(fc::time_point_sec::from_iso_string("2022-01-01T00:00:00").sec_since_epoch()) + "}";
 
       //! Note
       /* Creation time of the key expressed in UNIX epoch time,
@@ -595,8 +596,9 @@ void bitcoin_rpc_client::importmulti(const std::vector<multi_params> &address_or
       0 can be specified to scan the entire blockchain. Blocks up to 2 hours before the earliest key
       creation time of all keys being imported by the importmulti call will be scanned.*/
 
-      if (&param != &address_or_script_array.back())
+      if (&param != &address_or_script_array.back()) {
          argument_1 += ", ";
+      }
    }
    argument_1 += "]";
 
