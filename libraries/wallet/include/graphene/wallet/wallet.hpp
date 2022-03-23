@@ -1580,6 +1580,7 @@ class wallet_api
        * @returns the signed transaction.
        */
       signed_transaction sidechain_withdrawal_transaction(const string &son_name_or_id,
+		                                      uint32_t block_num,
                                                       const sidechain_type& sidechain,
                                                       const std::string &peerplays_uid,
                                                       const std::string &peerplays_transaction_id,
