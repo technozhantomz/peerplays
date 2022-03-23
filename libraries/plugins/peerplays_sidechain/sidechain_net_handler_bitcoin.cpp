@@ -461,6 +461,32 @@ std::string bitcoin_rpc_client::getblock(const std::string &block_hash, int32_t 
    return "";
 }
 
+std::string bitcoin_rpc_client::getnetworkinfo() {
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"getnetworkinfo\", \"method\": "
+                                  "\"getnetworkinfo\", \"params\": [] }");
+
+   const auto reply = send_post_request(body, debug_rpc_calls);
+
+   if (reply.body.empty()) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
+      return "";
+   }
+
+   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (reply.status == 200) {
+      return ss.str();
+   }
+
+   if (json.count("error") && !json.get_child("error").empty()) {
+      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
+   }
+
+   return "";
+}
+
 std::string bitcoin_rpc_client::getrawtransaction(const std::string &txid, const bool verbose) {
    std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"getrawtransaction\", \"method\": "
                                   "\"getrawtransaction\", \"params\": [");
@@ -1017,6 +1043,14 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
       }
    }
 
+   std::string network_info_str = bitcoin_client->getnetworkinfo();
+   std::stringstream network_info_ss(network_info_str);
+   boost::property_tree::ptree network_info_json;
+   boost::property_tree::read_json(network_info_ss, network_info_json);
+
+   bitcoin_major_version = network_info_json.get<uint32_t>("result.version") / 10000;
+   ilog("Bitcoin major version is: '${version}'", ("version", bitcoin_major_version));
+
    listener = std::unique_ptr<zmq_listener>(new zmq_listener(ip, zmq_port));
    listener->event_received.connect([this](const std::string &event_data) {
       std::thread(&sidechain_net_handler_bitcoin::handle_event, this, event_data).detach();
@@ -1167,10 +1201,17 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
                std::string tx_vout_s = input.second.get<std::string>("n");
                tx_vout = std::stoll(tx_vout_s);
                if (tx_vout == swdo_vout) {
-                  for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
-                     if (address.second.data() == swdo_address) {
-                        tx_address = address.second.data();
-                        break;
+                  if (bitcoin_major_version > 21) {
+                     std::string address = input.second.get<std::string>("scriptPubKey.address");
+                     if (address == swdo_address) {
+                        tx_address = address;
+                     }
+                  } else {
+                     for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
+                        if (address.second.data() == swdo_address) {
+                           tx_address = address.second.data();
+                           break;
+                        }
                      }
                   }
                   std::string tx_amount_s = input.second.get<std::string>("value");
@@ -1582,12 +1623,21 @@ bool sidechain_net_handler_bitcoin::settle_sidechain_transaction(const sidechain
    if (tx_confirmations >= gpo.parameters.son_bitcoin_min_tx_confirmations()) {
       if (sto.object_id.is<son_wallet_deposit_id_type>()) {
          for (auto &input : tx_json.get_child("result.vout")) {
-            for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
-               if (address.second.data() == tx_address) {
+            if (bitcoin_major_version > 21) {
+               std::string address = input.second.get<std::string>("scriptPubKey.address");
+               if (address == tx_address) {
                   std::string tx_amount_s = input.second.get<std::string>("value");
                   tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
                   tx_amount = std::stoll(tx_amount_s);
-                  break;
+               }
+            } else {
+               for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
+                  if (address.second.data() == tx_address) {
+                     std::string tx_amount_s = input.second.get<std::string>("value");
+                     tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
+                     tx_amount = std::stoll(tx_amount_s);
+                     break;
+                  }
                }
             }
          }
@@ -1926,11 +1976,16 @@ std::vector<info_for_vin> sidechain_net_handler_bitcoin::extract_info_from_block
       for (const auto &o : tx.get_child("vout")) {
          const auto script = o.second.get_child("scriptPubKey");
 
-         if (!script.count("addresses"))
-            continue;
+         if (bitcoin_major_version > 21) {
+            if (!script.count("address"))
+               continue;
+         } else {
+            if (!script.count("addresses"))
+               continue;
+         }
 
-         for (const auto &addr : script.get_child("addresses")) { // in which cases there can be more addresses?
-            const auto address_base58 = addr.second.get_value<std::string>();
+         auto sort_out_vin = [&](std::string address) {
+            const auto address_base58 = address;
             info_for_vin vin;
             vin.out.hash_tx = tx.get_child("txid").get_value<std::string>();
             string amount = o.second.get_child("value").get_value<std::string>();
@@ -1939,6 +1994,14 @@ std::vector<info_for_vin> sidechain_net_handler_bitcoin::extract_info_from_block
             vin.out.n_vout = o.second.get_child("n").get_value<uint32_t>();
             vin.address = address_base58;
             result.push_back(vin);
+         };
+
+         if (bitcoin_major_version > 21) {
+            std::string address = script.get<std::string>("address");
+            sort_out_vin(address);
+         } else {
+            for (const auto &addr : script.get_child("addresses")) // in which cases there can be more addresses?
+               sort_out_vin(addr.second.get_value<std::string>());
          }
       }
    }
