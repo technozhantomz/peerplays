@@ -11,11 +11,11 @@ Officially supported OS is Ubuntu 20.04.
 Following dependencies are needed for a clean install of Ubuntu 20.04:
 ```
 sudo apt-get install \
-    apt-utils autoconf bash build-essential ca-certificates cmake dnsutils \
-    doxygen expect git graphviz libboost-all-dev libbz2-dev libcurl4-openssl-dev \
-    libncurses-dev libreadline-dev libsnappy-dev libssl-dev libtool libzip-dev \
-    libzmq3-dev locales mc nano net-tools ntp openssh-server pkg-config perl \
-    python3 python3-jinja2 sudo wget
+    apt-utils autoconf bash build-essential ca-certificates clang-format cmake
+    dnsutils doxygen expect git graphviz libboost-all-dev libbz2-dev \
+    libcurl4-openssl-dev libncurses-dev libreadline-dev libsnappy-dev \
+    libssl-dev libtool libzip-dev libzmq3-dev locales mc nano net-tools ntp \
+    openssh-server pkg-config perl python3 python3-jinja2 sudo wget
 ```
 
 
