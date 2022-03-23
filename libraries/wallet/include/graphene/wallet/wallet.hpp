@@ -1567,29 +1567,6 @@ class wallet_api
                                           sidechain_type sidechain,
                                           bool broadcast = false);
 
-       /** Broadcast signed transaction for manually sidechain withdrawal
-       * @param son_name_or_id ID or name of the son account
-       * @param sidechain Sidechain type (bitcoin, HIVE, etc)
-       * @param peerplays_uid peerplays_uid
-       * @param transaction_id ID of transaction
-       * @param peerplays_from Sidechain address transaction from
-       * @param withdraw_sidechain Withdraw sidechain
-       * @param withdraw_address Withdraw address
-       * @param withdraw_currency Withdraw currency
-       * @param withdraw_amount Withdraw amount
-       * @returns the signed transaction.
-       */
-      signed_transaction sidechain_withdrawal_transaction(const string &son_name_or_id,
-		                                      uint32_t block_num,
-                                                      const sidechain_type& sidechain,
-                                                      const std::string &peerplays_uid,
-                                                      const std::string &peerplays_transaction_id,
-                                                      const chain::account_id_type &peerplays_from,
-                                                      const sidechain_type& withdraw_sidechain,
-                                                      const std::string &withdraw_address,
-                                                      const std::string &withdraw_currency,
-                                                      const string &withdraw_amount);
-
       /** Retrieves all sidechain addresses owned by given account.
        *
        * @param account the name or id of the account who owns the address
@@ -1833,6 +1810,30 @@ class wallet_api
                                                          int64_t sidechain_amount,
                                                          const string &peerplays_from_name_or_id,
                                                          const string &peerplays_to_name_or_id);
+
+      /** Broadcast signed transaction for manually sidechain withdrawal
+       * @param son_name_or_id ID or name of the son account
+       * @param block_num Block number where original withdrawal transaction is executed
+       * @param sidechain Sidechain type (bitcoin, HIVE, etc)
+       * @param peerplays_uid peerplays_uid
+       * @param peerplays_transaction_id ID of transaction
+       * @param peerplays_from Sidechain address transaction from
+       * @param withdraw_sidechain Withdraw sidechain
+       * @param withdraw_address Withdraw address
+       * @param withdraw_currency Withdraw currency
+       * @param withdraw_amount Withdraw amount
+       * @returns the signed transaction.
+       */
+      signed_transaction sidechain_withdrawal_transaction(const string &son_name_or_id,
+		                                      uint32_t block_num,
+                                                      const sidechain_type& sidechain,
+                                                      const std::string &peerplays_uid,
+                                                      const std::string &peerplays_transaction_id,
+                                                      const chain::account_id_type &peerplays_from,
+                                                      const sidechain_type& withdraw_sidechain,
+                                                      const std::string &withdraw_address,
+                                                      const std::string &withdraw_currency,
+                                                      const string &withdraw_amount);
 
       /** Vote for a given witness.
        *
