@@ -67,9 +67,9 @@ public:
    std::string sendrawtransaction(const std::string &tx_hex);
    std::string signrawtransactionwithwallet(const std::string &tx_hash);
    std::string unloadwallet(const std::string &filename);
-   //std::string walletlock();
+   std::string walletlock();
    std::string walletprocesspsbt(std::string const &tx_psbt);
-   //bool walletpassphrase(const std::string &passphrase, uint32_t timeout = 60);
+   bool walletpassphrase(const std::string &passphrase, uint32_t timeout = 60);
 
 private:
    fc::http::reply send_post_request(std::string body, bool show_log);
