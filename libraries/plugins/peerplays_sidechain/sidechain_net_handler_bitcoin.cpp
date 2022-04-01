@@ -606,13 +606,13 @@ void bitcoin_rpc_client::importmulti(const std::vector<multi_params> &address_or
    for (const auto &param : address_or_script_array) {
       argument_1 += "{\"scriptPubKey\": ";
       if (param.type == multi_type::address) {
-         argument_1 += "{\"address\": \"" + param.address_or_script + "\"}";
+         argument_1 += "{\"address\": \"" + param.address_or_script + "\"}, \"label\": \"" + param.label + "\"";
       } else if (param.type == multi_type::script) {
-         argument_1 += "\"" + param.address_or_script + "\"";
+         argument_1 += "\"" + param.address_or_script + "\", \"internal\": true";
       } else {
          FC_THROW("Invalid multi_type.");
       }
-      argument_1 += ", \"label\": \"" + param.label + "\", \"timestamp\": " + std::to_string(fc::time_point_sec::from_iso_string("2022-01-01T00:00:00").sec_since_epoch()) + "}";
+      argument_1 += ", \"timestamp\": " + std::to_string(fc::time_point_sec::from_iso_string("2022-01-01T00:00:00").sec_since_epoch()) + "}";
 
       //! Note
       /* Creation time of the key expressed in UNIX epoch time,
@@ -834,32 +834,32 @@ std::string bitcoin_rpc_client::unloadwallet(const std::string &filename) {
    return "";
 }
 
-//std::string bitcoin_rpc_client::walletlock() {
-//   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"walletlock\", \"method\": "
-//                                  "\"walletlock\", \"params\": [] }");
-//
-//   const auto reply = send_post_request(body, debug_rpc_calls);
-//
-//   if (reply.body.empty()) {
-//      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-//      return "";
-//   }
-//
-//   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-//   boost::property_tree::ptree json;
-//   boost::property_tree::read_json(ss, json);
-//
-//   if (reply.status == 200) {
-//      std::stringstream ss;
-//      boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-//      return ss.str();
-//   }
-//
-//   if (json.count("error") && !json.get_child("error").empty()) {
-//      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-//   }
-//   return "";
-//}
+std::string bitcoin_rpc_client::walletlock() {
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"walletlock\", \"method\": "
+                                  "\"walletlock\", \"params\": [] }");
+
+   const auto reply = send_post_request(body, debug_rpc_calls);
+
+   if (reply.body.empty()) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
+      return "";
+   }
+
+   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (reply.status == 200) {
+      std::stringstream ss;
+      boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
+      return ss.str();
+   }
+
+   if (json.count("error") && !json.get_child("error").empty()) {
+      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
+   }
+   return "";
+}
 
 std::string bitcoin_rpc_client::walletprocesspsbt(std::string const &tx_psbt) {
    std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"walletprocesspsbt\", \"method\": "
@@ -887,31 +887,31 @@ std::string bitcoin_rpc_client::walletprocesspsbt(std::string const &tx_psbt) {
    return "";
 }
 
-//bool bitcoin_rpc_client::walletpassphrase(const std::string &passphrase, uint32_t timeout) {
-//   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"walletpassphrase\", \"method\": "
-//                                  "\"walletpassphrase\", \"params\": [\"" +
-//                                  passphrase + "\", " + std::to_string(timeout) + "] }");
-//
-//   const auto reply = send_post_request(body, debug_rpc_calls);
-//
-//   if (reply.body.empty()) {
-//      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-//      return false;
-//   }
-//
-//   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-//   boost::property_tree::ptree json;
-//   boost::property_tree::read_json(ss, json);
-//
-//   if (reply.status == 200) {
-//      return true;
-//   }
-//
-//   if (json.count("error") && !json.get_child("error").empty()) {
-//      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-//   }
-//   return false;
-//}
+bool bitcoin_rpc_client::walletpassphrase(const std::string &passphrase, uint32_t timeout) {
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"walletpassphrase\", \"method\": "
+                                  "\"walletpassphrase\", \"params\": [\"" +
+                                  passphrase + "\", " + std::to_string(timeout) + "] }");
+
+   const auto reply = send_post_request(body, debug_rpc_calls);
+
+   if (reply.body.empty()) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
+      return false;
+   }
+
+   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (reply.status == 200) {
+      return true;
+   }
+
+   if (json.count("error") && !json.get_child("error").empty()) {
+      wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
+   }
+   return false;
+}
 
 fc::http::reply bitcoin_rpc_client::send_post_request(std::string body, bool show_log) {
    fc::http::connection conn;
@@ -2052,8 +2052,20 @@ void sidechain_net_handler_bitcoin::on_changed_objects_cb(const vector<object_id
       }
    }
 
-   if (!address_or_script_array.empty())
+   //! importmulti all addreses in one bulk
+   if (!address_or_script_array.empty()) {
+      //! Unlock wallet
+      if (!wallet_password.empty()) {
+         if( !bitcoin_client->walletpassphrase(wallet_password) )
+            return;
+      }
+
+      //! importmulti
       bitcoin_client->importmulti(address_or_script_array);
+
+      //! Lock wallet
+      bitcoin_client->walletlock();
+   }
 }
 
 // =============================================================================
