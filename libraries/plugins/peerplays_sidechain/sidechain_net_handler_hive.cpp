@@ -846,6 +846,7 @@ void sidechain_net_handler_hive::hive_listener_loop() {
 void sidechain_net_handler_hive::handle_event(const std::string &event_data) {
    std::string block = node_rpc_client->block_api_get_block(std::atoll(event_data.c_str()));
    if (block != "") {
+      add_to_son_listener_log("BLOCK   : " + event_data);
       std::stringstream ss(block);
       boost::property_tree::ptree block_json;
       boost::property_tree::read_json(ss, block_json);
@@ -932,6 +933,9 @@ void sidechain_net_handler_hive::handle_event(const std::string &event_data) {
                   sed.peerplays_from = accn;
                   sed.peerplays_to = database.get_global_properties().parameters.son_account();
                   sed.peerplays_asset = asset(sed.sidechain_amount * sidechain_currency_price.base.amount / sidechain_currency_price.quote.amount);
+
+                  add_to_son_listener_log("TRX     : " + sed.sidechain_transaction_id);
+
                   sidechain_event_data_received(sed);
                }
             }

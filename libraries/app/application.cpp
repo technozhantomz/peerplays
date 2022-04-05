@@ -401,6 +401,7 @@ public:
             wild_access.allowed_apis.push_back("crypto_api");
             wild_access.allowed_apis.push_back("bookie_api");
             wild_access.allowed_apis.push_back("affiliate_stats_api");
+            wild_access.allowed_apis.push_back("sidechain_api");
             _apiaccess.permission_map["*"] = wild_access;
          }
 

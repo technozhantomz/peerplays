@@ -25,6 +25,8 @@ public:
    void send_sidechain_transactions();
    void settle_sidechain_transactions();
 
+   std::map<sidechain_type, std::vector<std::string>> get_son_listener_log();
+
 private:
    peerplays_sidechain_plugin &plugin;
    graphene::chain::database &database;

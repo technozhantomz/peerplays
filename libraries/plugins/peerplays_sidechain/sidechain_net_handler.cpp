@@ -618,6 +618,17 @@ void sidechain_net_handler::settle_sidechain_transactions() {
    });
 }
 
+void sidechain_net_handler::add_to_son_listener_log(std::string trx_id) {
+   son_listener_log.insert(son_listener_log.begin(), trx_id);
+   if (son_listener_log.size() > 33) {
+      son_listener_log.erase(son_listener_log.end());
+   }
+}
+
+std::vector<std::string> sidechain_net_handler::get_son_listener_log() {
+   return son_listener_log;
+}
+
 void sidechain_net_handler::on_applied_block(const signed_block &b) {
 
    const chain::global_property_object &gpo = plugin.database().get_global_properties();
