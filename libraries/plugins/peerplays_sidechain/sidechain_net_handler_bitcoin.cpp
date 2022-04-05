@@ -1911,6 +1911,8 @@ void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) 
    if (block.empty())
       return;
 
+   add_to_son_listener_log("BLOCK   : " + event_data);
+
    auto vins = extract_info_from_block(block);
    scoped_lock interlock(event_handler_mutex);
    const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address_and_expires>();
@@ -1940,6 +1942,9 @@ void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) 
       sed.peerplays_to = database.get_global_properties().parameters.son_account();
       price btc_price = database.get<asset_object>(database.get_global_properties().parameters.btc_asset()).options.core_exchange_rate;
       sed.peerplays_asset = asset(sed.sidechain_amount * btc_price.base.amount / btc_price.quote.amount);
+
+      add_to_son_listener_log("TRX     : " + sed.sidechain_transaction_id);
+
       sidechain_event_data_received(sed);
    }
 }
@@ -2056,7 +2061,7 @@ void sidechain_net_handler_bitcoin::on_changed_objects_cb(const vector<object_id
    if (!address_or_script_array.empty()) {
       //! Unlock wallet
       if (!wallet_password.empty()) {
-         if( !bitcoin_client->walletpassphrase(wallet_password) )
+         if (!bitcoin_client->walletpassphrase(wallet_password))
             return;
       }
 

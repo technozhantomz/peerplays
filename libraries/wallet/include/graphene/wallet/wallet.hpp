@@ -2591,6 +2591,11 @@ class wallet_api
        */
       voters_info get_voters(const string &account_name_or_id) const;
 
+      /**
+       * @brief Demo plugin api
+       * @return The hello world string
+       */
+      std::map<sidechain_type, std::vector<std::string>> get_son_listener_log() const;
 
       fc::signal<void(bool)> lock_changed;
       std::shared_ptr<detail::wallet_api_impl> my;
@@ -2905,4 +2910,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_votes)
         (get_voters_by_id)
         (get_voters)
+        (get_son_listener_log)
       )

@@ -84,6 +84,7 @@
 #include <graphene/wallet/api_documentation.hpp>
 #include <graphene/wallet/reflect_util.hpp>
 #include <graphene/debug_witness/debug_api.hpp>
+#include <graphene/peerplays_sidechain/sidechain_api.hpp>
 
 #ifndef WIN32
 # include <sys/types.h>
@@ -4178,6 +4179,26 @@ public:
       }
    }
 
+   void use_sidechain_api()
+   {
+      if( _remote_sidechain )
+         return;
+      try
+      {
+        _remote_sidechain = _remote_api->sidechain();
+      }
+      catch( const fc::exception& e )
+      {
+         std::cerr << "\nCouldn't get sidechain API.  You probably are not configured\n"
+         "to access the sidechain API on the node you are connecting to.\n"
+         "\n"
+         "To fix this problem:\n"
+         "- Please ensure peerplays_sidechain plugin is enabled.\n"
+         "- Please follow the instructions in README.md to set up an apiaccess file.\n"
+         "\n";
+      }
+   }
+
    void network_add_nodes( const vector<string>& nodes )
    {
       use_network_node_api();
@@ -4294,6 +4315,16 @@ public:
       FC_CAPTURE_AND_RETHROW( (account_name_or_id) )
    }
 
+   std::map<sidechain_type, std::vector<std::string>> get_son_listener_log()
+   {
+      use_sidechain_api();
+      try
+      {
+         return (*_remote_sidechain)->get_son_listener_log();
+      }
+      FC_CAPTURE_AND_RETHROW()
+   }
+
    string                  _wallet_filename;
    wallet_data             _wallet;
 
@@ -4308,6 +4339,7 @@ public:
    fc::api<bookie_api>    _remote_bookie;
    optional< fc::api<network_node_api> > _remote_net_node;
    optional< fc::api<graphene::debug_witness::debug_api> > _remote_debug;
+   optional< fc::api<graphene::peerplays_sidechain::sidechain_api> > _remote_sidechain;
 
    flat_map<string, operation> _prototype_ops;
 
@@ -7872,6 +7904,11 @@ vector<account_object> wallet_api::get_voters_by_id(const vote_id_type &vote_id)
 voters_info wallet_api::get_voters(const string &account_name_or_id) const
 {
    return my->get_voters(account_name_or_id);
+}
+
+std::map<sidechain_type, std::vector<std::string>> wallet_api::get_son_listener_log() const
+{
+   return my->get_son_listener_log();
 }
 
 // default ctor necessary for FC_REFLECT
