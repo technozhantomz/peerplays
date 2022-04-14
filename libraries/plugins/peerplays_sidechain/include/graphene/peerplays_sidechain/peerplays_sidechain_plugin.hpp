@@ -51,6 +51,7 @@ public:
    fc::ecc::private_key get_private_key(chain::public_key_type public_key);
    void log_son_proposal_retry(int op_type, object_id_type object_id);
    bool can_son_participate(int op_type, object_id_type object_id);
+   std::map<sidechain_type, std::vector<std::string>> get_son_listener_log();
 };
 
 }} // namespace graphene::peerplays_sidechain

@@ -47,6 +47,9 @@ public:
    virtual std::string send_sidechain_transaction(const sidechain_transaction_object &sto) = 0;
    virtual bool settle_sidechain_transaction(const sidechain_transaction_object &sto, asset &settle_amount) = 0;
 
+   void add_to_son_listener_log(std::string trx_id);
+   std::vector<std::string> get_son_listener_log();
+
 protected:
    peerplays_sidechain_plugin &plugin;
    graphene::chain::database &database;
@@ -55,6 +58,8 @@ protected:
    bool debug_rpc_calls;
 
    std::map<std::string, std::string> private_keys;
+
+   std::vector<std::string> son_listener_log;
 
    void on_applied_block(const signed_block &b);
 

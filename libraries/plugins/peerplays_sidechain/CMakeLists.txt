@@ -2,6 +2,7 @@ file(GLOB_RECURSE HEADERS "include/graphene/peerplays_sidechain/*.hpp")
 
 add_library( peerplays_sidechain
              peerplays_sidechain_plugin.cpp
+             sidechain_api.cpp
              sidechain_net_manager.cpp
              sidechain_net_handler.cpp
              sidechain_net_handler_bitcoin.cpp
@@ -23,18 +24,10 @@ add_library( peerplays_sidechain
            )
 
 if (ENABLE_DEV_FEATURES)
-    set(ENABLE_MULTIPLE_SONS 1)
     set(ENABLE_PEERPLAYS_ASSET_DEPOSITS 1)
 endif()
 unset(ENABLE_DEV_FEATURES)
 unset(ENABLE_DEV_FEATURES CACHE)
-
-if (ENABLE_MULTIPLE_SONS)
-   message ("Multiple SONs per software instance are supported")
-   target_compile_definitions(peerplays_sidechain PRIVATE ENABLE_MULTIPLE_SONS)
-endif()
-unset(ENABLE_MULTIPLE_SONS)
-unset(ENABLE_MULTIPLE_SONS CACHE)
 
 if (ENABLE_PEERPLAYS_ASSET_DEPOSITS)
    message ("Depositing Peerplays assets enabled")

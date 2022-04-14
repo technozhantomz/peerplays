@@ -29,7 +29,6 @@
 
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/asset.hpp>
-#include <graphene/chain/event_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
 
 #include <graphene/affiliate_stats/affiliate_stats_objects.hpp>

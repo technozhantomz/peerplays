@@ -106,6 +106,10 @@ void login_api::enable_api(const std::string &api_name) {
       // can only enable this API if the plugin was loaded
       if (_app.get_plugin("affiliate_stats"))
          _affiliate_stats_api = std::make_shared<graphene::affiliate_stats::affiliate_stats_api>(std::ref(_app));
+   } else if (api_name == "sidechain_api") {
+      // can only enable this API if the plugin was loaded
+      if (_app.get_plugin("peerplays_sidechain"))
+         _sidechain_api = std::make_shared<graphene::peerplays_sidechain::sidechain_api>(std::ref(_app));
    }
    return;
 }
@@ -308,6 +312,11 @@ fc::api<graphene::bookie::bookie_api> login_api::bookie() const {
 fc::api<graphene::affiliate_stats::affiliate_stats_api> login_api::affiliate_stats() const {
    FC_ASSERT(_affiliate_stats_api);
    return *_affiliate_stats_api;
+}
+
+fc::api<graphene::peerplays_sidechain::sidechain_api> login_api::sidechain() const {
+   FC_ASSERT(_sidechain_api);
+   return *_sidechain_api;
 }
 
 vector<order_history_object> history_api::get_fill_order_history(std::string asset_a, std::string asset_b, uint32_t limit) const {

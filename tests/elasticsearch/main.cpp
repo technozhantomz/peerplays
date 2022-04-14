@@ -38,6 +38,10 @@ using namespace graphene::chain;
 using namespace graphene::chain::test;
 using namespace graphene::app;
 
+const std::string g_es_url = "http://localhost:9200/";
+const std::string g_es_index_prefix = "peerplays-";
+const std::string g_es_ppobjects_prefix = "ppobjects-";
+
 BOOST_FIXTURE_TEST_SUITE( elasticsearch_tests, database_fixture )
 
 BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
@@ -48,8 +52,8 @@ BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
 
       graphene::utilities::ES es;
       es.curl = curl;
-      es.elasticsearch_url = "http://localhost:9200/";
-      es.index_prefix = "peerplays-";
+      es.elasticsearch_url = g_es_url;
+      es.index_prefix = g_es_index_prefix;
       //es.auth = "elastic:changeme";
 
       // delete all first
@@ -71,7 +75,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
          //int account_create_op_id = operation::tag<account_create_operation>::value;
 
          string query = "{ \"query\" : { \"bool\" : { \"must\" : [{\"match_all\": {}}] } } }";
-         es.endpoint = es.index_prefix + "*/data/_count";
+         es.endpoint = es.index_prefix + "*/_doc/_count";
          es.query = query;
 
          auto res = graphene::utilities::simpleQuery(es);
@@ -79,7 +83,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
          auto total = j["count"].as_string();
          BOOST_CHECK_EQUAL(total, "5");
 
-         es.endpoint = es.index_prefix + "*/data/_search";
+         es.endpoint = es.index_prefix + "*/_doc/_search";
          res = graphene::utilities::simpleQuery(es);
          j = fc::json::from_string(res);
          auto first_id = j["hits"]["hits"][size_t(0)]["_id"].as_string();
@@ -91,7 +95,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
 
          fc::usleep(fc::milliseconds(1000)); // index.refresh_interval
 
-         es.endpoint = es.index_prefix + "*/data/_count";
+         es.endpoint = es.index_prefix + "*/_doc/_count";
          res = graphene::utilities::simpleQuery(es);
          j = fc::json::from_string(res);
 
@@ -114,9 +118,9 @@ BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
 
          // check the visitor data
          auto block_date = db.head_block_time();
-         std::string index_name = graphene::utilities::generateIndexName(block_date, "peerplays-");
+         std::string index_name = g_es_index_prefix + block_date.to_iso_string().substr( 0, 7 ); // yyyy-mm
 
-         es.endpoint = index_name + "/data/2.9.12"; // we know last op is a transfer of amount 300
+         es.endpoint = index_name + "/_doc/2.9.12"; // we know last op is a transfer of amount 300
          res = graphene::utilities::getEndPoint(es);
          j = fc::json::from_string(res);
          auto last_transfer_amount = j["_source"]["operation_history"]["op_object"]["amount_"]["amount"].as_string();
@@ -137,8 +141,8 @@ BOOST_AUTO_TEST_CASE(elasticsearch_objects) {
 
       graphene::utilities::ES es;
       es.curl = curl;
-      es.elasticsearch_url = "http://localhost:9200/";
-      es.index_prefix = "ppobjects-";
+      es.elasticsearch_url = g_es_url;
+      es.index_prefix = g_es_ppobjects_prefix;
       //es.auth = "elastic:changeme";
 
       // delete all first
@@ -155,7 +159,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_objects) {
          fc::usleep(fc::milliseconds(1000));
 
          string query = "{ \"query\" : { \"bool\" : { \"must\" : [{\"match_all\": {}}] } } }";
-         es.endpoint = es.index_prefix + "*/data/_count";
+         es.endpoint = es.index_prefix + "*/_doc/_count";
          es.query = query;
 
          auto res = graphene::utilities::simpleQuery(es);
@@ -163,14 +167,14 @@ BOOST_AUTO_TEST_CASE(elasticsearch_objects) {
          auto total = j["count"].as_string();
          BOOST_CHECK_EQUAL(total, "2");
 
-         es.endpoint = es.index_prefix + "asset/data/_search";
+         es.endpoint = es.index_prefix + "asset/_doc/_search";
          res = graphene::utilities::simpleQuery(es);
          j = fc::json::from_string(res);
          auto first_id = j["hits"]["hits"][size_t(0)]["_source"]["symbol"].as_string();
          BOOST_CHECK_EQUAL(first_id, "USD");
 
          auto bitasset_data_id = j["hits"]["hits"][size_t(0)]["_source"]["bitasset_data_id"].as_string();
-         es.endpoint = es.index_prefix + "bitasset/data/_search";
+         es.endpoint = es.index_prefix + "bitasset/_doc/_search";
          es.query = "{ \"query\" : { \"bool\": { \"must\" : [{ \"term\": { \"object_id\": \""+bitasset_data_id+"\"}}] } } }";
          res = graphene::utilities::simpleQuery(es);
          j = fc::json::from_string(res);
@@ -192,11 +196,11 @@ BOOST_AUTO_TEST_CASE(elasticsearch_suite) {
 
       graphene::utilities::ES es;
       es.curl = curl;
-      es.elasticsearch_url = "http://localhost:9200/";
-      es.index_prefix = "peerplays-";
+      es.elasticsearch_url = g_es_url;
+      es.index_prefix = g_es_index_prefix;
       auto delete_account_history = graphene::utilities::deleteAll(es);
       fc::usleep(fc::milliseconds(1000));
-      es.index_prefix = "ppobjects-";
+      es.index_prefix = g_es_ppobjects_prefix;
       auto delete_objects = graphene::utilities::deleteAll(es);
       fc::usleep(fc::milliseconds(1000));
 
@@ -218,8 +222,8 @@ BOOST_AUTO_TEST_CASE(elasticsearch_history_api) {
 
       graphene::utilities::ES es;
       es.curl = curl;
-      es.elasticsearch_url = "http://localhost:9200/";
-      es.index_prefix = "peerplays-";
+      es.elasticsearch_url = g_es_url;
+      es.index_prefix = g_es_index_prefix;
 
       auto delete_account_history = graphene::utilities::deleteAll(es);
 

@@ -15,7 +15,7 @@ add_library( graphene_app
 #target_link_libraries( graphene_app graphene_market_history graphene_account_history graphene_chain fc graphene_db graphene_net graphene_utilities graphene_debug_witness )
 target_link_libraries( graphene_app
                        PUBLIC graphene_net graphene_utilities
-                       graphene_account_history graphene_accounts_list graphene_affiliate_stats graphene_bookie graphene_debug_witness graphene_elasticsearch graphene_es_objects graphene_generate_genesis graphene_market_history )
+                       graphene_account_history graphene_accounts_list graphene_affiliate_stats graphene_bookie graphene_debug_witness graphene_elasticsearch graphene_es_objects graphene_generate_genesis graphene_market_history peerplays_sidechain )
 
 target_include_directories( graphene_app
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"

@@ -79,123 +79,138 @@ account_history_plugin_impl::~account_history_plugin_impl()
 
 void account_history_plugin_impl::update_account_histories( const signed_block& b )
 {
-   graphene::chain::database& db = database();
-   vector<optional< operation_history_object > >& hist = db.get_applied_operations();
-   bool is_first = true;
-   auto skip_oho_id = [&is_first,&db,this]() {
-      if( is_first && db._undo_db.enabled() ) // this ensures that the current id is rolled back on undo
-      {
-         db.remove( db.create<operation_history_object>( []( operation_history_object& obj) {} ) );
-         is_first = false;
-      }
-      else
-         _oho_index->use_next_id();
-   };
-
-   for( optional< operation_history_object >& o_op : hist )
-   {
-      optional<operation_history_object> oho;
-
-      auto create_oho = [&]() {
-         is_first = false;
-         operation_history_object result = db.create<operation_history_object>( [&]( operation_history_object& h )
+   try                                                                                          \
+   {   
+      graphene::chain::database& db = database();
+      vector<optional< operation_history_object > >& hist = db.get_applied_operations();
+      bool is_first = true;
+      auto skip_oho_id = [&is_first,&db,this]() {
+         if( is_first && db._undo_db.enabled() ) // this ensures that the current id is rolled back on undo
          {
-            if( o_op.valid() )
-               h = *o_op;
-         } );
-         o_op->id = result.id;
-         return optional<operation_history_object>(result);
+            db.remove( db.create<operation_history_object>( []( operation_history_object& obj) {} ) );
+            is_first = false;
+         }
+         else
+            _oho_index->use_next_id();
       };
 
-      if( !o_op.valid() || ( _max_ops_per_account == 0 && _partial_operations ) )
+      for( optional< operation_history_object >& o_op : hist )
       {
-         // Note: the 2nd and 3rd checks above are for better performance, when the db is not clean,
-         //       they will break consistency of account_stats.total_ops and removed_ops and most_recent_op
-         skip_oho_id();
-         continue;
-      }
-      else if( !_partial_operations )
-         // add to the operation history index
-         oho = create_oho();
+         optional<operation_history_object> oho;
 
-      const operation_history_object& op = *o_op;
-
-      // get the set of accounts this operation applies to
-      flat_set<account_id_type> impacted;
-      vector<authority> other;
-      // fee payer is added here
-      operation_get_required_authorities( op.op, impacted, impacted, other,
-                                          MUST_IGNORE_CUSTOM_OP_REQD_AUTHS( db.head_block_time() ) );
-
-      if( op.op.which() == operation::tag< account_create_operation >::value )
-         impacted.insert( op.result.get<object_id_type>() );
-      else
-         graphene::chain::operation_get_impacted_accounts( op.op, impacted,
-                                                           MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(db.head_block_time()) );
-      if( op.op.which() == operation::tag< lottery_end_operation >::value )
-      {
-         auto lop = op.op.get< lottery_end_operation >();
-         auto asset_object = lop.lottery( db );
-         impacted.insert( asset_object.issuer );
-         for( auto benefactor : asset_object.lottery_options->benefactors )
-            impacted.insert( benefactor.id );
-      }
-
-      for( auto& a : other )
-         for( auto& item : a.account_auths )
-            impacted.insert( item.first );
-
-      // be here, either _max_ops_per_account > 0, or _partial_operations == false, or both
-      // if _partial_operations == false, oho should have been created above
-      // so the only case should be checked here is:
-      //    whether need to create oho if _max_ops_per_account > 0 and _partial_operations == true
-
-      // for each operation this account applies to that is in the config link it into the history
-      if( _tracked_accounts.size() == 0 ) // tracking all accounts
-      {
-         // if tracking all accounts, when impacted is not empty (although it will always be),
-         //    still need to create oho if _max_ops_per_account > 0 and _partial_operations == true
-         //    so always need to create oho if not done
-         if (!impacted.empty() && !oho.valid()) { oho = create_oho(); }
-
-         if( _max_ops_per_account > 0 )
-         {
-            // Note: the check above is for better performance, when the db is not clean,
-            //       it breaks consistency of account_stats.total_ops and removed_ops and most_recent_op,
-            //       but it ensures it's safe to remove old entries in add_account_history(...)
-            for( auto& account_id : impacted )
+         auto create_oho = [&]() {
+            is_first = false;
+            operation_history_object result = db.create<operation_history_object>( [&]( operation_history_object& h )
             {
-               // we don't do index_account_keys here anymore, because
-               // that indexing now happens in observers' post_evaluate()
+               if( o_op.valid() )
+                  h = *o_op;
+            } );
+            o_op->id = result.id;
+            return optional<operation_history_object>(result);
+         };
 
-               // add history
-               add_account_history( account_id, oho->id );
-            }
+         if( !o_op.valid() || ( _max_ops_per_account == 0 && _partial_operations ) )
+         {
+            // Note: the 2nd and 3rd checks above are for better performance, when the db is not clean,
+            //       they will break consistency of account_stats.total_ops and removed_ops and most_recent_op
+            skip_oho_id();
+            continue;
          }
-      }
-      else // tracking a subset of accounts
-      {
-         // whether need to create oho if _max_ops_per_account > 0 and _partial_operations == true ?
-         // the answer: only need to create oho if a tracked account is impacted and need to save history
+         else if( !_partial_operations )
+            // add to the operation history index
+            oho = create_oho();
 
-         if( _max_ops_per_account > 0 )
+         const operation_history_object& op = *o_op;
+
+         // get the set of accounts this operation applies to
+         flat_set<account_id_type> impacted;
+         vector<authority> other;
+         // fee payer is added here
+         operation_get_required_authorities( op.op, impacted, impacted, other,
+                                             MUST_IGNORE_CUSTOM_OP_REQD_AUTHS( db.head_block_time() ) );
+
+         if( op.op.which() == operation::tag< account_create_operation >::value )
+            impacted.insert( op.result.get<object_id_type>() );
+         else
+            graphene::chain::operation_get_impacted_accounts( op.op, impacted,
+                                                            MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(db.head_block_time()) );
+         if( op.op.which() == operation::tag< lottery_end_operation >::value )
          {
-            // Note: the check above is for better performance, when the db is not clean,
-            //       it breaks consistency of account_stats.total_ops and removed_ops and most_recent_op,
-            //       but it ensures it's safe to remove old entries in add_account_history(...)
-            for( auto account_id : _tracked_accounts )
+            auto lop = op.op.get< lottery_end_operation >();
+            auto asset_object = lop.lottery( db );
+            impacted.insert( asset_object.issuer );
+            for( auto benefactor : asset_object.lottery_options->benefactors )
+               impacted.insert( benefactor.id );
+         }
+
+         for( auto& a : other )
+            for( auto& item : a.account_auths )
+               impacted.insert( item.first );
+
+         // be here, either _max_ops_per_account > 0, or _partial_operations == false, or both
+         // if _partial_operations == false, oho should have been created above
+         // so the only case should be checked here is:
+         //    whether need to create oho if _max_ops_per_account > 0 and _partial_operations == true
+
+         // for each operation this account applies to that is in the config link it into the history
+         if( _tracked_accounts.size() == 0 ) // tracking all accounts
+         {
+            // if tracking all accounts, when impacted is not empty (although it will always be),
+            //    still need to create oho if _max_ops_per_account > 0 and _partial_operations == true
+            //    so always need to create oho if not done
+            if (!impacted.empty() && !oho.valid()) { oho = create_oho(); }
+
+            if( _max_ops_per_account > 0 )
             {
-               if( impacted.find( account_id ) != impacted.end() )
+               // Note: the check above is for better performance, when the db is not clean,
+               //       it breaks consistency of account_stats.total_ops and removed_ops and most_recent_op,
+               //       but it ensures it's safe to remove old entries in add_account_history(...)
+               for( auto& account_id : impacted )
                {
-                  if (!oho.valid()) { oho = create_oho(); }
+                  // we don't do index_account_keys here anymore, because
+                  // that indexing now happens in observers' post_evaluate()
+
                   // add history
                   add_account_history( account_id, oho->id );
                }
             }
          }
+         else // tracking a subset of accounts
+         {
+            // whether need to create oho if _max_ops_per_account > 0 and _partial_operations == true ?
+            // the answer: only need to create oho if a tracked account is impacted and need to save history
+
+            if( _max_ops_per_account > 0 )
+            {
+               // Note: the check above is for better performance, when the db is not clean,
+               //       it breaks consistency of account_stats.total_ops and removed_ops and most_recent_op,
+               //       but it ensures it's safe to remove old entries in add_account_history(...)
+               for( auto account_id : _tracked_accounts )
+               {
+                  if( impacted.find( account_id ) != impacted.end() )
+                  {
+                     if (!oho.valid()) { oho = create_oho(); }
+                     // add history
+                     add_account_history( account_id, oho->id );
+                  }
+               }
+            }
+         }
+         if (_partial_operations && ! oho.valid())
+            skip_oho_id();
       }
-      if (_partial_operations && ! oho.valid())
-         skip_oho_id();
+   }
+   catch( const boost::exception& e )
+   {
+      elog( "Caught account_history_plugin::update_account_histories(...) boost::exception: ${e}", ("e", boost::diagnostic_information(e) ) );
+   }
+   catch( const std::exception& e )
+   {
+      elog( "Caught account_history_plugin::update_account_histories(...) std::exception: ${e}", ("e", e.what() ) );
+   }
+   catch( ... )
+   {
+      wlog( "Caught unexpected exception in account_history_plugin::update_account_histories(...)" );
    }
 }
 

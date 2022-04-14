@@ -19,7 +19,7 @@ build:
     - mkdir build
     - cd build
     - cmake -DCMAKE_BUILD_TYPE=Release ..
-    - make -j4
+    - make -j$(nproc)
   artifacts:
     untracked: true
     paths:
@@ -49,6 +49,7 @@ test:
   dependencies:
     - build
   script:
+    - ./build/libraries/fc/tests/all_tests
     - ./build/tests/betting_test --log_level=message
     - ./build/tests/chain_test --log_level=message
     - ./build/tests/cli_test --log_level=message

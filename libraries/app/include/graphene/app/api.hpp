@@ -28,16 +28,15 @@
 #include <graphene/chain/protocol/confidential.hpp>
 #include <graphene/chain/protocol/types.hpp>
 
+#include <graphene/net/node.hpp>
+
 #include <graphene/accounts_list/accounts_list_plugin.hpp>
-#include <graphene/market_history/market_history_plugin.hpp>
-
-#include <graphene/elasticsearch/elasticsearch_plugin.hpp>
-
 #include <graphene/affiliate_stats/affiliate_stats_api.hpp>
 #include <graphene/bookie/bookie_api.hpp>
 #include <graphene/debug_witness/debug_api.hpp>
-
-#include <graphene/net/node.hpp>
+#include <graphene/elasticsearch/elasticsearch_plugin.hpp>
+#include <graphene/market_history/market_history_plugin.hpp>
+#include <graphene/peerplays_sidechain/sidechain_api.hpp>
 
 #include <fc/api.hpp>
 #include <fc/crypto/elliptic.hpp>
@@ -405,6 +404,8 @@ public:
    fc::api<graphene::bookie::bookie_api> bookie() const;
    /// @brief Retrieve the affiliate_stats API (if available)
    fc::api<graphene::affiliate_stats::affiliate_stats_api> affiliate_stats() const;
+   /// @brief Retrieve the sidechain_api API (if available)
+   fc::api<graphene::peerplays_sidechain::sidechain_api> sidechain() const;
 
    /// @brief Called to enable an API, not reflected.
    void enable_api(const string &api_name);
@@ -421,6 +422,7 @@ private:
    optional<fc::api<graphene::debug_witness::debug_api>> _debug_api;
    optional<fc::api<graphene::bookie::bookie_api>> _bookie_api;
    optional<fc::api<graphene::affiliate_stats::affiliate_stats_api>> _affiliate_stats_api;
+   optional<fc::api<graphene::peerplays_sidechain::sidechain_api>> _sidechain_api;
 };
 
 }} // namespace graphene::app
@@ -498,6 +500,7 @@ FC_API(graphene::app::login_api,
       (asset)
       (debug)
       (bookie)
-      (affiliate_stats))
+      (affiliate_stats)
+      (sidechain))
 
 // clang-format on

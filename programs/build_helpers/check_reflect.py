@@ -3,7 +3,7 @@
 import json
 import os
 import re
-import xml.etree.ElementTree as etree
+import defusedxml.ElementTree as etree
 
 def process_node(path, node):
     """

@@ -98,6 +98,14 @@ void sidechain_net_manager::settle_sidechain_transactions() {
    }
 }
 
+std::map<sidechain_type, std::vector<std::string>> sidechain_net_manager::get_son_listener_log() {
+   std::map<sidechain_type, std::vector<std::string>> result;
+   for (size_t i = 0; i < net_handlers.size(); i++) {
+      result[net_handlers.at(i)->get_sidechain()] = net_handlers.at(i)->get_son_listener_log();
+   }
+   return result;
+}
+
 void sidechain_net_manager::on_applied_block(const signed_block &b) {
 }
 

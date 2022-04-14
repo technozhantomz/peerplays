@@ -35,7 +35,7 @@ namespace graphene { namespace chain {
    class event_object;
 } }
 
-namespace fc { 
+namespace fc {
    void to_variant(const graphene::chain::event_object& event_obj, fc::variant& v, uint32_t max_depth = 1);
    void from_variant(const fc::variant& v, graphene::chain::event_object& event_obj, uint32_t max_depth = 1);
 } //end namespace fc
@@ -56,7 +56,7 @@ class event_object : public graphene::db::abstract_object< event_object >
       event_object& operator=(const event_object& rhs);
 
       internationalized_string_type name;
-      
+
       internationalized_string_type season;
 
       optional<time_point_sec> start_time;
@@ -114,7 +114,7 @@ typedef generic_index<event_object, event_object_multi_index_type> event_object_
 
    template<typename Stream>
    inline Stream& operator<<( Stream& s, const event_object& event_obj )
-   { 
+   {
       fc_elog(fc::logger::get("event"), "In event_obj to_raw");
       // pack all fields exposed in the header in the usual way
       // instead of calling the derived pack, just serialize the one field in the base class
@@ -137,7 +137,7 @@ typedef generic_index<event_object, event_object_multi_index_type> event_object_
    }
    template<typename Stream>
    inline Stream& operator>>( Stream& s, event_object& event_obj )
-   { 
+   {
       fc_elog(fc::logger::get("event"), "In event_obj from_raw");
       // unpack all fields exposed in the header in the usual way
       //fc::raw::unpack<Stream, graphene::db::abstract_object<event_object> >(s, event_obj);
@@ -154,10 +154,57 @@ typedef generic_index<event_object, event_object_multi_index_type> event_object_
       fc::raw::unpack(s, stringified_stream);
       std::istringstream stream(stringified_stream);
       event_obj.unpack_impl(stream);
-      
+
       return s;
    }
 } } // graphene::chain
-FC_REFLECT(graphene::chain::event_object, (name)(season)(start_time)(event_group_id)(at_least_one_betting_market_group_settled)(scores))
 
+namespace fc {
 
+   template<>
+   template<>
+   inline void if_enum<fc::false_type>::from_variant(const variant &vo, graphene::chain::event_object &v, uint32_t max_depth) {
+      from_variant(vo, v, max_depth);
+   }
+
+   template<>
+   template<>
+   inline void if_enum<fc::false_type>::to_variant(const graphene::chain::event_object &v, variant &vo, uint32_t max_depth) {
+      to_variant(v, vo, max_depth);
+   }
+
+   namespace raw { namespace detail {
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::pack(fc::datastream<size_t> &s, const graphene::chain::event_object &v, uint32_t) {
+         s << v;
+      }
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::pack(fc::datastream<char*> &s, const graphene::chain::event_object &v, uint32_t) {
+         s << v;
+      }
+
+      template<>
+      template<>
+      inline void if_enum<fc::false_type>::unpack(fc::datastream<const char*> &s, graphene::chain::event_object &v, uint32_t) {
+         s >> v;
+      }
+
+   } } // namespace fc::raw::detail
+
+   template <>
+   struct get_typename<graphene::chain::event_object> {
+      static const char *name() {
+         return "graphene::chain::event_object";
+      }
+   };
+   template <>
+   struct reflector<graphene::chain::event_object> {
+      typedef graphene::chain::event_object type;
+      typedef fc::true_type is_defined;
+      typedef fc::false_type is_enum;
+   };
+} // namespace fc

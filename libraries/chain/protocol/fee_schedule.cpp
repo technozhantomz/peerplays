@@ -192,6 +192,16 @@ namespace graphene { namespace chain {
          FC_ASSERT( *extensions.value.betting_rake_fee_percentage <= TOURNAMENT_MAXIMAL_RAKE_FEE_PERCENTAGE,
                     "Rake fee percentage must not be greater than ${max}", ("max", TOURNAMENT_MAXIMAL_RAKE_FEE_PERCENTAGE));
       }
+
+      if( extensions.value.son_heartbeat_frequency.valid() &&  extensions.value.son_deregister_time.valid() )
+         FC_ASSERT( *extensions.value.son_heartbeat_frequency < *extensions.value.son_deregister_time );
+
+      if( extensions.value.son_heartbeat_frequency.valid() &&  extensions.value.son_down_time.valid() )
+         FC_ASSERT( *extensions.value.son_heartbeat_frequency < *extensions.value.son_down_time );
+
+      if( extensions.value.son_heartbeat_frequency.valid() &&  extensions.value.son_pay_time.valid() )
+         FC_ASSERT( *extensions.value.son_heartbeat_frequency < *extensions.value.son_pay_time );
+
    }
 
 } } // graphene::chain

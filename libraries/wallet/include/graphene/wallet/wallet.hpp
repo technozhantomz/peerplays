@@ -1346,6 +1346,21 @@ class wallet_api
        */
       map<string, committee_member_id_type>       list_committee_members(const string& lowerbound, uint32_t limit);
 
+      /** Lists all workers in the blockchain.
+       * This returns a list of all account names that own worker, and the associated worker id,
+       * sorted by name.  This lists workers whether they are currently voted in or not.
+       *
+       * Use the \c lowerbound and limit parameters to page through the list.  To retrieve all workers,
+       * start by setting \c lowerbound to the empty string \c "", and then each iteration, pass
+       * the last worker name returned as the \c lowerbound for the next \c list_workers() call.
+       *
+       * @param lowerbound the name of the first worker to return.  If the named worker does not exist,
+       *                   the list will start at the worker that comes after \c lowerbound
+       * @param limit the maximum number of worker to return (max: 1000)
+       * @returns a list of worker mapping worker names to worker ids
+       */
+      map<string, worker_id_type> list_workers(const string& lowerbound, uint32_t limit);
+
       /** Returns information about the given SON.
        * @param owner_account the name or id of the SON account owner, or the id of the SON
        * @returns the information about the SON stored in the block chain
@@ -1369,6 +1384,12 @@ class wallet_api
        * @returns the information about the committee_member stored in the block chain
        */
       committee_member_object get_committee_member(string owner_account);
+
+      /** Returns information about the given worker.
+       * @param owner_account the name or id of the worker account owner, or the id of the worker
+       * @returns the information about the workers stored in the block chain
+       */
+      vector<worker_object> get_workers(string owner_account);
 
 
       /** Creates a SON object owned by the given account.
@@ -1764,6 +1785,55 @@ class wallet_api
                                               std::vector<std::string> sons_to_reject,
                                               uint16_t desired_number_of_sons,
                                               bool broadcast = false);
+
+
+      /** Broadcast signed transaction for manually sidechain deposit
+       * @param son_name_or_id ID or name of the son account
+       * @param sidechain Sidechain type (bitcoin, HIVE, etc)
+       * @param transaction_id ID of transaction
+       * @param operation_index Index of operation
+       * @param sidechain_from Sidechain address transaction from
+       * @param sidechain_to Sidechain address transaction to
+       * @param sidechain_currency Sidechain currency
+       * @param sidechain_amount Sidechain amount to deposit
+       * @param peerplays_from_name_or_id ID or name of the account transaction from
+       * @param peerplays_to_name_or_id ID or name of the account transaction to
+       * @returns the signed transaction.
+       */
+      signed_transaction sidechain_deposit_transaction(  const string &son_name_or_id,
+                                                         const sidechain_type& sidechain,
+                                                         const string &transaction_id,
+                                                         uint32_t operation_index,
+                                                         const string &sidechain_from,
+                                                         const string &sidechain_to,
+                                                         const string &sidechain_currency,
+                                                         int64_t sidechain_amount,
+                                                         const string &peerplays_from_name_or_id,
+                                                         const string &peerplays_to_name_or_id);
+
+      /** Broadcast signed transaction for manually sidechain withdrawal
+       * @param son_name_or_id ID or name of the son account
+       * @param block_num Block number where original withdrawal transaction is executed
+       * @param sidechain Sidechain type (bitcoin, HIVE, etc)
+       * @param peerplays_uid peerplays_uid
+       * @param peerplays_transaction_id ID of transaction
+       * @param peerplays_from Sidechain address transaction from
+       * @param withdraw_sidechain Withdraw sidechain
+       * @param withdraw_address Withdraw address
+       * @param withdraw_currency Withdraw currency
+       * @param withdraw_amount Withdraw amount
+       * @returns the signed transaction.
+       */
+      signed_transaction sidechain_withdrawal_transaction(const string &son_name_or_id,
+		                                      uint32_t block_num,
+                                                      const sidechain_type& sidechain,
+                                                      const std::string &peerplays_uid,
+                                                      const std::string &peerplays_transaction_id,
+                                                      const chain::account_id_type &peerplays_from,
+                                                      const sidechain_type& withdraw_sidechain,
+                                                      const std::string &withdraw_address,
+                                                      const std::string &withdraw_currency,
+                                                      const string &withdraw_amount);
 
       /** Vote for a given witness.
        *
@@ -2487,8 +2557,45 @@ class wallet_api
                                          bool broadcast = false,
                                          bool to_temp = false );
 
-
       std::map<string,std::function<string(fc::variant,const fc::variants&)>> get_result_formatters() const;
+
+      /**
+       * @brief Get a list of vote_id_type that ID votes for
+       * @param account_name_or_id ID or name of the account to get votes for
+       * @return The list of vote_id_type ID votes for
+       *
+       */
+      vector<vote_id_type> get_votes_ids(const string &account_name_or_id) const;
+
+      /**
+       * @brief Return the objects account_name_or_id votes for
+       * @param account_name_or_id ID or name of the account to get votes for
+       * @return The votes_info account_name_or_id votes for
+       *
+       */
+      votes_info get_votes(const string &account_name_or_id) const;
+
+      /**
+       * @brief Get a list of accounts that votes for vote_id
+       * @param vote_id We search accounts that vote for this ID
+       * @return The accounts that votes for provided ID
+       *
+       */
+      vector<account_object> get_voters_by_id(const vote_id_type &vote_id) const;
+
+      /**
+       * @brief Return the accounts that votes for account_name_or_id
+       * @param account_name_or_id ID or name of the account to get voters for
+       * @return The voters_info for account_name_or_id
+       *
+       */
+      voters_info get_voters(const string &account_name_or_id) const;
+
+      /**
+       * @brief Demo plugin api
+       * @return The hello world string
+       */
+      std::map<sidechain_type, std::vector<std::string>> get_son_listener_log() const;
 
       fc::signal<void(bool)> lock_changed;
       std::shared_ptr<detail::wallet_api_impl> my;
@@ -2626,8 +2733,10 @@ FC_API( graphene::wallet::wallet_api,
         (get_witness)
         (is_witness)
         (get_committee_member)
+        (get_workers)
         (list_witnesses)
         (list_committee_members)
+        (list_workers)
         (create_son)
         (try_create_son)
         (update_son)
@@ -2643,6 +2752,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_son_wallets)
         (add_sidechain_address)
         (delete_sidechain_address)
+	(sidechain_withdrawal_transaction)
         (get_sidechain_addresses_by_account)
         (get_sidechain_addresses_by_sidechain)
         (get_sidechain_address_by_account_and_sidechain)
@@ -2657,6 +2767,7 @@ FC_API( graphene::wallet::wallet_api,
         (vote_for_committee_member)
         (vote_for_son)
         (update_son_votes)
+        (sidechain_deposit_transaction)
         (vote_for_witness)
         (update_witness_votes)
         (set_voting_proxy)
@@ -2795,4 +2906,9 @@ FC_API( graphene::wallet::wallet_api,
         (get_custom_account_authorities_by_permission_id)
         (get_custom_account_authorities_by_permission_name)
         (get_active_custom_account_authorities_by_operation)
+        (get_votes_ids)
+        (get_votes)
+        (get_voters_by_id)
+        (get_voters)
+        (get_son_listener_log)
       )
