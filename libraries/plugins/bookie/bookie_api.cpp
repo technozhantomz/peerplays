@@ -157,37 +157,45 @@ fc::variants bookie_api_impl::get_objects(const vector<object_id_type>& ids) con
       {
       case event_id_type::type_id:
          {
-            auto& persistent_events_by_event_id = db->get_index_type<detail::persistent_event_index>().indices().get<by_event_id>();
-            auto iter = persistent_events_by_event_id.find(id.as<event_id_type>());
-            if (iter != persistent_events_by_event_id.end())
-               return iter->ephemeral_event_object.to_variant();
+            const auto &idx = db->get_index_type<event_object_index>();
+            const auto &aidx = dynamic_cast<const base_primary_index &>(idx);
+            const auto &refs = aidx.get_secondary_index<detail::persistent_event_index>();
+            auto iter = refs.ephemeral_event_object.find(id.as<event_id_type>());
+            if (iter != refs.ephemeral_event_object.end())
+               return iter->second.to_variant();
             else
                return {};
          }
       case bet_id_type::type_id:
          {
-            auto& persistent_bets_by_bet_id = db->get_index_type<detail::persistent_bet_index>().indices().get<by_bet_id>();
-            auto iter = persistent_bets_by_bet_id.find(id.as<bet_id_type>());
-            if (iter != persistent_bets_by_bet_id.end())
-               return iter->ephemeral_bet_object.to_variant();
+            const auto &idx = db->get_index_type<bet_object_index>();
+            const auto &aidx = dynamic_cast<const base_primary_index &>(idx);
+            const auto &refs = aidx.get_secondary_index<detail::persistent_bet_index>();
+            auto iter = refs.internal.find(id.as<bet_id_type>());
+            if (iter != refs.internal.end())
+               return iter->second.ephemeral_bet_object.to_variant();
             else
                return {};
          }
       case betting_market_object::type_id:
-         { 
-            auto& persistent_betting_markets_by_betting_market_id = db->get_index_type<detail::persistent_betting_market_index>().indices().get<by_betting_market_id>();
-            auto iter = persistent_betting_markets_by_betting_market_id.find(id.as<betting_market_id_type>());
-            if (iter != persistent_betting_markets_by_betting_market_id.end())
-               return iter->ephemeral_betting_market_object.to_variant();
+         {
+            const auto &idx = db->get_index_type<betting_market_object_index>();
+            const auto &aidx = dynamic_cast<const base_primary_index &>(idx);
+            const auto &refs = aidx.get_secondary_index<detail::persistent_betting_market_index>();
+            auto iter = refs.ephemeral_betting_market_object.find(id.as<betting_market_id_type>());
+            if (iter != refs.ephemeral_betting_market_object.end())
+               return iter->second.to_variant();
             else
                return {};
          }
       case betting_market_group_object::type_id:
-         { 
-            auto& persistent_betting_market_groups_by_betting_market_group_id = db->get_index_type<detail::persistent_betting_market_group_index>().indices().get<by_betting_market_group_id>();
-            auto iter = persistent_betting_market_groups_by_betting_market_group_id.find(id.as<betting_market_group_id_type>());
-            if (iter != persistent_betting_market_groups_by_betting_market_group_id.end())
-               return iter->ephemeral_betting_market_group_object.to_variant();
+         {
+            const auto &idx = db->get_index_type<betting_market_group_object_index>();
+            const auto &aidx = dynamic_cast<const base_primary_index &>(idx);
+            const auto &refs = aidx.get_secondary_index<detail::persistent_betting_market_group_index>();
+            auto iter = refs.internal.find(id.as<betting_market_group_id_type>());
+            if (iter != refs.internal.end())
+               return iter->second.ephemeral_betting_market_group_object.to_variant();
             else
                return {};
          }
@@ -203,25 +211,28 @@ std::vector<matched_bet_object> bookie_api_impl::get_matched_bets_for_bettor(acc
 {
    std::vector<matched_bet_object> result;
    std::shared_ptr<graphene::chain::database> db = app.chain_database();
-   auto& persistent_bets_by_bettor_id = db->get_index_type<detail::persistent_bet_index>().indices().get<by_bettor_id>();
-   auto iter = persistent_bets_by_bettor_id.lower_bound(std::make_tuple(bettor_id, true));
-   while (iter != persistent_bets_by_bettor_id.end() && 
-          iter->get_bettor_id() == bettor_id &&
-          iter->is_matched())
-   {
-      matched_bet_object match;
-      match.id = iter->ephemeral_bet_object.id;
-      match.bettor_id = iter->ephemeral_bet_object.bettor_id;
-      match.betting_market_id = iter->ephemeral_bet_object.betting_market_id;
-      match.amount_to_bet = iter->ephemeral_bet_object.amount_to_bet;
-      match.back_or_lay = iter->ephemeral_bet_object.back_or_lay;
-      match.end_of_delay = iter->ephemeral_bet_object.end_of_delay;
-      match.amount_matched = iter->amount_matched;
-      match.associated_operations = iter->associated_operations;
-      result.emplace_back(std::move(match));
+   const auto &idx = db->get_index_type<bet_object_index>();
+   const auto &aidx = dynamic_cast<const base_primary_index &>(idx);
+   const auto &refs = aidx.get_secondary_index<detail::persistent_bet_index>();
 
-      ++iter;
+   for( const auto& bet_pair : refs.internal )
+   {
+      const auto& bet = bet_pair.second;
+      if( bet.get_bettor_id() == bettor_id && bet.is_matched() )
+      {
+         matched_bet_object match;
+         match.id = bet.ephemeral_bet_object.id;
+         match.bettor_id = bet.ephemeral_bet_object.bettor_id;
+         match.betting_market_id = bet.ephemeral_bet_object.betting_market_id;
+         match.amount_to_bet = bet.ephemeral_bet_object.amount_to_bet;
+         match.back_or_lay = bet.ephemeral_bet_object.back_or_lay;
+         match.end_of_delay = bet.ephemeral_bet_object.end_of_delay;
+         match.amount_matched = bet.amount_matched;
+         match.associated_operations = bet.associated_operations;
+         result.emplace_back(std::move(match));
+      }
    }
+
    return result;
 }
 
@@ -231,29 +242,32 @@ std::vector<matched_bet_object> bookie_api_impl::get_all_matched_bets_for_bettor
 
    std::vector<matched_bet_object> result;
    std::shared_ptr<graphene::chain::database> db = app.chain_database();
-   auto& persistent_bets_by_bettor_id = db->get_index_type<detail::persistent_bet_index>().indices().get<by_bettor_id>();
-   persistent_bet_multi_index_type::index<by_bettor_id>::type::iterator iter;
-   if (start == bet_id_type())
-      iter = persistent_bets_by_bettor_id.lower_bound(std::make_tuple(bettor_id, true));
-   else
-      iter = persistent_bets_by_bettor_id.lower_bound(std::make_tuple(bettor_id, true, start));
-   while (iter != persistent_bets_by_bettor_id.end() && 
-          iter->get_bettor_id() == bettor_id &&
-          iter->is_matched() &&
-          result.size() < limit)
-   {
-      matched_bet_object match;
-      match.id = iter->ephemeral_bet_object.id;
-      match.bettor_id = iter->ephemeral_bet_object.bettor_id;
-      match.betting_market_id = iter->ephemeral_bet_object.betting_market_id;
-      match.amount_to_bet = iter->ephemeral_bet_object.amount_to_bet;
-      match.back_or_lay = iter->ephemeral_bet_object.back_or_lay;
-      match.end_of_delay = iter->ephemeral_bet_object.end_of_delay;
-      match.amount_matched = iter->amount_matched;
-      result.emplace_back(std::move(match));
+   const auto &idx = db->get_index_type<bet_object_index>();
+   const auto &aidx = dynamic_cast<const base_primary_index &>(idx);
+   const auto &refs = aidx.get_secondary_index<detail::persistent_bet_index>();
 
-      ++iter;
+   for( const auto& bet_pair : refs.internal )
+   {
+      const auto& bet_id = bet_pair.first;
+      const auto& bet = bet_pair.second;
+      if( bet.get_bettor_id() == bettor_id &&
+          bet.is_matched() &&
+          bet_id > start &&
+          result.size() < limit )
+      {
+         matched_bet_object match;
+         match.id = bet.ephemeral_bet_object.id;
+         match.bettor_id = bet.ephemeral_bet_object.bettor_id;
+         match.betting_market_id = bet.ephemeral_bet_object.betting_market_id;
+         match.amount_to_bet = bet.ephemeral_bet_object.amount_to_bet;
+         match.back_or_lay = bet.ephemeral_bet_object.back_or_lay;
+         match.end_of_delay = bet.ephemeral_bet_object.end_of_delay;
+         match.amount_matched = bet.amount_matched;
+         match.associated_operations = bet.associated_operations;
+         result.emplace_back(std::move(match));
+      }
    }
+
    return result;
 }
 

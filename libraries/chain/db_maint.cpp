@@ -2034,18 +2034,11 @@ void database::perform_son_tasks()
 
 void update_son_params(database& db)
 {
-   if( db.head_block_time() >= HARDFORK_SON2_TIME )
+   if( (db.head_block_time() >= HARDFORK_SON2_TIME) && (db.head_block_time() < HARDFORK_SON3_TIME) )
    {
       const auto& gpo = db.get_global_properties();
-      const asset_object& btc_asset = gpo.parameters.btc_asset()(db);
-      if( btc_asset.is_transfer_restricted() ) {
-         db.modify( btc_asset, []( asset_object& ao ) {
-            ao.options.flags = asset_issuer_permission_flags::charge_market_fee |
-                              asset_issuer_permission_flags::override_authority;
-         });
-      }
       db.modify( gpo, []( global_property_object& gpo ) {
-            gpo.parameters.extensions.value.maximum_son_count = 7;
+         gpo.parameters.extensions.value.maximum_son_count = 7;
       });
    }
 }
@@ -2274,6 +2267,14 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
          if( !p.pending_parameters->extensions.value.hive_asset.valid() )
             p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
+
+         // the following parameters are not allowed to be changed. So take what is in global property
+         p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
+         p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
+         p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
+         p.pending_parameters->extensions.value.son_account = p.parameters.extensions.value.son_account;
+         p.pending_parameters->extensions.value.gpos_period_start = p.parameters.extensions.value.gpos_period_start;
+
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }

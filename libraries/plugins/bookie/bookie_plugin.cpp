@@ -59,143 +59,80 @@ namespace detail
  * We do this by creating a secondary index on bet_object.  We don't actually use it
  * to index any property of the bet, we just use it to register for callbacks.
  */
-class persistent_bet_object_helper : public secondary_index
-{
-   public:
-      virtual ~persistent_bet_object_helper() {}
 
-      virtual void object_inserted(const object& obj) override;
-      //virtual void object_removed( const object& obj ) override;
-      //virtual void about_to_modify( const object& before ) override;
-      virtual void object_modified(const object& after) override;
-      void set_plugin_instance(bookie_plugin* instance) { _bookie_plugin = instance; }
-   private:
-      bookie_plugin* _bookie_plugin;
-};
-
-void persistent_bet_object_helper::object_inserted(const object& obj) 
+void persistent_bet_index::object_inserted(const object& obj)
 {
    const bet_object& bet_obj = *boost::polymorphic_downcast<const bet_object*>(&obj);
-   _bookie_plugin->database().create<persistent_bet_object>([&](persistent_bet_object& saved_bet_obj) {
-      saved_bet_obj.ephemeral_bet_object = bet_obj;
-   });
+   if(0 == internal.count(bet_obj.id))
+      internal.insert( {bet_obj.id, bet_obj} );
+   else
+      internal[bet_obj.id] = bet_obj;
 }
-void persistent_bet_object_helper::object_modified(const object& after) 
+void persistent_bet_index::object_modified(const object& after)
 {
-   database& db = _bookie_plugin->database();
-   auto& persistent_bets_by_bet_id = db.get_index_type<persistent_bet_index>().indices().get<by_bet_id>();
    const bet_object& bet_obj = *boost::polymorphic_downcast<const bet_object*>(&after);
-   auto iter = persistent_bets_by_bet_id.find(bet_obj.id);
-   assert (iter != persistent_bets_by_bet_id.end());
-   if (iter != persistent_bets_by_bet_id.end())
-      db.modify(*iter, [&](persistent_bet_object& saved_bet_obj) {
-         saved_bet_obj.ephemeral_bet_object = bet_obj;
-      });
+   auto iter = internal.find(bet_obj.id);
+   assert (iter != internal.end());
+   if (iter != internal.end())
+      iter->second = bet_obj;
 }
 
 //////////// end bet_object ///////////////////
-class persistent_betting_market_object_helper : public secondary_index
-{
-   public:
-      virtual ~persistent_betting_market_object_helper() {}
 
-      virtual void object_inserted(const object& obj) override;
-      //virtual void object_removed( const object& obj ) override;
-      //virtual void about_to_modify( const object& before ) override;
-      virtual void object_modified(const object& after) override;
-      void set_plugin_instance(bookie_plugin* instance) { _bookie_plugin = instance; }
-   private:
-      bookie_plugin* _bookie_plugin;
-};
-
-void persistent_betting_market_object_helper::object_inserted(const object& obj) 
+void persistent_betting_market_index::object_inserted(const object& obj)
 {
    const betting_market_object& betting_market_obj = *boost::polymorphic_downcast<const betting_market_object*>(&obj);
-   _bookie_plugin->database().create<persistent_betting_market_object>([&](persistent_betting_market_object& saved_betting_market_obj) {
-      saved_betting_market_obj.ephemeral_betting_market_object = betting_market_obj;
-   });
+   if(0 == ephemeral_betting_market_object.count(betting_market_obj.id))
+      ephemeral_betting_market_object.insert( {betting_market_obj.id, betting_market_obj} );
+   else
+      ephemeral_betting_market_object[betting_market_obj.id] = betting_market_obj;
+
 }
-void persistent_betting_market_object_helper::object_modified(const object& after) 
+void persistent_betting_market_index::object_modified(const object& after)
 {
-   database& db = _bookie_plugin->database();
-   auto& persistent_betting_markets_by_betting_market_id = db.get_index_type<persistent_betting_market_index>().indices().get<by_betting_market_id>();
    const betting_market_object& betting_market_obj = *boost::polymorphic_downcast<const betting_market_object*>(&after);
-   auto iter = persistent_betting_markets_by_betting_market_id.find(betting_market_obj.id);
-   assert (iter != persistent_betting_markets_by_betting_market_id.end());
-   if (iter != persistent_betting_markets_by_betting_market_id.end())
-      db.modify(*iter, [&](persistent_betting_market_object& saved_betting_market_obj) {
-         saved_betting_market_obj.ephemeral_betting_market_object = betting_market_obj;
-      });
+   auto iter = ephemeral_betting_market_object.find(betting_market_obj.id);
+   assert (iter != ephemeral_betting_market_object.end());
+   if (iter != ephemeral_betting_market_object.end())
+      iter->second = betting_market_obj;
 }
 
 //////////// end betting_market_object ///////////////////
-class persistent_betting_market_group_object_helper : public secondary_index
-{
-   public:
-      virtual ~persistent_betting_market_group_object_helper() {}
 
-      virtual void object_inserted(const object& obj) override;
-      //virtual void object_removed( const object& obj ) override;
-      //virtual void about_to_modify( const object& before ) override;
-      virtual void object_modified(const object& after) override;
-      void set_plugin_instance(bookie_plugin* instance) { _bookie_plugin = instance; }
-   private:
-      bookie_plugin* _bookie_plugin;
-};
-
-void persistent_betting_market_group_object_helper::object_inserted(const object& obj) 
+void persistent_betting_market_group_index::object_inserted(const object& obj)
 {
    const betting_market_group_object& betting_market_group_obj = *boost::polymorphic_downcast<const betting_market_group_object*>(&obj);
-   _bookie_plugin->database().create<persistent_betting_market_group_object>([&](persistent_betting_market_group_object& saved_betting_market_group_obj) {
-      saved_betting_market_group_obj.ephemeral_betting_market_group_object = betting_market_group_obj;
-   });
+   if(0 == internal.count(betting_market_group_obj.id))
+      internal.insert( {betting_market_group_obj.id, betting_market_group_obj} );
+   else
+      internal[betting_market_group_obj.id] = betting_market_group_obj;
 }
-void persistent_betting_market_group_object_helper::object_modified(const object& after) 
+void persistent_betting_market_group_index::object_modified(const object& after)
 {
-   database& db = _bookie_plugin->database();
-   auto& persistent_betting_market_groups_by_betting_market_group_id = db.get_index_type<persistent_betting_market_group_index>().indices().get<by_betting_market_group_id>();
    const betting_market_group_object& betting_market_group_obj = *boost::polymorphic_downcast<const betting_market_group_object*>(&after);
-   auto iter = persistent_betting_market_groups_by_betting_market_group_id.find(betting_market_group_obj.id);
-   assert (iter != persistent_betting_market_groups_by_betting_market_group_id.end());
-   if (iter != persistent_betting_market_groups_by_betting_market_group_id.end())
-      db.modify(*iter, [&](persistent_betting_market_group_object& saved_betting_market_group_obj) {
-         saved_betting_market_group_obj.ephemeral_betting_market_group_object = betting_market_group_obj;
-      });
+   auto iter = internal.find(betting_market_group_obj.id);
+   assert (iter != internal.end());
+   if (iter != internal.end())
+      iter->second = betting_market_group_obj;
 }
 
 //////////// end betting_market_group_object ///////////////////
-class persistent_event_object_helper : public secondary_index
-{
-   public:
-      virtual ~persistent_event_object_helper() {}
 
-      virtual void object_inserted(const object& obj) override;
-      //virtual void object_removed( const object& obj ) override;
-      //virtual void about_to_modify( const object& before ) override;
-      virtual void object_modified(const object& after) override;
-      void set_plugin_instance(bookie_plugin* instance) { _bookie_plugin = instance; }
-   private:
-      bookie_plugin* _bookie_plugin;
-};
-
-void persistent_event_object_helper::object_inserted(const object& obj) 
+void persistent_event_index::object_inserted(const object& obj)
 {
    const event_object& event_obj = *boost::polymorphic_downcast<const event_object*>(&obj);
-   _bookie_plugin->database().create<persistent_event_object>([&](persistent_event_object& saved_event_obj) {
-      saved_event_obj.ephemeral_event_object = event_obj;
-   });
+   if(0 == ephemeral_event_object.count(event_obj.id))
+      ephemeral_event_object.insert( {event_obj.id, event_obj} );
+   else
+      ephemeral_event_object[event_obj.id] = event_obj;
 }
-void persistent_event_object_helper::object_modified(const object& after) 
+void persistent_event_index::object_modified(const object& after)
 {
-   database& db = _bookie_plugin->database();
-   auto& persistent_events_by_event_id = db.get_index_type<persistent_event_index>().indices().get<by_event_id>();
    const event_object& event_obj = *boost::polymorphic_downcast<const event_object*>(&after);
-   auto iter = persistent_events_by_event_id.find(event_obj.id);
-   assert (iter != persistent_events_by_event_id.end());
-   if (iter != persistent_events_by_event_id.end())
-      db.modify(*iter, [&](persistent_event_object& saved_event_obj) {
-         saved_event_obj.ephemeral_event_object = event_obj;
-      });
+   auto iter = ephemeral_event_object.find(event_obj.id);
+   assert (iter != ephemeral_event_object.end());
+   if (iter != ephemeral_event_object.end())
+      iter->second = event_obj;
 }
 
 //////////// end event_object ///////////////////
@@ -206,7 +143,6 @@ class bookie_plugin_impl
          : _self( _plugin )
       { }
       virtual ~bookie_plugin_impl();
-
 
       /**
        *  Called After a block has been applied and committed.  The callback
@@ -299,27 +235,35 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
          const asset& amount_bet = bet_matched_op.amount_bet;
          // object may no longer exist
          //const bet_object& bet = bet_matched_op.bet_id(db);
-         auto& persistent_bets_by_bet_id = db.get_index_type<persistent_bet_index>().indices().get<by_bet_id>();
-         auto bet_iter = persistent_bets_by_bet_id.find(bet_matched_op.bet_id);
-         assert(bet_iter != persistent_bets_by_bet_id.end());
-         if (bet_iter != persistent_bets_by_bet_id.end())
+         const auto &idx_bet_object = db.get_index_type<bet_object_index>();
+         const auto &aidx_bet_object = dynamic_cast<const base_primary_index &>(idx_bet_object);
+         const auto &refs_bet_object = aidx_bet_object.get_secondary_index<detail::persistent_bet_index>();
+         auto& nonconst_refs_bet_object = const_cast<persistent_bet_index&>(refs_bet_object);
+
+         auto bet_iter = nonconst_refs_bet_object.internal.find(bet_matched_op.bet_id);
+         assert(bet_iter != nonconst_refs_bet_object.internal.end());
+         if (bet_iter != nonconst_refs_bet_object.internal.end())
          {
-            db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
-               obj.amount_matched += amount_bet.amount;
-               if (is_operation_history_object_stored(op.id))
-                  obj.associated_operations.emplace_back(op.id);
-            });
-            const bet_object& bet_obj = bet_iter->ephemeral_bet_object;
+            bet_iter->second.amount_matched += amount_bet.amount;
+            if (is_operation_history_object_stored(op.id))
+               bet_iter->second.associated_operations.emplace_back(op.id);
 
-            auto& persistent_betting_market_idx = db.get_index_type<persistent_betting_market_index>().indices().get<by_betting_market_id>();
-            auto persistent_betting_market_object_iter = persistent_betting_market_idx.find(bet_obj.betting_market_id);
-            FC_ASSERT(persistent_betting_market_object_iter != persistent_betting_market_idx.end());
-            const betting_market_object& betting_market = persistent_betting_market_object_iter->ephemeral_betting_market_object;
+            const bet_object& bet_obj = bet_iter->second.ephemeral_bet_object;
 
-            auto& persistent_betting_market_group_idx = db.get_index_type<persistent_betting_market_group_index>().indices().get<by_betting_market_group_id>();
-            auto persistent_betting_market_group_object_iter = persistent_betting_market_group_idx.find(betting_market.group_id);
-            FC_ASSERT(persistent_betting_market_group_object_iter != persistent_betting_market_group_idx.end());
-            const betting_market_group_object& betting_market_group = persistent_betting_market_group_object_iter->ephemeral_betting_market_group_object;
+            const auto &idx_betting_market = db.get_index_type<betting_market_object_index>();
+            const auto &aidx_betting_market = dynamic_cast<const base_primary_index &>(idx_betting_market);
+            const auto &refs_betting_market = aidx_betting_market.get_secondary_index<detail::persistent_betting_market_index>();
+            auto persistent_betting_market_object_iter = refs_betting_market.ephemeral_betting_market_object.find(bet_obj.betting_market_id);
+            FC_ASSERT(persistent_betting_market_object_iter != refs_betting_market.ephemeral_betting_market_object.end());
+            const betting_market_object& betting_market = persistent_betting_market_object_iter->second;
+
+            const auto &idx_betting_market_group = db.get_index_type<betting_market_group_object_index>();
+            const auto &aidx_betting_market_group = dynamic_cast<const base_primary_index &>(idx_betting_market_group);
+            const auto &refs_betting_market_group = aidx_betting_market_group.get_secondary_index<detail::persistent_betting_market_group_index>();
+            auto& nonconst_refs_betting_market_group = const_cast<persistent_betting_market_group_index&>(refs_betting_market_group);
+            auto persistent_betting_market_group_object_iter = nonconst_refs_betting_market_group.internal.find(betting_market.group_id);
+            FC_ASSERT(persistent_betting_market_group_object_iter != nonconst_refs_betting_market_group.internal.end());
+            const betting_market_group_object& betting_market_group = persistent_betting_market_group_object_iter->second.ephemeral_betting_market_group_object;
 
             // if the object is still in the main database, keep the running total there
             // otherwise, add it directly to the persistent version
@@ -330,9 +274,7 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
                   obj.total_matched_bets_amount += amount_bet.amount;
                });
             else
-               db.modify( *persistent_betting_market_group_object_iter, [&]( persistent_betting_market_group_object& obj ){
-                  obj.ephemeral_betting_market_group_object.total_matched_bets_amount += amount_bet.amount;
-               });
+               persistent_betting_market_group_object_iter->second.total_matched_bets_amount += amount_bet.amount;
          }
       }
       else if( op.op.which() == operation::tag<event_create_operation>::value )
@@ -364,33 +306,35 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
       else if ( op.op.which() == operation::tag<bet_canceled_operation>::value )
       {
          const bet_canceled_operation& bet_canceled_op = op.op.get<bet_canceled_operation>();
-         auto& persistent_bets_by_bet_id = db.get_index_type<persistent_bet_index>().indices().get<by_bet_id>();
-         auto bet_iter = persistent_bets_by_bet_id.find(bet_canceled_op.bet_id);
-         assert(bet_iter != persistent_bets_by_bet_id.end());
-         if (bet_iter != persistent_bets_by_bet_id.end())
+         const auto &idx_bet_object = db.get_index_type<bet_object_index>();
+         const auto &aidx_bet_object = dynamic_cast<const base_primary_index &>(idx_bet_object);
+         const auto &refs_bet_object = aidx_bet_object.get_secondary_index<detail::persistent_bet_index>();
+         auto& nonconst_refs_bet_object = const_cast<persistent_bet_index&>(refs_bet_object);
+
+         auto bet_iter = nonconst_refs_bet_object.internal.find(bet_canceled_op.bet_id);
+         assert(bet_iter != nonconst_refs_bet_object.internal.end());
+         if (bet_iter != nonconst_refs_bet_object.internal.end())
          {
             // ilog("Adding bet_canceled_operation ${canceled_id} to bet ${bet_id}'s associated operations", 
             //     ("canceled_id", op.id)("bet_id", bet_canceled_op.bet_id));
-            if (is_operation_history_object_stored(op.id))
-               db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
-                  obj.associated_operations.emplace_back(op.id);
-               });
+            bet_iter->second.associated_operations.emplace_back(op.id);
          }
       }
       else if ( op.op.which() == operation::tag<bet_adjusted_operation>::value )
       {
          const bet_adjusted_operation& bet_adjusted_op = op.op.get<bet_adjusted_operation>();
-         auto& persistent_bets_by_bet_id = db.get_index_type<persistent_bet_index>().indices().get<by_bet_id>();
-         auto bet_iter = persistent_bets_by_bet_id.find(bet_adjusted_op.bet_id);
-         assert(bet_iter != persistent_bets_by_bet_id.end());
-         if (bet_iter != persistent_bets_by_bet_id.end())
+         const auto &idx_bet_object = db.get_index_type<bet_object_index>();
+         const auto &aidx_bet_object = dynamic_cast<const base_primary_index &>(idx_bet_object);
+         const auto &refs_bet_object = aidx_bet_object.get_secondary_index<detail::persistent_bet_index>();
+         auto& nonconst_refs_bet_object = const_cast<persistent_bet_index&>(refs_bet_object);
+
+         auto bet_iter = nonconst_refs_bet_object.internal.find(bet_adjusted_op.bet_id);
+         assert(bet_iter != nonconst_refs_bet_object.internal.end());
+         if (bet_iter != nonconst_refs_bet_object.internal.end())
          {
             // ilog("Adding bet_adjusted_operation ${adjusted_id} to bet ${bet_id}'s associated operations", 
             //     ("adjusted_id", op.id)("bet_id", bet_adjusted_op.bet_id));
-            if (is_operation_history_object_stored(op.id))
-               db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
-                  obj.associated_operations.emplace_back(op.id);
-               });
+            bet_iter->second.associated_operations.emplace_back(op.id);
          }
       }
 
@@ -472,31 +416,21 @@ void bookie_plugin::plugin_initialize(const boost::program_options::variables_ma
     database().new_objects.connect([this](const vector<object_id_type>& ids, const flat_set<account_id_type>& impacted_accounts) { my->on_objects_new(ids); });
     database().removed_objects.connect([this](const vector<object_id_type>& ids, const vector<const object*>& objs, const flat_set<account_id_type>& impacted_accounts) { my->on_objects_removed(ids); });
 
-
-    //auto event_index =
-    database().add_index<primary_index<detail::persistent_event_index> >();
-    database().add_index<primary_index<detail::persistent_betting_market_group_index> >();
-    database().add_index<primary_index<detail::persistent_betting_market_index> >();
-    database().add_index<primary_index<detail::persistent_bet_index> >();
     const primary_index<bet_object_index>& bet_object_idx = database().get_index_type<primary_index<bet_object_index> >();
     primary_index<bet_object_index>& nonconst_bet_object_idx = const_cast<primary_index<bet_object_index>&>(bet_object_idx);
-    detail::persistent_bet_object_helper* persistent_bet_object_helper_index = nonconst_bet_object_idx.add_secondary_index<detail::persistent_bet_object_helper>();
-    persistent_bet_object_helper_index->set_plugin_instance(this);
+    nonconst_bet_object_idx.add_secondary_index<detail::persistent_bet_index>();
 
     const primary_index<betting_market_object_index>& betting_market_object_idx = database().get_index_type<primary_index<betting_market_object_index> >();
     primary_index<betting_market_object_index>& nonconst_betting_market_object_idx = const_cast<primary_index<betting_market_object_index>&>(betting_market_object_idx);
-    detail::persistent_betting_market_object_helper* persistent_betting_market_object_helper_index = nonconst_betting_market_object_idx.add_secondary_index<detail::persistent_betting_market_object_helper>();
-    persistent_betting_market_object_helper_index->set_plugin_instance(this);
+    nonconst_betting_market_object_idx.add_secondary_index<detail::persistent_betting_market_index>();
 
     const primary_index<betting_market_group_object_index>& betting_market_group_object_idx = database().get_index_type<primary_index<betting_market_group_object_index> >();
     primary_index<betting_market_group_object_index>& nonconst_betting_market_group_object_idx = const_cast<primary_index<betting_market_group_object_index>&>(betting_market_group_object_idx);
-    detail::persistent_betting_market_group_object_helper* persistent_betting_market_group_object_helper_index = nonconst_betting_market_group_object_idx.add_secondary_index<detail::persistent_betting_market_group_object_helper>();
-    persistent_betting_market_group_object_helper_index->set_plugin_instance(this);
+    nonconst_betting_market_group_object_idx.add_secondary_index<detail::persistent_betting_market_group_index>();
 
     const primary_index<event_object_index>& event_object_idx = database().get_index_type<primary_index<event_object_index> >();
     primary_index<event_object_index>& nonconst_event_object_idx = const_cast<primary_index<event_object_index>&>(event_object_idx);
-    detail::persistent_event_object_helper* persistent_event_object_helper_index = nonconst_event_object_idx.add_secondary_index<detail::persistent_event_object_helper>();
-    persistent_event_object_helper_index->set_plugin_instance(this);
+    nonconst_event_object_idx.add_secondary_index<detail::persistent_event_index>();
 
     ilog("bookie plugin: plugin_startup() end");
  }

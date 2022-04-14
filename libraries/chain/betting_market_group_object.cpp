@@ -541,7 +541,7 @@ void betting_market_group_object::dispatch_new_status(database& db, betting_mark
 
 } } // graphene::chain
 
-namespace fc { 
+namespace fc {
    // Manually reflect betting_market_group_object to variant to properly reflect "state"
    void to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v, uint32_t max_depth)
    {

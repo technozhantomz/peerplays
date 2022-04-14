@@ -10,6 +10,7 @@
 #include <graphene/chain/sidechain_address_object.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
 #include <graphene/chain/son_wallet_withdraw_object.hpp>
+#include <graphene/peerplays_sidechain/sidechain_api.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_manager.hpp>
 #include <graphene/utilities/key_conversion.hpp>
 
@@ -44,6 +45,7 @@ public:
    fc::ecc::private_key get_private_key(chain::public_key_type public_key);
    void log_son_proposal_retry(int op_type, object_id_type object_id);
    bool can_son_participate(int op_type, object_id_type object_id);
+   std::map<sidechain_type, std::vector<std::string>> get_son_listener_log();
 
    void schedule_heartbeat_loop();
    void heartbeat_loop();
@@ -175,12 +177,6 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
          sons.insert(v.begin(), v.end());
       }
       config_ready_son = config_ready_son && !sons.empty();
-
-#ifndef ENABLE_MULTIPLE_SONS
-      if (sons.size() > 1) {
-         FC_THROW("Invalid configuration, multiple SON IDs provided");
-      }
-#endif
 
       if (options.count("peerplays-private-key")) {
          const std::vector<std::string> key_id_to_wif_pair_strings = options["peerplays-private-key"].as<std::vector<std::string>>();
@@ -534,6 +530,10 @@ bool peerplays_sidechain_plugin_impl::can_son_participate(int op_type, object_id
    return (itr == son_retry_count.end() || itr->second < retries_threshold);
 }
 
+std::map<sidechain_type, std::vector<std::string>> peerplays_sidechain_plugin_impl::get_son_listener_log() {
+   return net_manager->get_son_listener_log();
+}
+
 void peerplays_sidechain_plugin_impl::approve_proposals() {
 
    auto check_approve_proposal = [&](const chain::son_id_type &son_id, const chain::proposal_object &proposal) {
@@ -792,6 +792,10 @@ void peerplays_sidechain_plugin::log_son_proposal_retry(int op_type, object_id_t
 
 bool peerplays_sidechain_plugin::can_son_participate(int op_type, object_id_type object_id) {
    return my->can_son_participate(op_type, object_id);
+}
+
+std::map<sidechain_type, std::vector<std::string>> peerplays_sidechain_plugin::get_son_listener_log() {
+   return my->get_son_listener_log();
 }
 
 }} // namespace graphene::peerplays_sidechain

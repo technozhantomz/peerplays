@@ -23,6 +23,7 @@
  */
 #pragma once
 
+#include <boost/exception/diagnostic_information.hpp> 
 #include <fc/exception/exception.hpp>
 #include <graphene/chain/protocol/protocol.hpp>
 
@@ -65,19 +66,27 @@
       msg                                                             \
       )
 
-#define GRAPHENE_TRY_NOTIFY( signal, ... )                                    \
-   try                                                                        \
-   {                                                                          \
-      signal( __VA_ARGS__ );                                                  \
-   }                                                                          \
-   catch( const graphene::chain::plugin_exception& e )                        \
-   {                                                                          \
-      elog( "Caught plugin exception: ${e}", ("e", e.to_detail_string() ) );  \
-      throw;                                                                  \
-   }                                                                          \
-   catch( ... )                                                               \
-   {                                                                          \
-      wlog( "Caught unexpected exception in plugin" );                        \
+#define GRAPHENE_TRY_NOTIFY( signal, ... )                                                      \
+   try                                                                                          \
+   {                                                                                            \
+      signal( __VA_ARGS__ );                                                                    \
+   }                                                                                            \
+   catch( const graphene::chain::plugin_exception& e )                                          \
+   {                                                                                            \
+      elog( "Caught plugin exception: ${e}", ("e", e.to_detail_string() ) );                    \
+      throw;                                                                                    \
+   }                                                                                            \
+   catch( const boost::exception& e )                                                           \
+   {                                                                                            \
+      elog( "Caught plugin boost::exception: ${e}", ("e", boost::diagnostic_information(e) ) ); \
+   }                                                                                            \
+   catch( const std::exception& e )                                                             \
+   {                                                                                            \
+      elog( "Caught plugin std::exception: ${e}", ("e", e.what() ) );                           \
+   }                                                                                            \
+   catch( ... )                                                                                 \
+   {                                                                                            \
+      wlog( "Caught unexpected exception in plugin" );                                          \
    }
 
 namespace graphene { namespace chain {

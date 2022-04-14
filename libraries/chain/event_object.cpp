@@ -47,7 +47,7 @@ namespace graphene { namespace chain {
    };
 } }
 
-FC_REFLECT_ENUM(graphene::chain::event_state, 
+FC_REFLECT_ENUM(graphene::chain::event_state,
                 (upcoming)
                 (frozen_upcoming)
                 (in_progress)
@@ -61,12 +61,12 @@ namespace graphene { namespace chain {
    namespace msm = boost::msm;
    namespace mpl = boost::mpl;
 
-   namespace 
+   namespace
    {
 
       // Events -- most events happen when the witnesses publish an event_update operation with a new
       // status, so if they publish an event with the status set to `frozen`, we'll generate a `frozen_event`
-      struct upcoming_event 
+      struct upcoming_event
       {
          database& db;
          upcoming_event(database& db) : db(db) {}
@@ -76,12 +76,12 @@ namespace graphene { namespace chain {
          database& db;
          in_progress_event(database& db) : db(db) {}
       };
-      struct frozen_event 
+      struct frozen_event
       {
          database& db;
          frozen_event(database& db) : db(db) {}
       };
-      struct finished_event 
+      struct finished_event
       {
          database& db;
          finished_event(database& db) : db(db) {}
@@ -104,7 +104,7 @@ namespace graphene { namespace chain {
          betting_market_group_resolved_event(database& db, betting_market_group_id_type resolved_group, bool was_canceled) : db(db), resolved_group(resolved_group), was_canceled(was_canceled) {}
       };
 
-      // event triggered when a betting market group is closed.  When we get this, 
+      // event triggered when a betting market group is closed.  When we get this,
       // if all child betting market groups are closed, transition to finished
       struct betting_market_group_closed_event
       {
@@ -127,7 +127,7 @@ namespace graphene { namespace chain {
             void on_entry(const upcoming_event& event, event_state_machine_& fsm) {
                dlog("event ${id} -> upcoming", ("id", fsm.event_obj->id));
                auto& betting_market_group_index = event.db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-               for (const betting_market_group_object& betting_market_group : 
+               for (const betting_market_group_object& betting_market_group :
                     boost::make_iterator_range(betting_market_group_index.equal_range(fsm.event_obj->id)))
                   try
                   {
@@ -147,7 +147,7 @@ namespace graphene { namespace chain {
             void on_entry(const in_progress_event& event, event_state_machine_& fsm) {
                dlog("event ${id} -> in_progress", ("id", fsm.event_obj->id));
                auto& betting_market_group_index = event.db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-               for (const betting_market_group_object& betting_market_group : 
+               for (const betting_market_group_object& betting_market_group :
                     boost::make_iterator_range(betting_market_group_index.equal_range(fsm.event_obj->id)))
                   try
                   {
@@ -203,7 +203,7 @@ namespace graphene { namespace chain {
 
          void freeze_betting_market_groups(const frozen_event& event) {
             auto& betting_market_group_index = event.db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-            for (const betting_market_group_object& betting_market_group : 
+            for (const betting_market_group_object& betting_market_group :
                  boost::make_iterator_range(betting_market_group_index.equal_range(event_obj->id)))
             {
                try
@@ -222,7 +222,7 @@ namespace graphene { namespace chain {
 
          void close_all_betting_market_groups(const finished_event& event) {
             auto& betting_market_group_index = event.db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-            for (const betting_market_group_object& betting_market_group : 
+            for (const betting_market_group_object& betting_market_group :
                  boost::make_iterator_range(betting_market_group_index.equal_range(event_obj->id)))
             {
                try
@@ -241,7 +241,7 @@ namespace graphene { namespace chain {
 
          void cancel_all_betting_market_groups(const canceled_event& event) {
             auto& betting_market_group_index = event.db.template get_index_type<betting_market_group_object_index>().indices().template get<by_event_id>();
-            for (const betting_market_group_object& betting_market_group : 
+            for (const betting_market_group_object& betting_market_group :
                  boost::make_iterator_range(betting_market_group_index.equal_range(event_obj->id)))
                event.db.modify(betting_market_group, [&event](betting_market_group_object& betting_market_group_obj) {
                   betting_market_group_obj.on_canceled_event(event.db, true);
@@ -252,15 +252,15 @@ namespace graphene { namespace chain {
          bool all_betting_market_groups_are_closed(const betting_market_group_closed_event& event)
          {
             auto& betting_market_group_index = event.db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-            for (const betting_market_group_object& betting_market_group : 
+            for (const betting_market_group_object& betting_market_group :
                  boost::make_iterator_range(betting_market_group_index.equal_range(event_obj->id)))
                if (betting_market_group.id != event.closed_group)
                {
                   betting_market_group_status status = betting_market_group.get_status();
-                  if (status != betting_market_group_status::closed  && 
-                      status != betting_market_group_status::graded  && 
-                      status != betting_market_group_status::re_grading  && 
-                      status != betting_market_group_status::settled  && 
+                  if (status != betting_market_group_status::closed &&
+                      status != betting_market_group_status::graded &&
+                      status != betting_market_group_status::re_grading &&
+                      status != betting_market_group_status::settled &&
                       status != betting_market_group_status::canceled)
                      return false;
                }
@@ -276,7 +276,7 @@ namespace graphene { namespace chain {
             if (event_obj->at_least_one_betting_market_group_settled)
                return false;
             auto& betting_market_group_index = event.db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-            for (const betting_market_group_object& betting_market_group : 
+            for (const betting_market_group_object& betting_market_group :
                  boost::make_iterator_range(betting_market_group_index.equal_range(event_obj->id)))
                if (betting_market_group.id != event.resolved_group)
                   if (betting_market_group.get_status() != betting_market_group_status::canceled)
@@ -290,7 +290,7 @@ namespace graphene { namespace chain {
                event_obj->at_least_one_betting_market_group_settled = true;
 
             auto& betting_market_group_index = event.db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-            for (const betting_market_group_object& betting_market_group : 
+            for (const betting_market_group_object& betting_market_group :
                  boost::make_iterator_range(betting_market_group_index.equal_range(event_obj->id))) {
                if (betting_market_group.id != event.resolved_group) {
                   betting_market_group_status status = betting_market_group.get_status();
@@ -344,7 +344,6 @@ namespace graphene { namespace chain {
          {
             FC_THROW_EXCEPTION(graphene::chain::no_transition, "No transition");
          }
-          
          template <class Fsm>
          void no_transition(canceled_event const& e, Fsm&, int state)
          {
@@ -372,7 +371,7 @@ namespace graphene { namespace chain {
    {
    }
 
-   event_object::event_object(const event_object& rhs) : 
+   event_object::event_object(const event_object& rhs) :
       graphene::db::abstract_object<event_object>(rhs),
       name(rhs.name),
       season(rhs.season),
@@ -408,7 +407,7 @@ namespace graphene { namespace chain {
    }
 
    namespace {
-   
+
       bool verify_event_status_constants()
       {
          unsigned error_count = 0;
@@ -443,19 +442,19 @@ namespace graphene { namespace chain {
             dlog("Event status constants are correct");
          else
             wlog("There were ${count} errors in the event status constants", ("count", error_count));
-   
+
          return error_count == 0;
       }
    } // end anonymous namespace
-   
+
    event_status event_object::get_status() const
    {
       static bool state_constants_are_correct = verify_event_status_constants();
       (void)&state_constants_are_correct;
       event_state state = (event_state)my->state_machine.current_state()[0];
-      
+
       ddump((state));
-   
+
       switch (state)
       {
          case event_state::upcoming:
@@ -523,8 +522,8 @@ namespace graphene { namespace chain {
       my->state_machine.process_event(betting_market_group_closed_event(db, closed_group));
    }
 
-   // These are the only statuses that can be explicitly set by witness operations.  The missing 
-   // status, 'settled', is automatically set when all of the betting market groups have 
+   // These are the only statuses that can be explicitly set by witness operations.  The missing
+   // status, 'settled', is automatically set when all of the betting market groups have
    // settled/canceled
    void event_object::dispatch_new_status(database& db, event_status new_status)
    {
@@ -533,16 +532,16 @@ namespace graphene { namespace chain {
          on_upcoming_event(db);
          break;
       case event_status::in_progress:  // by witnesses when the event starts
-         on_in_progress_event(db); 
+         on_in_progress_event(db);
          break;
       case event_status::frozen: // by witnesses when the event needs to be frozen
-         on_frozen_event(db); 
+         on_frozen_event(db);
          break;
       case event_status::finished: // by witnesses when the event is complete
-         on_finished_event(db); 
+         on_finished_event(db);
          break;
       case event_status::canceled: // by witnesses to cancel the event
-         on_canceled_event(db); 
+         on_canceled_event(db);
          break;
       default:
          FC_THROW("Status ${new_status} cannot be explicitly set", ("new_status", new_status));
@@ -551,7 +550,7 @@ namespace graphene { namespace chain {
 
 } } // graphene::chain
 
-namespace fc { 
+namespace fc {
    // Manually reflect event_object to variant to properly reflect "state"
    void to_variant(const graphene::chain::event_object& event_obj, fc::variant& v, uint32_t max_depth)
    {

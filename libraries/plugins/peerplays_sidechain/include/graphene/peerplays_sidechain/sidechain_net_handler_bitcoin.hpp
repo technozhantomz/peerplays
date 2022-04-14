@@ -3,7 +3,7 @@
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
 #include <string>
-#include <zmq.hpp>
+#include <zmq_addon.hpp>
 
 #include <boost/signals2.hpp>
 
@@ -23,6 +23,23 @@ public:
 
 class bitcoin_rpc_client {
 public:
+   enum class multi_type {
+      script,
+      address
+   };
+   struct multi_params {
+      multi_params(multi_type _type, const std::string &_address_or_script, const std::string &_label = "") :
+            type{_type},
+            address_or_script{_address_or_script},
+            label{_label} {
+      }
+
+      multi_type type;
+      std::string address_or_script;
+      std::string label;
+   };
+
+public:
    bitcoin_rpc_client(std::string _ip, uint32_t _rpc, std::string _user, std::string _password, std::string _wallet, std::string _wallet_password, bool _debug_rpc_calls);
 
    std::string addmultisigaddress(const uint32_t nrequired, const std::vector<std::string> public_keys);
@@ -39,18 +56,20 @@ public:
    std::string getaddressinfo(const std::string &address);
    std::string getblock(const std::string &block_hash, int32_t verbosity = 2);
    std::string getrawtransaction(const std::string &txid, const bool verbose = false);
+   std::string getnetworkinfo();
    std::string gettransaction(const std::string &txid, const bool include_watch_only = false);
    std::string getblockchaininfo();
    void importaddress(const std::string &address_or_script, const std::string &label = "", const bool rescan = true, const bool p2sh = false);
+   void importmulti(const std::vector<multi_params> &address_or_script_array, const bool rescan = true);
    std::vector<btc_txout> listunspent(const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::vector<btc_txout> listunspent_by_address_and_amount(const std::string &address, double transfer_amount, const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::string loadwallet(const std::string &filename);
    std::string sendrawtransaction(const std::string &tx_hex);
    std::string signrawtransactionwithwallet(const std::string &tx_hash);
    std::string unloadwallet(const std::string &filename);
-   //std::string walletlock();
+   std::string walletlock();
    std::string walletprocesspsbt(std::string const &tx_psbt);
-   //bool walletpassphrase(const std::string &passphrase, uint32_t timeout = 60);
+   bool walletpassphrase(const std::string &passphrase, uint32_t timeout = 60);
 
 private:
    fc::http::reply send_post_request(std::string body, bool show_log);
@@ -105,6 +124,7 @@ private:
    std::string ip;
    uint32_t zmq_port;
    uint32_t rpc_port;
+   uint32_t bitcoin_major_version;
    std::string rpc_user;
    std::string rpc_password;
    std::string wallet;

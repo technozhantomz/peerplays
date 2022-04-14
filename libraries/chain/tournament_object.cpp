@@ -721,7 +721,7 @@ namespace graphene { namespace chain {
    }
 } } // graphene::chain
 
-namespace fc { 
+namespace fc {
    // Manually reflect tournament_object to variant to properly reflect "state"
    void to_variant(const graphene::chain::tournament_object& tournament_obj, fc::variant& v, uint32_t max_depth)
    {
