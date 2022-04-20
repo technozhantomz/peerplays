@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:18.04
 MAINTAINER Peerplays Blockchain Standards Association
 
 #===============================================================================
@@ -19,7 +19,6 @@ RUN \
       expect \
       git \
       graphviz \
-      libboost1.67-all-dev \
       libbz2-dev \
       libcurl4-openssl-dev \
       libncurses-dev \
@@ -52,6 +51,19 @@ RUN echo 'peerplays:peerplays' | chpasswd
 
 # SSH
 EXPOSE 22
+
+#===============================================================================
+# Boost setup
+#===============================================================================
+
+WORKDIR /home/peerplays/
+
+RUN \
+    wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.bz2/download' -O boost_1_67_0.tar.bz2 && \
+    tar xjf boost_1_67_0.tar.bz2 && \
+    cd boost_1_67_0/ && \
+    ./bootstrap.sh && \
+    ./b2 install
 
 #===============================================================================
 # Peerplays setup
