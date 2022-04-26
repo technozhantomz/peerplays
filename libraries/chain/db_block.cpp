@@ -806,7 +806,7 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
          return get_account_custom_authorities(id, op);
       };
       trx.verify_authority( chain_id, get_active, get_owner, get_custom,
-                            MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(head_block_time()),
+                            true,
                             get_global_properties().parameters.max_authority_depth );
    }
 

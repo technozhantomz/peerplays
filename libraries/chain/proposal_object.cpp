@@ -39,7 +39,7 @@ bool proposal_object::is_authorized_to_execute( database& db ) const
                         [&]( account_id_type id ){ return &id(db).owner;  },
                         [&]( account_id_type id, const operation& op ){
                            return db.get_account_custom_authorities(id, op); },
-                        MUST_IGNORE_CUSTOM_OP_REQD_AUTHS( db.head_block_time() ),
+                        true,
                         db.get_global_properties().parameters.max_authority_depth,
                         true, /* allow committee */
                         available_active_approvals,

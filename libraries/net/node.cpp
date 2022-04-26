@@ -296,6 +296,7 @@ namespace graphene { namespace net { namespace detail {
                                    (sync_status) \
                                    (connection_count_changed) \
                                    (get_block_number) \
+                                   (get_last_known_hardfork_time) \
                                    (get_block_time) \
                                    (get_head_block_id) \
                                    (estimate_last_known_fork_from_git_revision_timestamp) \
@@ -395,6 +396,7 @@ namespace graphene { namespace net { namespace detail {
       void     sync_status( uint32_t item_type, uint32_t item_count ) override;
       void     connection_count_changed( uint32_t c ) override;
       uint32_t get_block_number(const item_hash_t& block_id) override;
+      fc::time_point_sec get_last_known_hardfork_time() override;
       fc::time_point_sec get_block_time(const item_hash_t& block_id) override;
       item_hash_t get_head_block_id() const override;
       uint32_t estimate_last_known_fork_from_git_revision_timestamp(uint32_t unix_timestamp) const override;
@@ -1864,6 +1866,10 @@ namespace graphene { namespace net { namespace detail {
       user_data["last_known_block_hash"] = fc::variant( head_block_id, 1 );
       user_data["last_known_block_number"] = _delegate->get_block_number(head_block_id);
       user_data["last_known_block_time"] = _delegate->get_block_time(head_block_id);
+      user_data["last_known_hardfork_time"] = _delegate->get_last_known_hardfork_time().sec_since_epoch();
+
+      wlog("on generate hello message, hardfork:  ${hardfork}", ("hardfork", _delegate->get_last_known_hardfork_time().sec_since_epoch()));
+      std::cout<<"on generate hello message :"<<fc::string(_delegate->get_last_known_hardfork_time())<<std::endl;
 
       if (!_hard_fork_block_numbers.empty())
         user_data["last_known_fork_block_number"] = _hard_fork_block_numbers.back();
@@ -1890,6 +1896,11 @@ namespace graphene { namespace net { namespace detail {
         originating_peer->node_id = user_data["node_id"].as<node_id_t>(1);
       if (user_data.contains("last_known_fork_block_number"))
         originating_peer->last_known_fork_block_number = user_data["last_known_fork_block_number"].as<uint32_t>(1);
+      if (user_data.contains("last_known_hardfork_time")){
+        originating_peer->last_known_hardfork_time = fc::time_point_sec(user_data["last_known_hardfork_time"].as<uint32_t>(1));
+        std::cout<<"on get helllo message: "<<originating_peer->last_known_hardfork_time.to_iso_string()<<std::endl;
+      }
+
     }
 
     void node_impl::on_hello_message( peer_connection* originating_peer, const hello_message& hello_message_received )
@@ -1969,23 +1980,11 @@ namespace graphene { namespace net { namespace detail {
           disconnect_from_peer(originating_peer, "You are on a different chain from me");
           return;
         }
-        if (originating_peer->last_known_fork_block_number != 0)
-        {
-          uint32_t next_fork_block_number = get_next_known_hard_fork_block_number(originating_peer->last_known_fork_block_number);
-          if (next_fork_block_number != 0)
-          {
-            // we know about a fork they don't.  See if we've already passed that block.  If we have, don't let them
-            // connect because we won't be able to give them anything useful
-            uint32_t head_block_num = _delegate->get_block_number(_delegate->get_head_block_id());
-            if (next_fork_block_number < head_block_num)
-            {
-#ifdef ENABLE_DEBUG_ULOGS
+
+        auto disconnet_peer = [&](const std::ostringstream& rejection_message) {
+          #ifdef ENABLE_DEBUG_ULOGS
               ulog("Rejecting connection from peer because their version is too old.  Their version date: ${date}", ("date", originating_peer->graphene_git_revision_unix_timestamp));
-#endif
-              wlog("Received hello message from peer running a version of that can only understand blocks up to #${their_hard_fork}, but I'm at head block number #${my_block_number}",
-                   ("their_hard_fork", next_fork_block_number)("my_block_number", head_block_num));
-              std::ostringstream rejection_message;
-              rejection_message << "Your client is outdated -- you can only understand blocks up to #" << next_fork_block_number << ", but I'm already on block #" << head_block_num;
+         #endif
               connection_rejected_message connection_rejected(_user_agent_string, core_protocol_version,
                                                               originating_peer->get_socket().remote_endpoint(),
                                                               rejection_reason_code::unspecified,
@@ -1997,10 +1996,42 @@ namespace graphene { namespace net { namespace detail {
               // allowing her to ask us for peers (any of our peers will be on the same chain as us, so there's no
               // benefit of sharing them)
               disconnect_from_peer(originating_peer, "Your client is too old, please upgrade");
+        };
+
+        if (originating_peer->last_known_fork_block_number != 0)
+        {
+          uint32_t next_fork_block_number = get_next_known_hard_fork_block_number(originating_peer->last_known_fork_block_number);
+          if (next_fork_block_number != 0)
+          {
+            // we know about a fork they don't.  See if we've already passed that block.  If we have, don't let them
+            // connect because we won't be able to give them anything useful
+            uint32_t head_block_num = _delegate->get_block_number(_delegate->get_head_block_id());
+            if (next_fork_block_number < head_block_num)
+            {
+              wlog("Received hello message from peer running a version of that can only understand blocks up to #${their_hard_fork}, but I'm at head block number #${my_block_number}",
+                   ("their_hard_fork", next_fork_block_number)("my_block_number", head_block_num));
+              std::ostringstream rejection_message;
+              rejection_message << "Your client is outdated -- you can only understand blocks up to #" << next_fork_block_number << ", but I'm already on block #" << head_block_num;
+              disconnet_peer(rejection_message);
               return;
             }
           }
         }
+
+        // we wan't to disconnect from the peer that didn't updated the software. With the last hardforks we could
+        // indetify if peer's are not compatible due the hardforks
+        if ( _delegate->get_last_known_hardfork_time() != originating_peer->last_known_hardfork_time)
+        {
+          if (_delegate->get_block_time(_delegate->get_head_block_id()).sec_since_epoch() > originating_peer->last_known_hardfork_time.sec_since_epoch())
+          {
+            std::ostringstream rejection_message;
+            rejection_message << "Your client is outdated -- you can only understand blocks up to #" << originating_peer->last_known_hardfork_time.to_iso_string() << ", but I'm already on block #" << _delegate->get_block_time(_delegate->get_head_block_id()).to_iso_string();
+            std::cout<<"Reject connection due the hardforks on hello_message"<<std::endl;
+            disconnet_peer(rejection_message);
+            return;
+          }
+        }
+
         if (already_connected_to_this_peer)
         {
 
@@ -3102,11 +3133,38 @@ namespace graphene { namespace net { namespace detail {
         --_total_number_of_unfetched_items;
         dlog("sync: client accpted the block, we now have only ${count} items left to fetch before we're in sync",
               ("count", _total_number_of_unfetched_items));
+
+
+        auto disconnet_peer = [&](const std::ostringstream& disconnect_reason_stream, const peer_connection_ptr& peer, bool& disconnecting_this_peer)
+        {
+          peers_to_disconnect[peer] = std::make_pair(disconnect_reason_stream.str(),
+                                                           fc::oexception(fc::exception(FC_LOG_MESSAGE(error, "You need to upgrade your client"))));
+          #ifdef ENABLE_DEBUG_ULOGS
+                ulog("Disconnecting from peer during sync because their version is too old.  Their version date: ${date}", ("date", peer->graphene_git_revision_unix_timestamp));
+          #endif
+          disconnecting_this_peer = true;
+        };
+
         bool is_fork_block = is_hard_fork_block(block_message_to_send.block.block_num());
         for (const peer_connection_ptr& peer : _active_connections)
         {
           ASSERT_TASK_NOT_PREEMPTED(); // don't yield while iterating over _active_connections
           bool disconnecting_this_peer = false;
+
+          // if connected peer doesn't have the same version of witness which is fully indetified
+          // with last hardfork time received and block timestamp is grater than peers last known hardfork
+          // time disconnect that peer, since he will not be capable of handling already pushed block
+          if(peer->last_known_hardfork_time != _delegate->get_last_known_hardfork_time())
+          {
+             if( block_message_to_send.block.timestamp.sec_since_epoch() > peer->last_known_hardfork_time.sec_since_epoch() )
+             {
+                std::cout<<"disconnect peer from resync method"<<std::endl;
+                std::ostringstream disconnect_reason_stream;
+                disconnect_reason_stream << "You need to upgrade your client due to hard fork at block " << block_message_to_send.block.timestamp.to_iso_string();
+                disconnet_peer(disconnect_reason_stream, peer, disconnecting_this_peer);
+            }
+          }
+
           if (is_fork_block)
           {
             // we just pushed a hard fork block.  Find out if this peer is running a client
@@ -3119,16 +3177,11 @@ namespace graphene { namespace net { namespace detail {
               {
                 std::ostringstream disconnect_reason_stream;
                 disconnect_reason_stream << "You need to upgrade your client due to hard fork at block " << block_message_to_send.block.block_num();
-                peers_to_disconnect[peer] = std::make_pair(disconnect_reason_stream.str(),
-                                                           fc::oexception(fc::exception(FC_LOG_MESSAGE(error, "You need to upgrade your client due to hard fork at block ${block_number}",
-                                                                                                       ("block_number", block_message_to_send.block.block_num())))));
-#ifdef ENABLE_DEBUG_ULOGS
-                ulog("Disconnecting from peer during sync because their version is too old.  Their version date: ${date}", ("date", peer->graphene_git_revision_unix_timestamp));
-#endif
-                disconnecting_this_peer = true;
+                disconnet_peer(disconnect_reason_stream, peer, disconnecting_this_peer);
               }
             }
           }
+
           if (!disconnecting_this_peer &&
               peer->ids_of_items_to_get.empty() && peer->ids_of_items_being_processed.empty())
           {
@@ -3459,11 +3512,10 @@ namespace graphene { namespace net { namespace detail {
         broadcast( block_message_to_process, propagation_data );
         _message_cache.block_accepted();
 
-        if (is_hard_fork_block(block_number))
+        for (const peer_connection_ptr& peer : _active_connections)
         {
-          // we just pushed a hard fork block.  Find out if any of our peers are running clients
-          // that will be unable to process future blocks
-          for (const peer_connection_ptr& peer : _active_connections)
+          bool disconnect_this_peer = false;
+          if (is_hard_fork_block(block_number) )
           {
             if (peer->last_known_fork_block_number != 0)
             {
@@ -3471,21 +3523,36 @@ namespace graphene { namespace net { namespace detail {
               if (next_fork_block_number != 0 &&
                   next_fork_block_number <= block_number)
               {
-                peers_to_disconnect.insert(peer);
-#ifdef ENABLE_DEBUG_ULOGS
-                ulog("Disconnecting from peer because their version is too old.  Their version date: ${date}", ("date", peer->graphene_git_revision_unix_timestamp));
-#endif
+                disconnect_this_peer = true;
               }
             }
           }
-          if (!peers_to_disconnect.empty())
+
+          if(peer->last_known_hardfork_time != _delegate->get_last_known_hardfork_time())
           {
-            std::ostringstream disconnect_reason_stream;
-            disconnect_reason_stream << "You need to upgrade your client due to hard fork at block " << block_number;
-            disconnect_reason = disconnect_reason_stream.str();
-            disconnect_exception = fc::exception(FC_LOG_MESSAGE(error, "You need to upgrade your client due to hard fork at block ${block_number}",
-                                                                ("block_number", block_number)));
+            if(block_message_to_process.block.timestamp.sec_since_epoch() > peer->last_known_hardfork_time.sec_since_epoch())
+            {
+              std::cout<<"disconnect peer on processing block during normal operation"<<std::endl;
+              disconnect_this_peer = true;
+            }
           }
+
+          if( disconnect_this_peer )
+          {
+            peers_to_disconnect.insert(peer);
+#ifdef ENABLE_DEBUG_ULOGS
+            ulog("Disconnecting from peer because their version is too old.  Their version date: ${date}", ("date", peer->graphene_git_revision_unix_timestamp));
+#endif
+          }
+        }
+
+        if (!peers_to_disconnect.empty())
+        {
+          std::ostringstream disconnect_reason_stream;
+          disconnect_reason_stream << "You need to upgrade your client due to hard fork at block " << block_number;
+          disconnect_reason = disconnect_reason_stream.str();
+          disconnect_exception = fc::exception(FC_LOG_MESSAGE(error, "You need to upgrade your client due to hard fork at block ${block_number}",
+                                                                ("block_number", block_number)));
         }
       }
       catch (const fc::canceled_exception&)
@@ -5541,6 +5608,14 @@ namespace graphene { namespace net { namespace detail {
       ASSERT_TASK_NOT_PREEMPTED();
       return _node_delegate->get_block_number(block_id);
     }
+
+    fc::time_point_sec statistics_gathering_node_delegate_wrapper::get_last_known_hardfork_time()
+    {
+      // this function doesn't need to block,
+      ASSERT_TASK_NOT_PREEMPTED();
+      return _node_delegate->get_last_known_hardfork_time();
+    }
+
 
     fc::time_point_sec statistics_gathering_node_delegate_wrapper::get_block_time(const item_hash_t& block_id)
     {
