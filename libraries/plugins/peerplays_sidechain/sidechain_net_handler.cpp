@@ -619,13 +619,15 @@ void sidechain_net_handler::settle_sidechain_transactions() {
 }
 
 void sidechain_net_handler::add_to_son_listener_log(std::string trx_id) {
+   const std::lock_guard<std::mutex> lock(son_listener_log_mutex);
    son_listener_log.insert(son_listener_log.begin(), trx_id);
    if (son_listener_log.size() > 33) {
-      son_listener_log.erase(son_listener_log.end());
+      son_listener_log.pop_back();
    }
 }
 
 std::vector<std::string> sidechain_net_handler::get_son_listener_log() {
+   const std::lock_guard<std::mutex> lock(son_listener_log_mutex);
    return son_listener_log;
 }
 
