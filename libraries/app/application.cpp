@@ -795,6 +795,10 @@ public:
       FC_CAPTURE_AND_RETHROW((block_id))
    }
 
+   virtual fc::time_point_sec get_last_known_hardfork_time() override {
+      return _chain_db->_hardfork_times[_chain_db->_hardfork_times.size() - 1];
+   }
+
    /**
        * Returns the time a block was produced (if block_id = 0, returns genesis time).
        * If we don't know about the block, returns time_point_sec::min()

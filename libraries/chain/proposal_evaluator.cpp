@@ -302,8 +302,7 @@ void_result proposal_create_evaluator::do_evaluate( const proposal_create_operat
       vector<authority> other;
       for( auto& op : o.proposed_ops )
       {
-         operation_get_required_authorities( op.op, auths, auths, other,
-                                             MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(block_time) );
+         operation_get_required_authorities( op.op, auths, auths, other, true );
       }
 
       FC_ASSERT( other.size() == 0 ); // TODO: what about other??? 
@@ -352,8 +351,7 @@ object_id_type proposal_create_evaluator::do_apply( const proposal_create_operat
       
       // TODO: consider caching values from evaluate?
       for( auto& op : _proposed_trx.operations )
-         operation_get_required_authorities( op, required_active, proposal.required_owner_approvals, other,
-                                             MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(chain_time) );
+         operation_get_required_authorities( op, required_active, proposal.required_owner_approvals, other, true);
 
       //All accounts which must provide both owner and active authority should be omitted from the active authority set;
       //owner authority approval implies active authority approval.

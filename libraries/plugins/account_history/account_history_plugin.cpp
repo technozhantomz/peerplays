@@ -126,14 +126,12 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
          flat_set<account_id_type> impacted;
          vector<authority> other;
          // fee payer is added here
-         operation_get_required_authorities( op.op, impacted, impacted, other,
-                                             MUST_IGNORE_CUSTOM_OP_REQD_AUTHS( db.head_block_time() ) );
+         operation_get_required_authorities( op.op, impacted, impacted, other, true );
 
          if( op.op.which() == operation::tag< account_create_operation >::value )
             impacted.insert( op.result.get<object_id_type>() );
          else
-            graphene::chain::operation_get_impacted_accounts( op.op, impacted,
-                                                            MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(db.head_block_time()) );
+            graphene::chain::operation_get_impacted_accounts( op.op, impacted, true );
          if( op.op.which() == operation::tag< lottery_end_operation >::value )
          {
             auto lop = op.op.get< lottery_end_operation >();

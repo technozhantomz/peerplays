@@ -66,6 +66,8 @@ namespace graphene { namespace chain {
          database();
          ~database();
 
+         std::vector<fc::time_point_sec> _hardfork_times;
+
          enum validation_steps
          {
             skip_nothing                = 0,
@@ -332,6 +334,8 @@ namespace graphene { namespace chain {
          void initialize_evaluators();
          /// Reset the object graph in-memory
          void initialize_indexes();
+         void initialize_hardforks();
+
          void init_genesis(const genesis_state_type& genesis_state = genesis_state_type());
 
          template<typename EvaluatorType>

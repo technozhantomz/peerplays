@@ -625,7 +625,6 @@ void database::notify_changed_objects()
    if( _undo_db.enabled() ) 
    {
       const auto& head_undo = _undo_db.head();
-      auto chain_time = head_block_time();
 
       // New
       if( !new_objects.empty() )
@@ -637,8 +636,7 @@ void database::notify_changed_objects()
           new_ids.push_back(item);
           auto obj = find_object(item);
           if(obj != nullptr)
-            get_relevant_accounts(obj, new_accounts_impacted,
-                                  MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(chain_time));
+            get_relevant_accounts(obj, new_accounts_impacted, true);
         }
 
         GRAPHENE_TRY_NOTIFY( new_objects, new_ids, new_accounts_impacted)
@@ -652,8 +650,7 @@ void database::notify_changed_objects()
         for( const auto& item : head_undo.old_values )
         {
           changed_ids.push_back(item.first);
-          get_relevant_accounts(item.second.get(), changed_accounts_impacted,
-                                MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(chain_time));
+          get_relevant_accounts(item.second.get(), changed_accounts_impacted, true);
         }
 
         GRAPHENE_TRY_NOTIFY( changed_objects, changed_ids, changed_accounts_impacted)
@@ -670,8 +667,7 @@ void database::notify_changed_objects()
           removed_ids.emplace_back( item.first );
           auto obj = item.second.get();
           removed.emplace_back( obj );
-          get_relevant_accounts(obj, removed_accounts_impacted,
-                                MUST_IGNORE_CUSTOM_OP_REQD_AUTHS(chain_time));
+          get_relevant_accounts(obj, removed_accounts_impacted, true);
         }
 
         GRAPHENE_TRY_NOTIFY( removed_objects, removed_ids, removed, removed_accounts_impacted)

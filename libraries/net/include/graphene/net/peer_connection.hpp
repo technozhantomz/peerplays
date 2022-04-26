@@ -258,6 +258,8 @@ namespace graphene { namespace net
 
       uint32_t last_known_fork_block_number = 0;
 
+      fc::time_point_sec last_known_hardfork_time;
+
       fc::future<void> accept_or_connect_task_done;
 
       firewall_check_state_data *firewall_check_state = nullptr;

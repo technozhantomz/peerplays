@@ -44,6 +44,7 @@ database::database() :
 {
    initialize_indexes();
    initialize_evaluators();
+   initialize_hardforks();
 }
 
 database::~database()
