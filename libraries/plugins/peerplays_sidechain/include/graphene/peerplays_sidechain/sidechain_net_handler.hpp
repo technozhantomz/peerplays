@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <vector>
 
 #include <boost/program_options.hpp>
@@ -60,6 +61,7 @@ protected:
    std::map<std::string, std::string> private_keys;
 
    std::vector<std::string> son_listener_log;
+   std::mutex son_listener_log_mutex;
 
    void on_applied_block(const signed_block &b);
 
