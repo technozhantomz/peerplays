@@ -28,8 +28,8 @@ RUN \
       libssl-dev \
       libtool \
       libzip-dev \
-      libzmq3-dev \
       locales \
+      lsb-release \
       mc \
       nano \
       net-tools \
@@ -40,6 +40,7 @@ RUN \
       python3 \
       python3-jinja2 \
       sudo \
+      systemd-coredump \
       wget
 
 ENV HOME /home/peerplays
@@ -52,6 +53,36 @@ RUN echo 'peerplays:peerplays' | chpasswd
 
 # SSH
 EXPOSE 22
+
+#===============================================================================
+# libzmq setup
+#===============================================================================
+
+WORKDIR /home/peerplays/
+
+RUN \
+    wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.zip && \
+    unzip v4.3.4.zip && \
+    cd libzmq-4.3.4 && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j$(nproc) install
+
+#===============================================================================
+# cppzmq setup
+#===============================================================================
+
+WORKDIR /home/peerplays/
+
+RUN \
+    wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.8.1.zip && \
+    unzip v4.8.1.zip && \
+    cd cppzmq-4.8.1 && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j$(nproc) install   
 
 #===============================================================================
 # Peerplays setup
