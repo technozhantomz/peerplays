@@ -6,7 +6,88 @@ This is a quick introduction to get new developers and witnesses up to speed on 
 
 # Building and Installation Instructions
 
-Officially supported OS is Ubuntu 20.04.
+Officially supported OS is Ubuntu 18.04 and 20.04.
+
+# To build for Ubuntu 18.04:
+
+Following dependencies are needed for a clean install of Ubuntu 18.04:
+```
+sudo  apt-get install \
+      apt-utils autoconf bash build-essential ca-certificates dnsutils doxygen \
+      expect git graphviz libbz2-dev libcurl4-openssl-dev libncurses-dev \
+      libreadline-dev libsnappy-dev libssl-dev libtool libzip-dev locales \
+      lsb-release mc nano net-tools ntp openssh-server pkg-config perl \
+      python3 python3-jinja2 sudo systemd-coredump wget
+```
+# Boost setup
+```
+mkdir $HOME/src
+cd $HOME/src
+export BOOST_ROOT=$HOME/src/boost_1_67_0
+sudo apt-get update
+sudo apt-get install -y autotools-dev build-essential  libbz2-dev libicu-dev python-dev
+wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.bz2/download'\
+     -O boost_1_67_0.tar.bz2
+tar xjf boost_1_67_0.tar.bz2
+cd boost_1_67_0/
+./bootstrap.sh "--prefix=$BOOST_ROOT"
+./b2 install
+```
+# cmake setup
+```
+cd $HOME/src && \
+wget -c 'https://cmake.org/files/v3.23/cmake-3.23.1-linux-x86_64.sh' -O cmake-3.23.1-linux-x86_64.sh && \
+chmod 755 ./cmake-3.23.1-linux-x86_64.sh && \
+./cmake-3.23.1-linux-x86_64.sh --prefix=/usr/ --skip-license && \
+```
+# libzmq setup
+```
+cd $HOME/src && \
+wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.zip && \
+unzip v4.3.4.zip && \
+cd libzmq-4.3.4 && \
+mkdir build && \
+cd build && \
+cmake .. && \
+make -j$(nproc) install
+```
+# cppzmq setup
+```
+cd $HOME/src && \
+wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.8.1.zip && \
+unzip v4.8.1.zip && \
+cd cppzmq-4.8.1 && \
+mkdir build && \
+cd build && \
+cmake .. && \
+make -j$(nproc) install
+```
+## Building Peerplays
+
+```
+mkdir $HOME/src
+cd $HOME/src
+git clone https://gitlab.com/PBSA/peerplays.git
+cd peerplays
+git submodule update --init --recursive
+
+# If you want to build Mainnet node
+cmake -DCMAKE_BUILD_TYPE=Release
+
+# If you want to build Testnet node
+cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1
+
+# Update -j flag depending on your current system specs;
+# Recommended 4GB of RAM per 1 CPU core
+# make -j2 for 8GB RAM
+# make -j4 for 16GB RAM
+# make -j8 for 32GB RAM
+make -j$(nproc)
+
+make install # this can install the executable files under /usr/local
+```
+
+# To build for Ubuntu 20.04:
 
 Following dependencies are needed for a clean install of Ubuntu 20.04:
 ```
@@ -14,10 +95,31 @@ sudo apt-get install \
     apt-utils autoconf bash build-essential ca-certificates clang-format cmake \ 
     dnsutils doxygen expect git graphviz libboost-all-dev libbz2-dev \
     libcurl4-openssl-dev libncurses-dev libreadline-dev libsnappy-dev \
-    libssl-dev libtool libzip-dev libzmq3-dev locales mc nano net-tools ntp \
+    libssl-dev libtool libzip-dev libzmq3-dev locales lsb-release mc nano net-tools ntp \
     openssh-server pkg-config perl python3 python3-jinja2 sudo wget
 ```
 
+# libzmq setup
+```
+    wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.zip && \
+    unzip v4.3.4.zip && \
+    cd libzmq-4.3.4 && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j$(nproc) install
+```
+# cppzmq setup
+
+```
+    wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.8.1.zip && \
+    unzip v4.8.1.zip && \
+    cd cppzmq-4.8.1 && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j$(nproc) install
+```
 
 ## Building Peerplays
 
