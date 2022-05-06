@@ -72,7 +72,6 @@ RUN \
 WORKDIR /home/peerplays/
 
 RUN \
-    cd src && \
     wget -c 'https://cmake.org/files/v3.23/cmake-3.23.1-linux-x86_64.sh' -O cmake-3.23.1-linux-x86_64.sh && \
     chmod 755 ./cmake-3.23.1-linux-x86_64.sh && \
     ./cmake-3.23.1-linux-x86_64.sh --prefix=/usr/ --skip-license && \
@@ -91,7 +90,8 @@ RUN \
     mkdir build && \
     cd build && \
     cmake .. && \
-    make -j$(nproc) install
+    make -j$(nproc) install && \
+    ldconfig
 
 #===============================================================================
 # cppzmq setup
@@ -106,7 +106,8 @@ RUN \
     mkdir build && \
     cd build && \
     cmake .. && \
-    make -j$(nproc) install   
+    make -j$(nproc) install && \
+    ldconfig
 
 #===============================================================================
 # Peerplays setup

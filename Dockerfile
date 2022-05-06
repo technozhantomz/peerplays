@@ -67,7 +67,8 @@ RUN \
     mkdir build && \
     cd build && \
     cmake .. && \
-    make -j$(nproc) install
+    make -j$(nproc) install && \
+    ldconfig
 
 #===============================================================================
 # cppzmq setup
@@ -82,7 +83,8 @@ RUN \
     mkdir build && \
     cd build && \
     cmake .. && \
-    make -j$(nproc) install   
+    make -j$(nproc) install && \
+    ldconfig
 
 #===============================================================================
 # Peerplays setup
