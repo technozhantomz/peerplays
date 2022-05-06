@@ -29,6 +29,7 @@
 #include <sstream>
 #include <string>
 #include <list>
+#include <random>
 
 #include <boost/version.hpp>
 #include <boost/lexical_cast.hpp>
@@ -62,7 +63,6 @@
 #include <fc/crypto/hex.hpp>
 #include <fc/thread/mutex.hpp>
 #include <fc/thread/scoped_lock.hpp>
-#include <fc/crypto/rand.hpp>
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/asset_object.hpp>
@@ -7365,8 +7365,12 @@ signed_transaction wallet_api::rps_throw(game_id_type game_id,
 
    // construct the complete throw, the commit, and reveal
    rock_paper_scissors_throw full_throw;
-   fc::rand_bytes((char*)&full_throw.nonce1, sizeof(full_throw.nonce1));
-   fc::rand_bytes((char*)&full_throw.nonce2, sizeof(full_throw.nonce2));
+   std::random_device rd;
+   std::mt19937_64 gen(rd());
+   std::uniform_int_distribution<uint64_t> dis;
+   full_throw.nonce1 = dis(gen);
+   full_throw.nonce2 = dis(gen);
+
    full_throw.gesture = gesture;
 
    rock_paper_scissors_throw_commit commit_throw;
