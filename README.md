@@ -6,24 +6,125 @@ This is a quick introduction to get new developers and witnesses up to speed on 
 
 # Building and Installation Instructions
 
-Officially supported OS is Ubuntu 20.04.
+Officially supported OS are Ubuntu 20.04 and Ubuntu 18.04.
+
+## Ubuntu 20.04
 
 Following dependencies are needed for a clean install of Ubuntu 20.04:
 ```
 sudo apt-get install \
-    apt-utils autoconf bash build-essential ca-certificates clang-format cmake
+    apt-utils autoconf bash build-essential ca-certificates clang-format cmake \
     dnsutils doxygen expect git graphviz libboost-all-dev libbz2-dev \
     libcurl4-openssl-dev libncurses-dev libreadline-dev libsnappy-dev \
-    libssl-dev libtool libzip-dev libzmq3-dev locales mc nano net-tools ntp \
-    openssh-server pkg-config perl python3 python3-jinja2 sudo wget
+    libssl-dev libtool libzip-dev locales lsb-release mc nano net-tools ntp \
+    openssh-server pkg-config perl python3 python3-jinja2 sudo \
+    systemd-coredump wget
 ```
 
-
-## Building Peerplays
-
+Install libzmq from source:
 ```
-mkdir $HOME/src
-cd $HOME/src
+wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.zip
+unzip v4.3.4.zip
+cd libzmq-4.3.4
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+Install cppzmq from source:
+```
+wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.8.1.zip
+unzip v4.8.1.zip
+cd cppzmq-4.8.1
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+Building Peerplays
+```
+git clone https://gitlab.com/PBSA/peerplays.git
+cd peerplays
+git submodule update --init --recursive
+
+# If you want to build Mainnet node
+cmake -DCMAKE_BUILD_TYPE=Release
+
+# If you want to build Testnet node
+cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1
+
+# Update -j flag depending on your current system specs;
+# Recommended 4GB of RAM per 1 CPU core
+# make -j2 for 8GB RAM
+# make -j4 for 16GB RAM
+# make -j8 for 32GB RAM
+make -j$(nproc)
+
+make install # this can install the executable files under /usr/local
+```
+
+## Ubuntu 18.04
+
+Following dependencies are needed for a clean install of Ubuntu 18.04:
+```
+sudo apt-get install \
+    apt-utils autoconf bash build-essential ca-certificates dnsutils doxygen \
+    expect git graphviz libbz2-dev libcurl4-openssl-dev libncurses-dev \
+    libreadline-dev libsnappy-dev libssl-dev libtool libzip-dev locales \
+    lsb-release mc nano net-tools ntp openssh-server pkg-config perl \
+    python3 python3-jinja2 sudo systemd-coredump wget
+```
+
+Install Boost libraries from source
+```
+wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.bz2/download' -O boost_1_67_0.tar.bz2
+tar xjf boost_1_67_0.tar.bz2
+cd boost_1_67_0/
+./bootstrap.sh
+sudo ./b2 install
+```
+
+Install cmake
+```
+wget -c 'https://cmake.org/files/v3.23/cmake-3.23.1-linux-x86_64.sh' -O cmake-3.23.1-linux-x86_64.sh
+chmod 755 ./cmake-3.23.1-linux-x86_64.sh
+sudo ./cmake-3.23.1-linux-x86_64.sh --prefix=/usr/ --skip-license
+```
+
+Install libzmq from source:
+```
+wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.zip
+unzip v4.3.4.zip
+cd libzmq-4.3.4
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+Install cppzmq from source:
+```
+wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.8.1.zip
+unzip v4.8.1.zip
+cd cppzmq-4.8.1
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+Building Peerplays
+```
 git clone https://gitlab.com/PBSA/peerplays.git
 cd peerplays
 git submodule update --init --recursive
@@ -62,10 +163,15 @@ sudo usermod -a -G docker $USER
 docker pull datasecuritynode/peerplays:latest
 ```
 
-### Building docker image manually
+### Building docker images manually
 ```
-# Build docker image (from the project root, must be a docker group member)
-docker build -t peerplays .
+# Execute from the project root, must be a docker group member
+
+# Build docker image, using Ubuntu 20.04 base
+docker build --no-cache -f Dockerfile -t peerplays .
+
+# Build docker image, using Ubuntu 18.04 base
+docker build --no-cache -f Dockerfile.18.04 -t peerplays-18-04 .
 ```
 
 ### Start docker image
