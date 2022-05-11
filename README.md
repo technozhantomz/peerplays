@@ -66,7 +66,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1
 # make -j8 for 32GB RAM
 make -j$(nproc)
 
-make install # this can install the executable files under /usr/local
+sudo make install # this can install the executable files under /usr/local
 ```
 
 ## Ubuntu 18.04
@@ -142,7 +142,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1
 # make -j8 for 32GB RAM
 make -j$(nproc)
 
-make install # this can install the executable files under /usr/local
+sudo make install # this can install the executable files under /usr/local
 ```
 
 
