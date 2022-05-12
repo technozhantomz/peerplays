@@ -165,6 +165,18 @@ docker pull datasecuritynode/peerplays:latest
 
 ### Building docker images manually
 ```
+# Checkout the code
+git clone https://gitlab.com/PBSA/peerplays.git
+cd peerplays
+
+# Checkout the branch you want
+# E.g.
+# git checkout beatrice
+# git checkout develop
+git checkout master
+
+git submodule update --init --recursive
+
 # Execute from the project root, must be a docker group member
 
 # Build docker image, using Ubuntu 20.04 base
