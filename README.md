@@ -188,7 +188,11 @@ docker build --no-cache -f Dockerfile.18.04 -t peerplays-18-04 .
 
 ### Start docker image
 ```
-docker start peerplays
+# Start docker image, using Ubuntu 20.04 base
+docker run peerplays:latest
+
+# Start docker image, using Ubuntu 18.04 base
+docker run peerplays-18-04:latest
 ```
 
 Rest of the instructions on starting the chain remains same.
