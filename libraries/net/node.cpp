@@ -1338,7 +1338,7 @@ namespace graphene { namespace net { namespace detail {
       // reconnect with the rest of the network, or it might just futher isolate us.
       {
         // As usual, the first step is to walk through all our peers and figure out which
-        // peers need action (disconneting, sending keepalives, etc), then we walk through 
+        // peers need action (disconnecting, sending keepalives, etc), then we walk through 
         // those lists yielding at our leisure later.
         ASSERT_TASK_NOT_PREEMPTED();
 
@@ -1986,7 +1986,7 @@ namespace graphene { namespace net { namespace detail {
           return;
         }
 
-        auto disconnet_peer = [&](const std::ostringstream& rejection_message) {
+        auto disconnect_peer = [&](const std::ostringstream& rejection_message) {
           #ifdef ENABLE_DEBUG_ULOGS
               ulog("Rejecting connection from peer because their version is too old.  Their version date: ${date}", ("date", originating_peer->graphene_git_revision_unix_timestamp));
          #endif
@@ -2017,7 +2017,7 @@ namespace graphene { namespace net { namespace detail {
                    ("their_hard_fork", next_fork_block_number)("my_block_number", head_block_num));
               std::ostringstream rejection_message;
               rejection_message << "Your client is outdated -- you can only understand blocks up to #" << next_fork_block_number << ", but I'm already on block #" << head_block_num;
-              disconnet_peer(rejection_message);
+              disconnect_peer(rejection_message);
               return;
             }
           }
@@ -2032,7 +2032,7 @@ namespace graphene { namespace net { namespace detail {
             std::ostringstream rejection_message;
             rejection_message << "Your client is outdated -- you can only understand blocks up to #" << originating_peer->last_known_hardfork_time.to_iso_string() << ", but I'm already on block #" << _delegate->get_block_time(_delegate->get_head_block_id()).to_iso_string();
             std::cout<<"Reject connection due the hardforks on hello_message"<<std::endl;
-            disconnet_peer(rejection_message);
+            disconnect_peer(rejection_message);
             return;
           }
         }
@@ -3140,7 +3140,7 @@ namespace graphene { namespace net { namespace detail {
               ("count", _total_number_of_unfetched_items));
 
 
-        auto disconnet_peer = [&](const std::ostringstream& disconnect_reason_stream, const peer_connection_ptr& peer, bool& disconnecting_this_peer)
+        auto disconnect_peer = [&](const std::ostringstream& disconnect_reason_stream, const peer_connection_ptr& peer, bool& disconnecting_this_peer)
         {
           peers_to_disconnect[peer] = std::make_pair(disconnect_reason_stream.str(),
                                                            fc::oexception(fc::exception(FC_LOG_MESSAGE(error, "You need to upgrade your client"))));
@@ -3166,7 +3166,7 @@ namespace graphene { namespace net { namespace detail {
                 std::cout<<"disconnect peer from resync method"<<std::endl;
                 std::ostringstream disconnect_reason_stream;
                 disconnect_reason_stream << "You need to upgrade your client due to hard fork at block " << block_message_to_send.block.timestamp.to_iso_string();
-                disconnet_peer(disconnect_reason_stream, peer, disconnecting_this_peer);
+                disconnect_peer(disconnect_reason_stream, peer, disconnecting_this_peer);
             }
           }
 
@@ -3182,7 +3182,7 @@ namespace graphene { namespace net { namespace detail {
               {
                 std::ostringstream disconnect_reason_stream;
                 disconnect_reason_stream << "You need to upgrade your client due to hard fork at block " << block_message_to_send.block.block_num();
-                disconnet_peer(disconnect_reason_stream, peer, disconnecting_this_peer);
+                disconnect_peer(disconnect_reason_stream, peer, disconnecting_this_peer);
               }
             }
           }
