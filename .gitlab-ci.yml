@@ -29,27 +29,17 @@ build:
   tags:
     - builder
 
-build-testnet:
-  stage: build
+test:
+  stage: test
+  dependencies:
+    - build
   script:
-    - rm -rf .git/modules/docs .git/modules/libraries/fc ./docs ./libraries/fc
-    - git submodule sync
-    - git submodule update --init --recursive
-    - rm -rf build
-    - mkdir build
-    - cd build
-    - cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1 ..
-    - make -j$(nproc)
-  artifacts:
-    untracked: true
-    paths:
-      - build/libraries/
-      - build/programs/
-      - build/tests/
+    - ./build/libraries/fc/tests/all_tests
+    - ./build/tests/betting_test --log_level=message
+    - ./build/tests/chain_test --log_level=message
+    - ./build/tests/cli_test --log_level=message
   tags:
-    - builder-testnet
-  when:
-    manual
+    - builder
 
 dockerize:
   stage: build
@@ -68,10 +58,34 @@ dockerize:
   timeout:
     3h
 
-test:
+build-testnet:
+  stage: build
+  script:
+    - rm -rf .git/modules/docs .git/modules/libraries/fc ./docs ./libraries/fc
+    - git submodule sync
+    - git submodule update --init --recursive
+    - rm -rf build
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1 ..
+    - make -j$(nproc)
+  artifacts:
+    untracked: true
+    paths:
+      - build/libraries/
+      - build/programs/
+      - build/tests/
+  tags:
+    - builder
+  when:
+    manual
+  timeout:
+    3h
+
+test-testnet:
   stage: test
   dependencies:
-    - build
+    - build-testnet
   script:
     - ./build/libraries/fc/tests/all_tests
     - ./build/tests/betting_test --log_level=message
@@ -79,3 +93,7 @@ test:
     - ./build/tests/cli_test --log_level=message
   tags:
     - builder
+  when:
+    manual
+  timeout:
+    1h
