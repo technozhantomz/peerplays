@@ -30,6 +30,8 @@
 #include <iostream>
 #include <algorithm>
 #include <tuple>
+#include <random>
+
 #include <boost/tuple/tuple.hpp>
 #include <boost/circular_buffer.hpp>
 
@@ -67,7 +69,6 @@
 #include <fc/io/json.hpp>
 #include <fc/io/enum_type.hpp>
 #include <fc/io/raw_fwd.hpp>
-#include <fc/crypto/rand.hpp>
 #include <fc/network/rate_limiting.hpp>
 #include <fc/network/ip.hpp>
 
@@ -829,7 +830,11 @@ namespace graphene { namespace net { namespace detail {
       _maximum_blocks_per_peer_during_syncing(GRAPHENE_NET_MAX_BLOCKS_PER_PEER_DURING_SYNCING)
     {
       _rate_limiter.set_actual_rate_time_constant(fc::seconds(2));
-      fc::rand_bytes(&_node_id.data[0], (int)_node_id.size());
+
+      using bytes_randomizer = std::independent_bits_engine<std::default_random_engine, CHAR_BIT, unsigned long>;
+      std::random_device rd;
+      bytes_randomizer br(rd());
+      std::generate(std::begin(_node_id.data), std::end(_node_id.data), std::ref(br));
     }
 
     node_impl::~node_impl()
