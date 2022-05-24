@@ -1900,6 +1900,11 @@ namespace graphene { namespace net { namespace detail {
         originating_peer->last_known_fork_block_number = user_data["last_known_fork_block_number"].as<uint32_t>(1);
       if (user_data.contains("last_known_hardfork_time")){
         originating_peer->last_known_hardfork_time = fc::time_point_sec(user_data["last_known_hardfork_time"].as<uint32_t>(1));
+      }else{
+        // this state is invalid when node which wants to connect doesn't provide
+        // last hardfork time. We are setting to 0 which will disconnect the node
+        // on hello message
+        originating_peer->last_known_hardfork_time = fc::time_point_sec(0);
       }
 
     }
@@ -2023,7 +2028,8 @@ namespace graphene { namespace net { namespace detail {
         // indetify if peer's are not compatible due the hardforks
         if ( originating_peer->last_known_hardfork_time < _delegate->get_last_known_hardfork_time())
         {
-          if (_delegate->get_block_time(_delegate->get_head_block_id()).sec_since_epoch() >= _delegate->get_last_known_hardfork_time().sec_since_epoch())
+          if ((_delegate->get_block_time(_delegate->get_head_block_id()).sec_since_epoch() >= _delegate->get_last_known_hardfork_time().sec_since_epoch())
+              || originating_peer->last_known_hardfork_time.sec_since_epoch() == 0)
           {
             std::ostringstream rejection_message;
             rejection_message << "Your client is outdated -- you can only understand blocks up to #" << originating_peer->last_known_hardfork_time.to_iso_string() << ", but I'm already on block #" << _delegate->get_block_time(_delegate->get_head_block_id()).to_iso_string();
