@@ -15,7 +15,7 @@ Following dependencies are needed for a clean install of Ubuntu 20.04:
 sudo apt-get install \
     apt-utils autoconf bash build-essential ca-certificates clang-format cmake \
     dnsutils doxygen expect git graphviz libboost-all-dev libbz2-dev \
-    libcurl4-openssl-dev libncurses-dev libreadline-dev libsnappy-dev \
+    libcurl4-openssl-dev libncurses-dev libsnappy-dev \
     libssl-dev libtool libzip-dev locales lsb-release mc nano net-tools ntp \
     openssh-server pkg-config perl python3 python3-jinja2 sudo \
     systemd-coredump wget
@@ -74,11 +74,12 @@ sudo make install # this can install the executable files under /usr/local
 Following dependencies are needed for a clean install of Ubuntu 18.04:
 ```
 sudo apt-get install \
-    apt-utils autoconf bash build-essential ca-certificates dnsutils doxygen \
-    expect git graphviz libbz2-dev libcurl4-openssl-dev libncurses-dev \
-    libreadline-dev libsnappy-dev libssl-dev libtool libzip-dev locales \
-    lsb-release mc nano net-tools ntp openssh-server pkg-config perl \
-    python3 python3-jinja2 sudo systemd-coredump wget
+    apt-utils autoconf bash build-essential ca-certificates clang-format \
+    dnsutils doxygen expect git graphviz libbz2-dev \
+    libcurl4-openssl-dev libncurses-dev libsnappy-dev \
+    libssl-dev libtool libzip-dev locales lsb-release mc nano net-tools ntp \
+    openssh-server pkg-config perl python3 python3-jinja2 sudo \
+    systemd-coredump wget
 ```
 
 Install Boost libraries from source
