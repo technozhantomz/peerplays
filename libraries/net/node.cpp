@@ -92,6 +92,7 @@
 #define DEFAULT_LOGGER "p2p"
 
 #define P2P_IN_DEDICATED_THREAD 1
+#define DISABLE_WITNESS_HF_CHECK 1
 
 #define INVOCATION_COUNTER(name) \
     static unsigned total_ ## name ## _counter = 0; \
@@ -1905,8 +1906,10 @@ namespace graphene { namespace net { namespace detail {
         // last hardfork time. We are setting to 0 which will disconnect the node
         // on hello message
         originating_peer->last_known_hardfork_time = fc::time_point_sec(0);
+        if(DISABLE_WITNESS_HF_CHECK) {
+          originating_peer->last_known_hardfork_time = _delegate->get_last_known_hardfork_time();
+        }
       }
-
     }
 
     void node_impl::on_hello_message( peer_connection* originating_peer, const hello_message& hello_message_received )

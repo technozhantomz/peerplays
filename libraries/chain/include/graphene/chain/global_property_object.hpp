@@ -131,6 +131,7 @@ namespace graphene { namespace chain {
 }}
 
 FC_REFLECT_DERIVED( graphene::chain::dynamic_global_property_object, (graphene::db::object),
+                    (random)
                     (head_block_number)
                     (head_block_id)
                     (time)
