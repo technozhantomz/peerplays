@@ -91,6 +91,7 @@
 #define DEFAULT_LOGGER "p2p"
 
 #define P2P_IN_DEDICATED_THREAD 1
+#define DISABLE_WITNESS_HF_CHECK 1
 
 #define INVOCATION_COUNTER(name) \
     static unsigned total_ ## name ## _counter = 0; \
