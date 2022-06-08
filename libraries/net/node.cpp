@@ -888,7 +888,7 @@ namespace graphene { namespace net { namespace detail {
     void node_impl::p2p_network_connect_loop()
     {
       VERIFY_CORRECT_THREAD();
-      while (!_p2p_network_connect_loop_done.canceled())
+      while (!_p2p_network_connect_loop_done.canceled() && !_node_is_shutting_down)
       {
         try
         {
@@ -3961,6 +3961,8 @@ namespace graphene { namespace net { namespace detail {
     void node_impl::close()
     {
       VERIFY_CORRECT_THREAD();
+
+      _node_is_shutting_down = true;
 
       try
       {
