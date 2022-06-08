@@ -48,6 +48,7 @@
 #include <boost/range/algorithm/reverse.hpp>
 #include <boost/signals2.hpp>
 
+#include <atomic>
 #include <iostream>
 
 #include <fc/log/file_appender.hpp>
@@ -107,6 +108,7 @@ public:
    fc::optional<fc::temp_file> _lock_file;
    bool _is_block_producer = false;
    bool _force_validate = false;
+   std::atomic_bool _running{true};
 
    void reset_p2p_node(const fc::path &data_dir) {
       try {
@@ -450,6 +452,12 @@ public:
        */
    virtual bool handle_block(const graphene::net::block_message &blk_msg, bool sync_mode,
                              std::vector<fc::uint160_t> &contained_transaction_message_ids) override {
+
+      // check point for the threads which may be cancled on application shutdown
+      if(!_running.load()) {
+         return true;
+      }
+
       try {
          auto latency = fc::time_point::now() - blk_msg.block.timestamp;
          FC_ASSERT((latency.count() / 1000) > -5000, "Rejecting block with timestamp in the future");
@@ -1012,6 +1020,7 @@ void application::shutdown_plugins() {
    return;
 }
 void application::shutdown() {
+   my->_running.store(false);
    if (my->_p2p_network)
       my->_p2p_network->close();
    if (my->_chain_db)
