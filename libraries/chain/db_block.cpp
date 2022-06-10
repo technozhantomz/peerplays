@@ -433,7 +433,12 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
       {
          for( size_t i=old_applied_ops_size,n=_applied_ops.size(); i<n; i++ )
          {
-            ilog( "removing failed operation from applied_ops: ${op}", ("op", *(_applied_ops[i])) );
+            if(_applied_ops[i].valid()) {
+               ilog("removing failed operation from applied_ops: ${op}", ("op", *(_applied_ops[i])));
+            }
+            else{
+               ilog("Can't remove failed operation from applied_ops (operation is not valid), op_id : ${op_id}", ("op_id", i));
+            }
             _applied_ops[i].reset();
          }
       }
@@ -619,7 +624,7 @@ uint32_t database::push_applied_operation( const operation& op )
 void database::set_applied_operation_result( uint32_t op_id, const operation_result& result )
 {
    assert( op_id < _applied_ops.size() );
-   if( _applied_ops[op_id] )
+   if( _applied_ops[op_id].valid() )
       _applied_ops[op_id]->result = result;
    else
    {
