@@ -82,8 +82,10 @@ build-testnet:
       - build/tests/
   tags:
     - builder
-  when: manual
-  timeout: 3h
+  when:
+    manual
+  timeout:
+    3h
 
 test-testnet:
   stage: test
