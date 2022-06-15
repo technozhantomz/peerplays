@@ -1337,7 +1337,7 @@ namespace graphene { namespace net { namespace detail {
       // reconnect with the rest of the network, or it might just futher isolate us.
       {
         // As usual, the first step is to walk through all our peers and figure out which
-        // peers need action (disconneting, sending keepalives, etc), then we walk through 
+        // peers need action (disconneting, sending keepalives, etc), then we walk through
         // those lists yielding at our leisure later.
         ASSERT_TASK_NOT_PREEMPTED();
 

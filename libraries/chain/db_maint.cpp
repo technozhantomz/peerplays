@@ -660,6 +660,10 @@ void database::update_active_committee_members()
 
 void database::update_active_sons()
 { try {
+   if (head_block_time() < HARDFORK_SON_TIME) {
+      return;
+   }
+
    assert( _son_count_histogram_buffer.size() > 0 );
    share_type stake_target = (_total_voting_stake-_son_count_histogram_buffer[0]) / 2;
 
@@ -759,11 +763,7 @@ void database::update_active_sons()
       }
    }
 
-   if (son_sets_equal) {
-      ilog( "Active SONs set NOT CHANGED" );
-   } else {
-      ilog( "Active SONs set CHANGED" );
-
+   if (!son_sets_equal) {
       update_son_wallet(new_active_sons);
       update_son_statuses(cur_active_sons, new_active_sons);
    }
