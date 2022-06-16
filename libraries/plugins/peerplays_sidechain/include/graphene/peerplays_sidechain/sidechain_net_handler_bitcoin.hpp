@@ -2,6 +2,7 @@
 
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
+#include <thread>
 #include <string>
 #include <zmq_addon.hpp>
 
@@ -90,7 +91,9 @@ private:
 class zmq_listener {
 public:
    zmq_listener(std::string _ip, uint32_t _zmq);
+   virtual ~zmq_listener();
 
+   void start();
    boost::signals2::signal<void(const std::string &)> event_received;
 
 private:
@@ -102,6 +105,9 @@ private:
 
    zmq::context_t ctx;
    zmq::socket_t socket;
+
+   std::atomic_bool stopped;
+   std::thread thr;
 };
 
 // =============================================================================
