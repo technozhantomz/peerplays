@@ -1102,17 +1102,17 @@ std::vector<zmq::message_t> zmq_listener::receive_multipart() {
 void zmq_listener::handle_zmq() {
    while (false == stopped) {
       try {
-	 std::vector<zmq::message_t> msg;
+         std::vector<zmq::message_t> msg;
          auto res = zmq::recv_multipart(socket, std::back_inserter(msg));
-	 if (res.has_value()){
-             if (3 != *res) {
-	        elog("zmq::recv_multipart returned: ${res}", ("res", *res));
-                throw zmq::error_t();
-             }
-             const auto header = std::string(static_cast<char *>(msg[0].data()), msg[0].size());
-             const auto block_hash = boost::algorithm::hex(std::string(static_cast<char *>(msg[1].data()), msg[1].size()));
-             event_received(block_hash);
-	 }
+         if (res.has_value()) {
+            if (3 != *res) {
+               elog("zmq::recv_multipart returned: ${res}", ("res", *res));
+               throw zmq::error_t();
+            }
+            const auto header = std::string(static_cast<char *>(msg[0].data()), msg[0].size());
+            const auto block_hash = boost::algorithm::hex(std::string(static_cast<char *>(msg[1].data()), msg[1].size()));
+            event_received(block_hash);
+         }
       } catch (zmq::error_t &e) {
          elog("handle_zmq recv_multipart exception ${str}", ("str", e.what()));
       }

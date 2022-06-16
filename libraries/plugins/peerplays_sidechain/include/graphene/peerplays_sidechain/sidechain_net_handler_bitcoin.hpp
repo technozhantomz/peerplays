@@ -2,8 +2,8 @@
 
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
-#include <thread>
 #include <string>
+#include <thread>
 #include <zmq_addon.hpp>
 
 #include <boost/signals2.hpp>
