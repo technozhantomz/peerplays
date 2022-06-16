@@ -117,67 +117,29 @@ public:
          _p2p_network->load_configuration(data_dir / "p2p");
          _p2p_network->set_node_delegate(this);
 
+         vector<string> all_seeds;
+
          if (_options->count("seed-node")) {
             auto seeds = _options->at("seed-node").as<vector<string>>();
-            for (const string &endpoint_string : seeds) {
-               try {
-                  std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
-                  for (const fc::ip::endpoint &endpoint : endpoints) {
-                     ilog("Adding seed node ${endpoint}", ("endpoint", endpoint));
-                     _p2p_network->add_node(endpoint);
-                     _p2p_network->connect_to_endpoint(endpoint);
-                  }
-               } catch (const fc::exception &e) {
-                  wlog("caught exception ${e} while adding seed node ${endpoint}",
-                       ("e", e.to_detail_string())("endpoint", endpoint_string));
-               }
-            }
+            all_seeds.insert(all_seeds.end(), seeds.begin(), seeds.end());
          }
 
          if (_options->count("seed-nodes")) {
             auto seeds_str = _options->at("seed-nodes").as<string>();
             auto seeds = fc::json::from_string(seeds_str).as<vector<string>>(2);
-            for (const string &endpoint_string : seeds) {
-               try {
-                  std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
-                  for (const fc::ip::endpoint &endpoint : endpoints) {
-                     ilog("Adding seed node ${endpoint}", ("endpoint", endpoint));
-                     _p2p_network->add_node(endpoint);
-                  }
-               } catch (const fc::exception &e) {
-                  wlog("caught exception ${e} while adding seed node ${endpoint}",
-                       ("e", e.to_detail_string())("endpoint", endpoint_string));
-               }
-            }
-         } else {
-            // t.me/peerplays #seednodes
-            vector<string> seeds = {
-#ifdef BUILD_PEERPLAYS_TESTNET
+            all_seeds.insert(all_seeds.end(), seeds.begin(), seeds.end());
+         }
 
-#else
-                  "51.222.110.110:9777",
-                  "95.216.90.243:9777",
-                  "96.46.48.98:19777",
-                  "96.46.48.98:29777",
-                  "96.46.48.98:39777",
-                  "96.46.48.98:49777",
-                  "96.46.48.98:59777",
-                  "seed.i9networks.net.br:9777",
-                  "witness.serverpit.com:9777"
-#endif
-            };
-
-            for (const string &endpoint_string : seeds) {
-               try {
-                  std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
-                  for (const fc::ip::endpoint &endpoint : endpoints) {
-                     ilog("Adding seed node ${endpoint}", ("endpoint", endpoint));
-                     _p2p_network->add_node(endpoint);
-                  }
-               } catch (const fc::exception &e) {
-                  wlog("caught exception ${e} while adding seed node ${endpoint}",
-                       ("e", e.to_detail_string())("endpoint", endpoint_string));
+         for (const string &endpoint_string : all_seeds) {
+            try {
+               std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
+               for (const fc::ip::endpoint &endpoint : endpoints) {
+                  ilog("Adding seed node ${endpoint}", ("endpoint", endpoint));
+                  _p2p_network->add_node(endpoint);
                }
+            } catch (const fc::exception &e) {
+               wlog("caught exception ${e} while adding seed node ${endpoint}",
+                    ("e", e.to_detail_string())("endpoint", endpoint_string));
             }
          }
 
@@ -454,7 +416,7 @@ public:
                              std::vector<fc::uint160_t> &contained_transaction_message_ids) override {
 
       // check point for the threads which may be cancled on application shutdown
-      if(!_running.load()) {
+      if (!_running.load()) {
          return true;
       }
 
@@ -872,9 +834,21 @@ application::~application() {
 
 void application::set_program_options(boost::program_options::options_description &cli,
                                       boost::program_options::options_description &cfg) const {
+
+   std::vector<string> seed_nodes = {
+#ifdef BUILD_PEERPLAYS_TESTNET
+#else
+         "51.222.110.110:9777",
+         "95.216.90.243:9777",
+         "seed.i9networks.net.br:9777",
+         "witness.serverpit.com:9777"
+#endif
+   };
+   std::string seed_nodes_str = fc::json::to_string(seed_nodes);
+
    cfg.add_options()("p2p-endpoint", bpo::value<string>()->default_value("0.0.0.0:9777"), "Endpoint for P2P node to listen on");
    cfg.add_options()("seed-node,s", bpo::value<vector<string>>()->composing(), "P2P nodes to connect to on startup (may specify multiple times)");
-   cfg.add_options()("seed-nodes", bpo::value<string>()->composing(), "JSON array of P2P nodes to connect to on startup");
+   cfg.add_options()("seed-nodes", bpo::value<string>()->composing()->default_value(seed_nodes_str), "JSON array of P2P nodes to connect to on startup");
    cfg.add_options()("checkpoint,c", bpo::value<vector<string>>()->composing(), "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.");
    cfg.add_options()("rpc-endpoint", bpo::value<string>()->default_value("127.0.0.1:8090"), "Endpoint for websocket RPC to listen on");
    cfg.add_options()("rpc-tls-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8089"), "Endpoint for TLS websocket RPC to listen on");
