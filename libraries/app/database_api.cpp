@@ -29,12 +29,15 @@
 #include <graphene/chain/pts_address.hpp>
 #include <graphene/chain/tournament_object.hpp>
 
+#include <graphene/utilities/git_revision.hpp>
+
 #include <fc/bloom_filter.hpp>
 
 #include <fc/crypto/hex.hpp>
 #include <fc/rpc/api_connection.hpp>
 #include <fc/uint128.hpp>
 
+#include <boost/algorithm/string.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/range/iterator_range.hpp>
 #include <boost/rational.hpp>
@@ -90,6 +93,7 @@ public:
    processed_transaction get_transaction(uint32_t block_num, uint32_t trx_in_block) const;
 
    // Globals
+   version_info get_version_info() const;
    chain_property_object get_chain_properties() const;
    global_property_object get_global_properties() const;
    fc::variant_object get_config() const;
@@ -562,6 +566,27 @@ processed_transaction database_api_impl::get_transaction(uint32_t block_num, uin
 // Globals                                                          //
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
+
+version_info database_api::get_version_info() const {
+   return my->get_version_info();
+}
+
+version_info database_api_impl::get_version_info() const {
+
+   std::string witness_version(graphene::utilities::git_revision_description);
+   const size_t pos = witness_version.find('/');
+   if (pos != std::string::npos && witness_version.size() > pos)
+      witness_version = witness_version.substr(pos + 1);
+
+   version_info vi;
+   vi.version = witness_version;
+   vi.git_revision = graphene::utilities::git_revision_sha;
+   vi.built = std::string(__DATE__) + " at " + std::string(__TIME__);
+   vi.openssl = OPENSSL_VERSION_TEXT;
+   vi.boost = boost::replace_all_copy(std::string(BOOST_LIB_VERSION), "_", ".");
+
+   return vi;
+}
 
 chain_property_object database_api::get_chain_properties() const {
    return my->get_chain_properties();
