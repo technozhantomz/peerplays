@@ -836,9 +836,9 @@ void application::set_program_options(boost::program_options::options_descriptio
 #else
          "51.222.110.110:9777",
          "95.216.90.243:9777",
-         "ca.peerplays.info",
-         "de.peerplays.xyz",
-         "pl.peerplays.org",
+         "ca.peerplays.info:9777",
+         "de.peerplays.xyz:9777",
+         "pl.peerplays.org:9777",
          "seed.i9networks.net.br:9777",
          "witness.serverpit.com:9777"
 #endif
