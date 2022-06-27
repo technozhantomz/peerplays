@@ -454,7 +454,7 @@ public:
                              std::vector<fc::uint160_t> &contained_transaction_message_ids) override {
 
       // check point for the threads which may be cancled on application shutdown
-      if(!_running.load()) {
+      if (!_running.load()) {
          return true;
       }
 

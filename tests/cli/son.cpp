@@ -337,7 +337,8 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
       global_property_object gpo;
 
       gpo = con.wallet_api_ptr->get_global_properties();
-      unsigned int son_number = gpo.parameters.maximum_son_count();
+      //! Set son number as 5 (as the begining son count)
+      unsigned int son_number = 5;
 
       flat_map<sidechain_type, string> sidechain_public_keys;
 
@@ -400,7 +401,7 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
       BOOST_TEST_MESSAGE("gpo: " << gpo.active_sons.size());
       BOOST_CHECK(generate_maintenance_block());
 
-      BOOST_CHECK(gpo.active_sons.size() == gpo.parameters.maximum_son_count());
+      BOOST_CHECK(gpo.active_sons.size() == son_number);
 
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");
@@ -644,7 +645,8 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
       global_property_object gpo;
 
       gpo = con.wallet_api_ptr->get_global_properties();
-      unsigned int son_number = gpo.parameters.maximum_son_count();
+      //! Set son number as 5 (as the begining son count)
+      unsigned int son_number = 5;
 
       flat_map<sidechain_type, string> sidechain_public_keys;
 

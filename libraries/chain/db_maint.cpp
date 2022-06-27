@@ -182,7 +182,26 @@ void database::pay_sons()
    const dynamic_global_property_object& dpo = get_dynamic_global_properties();
    // Current requirement is that we have to pay every 24 hours, so the following check
    if( dpo.son_budget.value > 0 && ((now - dpo.last_son_payout_time) >= fc::seconds(get_global_properties().parameters.son_pay_time()))) {
-      auto sons = sort_votable_objects<son_index>(get_global_properties().parameters.maximum_son_count());
+      assert( _son_count_histogram_buffer.size() > 0 );
+      const share_type  stake_target = (_total_voting_stake-_son_count_histogram_buffer[0]) / 2;
+      /// accounts that vote for 0 or 1 son do not get to express an opinion on
+      /// the number of sons to have (they abstain and are non-voting accounts)
+      share_type stake_tally = 0;
+      size_t son_count = 0;
+      if( stake_target > 0 )
+      {
+         while( (son_count < _son_count_histogram_buffer.size() - 1)
+                && (stake_tally <= stake_target) )
+         {
+            stake_tally += _son_count_histogram_buffer[++son_count];
+         }
+      }
+      const vector<std::reference_wrapper<const son_object>> sons = [this, &son_count]{
+         if(head_block_time() >= HARDFORK_SON3_TIME)
+            return sort_votable_objects<son_index>(std::max(son_count*2+1, (size_t)get_chain_properties().immutable_parameters.min_son_count));
+         else
+            return sort_votable_objects<son_index>(get_global_properties().parameters.maximum_son_count());
+      }();
       // After SON2 HF
       uint64_t total_votes = 0;
       for( const son_object& son : sons )
@@ -683,8 +702,12 @@ void database::update_active_sons()
    }
 
    const global_property_object& gpo = get_global_properties();
-   const chain_parameters& cp = gpo.parameters;
-   auto sons = sort_votable_objects<son_index>(cp.maximum_son_count());
+   const vector<std::reference_wrapper<const son_object>> sons = [this, &son_count]{
+      if(head_block_time() >= HARDFORK_SON3_TIME)
+         return sort_votable_objects<son_index>(std::max(son_count*2+1, (size_t)get_chain_properties().immutable_parameters.min_son_count));
+      else
+         return sort_votable_objects<son_index>(get_global_properties().parameters.maximum_son_count());
+   }();
 
    const auto& all_sons = get_index_type<son_index>().indices();
 
@@ -2041,6 +2064,13 @@ void update_son_params(database& db)
          gpo.parameters.extensions.value.maximum_son_count = 7;
       });
    }
+   else
+   {
+      const auto& gpo = db.get_global_properties();
+      db.modify( gpo, []( global_property_object& gpo ) {
+         gpo.parameters.extensions.value.maximum_son_count = GRAPHENE_DEFAULT_MAX_SONS;
+      });
+   }
 }
 
 void database::perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props)
@@ -2167,9 +2197,9 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                // same rationale as for witnesses
                d._committee_count_histogram_buffer[offset] += voting_stake;
             }
-            if( opinion_account.options.num_son <= props.parameters.maximum_son_count() )
+            if( opinion_account.options.num_son() <= props.parameters.maximum_son_count() )
             {
-               uint16_t offset = std::min(size_t(opinion_account.options.num_son/2),
+               uint16_t offset = std::min(size_t(opinion_account.options.num_son()/2),
                                           d._son_count_histogram_buffer.size() - 1);
                // votes for a number greater than maximum_son_count
                // are turned into votes for maximum_son_count.
@@ -2271,6 +2301,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          // the following parameters are not allowed to be changed. So take what is in global property
          p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
          p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
+         p.pending_parameters->extensions.value.maximum_son_count = p.parameters.extensions.value.maximum_son_count;
          p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
          p.pending_parameters->extensions.value.son_account = p.parameters.extensions.value.son_account;
          p.pending_parameters->extensions.value.gpos_period_start = p.parameters.extensions.value.gpos_period_start;

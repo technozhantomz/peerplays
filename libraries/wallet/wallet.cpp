@@ -2158,8 +2158,8 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account)(url)(block_signing_key)(broadcast) ) }
 
-   signed_transaction activate_deregistered_son(const string & owner_account, 
-                                                bool broadcast /* = false */) 
+   signed_transaction activate_deregistered_son(const string & owner_account,
+                                                bool broadcast /* = false */)
    { try {
       son_object son = get_son(owner_account);
 
@@ -2408,7 +2408,7 @@ public:
       op.sidechain = sidechain;
       op.peerplays_uid = peerplays_uid;
       op.peerplays_transaction_id = peerplays_transaction_id;
-      op.peerplays_from = peerplays_from; 
+      op.peerplays_from = peerplays_from;
       op.peerplays_asset = asset(asset_val.amount * asset_price.base.amount / asset_price.quote.amount);
       op.withdraw_sidechain = withdraw_sidechain;
       op.withdraw_address = withdraw_address;
@@ -2875,7 +2875,7 @@ public:
          if (!votes_removed)
             FC_THROW("Account ${account} is already not voting for SON ${son}", ("account", voting_account)("son", son));
       }
-      voting_account_object.options.num_son = desired_number_of_sons;
+      voting_account_object.options.extensions.value.num_son = desired_number_of_sons;
 
       account_update_operation account_update_op;
       account_update_op.account = voting_account_object.id;
@@ -5410,7 +5410,7 @@ signed_transaction wallet_api::sidechain_withdrawal_transaction(const string &so
                                                       const string &withdraw_amount)
 {
    return my->sidechain_withdrawal_transaction(son_name_or_id,
-      block_num, 
+      block_num,
       sidechain,
       peerplays_uid,
       peerplays_transaction_id,
@@ -5540,7 +5540,7 @@ signed_transaction wallet_api::sidechain_deposit_transaction(  const string &son
                                                                const string &peerplays_from_name_or_id,
                                                                const string &peerplays_to_name_or_id)
 {
-   return my->sidechain_deposit_transaction(son_name_or_id, 
+   return my->sidechain_deposit_transaction(son_name_or_id,
       sidechain,
       transaction_id,
       operation_index,
