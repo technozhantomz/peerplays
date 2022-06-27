@@ -174,7 +174,7 @@ void account_options::validate() const
 {
    auto needed_witnesses = num_witness;
    auto needed_committee = num_committee;
-   auto needed_sons = num_son;
+   auto needed_sons = num_son();
 
    for( vote_id_type id : votes )
       if( id.type() == vote_id_type::witness && needed_witnesses )
