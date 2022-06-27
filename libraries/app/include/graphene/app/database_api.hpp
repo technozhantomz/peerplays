@@ -130,6 +130,14 @@ struct gpos_info {
    share_type account_vested_balance;
 };
 
+struct version_info {
+   string version;
+   string git_revision;
+   string built;
+   string openssl;
+   string boost;
+};
+
 /**
  * @brief The database_api class implements the RPC API for the chain database.
  *
@@ -217,6 +225,11 @@ public:
    /////////////
    // Globals //
    /////////////
+
+   /**
+    * @brief Retrieve the @ref version_info associated with the witness node
+    */
+   version_info get_version_info() const;
 
    /**
     * @brief Retrieve the @ref chain_property_object associated with the chain
@@ -1040,6 +1053,7 @@ FC_REFLECT(graphene::app::market_ticker, (base)(quote)(latest)(lowest_ask)(highe
 FC_REFLECT(graphene::app::market_volume, (base)(quote)(base_volume)(quote_volume));
 FC_REFLECT(graphene::app::market_trade, (date)(price)(amount)(value));
 FC_REFLECT(graphene::app::gpos_info, (vesting_factor)(award)(total_amount)(current_subperiod)(last_voted_time)(allowed_withdraw_amount)(account_vested_balance));
+FC_REFLECT(graphene::app::version_info, (version)(git_revision)(built)(openssl)(boost));
 
 FC_API(graphene::app::database_api,
    // Objects
@@ -1060,6 +1074,7 @@ FC_API(graphene::app::database_api,
    (get_recent_transaction_by_id)
 
    // Globals
+   (get_version_info)
    (get_chain_properties)
    (get_global_properties)
    (get_config)

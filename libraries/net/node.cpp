@@ -30,6 +30,8 @@
 #include <iostream>
 #include <algorithm>
 #include <tuple>
+#include <random>
+
 #include <boost/tuple/tuple.hpp>
 #include <boost/circular_buffer.hpp>
 
@@ -67,7 +69,6 @@
 #include <fc/io/json.hpp>
 #include <fc/io/enum_type.hpp>
 #include <fc/io/raw_fwd.hpp>
-#include <fc/crypto/rand.hpp>
 #include <fc/network/rate_limiting.hpp>
 #include <fc/network/ip.hpp>
 
@@ -91,6 +92,7 @@
 #define DEFAULT_LOGGER "p2p"
 
 #define P2P_IN_DEDICATED_THREAD 1
+#define DISABLE_WITNESS_HF_CHECK 1
 
 #define INVOCATION_COUNTER(name) \
     static unsigned total_ ## name ## _counter = 0; \
@@ -827,7 +829,11 @@ namespace graphene { namespace net { namespace detail {
       _maximum_blocks_per_peer_during_syncing(GRAPHENE_NET_MAX_BLOCKS_PER_PEER_DURING_SYNCING)
     {
       _rate_limiter.set_actual_rate_time_constant(fc::seconds(2));
-      fc::rand_bytes(&_node_id.data[0], (int)_node_id.size());
+
+      using bytes_randomizer = std::independent_bits_engine<std::default_random_engine, CHAR_BIT, unsigned long>;
+      std::random_device rd;
+      bytes_randomizer br(rd());
+      std::generate(std::begin(_node_id.data), std::end(_node_id.data), std::ref(br));
     }
 
     node_impl::~node_impl()
@@ -887,7 +893,7 @@ namespace graphene { namespace net { namespace detail {
     void node_impl::p2p_network_connect_loop()
     {
       VERIFY_CORRECT_THREAD();
-      while (!_p2p_network_connect_loop_done.canceled())
+      while (!_p2p_network_connect_loop_done.canceled() && !_node_is_shutting_down)
       {
         try
         {
@@ -1331,7 +1337,7 @@ namespace graphene { namespace net { namespace detail {
       // reconnect with the rest of the network, or it might just futher isolate us.
       {
         // As usual, the first step is to walk through all our peers and figure out which
-        // peers need action (disconneting, sending keepalives, etc), then we walk through 
+        // peers need action (disconneting, sending keepalives, etc), then we walk through
         // those lists yielding at our leisure later.
         ASSERT_TASK_NOT_PREEMPTED();
 
@@ -3961,6 +3967,8 @@ namespace graphene { namespace net { namespace detail {
     {
       VERIFY_CORRECT_THREAD();
 
+      _node_is_shutting_down = true;
+
       try
       {
         _potential_peer_db.close();
@@ -4573,7 +4581,7 @@ namespace graphene { namespace net { namespace detail {
                 error_message_stream << "Unable to listen for connections on port " << listen_endpoint.port()
                                      << ", retrying in a few seconds\n";
                 error_message_stream << "You can wait for it to become available, or restart this program using\n";
-                error_message_stream << "the --p2p-port option to specify another port\n";
+                error_message_stream << "the --p2p-endpoint option to specify another port\n";
                 first = false;
               }
               else

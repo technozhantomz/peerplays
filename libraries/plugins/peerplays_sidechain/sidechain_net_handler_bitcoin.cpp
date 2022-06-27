@@ -1079,8 +1079,10 @@ std::vector<zmq::message_t> zmq_listener::receive_multipart() {
 
 void zmq_listener::handle_zmq() {
    int linger = 0;
-   socket.setsockopt(ZMQ_SUBSCRIBE, "hashblock", 9);
-   socket.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+   auto rc = zmq_setsockopt(socket, ZMQ_SUBSCRIBE, "hashblock", 9);
+   FC_ASSERT(0 == rc);
+   rc = zmq_setsockopt(socket, ZMQ_LINGER, &linger, sizeof(linger));
+   FC_ASSERT(0 == rc);
    //socket.setsockopt( ZMQ_SUBSCRIBE, "hashtx", 6 );
    //socket.setsockopt( ZMQ_SUBSCRIBE, "rawblock", 8 );
    //socket.setsockopt( ZMQ_SUBSCRIBE, "rawtx", 5 );

@@ -79,18 +79,12 @@ int main(int argc, char** argv) {
       node->set_program_options(cli, cfg);
       cfg_options.add(cfg);
 
-      cfg_options.add_options()
-              ("plugins", bpo::value<std::string>()->default_value("witness account_history market_history accounts_list affiliate_stats bookie"),
-               "Space-separated list of plugins to activate");
-
       auto witness_plug = node->register_plugin<witness_plugin::witness_plugin>();
       auto debug_witness_plug = node->register_plugin<debug_witness_plugin::debug_witness_plugin>();
       auto history_plug = node->register_plugin<account_history::account_history_plugin>();
       auto elasticsearch_plug = node->register_plugin<elasticsearch::elasticsearch_plugin>();
       auto es_objects_plug = node->register_plugin<es_objects::es_objects_plugin>();
       auto market_history_plug = node->register_plugin<market_history::market_history_plugin>();
-      //auto generate_genesis_plug = node->register_plugin<generate_genesis_plugin::generate_genesis_plugin>();
-      //auto generate_uia_sharedrop_genesis_plug = node->register_plugin<generate_uia_sharedrop_genesis::generate_uia_sharedrop_genesis_plugin>();
       auto list_plug = node->register_plugin<accounts_list::accounts_list_plugin>();
       auto affiliate_stats_plug = node->register_plugin<affiliate_stats::affiliate_stats_plugin>();
       auto bookie_plug = node->register_plugin<bookie::bookie_plugin>();

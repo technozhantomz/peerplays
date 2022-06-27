@@ -18,7 +18,7 @@ namespace graphene { namespace chain {
          static const uint8_t type_id  = son_wallet_withdraw_object_type;
 
          time_point_sec timestamp;
-         uint32_t block_num;
+         uint32_t block_num = 0;
          sidechain_type sidechain = sidechain_type::unknown;
          std::string peerplays_uid;
          std::string peerplays_transaction_id;

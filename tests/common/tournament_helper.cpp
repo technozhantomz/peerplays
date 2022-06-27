@@ -27,7 +27,7 @@
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 
-#include <fc/crypto/rand.hpp>
+#include <random>
 
 using namespace graphene::chain;
 
@@ -276,8 +276,11 @@ void tournaments_helper::rps_throw(const game_id_type& game_id,
 
        // construct the complete throw, the commit, and reveal
        rock_paper_scissors_throw full_throw;
-       fc::rand_bytes((char*)&full_throw.nonce1, sizeof(full_throw.nonce1));
-       fc::rand_bytes((char*)&full_throw.nonce2, sizeof(full_throw.nonce2));
+       std::random_device rd;
+       std::mt19937_64 gen(rd());
+       std::uniform_int_distribution<uint64_t> dis;
+       full_throw.nonce1 = dis(gen);
+       full_throw.nonce2 = dis(gen);
        full_throw.gesture = gesture;
 
        rock_paper_scissors_throw_commit commit_throw;
