@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <atomic>
 #include <sstream>
 #include <iomanip>
 #include <deque>
@@ -574,7 +575,7 @@ namespace graphene { namespace net { namespace detail {
       std::set<node_id_t> _allowed_peers;
 #endif // ENABLE_P2P_DEBUGGING_API
 
-      bool _node_is_shutting_down; // set to true when we begin our destructor, used to prevent us from starting new tasks while we're shutting down
+      std::atomic_bool _node_is_shutting_down {false};
 
       unsigned _maximum_number_of_blocks_to_handle_at_one_time;
       unsigned _maximum_number_of_sync_blocks_to_prefetch;
@@ -825,7 +826,6 @@ namespace graphene { namespace net { namespace detail {
       _average_network_write_speed_hours(72),
       _average_network_usage_second_counter(0),
       _average_network_usage_minute_counter(0),
-      _node_is_shutting_down(false),
       _maximum_number_of_blocks_to_handle_at_one_time(MAXIMUM_NUMBER_OF_BLOCKS_TO_HANDLE_AT_ONE_TIME),
       _maximum_number_of_sync_blocks_to_prefetch(MAXIMUM_NUMBER_OF_BLOCKS_TO_PREFETCH),
       _maximum_blocks_per_peer_during_syncing(GRAPHENE_NET_MAX_BLOCKS_PER_PEER_DURING_SYNCING)
@@ -842,7 +842,7 @@ namespace graphene { namespace net { namespace detail {
     {
       VERIFY_CORRECT_THREAD();
       ilog( "cleaning up node" );
-      _node_is_shutting_down = true;
+      _node_is_shutting_down.store(true);
 
       for (const peer_connection_ptr& active_peer : _active_connections)
       {
@@ -950,6 +950,11 @@ namespace graphene { namespace net { namespace detail {
           }
 
           display_current_connections();
+          if(_node_is_shutting_down)
+          {
+            ilog("Breaking p2p_network_connect_loop loop because node is shutting down");
+            break;
+          }
 
           // if we broke out of the while loop, that means either we have connected to enough nodes, or
           // we don't have any good candidates to connect to right now.
@@ -1032,7 +1037,7 @@ namespace graphene { namespace net { namespace detail {
     void node_impl::fetch_sync_items_loop()
     {
       VERIFY_CORRECT_THREAD();
-      while( !_fetch_sync_items_loop_done.canceled() )
+      while( !_fetch_sync_items_loop_done.canceled() && !_node_is_shutting_down )
       {
         _sync_items_to_fetch_updated = false;
         dlog( "beginning another iteration of the sync items loop" );
@@ -1676,13 +1681,15 @@ namespace graphene { namespace net { namespace detail {
     bool node_impl::is_accepting_new_connections()
     {
       VERIFY_CORRECT_THREAD();
-      return !_p2p_network_connect_loop_done.canceled() && get_number_of_connections() <= _maximum_number_of_connections;
+      return !_node_is_shutting_down && (!_p2p_network_connect_loop_done.valid() || !_p2p_network_connect_loop_done.canceled()) &&
+         get_number_of_connections() <= _maximum_number_of_connections;
     }
 
     bool node_impl::is_wanting_new_connections()
     {
       VERIFY_CORRECT_THREAD();
-      return !_p2p_network_connect_loop_done.canceled() && get_number_of_connections() < _desired_number_of_connections;
+      return !_node_is_shutting_down && !_p2p_network_connect_loop_done.canceled() &&
+         get_number_of_connections() < _desired_number_of_connections;
     }
 
     uint32_t node_impl::get_number_of_connections()
@@ -3418,7 +3425,7 @@ namespace graphene { namespace net { namespace detail {
 
       dlog("leaving process_backlog_of_sync_blocks, ${count} processed", ("count", blocks_processed));
 
-      if (!_suspend_fetching_sync_blocks)
+      if (!_suspend_fetching_sync_blocks && !_node_is_shutting_down)
         trigger_fetch_sync_items_loop();
     }
 
@@ -4051,7 +4058,7 @@ namespace graphene { namespace net { namespace detail {
     {
       VERIFY_CORRECT_THREAD();
 
-      _node_is_shutting_down = true;
+      _node_is_shutting_down.store(true);
 
       try
       {
