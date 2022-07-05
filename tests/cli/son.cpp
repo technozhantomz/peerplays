@@ -39,7 +39,7 @@ public:
         fixture_(fixture)
     {
         fixture_.init_nathan();
-        fixture_.generate_blocks(HARDFORK_SON_FOR_HIVE_TIME);
+        fixture_.generate_blocks(HARDFORK_SON3_TIME);
         fixture_.generate_block();
     }
 
