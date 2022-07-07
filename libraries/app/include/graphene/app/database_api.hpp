@@ -877,15 +877,6 @@ public:
     */
    vector<proposal_object> get_proposed_transactions(const std::string account_id_or_name) const;
 
-   //////////////////////
-   // Blinded balances //
-   //////////////////////
-
-   /**
-    *  @return the set of blinded balance objects by commitment ID
-    */
-   vector<blinded_balance_object> get_blinded_balances(const flat_set<commitment_type> &commitments) const;
-
    /////////////////
    // Tournaments //
    /////////////////
@@ -1197,9 +1188,6 @@ FC_API(graphene::app::database_api,
 
    // Proposed transactions
    (get_proposed_transactions)
-
-   // Blinded balances
-   (get_blinded_balances)
 
    // Tournaments
    (get_tournaments_in_state)

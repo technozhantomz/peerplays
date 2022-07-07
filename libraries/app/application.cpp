@@ -362,7 +362,6 @@ public:
             wild_access.allowed_apis.push_back("database_api");
             wild_access.allowed_apis.push_back("network_broadcast_api");
             wild_access.allowed_apis.push_back("history_api");
-            wild_access.allowed_apis.push_back("crypto_api");
             wild_access.allowed_apis.push_back("bookie_api");
             wild_access.allowed_apis.push_back("affiliate_stats_api");
             wild_access.allowed_apis.push_back("sidechain_api");
