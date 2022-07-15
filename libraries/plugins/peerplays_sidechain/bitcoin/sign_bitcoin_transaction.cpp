@@ -73,7 +73,18 @@ void sign_witness_transaction_finalize(bitcoin_transaction &tx, const std::vecto
 }
 
 bool verify_sig(const bytes &sig, const bytes &pubkey, const bytes &msg, const secp256k1_context *context) {
-   std::vector<unsigned char> sig_temp(sig.begin(), sig.end());
+   //! Get sig_temp
+   FC_ASSERT(sig.size() > 70);
+   FC_ASSERT(sig[0] == 0x30);
+   FC_ASSERT(sig[1] == static_cast<char>(sig.size()-3));
+   FC_ASSERT(sig[2] == 0x02);
+   const uint r_size = sig[3];
+   std::vector<unsigned char> sig_temp(sig.begin()+4+(r_size-32), sig.begin()+4+r_size);
+   FC_ASSERT(sig[4+r_size] == 0x02);
+   const uint s_size = sig[5+r_size];
+   FC_ASSERT(sig.size() == r_size+s_size+7);
+   sig_temp.insert(sig_temp.end(), sig.begin()+6+r_size, sig.end());
+
    std::vector<unsigned char> pubkey_temp(pubkey.begin(), pubkey.end());
    std::vector<unsigned char> msg_temp(msg.begin(), msg.end());
 
@@ -81,7 +92,7 @@ bool verify_sig(const bytes &sig, const bytes &pubkey, const bytes &msg, const s
    FC_ASSERT(secp256k1_ec_pubkey_parse(context, &pub_key, (const unsigned char *)pubkey_temp.data(), pubkey_temp.size()));
 
    secp256k1_ecdsa_signature sign;
-   FC_ASSERT(secp256k1_ecdsa_signature_parse_der(context, &sign, (const unsigned char *)sig_temp.data(), sig_temp.size()));
+   FC_ASSERT(secp256k1_ecdsa_signature_parse_compact(context, &sign, (const unsigned char *)sig_temp.data()));
 
    int result = secp256k1_ecdsa_verify(context, &sign, (const unsigned char *)msg_temp.data(), &pub_key);
    return result == 1;
