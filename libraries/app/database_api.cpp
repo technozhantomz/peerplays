@@ -2949,8 +2949,8 @@ uint64_t database_api::nft_get_total_supply(const nft_metadata_id_type nft_metad
 }
 
 uint64_t database_api_impl::nft_get_total_supply(const nft_metadata_id_type nft_metadata_id) const {
-   const auto &idx_nft_md = _db.get_index_type<nft_metadata_index>().indices().get<by_id>();
-   return idx_nft_md.size();
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_metadata>();
+   return idx_nft.count(nft_metadata_id);
 }
 
 nft_object database_api::nft_token_by_index(const nft_metadata_id_type nft_metadata_id, const uint64_t token_idx) const {
