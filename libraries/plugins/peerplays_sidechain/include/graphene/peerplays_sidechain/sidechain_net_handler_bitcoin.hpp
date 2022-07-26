@@ -1,6 +1,7 @@
 #pragma once
 
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
+#include <graphene/peerplays_sidechain/common/rpc_client.hpp>
 
 #include <string>
 #include <thread>
@@ -22,7 +23,7 @@ public:
    uint64_t amount_;
 };
 
-class bitcoin_rpc_client {
+class bitcoin_rpc_client: public rpc_client  {
 public:
    enum class multi_type {
       script,
@@ -41,49 +42,30 @@ public:
    };
 
 public:
-   bitcoin_rpc_client(std::string _ip, uint32_t _rpc, std::string _user, std::string _password, std::string _wallet, std::string _wallet_password, bool _debug_rpc_calls);
+   bitcoin_rpc_client(std::string _url, std::string _user, std::string _password, bool _debug_rpc_calls);
 
-   std::string addmultisigaddress(const uint32_t nrequired, const std::vector<std::string> public_keys);
-   std::string combinepsbt(const vector<std::string> &psbts);
-   std::string createmultisig(const uint32_t nrequired, const std::vector<std::string> public_keys);
-   std::string createpsbt(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs);
-   std::string createrawtransaction(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs);
    std::string createwallet(const std::string &wallet_name);
-   std::string decodepsbt(std::string const &tx_psbt);
-   std::string decoderawtransaction(std::string const &tx_hex);
-   std::string encryptwallet(const std::string &passphrase);
    uint64_t estimatesmartfee(uint16_t conf_target = 128);
-   std::string finalizepsbt(std::string const &tx_psbt);
-   std::string getaddressinfo(const std::string &address);
    std::string getblock(const std::string &block_hash, int32_t verbosity = 2);
    std::string getrawtransaction(const std::string &txid, const bool verbose = false);
    std::string getnetworkinfo();
-   std::string gettransaction(const std::string &txid, const bool include_watch_only = false);
    std::string getblockchaininfo();
-   void importaddress(const std::string &address_or_script, const std::string &label = "", const bool rescan = true, const bool p2sh = false);
    void importmulti(const std::vector<multi_params> &address_or_script_array, const bool rescan = true);
    std::vector<btc_txout> listunspent(const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::vector<btc_txout> listunspent_by_address_and_amount(const std::string &address, double transfer_amount, const uint32_t minconf = 1, const uint32_t maxconf = 9999999);
    std::string loadwallet(const std::string &filename);
    std::string sendrawtransaction(const std::string &tx_hex);
-   std::string signrawtransactionwithwallet(const std::string &tx_hash);
-   std::string unloadwallet(const std::string &filename);
    std::string walletlock();
-   std::string walletprocesspsbt(std::string const &tx_psbt);
    bool walletpassphrase(const std::string &passphrase, uint32_t timeout = 60);
 
 private:
-   fc::http::reply send_post_request(std::string body, bool show_log);
-
    std::string ip;
    uint32_t rpc_port;
    std::string user;
    std::string password;
    std::string wallet;
    std::string wallet_password;
-   bool debug_rpc_calls;
 
-   fc::http::header authorization;
 };
 
 // =============================================================================

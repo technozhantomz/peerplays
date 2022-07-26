@@ -25,1032 +25,230 @@ namespace graphene { namespace peerplays_sidechain {
 
 // =============================================================================
 
-bitcoin_rpc_client::bitcoin_rpc_client(std::string _ip, uint32_t _rpc, std::string _user, std::string _password, std::string _wallet, std::string _wallet_password, bool _debug_rpc_calls) :
-      ip(_ip),
-      rpc_port(_rpc),
-      user(_user),
-      password(_password),
-      wallet(_wallet),
-      wallet_password(_wallet_password),
-      debug_rpc_calls(_debug_rpc_calls) {
-   authorization.key = "Authorization";
-   authorization.val = "Basic " + fc::base64_encode(user + ":" + password);
-}
-
-std::string bitcoin_rpc_client::addmultisigaddress(const uint32_t nrequired, const std::vector<std::string> public_keys) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"addmultisigaddress\", "
-                                  "\"method\": \"addmultisigaddress\", \"params\": [");
-   try {
-      std::string params = std::to_string(nrequired) + ", [";
-      std::string pubkeys = "";
-      for (std::string pubkey : public_keys) {
-         if (!pubkeys.empty()) {
-            pubkeys = pubkeys + ",";
-         }
-         pubkeys = pubkeys + std::string("\"") + pubkey + std::string("\"");
-      }
-      params = params + pubkeys + std::string("]");
-      body = body + params + std::string(", null, \"bech32\"] }");
-
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
-}
-
-std::string bitcoin_rpc_client::combinepsbt(const vector<std::string> &psbts) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"combinepsbt\", \"method\": "
-                                  "\"combinepsbt\", \"params\": [[");
-   try {
-      std::string params = "";
-      for (std::string psbt : psbts) {
-         if (!params.empty()) {
-            params = params + ",";
-         }
-         params = params + std::string("\"") + psbt + std::string("\"");
-      }
-      body = body + params + std::string("]] }");
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json);
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
-}
-
-std::string bitcoin_rpc_client::createmultisig(const uint32_t nrequired, const std::vector<std::string> public_keys) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"createmultisig\", "
-                                  "\"method\": \"createmultisig\", \"params\": [");
-   try {
-      std::string params = std::to_string(nrequired) + ", [";
-      std::string pubkeys = "";
-      for (std::string pubkey : public_keys) {
-         if (!pubkeys.empty()) {
-            pubkeys = pubkeys + ",";
-         }
-         pubkeys = pubkeys + std::string("\"") + pubkey + std::string("\"");
-      }
-      params = params + pubkeys + std::string("]");
-      body = body + params + std::string(", \"p2sh-segwit\" ] }");
-
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
-}
-
-std::string bitcoin_rpc_client::createpsbt(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs) {
-   std::string body("{\"jsonrpc\": \"1.0\", \"id\":\"createpsbt\", "
-                    "\"method\": \"createpsbt\", \"params\": [");
-   try {
-      body += "[";
-      bool first = true;
-      for (const auto &entry : ins) {
-         if (!first)
-            body += ",";
-         body += "{\"txid\":\"" + entry.txid_ + "\",\"vout\":" + std::to_string(entry.out_num_) + "}";
-         first = false;
-      }
-      body += "],[";
-      first = true;
-      for (const auto &entry : outs) {
-         if (!first)
-            body += ",";
-         body += "{\"" + entry.first + "\":" + std::to_string(entry.second) + "}";
-         first = false;
-      }
-      body += std::string("]] }");
-
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         if (json.find("result") != json.not_found()) {
-            return json.get<std::string>("result");
-         }
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
-}
-
-std::string bitcoin_rpc_client::createrawtransaction(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs) {
-   std::string body("{\"jsonrpc\": \"1.0\", \"id\":\"createrawtransaction\", "
-                    "\"method\": \"createrawtransaction\", \"params\": [");
-   try {
-      body += "[";
-      bool first = true;
-      for (const auto &entry : ins) {
-         if (!first)
-            body += ",";
-         body += "{\"txid\":\"" + entry.txid_ + "\",\"vout\":" + std::to_string(entry.out_num_) + "}";
-         first = false;
-      }
-      body += "],[";
-      first = true;
-      for (const auto &entry : outs) {
-         if (!first)
-            body += ",";
-         body += "{\"" + entry.first + "\":" + std::to_string(entry.second) + "}";
-         first = false;
-      }
-      body += std::string("]] }");
-
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         if (json.find("result") != json.not_found()) {
-            return json.get<std::string>("result");
-         }
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
+bitcoin_rpc_client::bitcoin_rpc_client(std::string _url, std::string _user, std::string _password, bool _debug_rpc_calls) :
+      rpc_client(_url, _user, _password, _debug_rpc_calls) {
 }
 
 std::string bitcoin_rpc_client::createwallet(const std::string &wallet_name) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"createwallet\", \"method\": "
-                                  "\"createwallet\", \"params\": [\"" +
-                                  wallet_name + "\"] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
-}
-
-std::string bitcoin_rpc_client::decodepsbt(std::string const &tx_psbt) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"decodepsbt\", \"method\": "
-                                  "\"decodepsbt\", \"params\": [\"" +
-                                  tx_psbt + "\"] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
-}
-
-std::string bitcoin_rpc_client::decoderawtransaction(std::string const &tx_hex) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"decoderawtransaction\", \"method\": "
-                                  "\"decoderawtransaction\", \"params\": [\"" +
-                                  tx_hex + "\"] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
-}
-
-std::string bitcoin_rpc_client::encryptwallet(const std::string &passphrase) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"encryptwallet\", \"method\": "
-                                  "\"encryptwallet\", \"params\": [\"" +
-                                  passphrase + "\"] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
+   std::string params = std::string("[\"") + wallet_name + std::string("\"]");
+   std::string str = send_post_request("createwallet", params, debug_rpc_calls);
+   return str;
 }
 
 uint64_t bitcoin_rpc_client::estimatesmartfee(uint16_t conf_target) {
-   const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"estimatesmartfee\", "
-                                 "\"method\": \"estimatesmartfee\", \"params\": [" +
-                                 std::to_string(conf_target) + std::string("] }"));
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
+   std::string params = std::string("[") + std::to_string(conf_target) + std::string("]");
+   std::string str = send_post_request("estimatesmartfee", params, debug_rpc_calls);
 
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return 0;
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         if (json.find("result") != json.not_found()) {
-            auto json_result = json.get_child("result");
-            if (json_result.find("feerate") != json_result.not_found()) {
-               auto feerate_str = json_result.get<std::string>("feerate");
-               feerate_str.erase(std::remove(feerate_str.begin(), feerate_str.end(), '.'), feerate_str.end());
-               return std::stoll(feerate_str);
-            }
-
-            if (json_result.find("errors") != json_result.not_found()) {
-               wlog("Bitcoin RPC call ${function} with body ${body} executed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-            }
-         }
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return 20000;
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return 20000;
+   if (str.length() == 0) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
+      return 0;
    }
-}
 
-std::string bitcoin_rpc_client::finalizepsbt(std::string const &tx_psbt) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"finalizepsbt\", \"method\": "
-                                  "\"finalizepsbt\", \"params\": [\"" +
-                                  tx_psbt + "\"] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
+   std::stringstream ss(str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+   if (json.find("result") != json.not_found()) {
+      auto json_result = json.get_child("result");
+      if (json_result.find("feerate") != json_result.not_found()) {
+         auto feerate_str = json_result.get<std::string>("feerate");
+         feerate_str.erase(std::remove(feerate_str.begin(), feerate_str.end(), '.'), feerate_str.end());
+         return std::stoll(feerate_str);
       }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
    }
-}
 
-std::string bitcoin_rpc_client::getaddressinfo(const std::string &address) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"getaddressinfo\", \"method\": "
-                                  "\"getaddressinfo\", \"params\": [\"" +
-                                  address + "\"] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
+   return 20000;
 }
 
 std::string bitcoin_rpc_client::getblock(const std::string &block_hash, int32_t verbosity) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"getblock\", \"method\": "
-                                  "\"getblock\", \"params\": [\"" +
-                                  block_hash + "\", " + std::to_string(verbosity) + "] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
+   std::string params = std::string("[\"") + block_hash + std::string("\",") + std::to_string(verbosity) + std::string("]");
+   std::string str = send_post_request("getblock", params, debug_rpc_calls);
+   return str;
 }
 
 std::string bitcoin_rpc_client::getnetworkinfo() {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"getnetworkinfo\", \"method\": "
-                                  "\"getnetworkinfo\", \"params\": [] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
+   std::string params = std::string("[]");
+   std::string str = send_post_request("getnetworkinfo", params, debug_rpc_calls);
+   return str;
 }
 
 std::string bitcoin_rpc_client::getrawtransaction(const std::string &txid, const bool verbose) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"getrawtransaction\", \"method\": "
-                                  "\"getrawtransaction\", \"params\": [");
-   try {
-      std::string params = "\"" + txid + "\", " + (verbose ? "true" : "false");
-      body = body + params + "] }";
-
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
-}
-
-std::string bitcoin_rpc_client::gettransaction(const std::string &txid, const bool include_watch_only) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"gettransaction\", \"method\": "
-                                  "\"gettransaction\", \"params\": [");
-   try {
-      std::string params = "\"" + txid + "\", " + (include_watch_only ? "true" : "false");
-      body = body + params + "] }";
-
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
+   std::string params = std::string("[\"") + txid + std::string("\",") + (verbose ? "true" : "false") + std::string("]");
+   std::string str = send_post_request("getrawtransaction", params, debug_rpc_calls);
+   return str;
 }
 
 std::string bitcoin_rpc_client::getblockchaininfo() {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"getblockchaininfo\", \"method\": "
-                                  "\"getblockchaininfo\", \"params\": [] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
+   std::string params = std::string("[]");
+   std::string str = send_post_request("getblockchaininfo", params, debug_rpc_calls);
 
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
+   if (str.length() > 0) {
 
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+      std::stringstream ss(str);
       boost::property_tree::ptree json;
       boost::property_tree::read_json(ss, json);
 
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
+      boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
+      return ss.str();
    }
-}
 
-void bitcoin_rpc_client::importaddress(const std::string &address_or_script, const std::string &label, const bool rescan, const bool p2sh) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"importaddress\", "
-                                  "\"method\": \"importaddress\", \"params\": [");
-   try {
-      std::string params = "\"" + address_or_script + "\", " +
-                           "\"" + label + "\", " +
-                           (rescan ? "true" : "false") + ", " +
-                           (p2sh ? "true" : "false");
-      body = body + params + "] }";
-
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return;
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return;
-      } else if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-   }
+   return str;
 }
 
 void bitcoin_rpc_client::importmulti(const std::vector<multi_params> &address_or_script_array, const bool rescan) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"importmulti\", "
-                                  "\"method\": \"importmulti\", \"params\": [");
-   try {
-      std::string argument_1 = "[";
-      for (const auto &param : address_or_script_array) {
-         argument_1 += "{\"scriptPubKey\": ";
-         if (param.type == multi_type::address) {
-            argument_1 += "{\"address\": \"" + param.address_or_script + "\"}, \"label\": \"" + param.label + "\"";
-         } else if (param.type == multi_type::script) {
-            argument_1 += "\"" + param.address_or_script + "\", \"internal\": true";
-         } else {
-            FC_THROW("Invalid multi_type.");
-         }
-         argument_1 += ", \"timestamp\": " + std::to_string(fc::time_point_sec::from_iso_string("2022-01-01T00:00:00").sec_since_epoch()) + "}";
-
-         //! Note
-         /* Creation time of the key expressed in UNIX epoch time,
-         or the string "now" to substitute the current synced blockchain time. The timestamp of the oldest
-         key will determine how far back blockchain rescans need to begin for missing wallet transactions.
-         "now" can be specified to bypass scanning, for keys which are known to never have been used, and
-         0 can be specified to scan the entire blockchain. Blocks up to 2 hours before the earliest key
-         creation time of all keys being imported by the importmulti call will be scanned.*/
-
-         if (&param != &address_or_script_array.back()) {
-            argument_1 += ", ";
-         }
+   std::string params = std::string("[");
+   std::string argument_1 = "[";
+   for (const auto &param : address_or_script_array) {
+      argument_1 += "{\"scriptPubKey\": ";
+      if (param.type == multi_type::address) {
+         argument_1 += "{\"address\": \"" + param.address_or_script + "\"}, \"label\": \"" + param.label + "\"";
+      } else if (param.type == multi_type::script) {
+         argument_1 += "\"" + param.address_or_script + "\", \"internal\": true";
+      } else {
+         FC_THROW("Invalid multi_type.");
       }
-      argument_1 += "]";
+      argument_1 += ", \"timestamp\": " + std::to_string(fc::time_point_sec::from_iso_string("2022-01-01T00:00:00").sec_since_epoch()) + "}";
 
-      std::string argument_2 = std::string{"{\"rescan\": "} + (rescan ? "true" : "false") + "}";
-      body += argument_1 + ", " + argument_2 + "]}";
+      //! Note
+      /* Creation time of the key expressed in UNIX epoch time,
+      or the string "now" to substitute the current synced blockchain time. The timestamp of the oldest
+      key will determine how far back blockchain rescans need to begin for missing wallet transactions.
+      "now" can be specified to bypass scanning, for keys which are known to never have been used, and
+      0 can be specified to scan the entire blockchain. Blocks up to 2 hours before the earliest key
+      creation time of all keys being imported by the importmulti call will be scanned.*/
 
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return;
+      if (&param != &address_or_script_array.back()) {
+         argument_1 += ", ";
       }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return;
-      } else if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
    }
+   argument_1 += "]";
+
+   std::string argument_2 = std::string{"{\"rescan\": "} + (rescan ? "true" : "false") + "}";
+   params += argument_1 + "," + argument_2 + "]";
+
+   send_post_request("importmulti", params, debug_rpc_calls);
 }
 
 std::vector<btc_txout> bitcoin_rpc_client::listunspent(const uint32_t minconf, const uint32_t maxconf) {
-   const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": "
-                                 "\"listunspent\", \"params\": [" +
-                                 std::to_string(minconf) + "," + std::to_string(maxconf) + "] }");
-
    std::vector<btc_txout> result;
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
+   std::string params = std::string("[") + std::to_string(minconf) + "," + std::to_string(maxconf) + std::string("]");
+   std::string str = send_post_request("listunspent", params, debug_rpc_calls);
 
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return result;
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         if (json.count("result")) {
-            for (auto &entry : json.get_child("result")) {
-               btc_txout txo;
-               txo.txid_ = entry.second.get_child("txid").get_value<std::string>();
-               txo.out_num_ = entry.second.get_child("vout").get_value<unsigned int>();
-               string amount = entry.second.get_child("amount").get_value<std::string>();
-               amount.erase(std::remove(amount.begin(), amount.end(), '.'), amount.end());
-               txo.amount_ = std::stoll(amount);
-               result.push_back(txo);
-            }
-         }
-      } else if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return result;
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
+   if (str.length() == 0) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
       return result;
    }
+
+   std::stringstream ss(str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (json.count("result")) {
+      for (auto &entry : json.get_child("result")) {
+         btc_txout txo;
+         txo.txid_ = entry.second.get_child("txid").get_value<std::string>();
+         txo.out_num_ = entry.second.get_child("vout").get_value<unsigned int>();
+         string amount = entry.second.get_child("amount").get_value<std::string>();
+         amount.erase(std::remove(amount.begin(), amount.end(), '.'), amount.end());
+         txo.amount_ = std::stoll(amount);
+         result.push_back(txo);
+      }
+   }
+
+   return result;
 }
 
 std::vector<btc_txout> bitcoin_rpc_client::listunspent_by_address_and_amount(const std::string &address, double minimum_amount, const uint32_t minconf, const uint32_t maxconf) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": "
-                                  "\"listunspent\", \"params\": [" +
-                                  std::to_string(minconf) + "," + std::to_string(maxconf) + ",");
-   body += std::string("[\"");
-   body += address;
-   body += std::string("\"],true,{\"minimumAmount\":");
-   body += std::to_string(minimum_amount);
-   body += std::string("} ] }");
+
+   std::string params = std::string("[") + std::to_string(minconf) + "," + std::to_string(maxconf) + ",";
+   params += std::string("[\"");
+   params += address;
+   params += std::string("\"],true,{\"minimumAmount\":");
+   params += std::to_string(minimum_amount);
+   params += std::string("} ]");
 
    std::vector<btc_txout> result;
+   std::string str = send_post_request("listunspent", params, debug_rpc_calls);
 
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return result;
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         if (json.count("result")) {
-            for (auto &entry : json.get_child("result")) {
-               btc_txout txo;
-               txo.txid_ = entry.second.get_child("txid").get_value<std::string>();
-               txo.out_num_ = entry.second.get_child("vout").get_value<unsigned int>();
-               string amount = entry.second.get_child("amount").get_value<std::string>();
-               amount.erase(std::remove(amount.begin(), amount.end(), '.'), amount.end());
-               txo.amount_ = std::stoll(amount);
-               result.push_back(txo);
-            }
-         }
-      } else if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return result;
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
+   if (str.length() == 0) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
       return result;
    }
+
+   std::stringstream ss(str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if (json.count("result")) {
+      for (auto &entry : json.get_child("result")) {
+         btc_txout txo;
+         txo.txid_ = entry.second.get_child("txid").get_value<std::string>();
+         txo.out_num_ = entry.second.get_child("vout").get_value<unsigned int>();
+         string amount = entry.second.get_child("amount").get_value<std::string>();
+         amount.erase(std::remove(amount.begin(), amount.end(), '.'), amount.end());
+         txo.amount_ = std::stoll(amount);
+         result.push_back(txo);
+      }
+   }
+
+   return result;
 }
 
 std::string bitcoin_rpc_client::loadwallet(const std::string &filename) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"loadwallet\", \"method\": "
-                                  "\"loadwallet\", \"params\": [\"" +
-                                  filename + "\"] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
 
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
+   std::string params = std::string("[\"") + filename + std::string("\"]");
+   std::string str = send_post_request("loadwallet", params, debug_rpc_calls);
+   return str;
 }
 
 std::string bitcoin_rpc_client::sendrawtransaction(const std::string &tx_hex) {
-   const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"sendrawtransaction\", "
-                                 "\"method\": \"sendrawtransaction\", \"params\": [") +
-                     std::string("\"") + tx_hex + std::string("\"") + std::string("] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
 
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
+   std::string params = std::string("[\"") + tx_hex + std::string("\"]");
+   std::string str = send_post_request("sendrawtransaction", params, debug_rpc_calls);
 
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+   if (str.length() > 0) {
+      std::stringstream ss(str);
       boost::property_tree::ptree json;
       boost::property_tree::read_json(ss, json);
 
-      if (reply.status == 200) {
-         return json.get<std::string>("result");
-      }
-
       if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
+         if (!json.count("error.code")) {
+            if (json.get_child("error.code").get_value<int16_t>() == -27) {
+               return tx_hex;
+            }
+         }
       }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
+
+      return json.get<std::string>("result");
    }
-}
 
-std::string bitcoin_rpc_client::signrawtransactionwithwallet(const std::string &tx_hash) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"signrawtransactionwithwallet\", "
-                                  "\"method\": \"signrawtransactionwithwallet\", \"params\": [");
-   std::string params = "\"" + tx_hash + "\"";
-   body = body + params + std::string("]}");
-
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
-}
-
-std::string bitcoin_rpc_client::unloadwallet(const std::string &filename) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"unloadwallet\", \"method\": "
-                                  "\"unloadwallet\", \"params\": [\"" +
-                                  filename + "\"] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
+   return str;
 }
 
 std::string bitcoin_rpc_client::walletlock() {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"walletlock\", \"method\": "
-                                  "\"walletlock\", \"params\": [] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
+   std::string params = std::string("[]");
+   std::string str = send_post_request("walletlock", params, debug_rpc_calls);
 
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         std::stringstream ss;
-         boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
+   if (str.length() == 0) {
+      wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
       return "";
    }
-}
 
-std::string bitcoin_rpc_client::walletprocesspsbt(std::string const &tx_psbt) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"walletprocesspsbt\", \"method\": "
-                                  "\"walletprocesspsbt\", \"params\": [\"" +
-                                  tx_psbt + "\"] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
+   std::stringstream ss(str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
 
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return "";
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return ss.str();
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
-      return "";
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return "";
-   }
+   ss.clear();
+   boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
+   return ss.str();
 }
 
 bool bitcoin_rpc_client::walletpassphrase(const std::string &passphrase, uint32_t timeout) {
-   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"walletpassphrase\", \"method\": "
-                                  "\"walletpassphrase\", \"params\": [\"" +
-                                  passphrase + "\", " + std::to_string(timeout) + "] }");
-   try {
-      const auto reply = send_post_request(body, debug_rpc_calls);
-
-      if (reply.body.empty()) {
-         wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
-         return false;
-      }
-
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-
-      if (reply.status == 200) {
-         return true;
-      }
-
-      if (json.count("error") && !json.get_child("error").empty()) {
-         wlog("Bitcoin RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body)("msg", ss.str()));
-      }
+   std::string params = std::string("[\"") + passphrase + std::string("\",") + std::to_string(timeout) + std::string("]");
+   std::string str = send_post_request("walletpassphrase", params, debug_rpc_calls);
+   if (str.length() == 0)
       return false;
-   } catch (const boost::exception &ex) {
-      wlog("Bitcoin RPC call ${function} with body ${body} generate exception: '${exception}'", ("function", __FUNCTION__)("body", body)("exception", boost::diagnostic_information(ex)));
-      return false;
-   }
-}
-
-fc::http::reply bitcoin_rpc_client::send_post_request(std::string body, bool show_log) {
-   fc::http::connection conn;
-   conn.connect_to(fc::ip::endpoint(fc::ip::address(ip), rpc_port));
-
-   std::string url = "http://" + ip + ":" + std::to_string(rpc_port);
-
-   if (wallet.length() > 0) {
-      url = url + "/wallet/" + wallet;
-   }
-
-   fc::http::reply reply = conn.request("POST", url, body, fc::http::headers{authorization});
-
-   if (show_log) {
-      ilog("### Request URL:     ${url}", ("url", url));
-      ilog("### Request:         ${body}", ("body", body));
-      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-      ilog("### Response status: ${status}", ("status", reply.status));
-      ilog("### Response:        ${ss}", ("ss", ss.str()));
-   }
-
-   return reply;
+   else
+      return true;
 }
 
 // =============================================================================
@@ -1069,11 +267,11 @@ void zmq_listener::start() {
    FC_ASSERT(0 == rc);
    rc = zmq_setsockopt(socket, ZMQ_LINGER, &linger, sizeof(linger));
    FC_ASSERT(0 == rc);
-   int timeout = 100; //millisec
+   int timeout = 100; // millisec
    rc = zmq_setsockopt(socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
-   //socket.setsockopt( ZMQ_SUBSCRIBE, "hashtx", 6 );
-   //socket.setsockopt( ZMQ_SUBSCRIBE, "rawblock", 8 );
-   //socket.setsockopt( ZMQ_SUBSCRIBE, "rawtx", 5 );
+   // socket.setsockopt( ZMQ_SUBSCRIBE, "hashtx", 6 );
+   // socket.setsockopt( ZMQ_SUBSCRIBE, "rawblock", 8 );
+   // socket.setsockopt( ZMQ_SUBSCRIBE, "rawtx", 5 );
    socket.connect("tcp://" + ip + ":" + std::to_string(zmq_port));
 
    thr = std::thread(&zmq_listener::handle_zmq, this);
@@ -1157,15 +355,12 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
       }
    }
 
-   fc::http::connection conn;
-   try {
-      conn.connect_to(fc::ip::endpoint(fc::ip::address(ip), rpc_port));
-   } catch (fc::exception &e) {
-      elog("No BTC node running at ${ip} or wrong rpc port: ${port}", ("ip", ip)("port", rpc_port));
-      FC_ASSERT(false);
+   std::string url = ip + ":" + std::to_string(rpc_port);
+   if (wallet.length() > 0) {
+      url = url + "/wallet/" + wallet;
    }
 
-   bitcoin_client = std::unique_ptr<bitcoin_rpc_client>(new bitcoin_rpc_client(ip, rpc_port, rpc_user, rpc_password, wallet, wallet_password, debug_rpc_calls));
+   bitcoin_client = std::unique_ptr<bitcoin_rpc_client>(new bitcoin_rpc_client(url, rpc_user, rpc_password, debug_rpc_calls));
    if (!wallet.empty()) {
       bitcoin_client->loadwallet(wallet);
    }
@@ -1174,14 +369,18 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    std::stringstream bci_ss(std::string(blockchain_info.begin(), blockchain_info.end()));
    boost::property_tree::ptree bci_json;
    boost::property_tree::read_json(bci_ss, bci_json);
+
    using namespace bitcoin;
    network_type = bitcoin_address::network::mainnet;
+
    if (bci_json.count("chain")) {
       std::string chain = bci_json.get<std::string>("chain");
-      if (chain == "test") {
-         network_type = bitcoin_address::network::testnet;
-      } else if (chain == "regtest") {
-         network_type = bitcoin_address::network::regtest;
+      if (chain.length() > 0) {
+         if (chain == "test") {
+            network_type = bitcoin_address::network::testnet;
+         } else if (chain == "regtest") {
+            network_type = bitcoin_address::network::regtest;
+         }
       }
    }
 
@@ -1210,7 +409,7 @@ sidechain_net_handler_bitcoin::~sidechain_net_handler_bitcoin() {
          on_changed_objects_task.cancel_and_wait(__FUNCTION__);
       }
    } catch (fc::canceled_exception &) {
-      //Expected exception. Move along.
+      // Expected exception. Move along.
    } catch (fc::exception &e) {
       edump((e.to_detail_string()));
    }
@@ -1218,7 +417,7 @@ sidechain_net_handler_bitcoin::~sidechain_net_handler_bitcoin() {
 
 bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) {
 
-   //ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id()));
+   // ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id()));
 
    bool should_approve = false;
 
@@ -1874,7 +1073,7 @@ std::string sidechain_net_handler_bitcoin::create_deposit_transaction(const son_
    if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
       return "";
    }
-   //Get redeem script for deposit address
+   // Get redeem script for deposit address
    std::string redeem_script = get_redeemscript_for_userdeposit(swdo.sidechain_from);
    std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
 
@@ -2026,8 +1225,8 @@ std::string sidechain_net_handler_bitcoin::send_transaction(const sidechain_tran
    uint32_t inputs_number = in_amounts.size();
    vector<bitcoin::bytes> dummy;
    dummy.resize(inputs_number);
-   //Organise weighted address signatures
-   //Add dummies for empty signatures
+   // Organise weighted address signatures
+   // Add dummies for empty signatures
    vector<vector<bitcoin::bytes>> signatures;
    for (unsigned idx = 0; idx < sto.signatures.size(); ++idx) {
       if (sto.signatures[idx].second.empty())
@@ -2035,13 +1234,13 @@ std::string sidechain_net_handler_bitcoin::send_transaction(const sidechain_tran
       else
          signatures.push_back(read_byte_arrays_from_string(sto.signatures[idx].second));
    }
-   //Add empty sig for user signature for Deposit transaction
+   // Add empty sig for user signature for Deposit transaction
    if (sto.object_id.type() == son_wallet_deposit_object::type_id) {
       add_signatures_to_transaction_user_weighted_multisig(tx, signatures);
    } else {
       add_signatures_to_transaction_weighted_multisig(tx, signatures);
    }
-   //Add redeemscripts to vins and make tx ready for sending
+   // Add redeemscripts to vins and make tx ready for sending
    sign_witness_transaction_finalize(tx, redeem_scripts, false);
    std::string final_tx_hex = fc::to_hex(pack(tx));
    std::string res = bitcoin_client->sendrawtransaction(final_tx_hex);
@@ -2050,6 +1249,7 @@ std::string sidechain_net_handler_bitcoin::send_transaction(const sidechain_tran
 }
 
 void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) {
+
    std::string block = bitcoin_client->getblock(event_data);
    if (block.empty())
       return;
@@ -2119,12 +1319,14 @@ std::string sidechain_net_handler_bitcoin::get_redeemscript_for_userdeposit(cons
 
 std::vector<info_for_vin> sidechain_net_handler_bitcoin::extract_info_from_block(const std::string &_block) {
    std::stringstream ss(_block);
-   boost::property_tree::ptree block;
-   boost::property_tree::read_json(ss, block);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   auto json_result = json.get_child_optional("result");
 
    std::vector<info_for_vin> result;
 
-   for (const auto &tx_child : block.get_child("tx")) {
+   for (const auto &tx_child : json_result.get().get_child("tx")) {
       const auto &tx = tx_child.second;
 
       for (const auto &o : tx.get_child("vout")) {
@@ -2217,4 +1419,5 @@ void sidechain_net_handler_bitcoin::on_changed_objects_cb(const vector<object_id
 }
 
 // =============================================================================
-}} // namespace graphene::peerplays_sidechain
+}
+} // namespace graphene::peerplays_sidechain
