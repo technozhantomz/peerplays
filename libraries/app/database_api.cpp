@@ -2083,7 +2083,8 @@ vector<variant> database_api_impl::lookup_vote_ids(const vector<vote_id_type> &v
    const auto &committee_idx = _db.get_index_type<committee_member_index>().indices().get<by_vote_id>();
    const auto &for_worker_idx = _db.get_index_type<worker_index>().indices().get<by_vote_for>();
    const auto &against_worker_idx = _db.get_index_type<worker_index>().indices().get<by_vote_against>();
-   const auto &son_idx = _db.get_index_type<son_index>().indices().get<by_vote_id>();
+   const auto &son_bictoin_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_bitcoin>();
+   const auto &son_hive_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_hive>();
 
    vector<variant> result;
    result.reserve(votes.size());
@@ -2119,15 +2120,22 @@ vector<variant> database_api_impl::lookup_vote_ids(const vector<vote_id_type> &v
          }
          break;
       }
-      case vote_id_type::son: {
-         auto itr = son_idx.find(id);
-         if (itr != son_idx.end())
+      case vote_id_type::son_bitcoin: {
+         auto itr = son_bictoin_idx.find(id);
+         if (itr != son_bictoin_idx.end())
             result.emplace_back(variant(*itr, 5));
          else
             result.emplace_back(variant());
          break;
       }
-
+      case vote_id_type::son_hive: {
+         auto itr = son_hive_idx.find(id);
+         if (itr != son_hive_idx.end())
+            result.emplace_back(variant(*itr, 5));
+         else
+            result.emplace_back(variant());
+         break;
+      }
       case vote_id_type::VOTE_TYPE_COUNT:
          break; // supress unused enum value warnings
       default:
@@ -2152,12 +2160,21 @@ vector<vote_id_type> database_api_impl::get_votes_ids(const string &account_name
 votes_info database_api_impl::get_votes(const string &account_name_or_id) const {
    votes_info result;
 
-   const auto &votes_ids = get_votes_ids(account_name_or_id);
-   const auto &committee_ids = get_votes_objects<committee_member_index, by_vote_id>(votes_ids);
-   const auto &witness_ids = get_votes_objects<witness_index, by_vote_id>(votes_ids);
-   const auto &for_worker_ids = get_votes_objects<worker_index, by_vote_for>(votes_ids);
-   const auto &against_worker_ids = get_votes_objects<worker_index, by_vote_against>(votes_ids);
-   const auto &son_ids = get_votes_objects<son_index, by_vote_id>(votes_ids, 5);
+   const auto votes_ids = get_votes_ids(account_name_or_id);
+   const auto committee_ids = get_votes_objects<committee_member_index, by_vote_id>(votes_ids);
+   const auto witness_ids = get_votes_objects<witness_index, by_vote_id>(votes_ids);
+   const auto for_worker_ids = get_votes_objects<worker_index, by_vote_for>(votes_ids);
+   const auto against_worker_ids = get_votes_objects<worker_index, by_vote_against>(votes_ids);
+   const auto son_ids = [this, &votes_ids]() {
+      flat_map<sidechain_type, vector<variant>> son_ids;
+      const auto son_bitcoin_ids = get_votes_objects<son_index, by_vote_id_bitcoin>(votes_ids, 5);
+      if (!son_bitcoin_ids.empty())
+         son_ids[sidechain_type::bitcoin] = std::move(son_bitcoin_ids);
+      const auto son_hive_ids = get_votes_objects<son_index, by_vote_id_hive>(votes_ids, 5);
+      if (!son_hive_ids.empty())
+         son_ids[sidechain_type::hive] = std::move(son_hive_ids);
+      return son_ids;
+   }();
 
    //! Fill votes info
    if (!committee_ids.empty()) {
@@ -2201,11 +2218,15 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
    }
 
    if (!son_ids.empty()) {
-      vector<votes_info_object> votes_for_sons;
-      votes_for_sons.reserve(son_ids.size());
-      for (const auto &son : son_ids) {
-         const auto &son_obj = son.as<son_object>(6);
-         votes_for_sons.emplace_back(votes_info_object{son_obj.vote_id, son_obj.id});
+      flat_map<sidechain_type, vector<votes_info_object>> votes_for_sons;
+      for (const auto &son_sidechain_ids : son_ids) {
+         const auto &sidechain = son_sidechain_ids.first;
+         const auto &sidechain_ids = son_sidechain_ids.second;
+         votes_for_sons[sidechain].reserve(sidechain_ids.size());
+         for (const auto &son : sidechain_ids) {
+            const auto &son_obj = son.as<son_object>(6);
+            votes_for_sons[sidechain].emplace_back(votes_info_object{son_obj.get_sidechain_vote_id(sidechain), son_obj.id});
+         }
       }
       result.votes_for_sons = std::move(votes_for_sons);
    }
@@ -2379,12 +2400,16 @@ voters_info database_api_impl::get_voters(const string &account_name_or_id) cons
 
    //! Info for son voters
    if (son_object) {
-      const auto &son_voters = get_voters_by_id(son_object->vote_id);
-      voters_info_object voters_for_son;
-      voters_for_son.vote_id = son_object->vote_id;
-      voters_for_son.voters.reserve(son_voters.size());
-      for (const auto &voter : son_voters) {
-         voters_for_son.voters.emplace_back(voter.get_id());
+      flat_map<sidechain_type, voters_info_object> voters_for_son;
+      for (const auto &vote_id : son_object->sidechain_vote_ids) {
+         const auto &son_voters = get_voters_by_id(vote_id.second);
+         voters_info_object voters_for_sidechain_son;
+         voters_for_sidechain_son.vote_id = vote_id.second;
+         voters_for_sidechain_son.voters.reserve(son_voters.size());
+         for (const auto &voter : son_voters) {
+            voters_for_sidechain_son.voters.emplace_back(voter.get_id());
+         }
+         voters_for_son[vote_id.first] = std::move(voters_for_sidechain_son);
       }
       result.voters_for_son = std::move(voters_for_son);
    }

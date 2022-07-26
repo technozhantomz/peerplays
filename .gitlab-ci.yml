@@ -44,8 +44,6 @@ test-mainnet:
 
 dockerize-mainnet:
   stage: dockerize
-  dependencies:
-    - test-mainnet
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/mainnet/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
   before_script:
@@ -105,8 +103,6 @@ test-testnet:
 
 dockerize-testnet:
   stage: dockerize
-  dependencies:
-    - test-testnet
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/testnet/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
   before_script:

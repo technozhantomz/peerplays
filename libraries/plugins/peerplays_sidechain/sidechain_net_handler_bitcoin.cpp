@@ -417,7 +417,7 @@ sidechain_net_handler_bitcoin::~sidechain_net_handler_bitcoin() {
 
 bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) {
 
-   // ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id()));
+   //ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
 
    bool should_approve = false;
 
@@ -451,8 +451,8 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
       const auto swo = idx.find(swo_id);
       if (swo != idx.end()) {
 
-         auto active_sons = gpo.active_sons;
-         vector<son_info> wallet_sons = swo->sons;
+         const auto &active_sons = gpo.active_sons.at(sidechain);
+         vector<son_info> wallet_sons = swo->sons.at(sidechain);
 
          bool son_sets_equal = (active_sons.size() == wallet_sons.size());
 
@@ -463,10 +463,10 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
          }
 
          if (son_sets_equal) {
-            auto active_sons = gpo.active_sons;
+            const auto &active_sons = gpo.active_sons.at(sidechain);
             vector<string> son_pubkeys_bitcoin;
             for (const son_info &si : active_sons) {
-               son_pubkeys_bitcoin.push_back(si.sidechain_public_keys.at(sidechain_type::bitcoin));
+               son_pubkeys_bitcoin.push_back(si.public_key);
             }
 
             string reply_str = create_primary_wallet_address(active_sons);
@@ -676,7 +676,7 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
 
       read_transaction_data(sto->transaction, tx_hex, in_amounts, redeem_script);
       bitcoin_transaction tx = unpack(parse_hex(tx_hex));
-      bitcoin::bytes pubkey = parse_hex(son->sidechain_public_keys.at(sidechain_type::bitcoin));
+      bitcoin::bytes pubkey = parse_hex(son->sidechain_public_keys.at(sidechain));
       vector<bitcoin::bytes> sigs = read_byte_arrays_from_string(signature);
       for (size_t i = 0; i < tx.vin.size(); i++) {
          const auto &sighash_str = get_signature_hash(tx, parse_hex(redeem_script), static_cast<int64_t>(in_amounts[i]), i, 1, true).str();
@@ -706,8 +706,8 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
    const auto &active_sw = swi.rbegin();
    if (active_sw != swi.rend()) {
 
-      if ((active_sw->addresses.find(sidechain_type::bitcoin) == active_sw->addresses.end()) ||
-          (active_sw->addresses.at(sidechain_type::bitcoin).empty())) {
+      if ((active_sw->addresses.find(sidechain) == active_sw->addresses.end()) ||
+          (active_sw->addresses.at(sidechain).empty())) {
 
          if (proposal_exists(chain::operation::tag<chain::son_wallet_update_operation>::value, active_sw->id)) {
             return;
@@ -715,19 +715,19 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
 
          const chain::global_property_object &gpo = database.get_global_properties();
 
-         auto active_sons = gpo.active_sons;
+         const auto &active_sons = gpo.active_sons.at(sidechain);
          string reply_str = create_primary_wallet_address(active_sons);
 
          std::stringstream active_pw_ss(reply_str);
          boost::property_tree::ptree active_pw_pt;
          boost::property_tree::read_json(active_pw_ss, active_pw_pt);
          if (active_pw_pt.count("error") && active_pw_pt.get_child("error").empty()) {
-            if (!plugin.can_son_participate(chain::operation::tag<chain::son_wallet_update_operation>::value, active_sw->id)) {
+            if (!plugin.can_son_participate(sidechain, chain::operation::tag<chain::son_wallet_update_operation>::value, active_sw->id)) {
                return;
             }
 
             proposal_create_operation proposal_op;
-            proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+            proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
             uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
             proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -737,7 +737,7 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
             son_wallet_update_operation swu_op;
             swu_op.payer = gpo.parameters.son_account();
             swu_op.son_wallet_id = active_sw->id;
-            swu_op.sidechain = sidechain_type::bitcoin;
+            swu_op.sidechain = sidechain;
             swu_op.address = res.str();
 
             proposal_op.proposed_ops.emplace_back(swu_op);
@@ -752,18 +752,18 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
                   stc_op.object_id = prev_sw->id;
                   stc_op.sidechain = sidechain;
                   stc_op.transaction = tx_str;
-                  stc_op.signers = prev_sw->sons;
+                  stc_op.signers = prev_sw->sons.at(sidechain);
                   proposal_op.proposed_ops.emplace_back(stc_op);
                }
             }
 
-            signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+            signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
             try {
                trx.validate();
                database.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if (plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-               plugin.log_son_proposal_retry(chain::operation::tag<chain::son_wallet_update_operation>::value, active_sw->id);
+               plugin.log_son_proposal_retry(sidechain, chain::operation::tag<chain::son_wallet_update_operation>::value, active_sw->id);
             } catch (fc::exception &e) {
                elog("Sending proposal for son wallet update operation failed with exception ${e}", ("e", e.what()));
                return;
@@ -778,9 +778,8 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
 
    const chain::global_property_object &gpo = database.get_global_properties();
    std::vector<std::pair<fc::ecc::public_key, uint16_t>> pubkeys;
-   for (auto &son : gpo.active_sons) {
-      std::string pub_key_str = son.sidechain_public_keys.at(sidechain_type::bitcoin);
-      auto pubkey = fc::ecc::public_key(create_public_key_data(parse_hex(pub_key_str)));
+   for (auto &son : gpo.active_sons.at(sidechain)) {
+      auto pubkey = fc::ecc::public_key(create_public_key_data(parse_hex(son.public_key)));
       pubkeys.push_back(std::make_pair(pubkey, son.weight));
    }
 
@@ -800,7 +799,7 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
 
                           if (addr.get_address() != sao.deposit_address) {
                              sidechain_address_update_operation op;
-                             op.payer = plugin.get_current_son_object().son_account;
+                             op.payer = plugin.get_current_son_object(sidechain).son_account;
                              op.sidechain_address_id = sao.id;
                              op.sidechain_address_account = sao.sidechain_address_account;
                              op.sidechain = sao.sidechain;
@@ -810,7 +809,7 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
                              op.withdraw_public_key = sao.withdraw_public_key;
                              op.withdraw_address = sao.withdraw_address;
 
-                             signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), op);
+                             signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), op);
                              try {
                                 trx.validate();
                                 database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -842,7 +841,7 @@ bool sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_obj
       const chain::global_property_object &gpo = database.get_global_properties();
 
       proposal_create_operation proposal_op;
-      proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+      proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
       uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
       proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -856,10 +855,10 @@ bool sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_obj
       stc_op.object_id = swdo.id;
       stc_op.sidechain = sidechain;
       stc_op.transaction = tx_str;
-      stc_op.signers = gpo.active_sons;
+      stc_op.signers = gpo.active_sons.at(sidechain);
       proposal_op.proposed_ops.emplace_back(stc_op);
 
-      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
       try {
          trx.validate();
          database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -886,7 +885,7 @@ bool sidechain_net_handler_bitcoin::process_withdrawal(const son_wallet_withdraw
       const chain::global_property_object &gpo = database.get_global_properties();
 
       proposal_create_operation proposal_op;
-      proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+      proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
       uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
       proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -900,10 +899,10 @@ bool sidechain_net_handler_bitcoin::process_withdrawal(const son_wallet_withdraw
       stc_op.object_id = swwo.id;
       stc_op.sidechain = sidechain;
       stc_op.transaction = tx_str;
-      stc_op.signers = gpo.active_sons;
+      stc_op.signers = gpo.active_sons.at(sidechain);
       proposal_op.proposed_ops.emplace_back(stc_op);
 
-      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
       try {
          trx.validate();
          database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -951,8 +950,7 @@ bool sidechain_net_handler_bitcoin::settle_sidechain_transaction(const sidechain
    using namespace bitcoin;
    std::vector<std::pair<fc::ecc::public_key, uint16_t>> pubkey_weights;
    for (auto si : sto.signers) {
-      std::string pub_key_str = si.sidechain_public_keys.at(sidechain_type::bitcoin);
-      auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(pub_key_str)));
+      auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(si.public_key)));
       pubkey_weights.push_back(std::make_pair(pub_key, si.weight));
    }
    btc_weighted_multisig_address addr(pubkey_weights, network_type);
@@ -1001,8 +999,7 @@ std::string sidechain_net_handler_bitcoin::create_primary_wallet_address(const s
 
    std::vector<std::pair<fc::ecc::public_key, uint16_t>> pubkey_weights;
    for (auto &son : son_pubkeys) {
-      std::string pub_key_str = son.sidechain_public_keys.at(sidechain_type::bitcoin);
-      auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(pub_key_str)));
+      auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(son.public_key)));
       pubkey_weights.push_back(std::make_pair(pub_key, son.weight));
    }
 
@@ -1019,7 +1016,7 @@ std::string sidechain_net_handler_bitcoin::create_primary_wallet_address(const s
 
 std::string sidechain_net_handler_bitcoin::create_primary_wallet_transaction(const son_wallet_object &prev_swo, std::string new_sw_address) {
 
-   const auto &address_data = prev_swo.addresses.find(sidechain_type::bitcoin);
+   const auto &address_data = prev_swo.addresses.find(sidechain);
    if (address_data == prev_swo.addresses.end()) {
       return "";
    }
@@ -1070,12 +1067,12 @@ std::string sidechain_net_handler_bitcoin::create_primary_wallet_transaction(con
 std::string sidechain_net_handler_bitcoin::create_deposit_transaction(const son_wallet_deposit_object &swdo) {
    const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
    auto obj = idx.rbegin();
-   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
+   if (obj == idx.rend() || obj->addresses.find(sidechain) == obj->addresses.end()) {
       return "";
    }
    // Get redeem script for deposit address
    std::string redeem_script = get_redeemscript_for_userdeposit(swdo.sidechain_from);
-   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
+   std::string pw_address_json = obj->addresses.find(sidechain)->second;
 
    std::stringstream ss(pw_address_json);
    boost::property_tree::ptree json;
@@ -1117,11 +1114,11 @@ std::string sidechain_net_handler_bitcoin::create_deposit_transaction(const son_
 std::string sidechain_net_handler_bitcoin::create_withdrawal_transaction(const son_wallet_withdraw_object &swwo) {
    const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
    auto obj = idx.rbegin();
-   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
+   if (obj == idx.rend() || obj->addresses.find(sidechain) == obj->addresses.end()) {
       return "";
    }
 
-   std::string pw_address_json = obj->addresses.find(sidechain_type::bitcoin)->second;
+   std::string pw_address_json = obj->addresses.find(sidechain)->second;
 
    std::stringstream ss(pw_address_json);
    boost::property_tree::ptree json;
@@ -1186,7 +1183,7 @@ std::string sidechain_net_handler_bitcoin::create_transaction(const std::vector<
 
 std::string sidechain_net_handler_bitcoin::sign_transaction(const sidechain_transaction_object &sto) {
    using namespace bitcoin;
-   std::string pubkey = plugin.get_current_son_object().sidechain_public_keys.at(sidechain);
+   std::string pubkey = plugin.get_current_son_object(sidechain).sidechain_public_keys.at(sidechain);
    std::string prvkey = get_private_key(pubkey);
    std::vector<uint64_t> in_amounts;
    std::string tx_hex;
@@ -1302,14 +1299,13 @@ std::string sidechain_net_handler_bitcoin::get_redeemscript_for_userdeposit(cons
 
    const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
    auto obj = idx.rbegin();
-   if (obj == idx.rend() || obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) {
+   if (obj == idx.rend() || obj->addresses.find(sidechain) == obj->addresses.end()) {
       return "";
    }
 
    std::vector<std::pair<fc::ecc::public_key, uint16_t>> pubkey_weights;
-   for (auto &son : obj->sons) {
-      std::string pub_key_str = son.sidechain_public_keys.at(sidechain_type::bitcoin);
-      auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(pub_key_str)));
+   for (auto &son : obj->sons.at(sidechain)) {
+      auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(son.public_key)));
       pubkey_weights.push_back(std::make_pair(pub_key, son.weight));
    }
    auto user_pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(addr_itr->deposit_public_key)));

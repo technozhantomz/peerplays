@@ -1040,13 +1040,8 @@ BOOST_FIXTURE_TEST_CASE( hardfork_son2_time, database_fixture )
 
    generate_blocks(HARDFORK_SON3_TIME);
    // after this hardfork maximum son account should not reset the value
-   // on 7 after maintenance interval anymore. It must be GRAPHENE_DEFAULT_MAX_SONS
+   // on 7 after maintenance interval anymore. It must be HARDFORK_SON2_TIME
    BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), GRAPHENE_DEFAULT_MAX_SONS);
-
-   generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-   generate_block();
-
-   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), 15);
 
 } FC_LOG_AND_RETHROW() }
 

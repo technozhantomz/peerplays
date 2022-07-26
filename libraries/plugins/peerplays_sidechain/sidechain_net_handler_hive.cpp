@@ -180,7 +180,7 @@ sidechain_net_handler_hive::~sidechain_net_handler_hive() {
 }
 
 bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
-   //ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id()));
+   //ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
 
    bool should_approve = false;
 
@@ -213,8 +213,8 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
       const auto swo = idx.find(swo_id);
       if (swo != idx.end()) {
 
-         auto active_sons = gpo.active_sons;
-         vector<son_info> wallet_sons = swo->sons;
+         auto active_sons = gpo.active_sons.at(sidechain);
+         vector<son_info> wallet_sons = swo->sons.at(sidechain);
 
          bool son_sets_equal = (active_sons.size() == wallet_sons.size());
 
@@ -251,7 +251,7 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
                      uint32_t total_weight = 0;
                      for (const auto &wallet_son : wallet_sons) {
                         total_weight = total_weight + wallet_son.weight;
-                        account_auths[wallet_son.sidechain_public_keys.at(sidechain)] = wallet_son.weight;
+                        account_auths[wallet_son.public_key] = wallet_son.weight;
                      }
 
                      std::string memo_key = node_rpc_client->get_account_memo_key("son-account");
@@ -487,12 +487,12 @@ void sidechain_net_handler_hive::process_primary_wallet() {
 
          const chain::global_property_object &gpo = database.get_global_properties();
 
-         auto active_sons = gpo.active_sons;
+         const auto &active_sons = gpo.active_sons.at(sidechain);
          fc::flat_map<std::string, uint16_t> account_auths;
          uint32_t total_weight = 0;
          for (const auto &active_son : active_sons) {
             total_weight = total_weight + active_son.weight;
-            account_auths[active_son.sidechain_public_keys.at(sidechain)] = active_son.weight;
+            account_auths[active_son.public_key] = active_son.weight;
          }
 
          std::string memo_key = node_rpc_client->get_account_memo_key("son-account");
@@ -530,7 +530,7 @@ void sidechain_net_handler_hive::process_primary_wallet() {
          }
 
          proposal_create_operation proposal_op;
-         proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+         proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
          uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
          proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -547,11 +547,11 @@ void sidechain_net_handler_hive::process_primary_wallet() {
          stc_op.object_id = active_sw->id;
          stc_op.sidechain = sidechain;
          stc_op.transaction = tx_str;
-         stc_op.signers = gpo.active_sons;
+         stc_op.signers = gpo.active_sons.at(sidechain);
 
          proposal_op.proposed_ops.emplace_back(stc_op);
 
-         signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+         signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
          try {
             trx.validate();
             database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -575,7 +575,7 @@ void sidechain_net_handler_hive::process_sidechain_addresses() {
                     if (sao.expires == time_point_sec::maximum()) {
                        if (sao.deposit_address == "") {
                           sidechain_address_update_operation op;
-                          op.payer = plugin.get_current_son_object().son_account;
+                          op.payer = plugin.get_current_son_object(sidechain).son_account;
                           op.sidechain_address_id = sao.id;
                           op.sidechain_address_account = sao.sidechain_address_account;
                           op.sidechain = sao.sidechain;
@@ -585,7 +585,7 @@ void sidechain_net_handler_hive::process_sidechain_addresses() {
                           op.withdraw_public_key = sao.withdraw_public_key;
                           op.withdraw_address = sao.withdraw_address;
 
-                          signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), op);
+                          signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), op);
                           try {
                              trx.validate();
                              database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -617,7 +617,7 @@ bool sidechain_net_handler_hive::process_deposit(const son_wallet_deposit_object
    }
 
    proposal_create_operation proposal_op;
-   proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+   proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
    uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
    proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -633,7 +633,7 @@ bool sidechain_net_handler_hive::process_deposit(const son_wallet_deposit_object
    ai_op.issue_to_account = swdo.peerplays_from;
    proposal_op.proposed_ops.emplace_back(ai_op);
 
-   signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+   signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
    try {
       trx.validate();
       database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -690,7 +690,7 @@ bool sidechain_net_handler_hive::process_withdrawal(const son_wallet_withdraw_ob
    //=====
 
    proposal_create_operation proposal_op;
-   proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+   proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
    uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
    proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -704,10 +704,10 @@ bool sidechain_net_handler_hive::process_withdrawal(const son_wallet_withdraw_ob
    stc_op.object_id = swwo.id;
    stc_op.sidechain = sidechain;
    stc_op.transaction = tx_str;
-   stc_op.signers = gpo.active_sons;
+   stc_op.signers = gpo.active_sons.at(sidechain);
    proposal_op.proposed_ops.emplace_back(stc_op);
 
-   signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+   signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
    try {
       trx.validate();
       database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -730,7 +730,7 @@ std::string sidechain_net_handler_hive::process_sidechain_transaction(const side
    std::string chain_id_str = node_rpc_client->get_chain_id();
    const hive::chain_id_type chain_id(chain_id_str);
 
-   fc::optional<fc::ecc::private_key> privkey = graphene::utilities::wif_to_key(get_private_key(plugin.get_current_son_object().sidechain_public_keys.at(sidechain)));
+   fc::optional<fc::ecc::private_key> privkey = graphene::utilities::wif_to_key(get_private_key(plugin.get_current_son_object(sidechain).sidechain_public_keys.at(sidechain)));
    signature_type st = htrx.sign(*privkey, chain_id);
 
    std::stringstream ss_st;

@@ -154,13 +154,14 @@ BOOST_AUTO_TEST_CASE( son_wallet_recreate_test ) {
 
       op.payer = db.get_global_properties().parameters.son_account();
 
+      //! Fixme - add hive tests
       {
          son_info si;
          si.son_id = son_id_type(0);
          si.weight = 1000;
          si.signing_key = alice_public_key;
-         si.sidechain_public_keys[sidechain_type::bitcoin] = "";
-         op.sons.push_back(si);
+         si.public_key = "";
+         op.sons[sidechain_type::bitcoin].push_back(si);
       }
 
       {
@@ -168,8 +169,8 @@ BOOST_AUTO_TEST_CASE( son_wallet_recreate_test ) {
          si.son_id = son_id_type(1);
          si.weight = 1000;
          si.signing_key = bob_public_key;
-         si.sidechain_public_keys[sidechain_type::bitcoin] = "";
-         op.sons.push_back(si);
+         si.public_key = "";
+         op.sons[sidechain_type::bitcoin].push_back(si);
       }
 
       trx.operations.push_back(op);

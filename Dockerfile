@@ -19,7 +19,7 @@ RUN \
       expect \
       git \
       graphviz \
-      libboost1.67-all-dev \
+      libboost-all-dev \
       libbz2-dev \
       libcurl4-openssl-dev \
       libncurses-dev \

@@ -1100,8 +1100,9 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    FC_ASSERT( _p_witness_schedule_obj->id == witness_schedule_id_type() );
 
       // Initialize witness schedule
-#ifndef NDEBUG
-   const son_schedule_object& sso =
+
+   #ifndef NDEBUG
+   const son_schedule_object& ssohive =
 #endif
    create<son_schedule_object>([&](son_schedule_object& _sso)
    {
@@ -1120,13 +1121,29 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
       _sso.recent_slots_filled = fc::uint128::max_value();
    });
-   assert( sso.id == son_schedule_id_type() );
+   assert( ssohive.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::hive)) );
 
-   // Enable fees
-   modify(get_global_properties(), [&genesis_state](global_property_object& p) {
-      p.parameters.current_fees = genesis_state.initial_parameters.current_fees;
+#ifndef NDEBUG
+   const son_schedule_object& ssobitcoin =
+#endif
+   create<son_schedule_object>([&](son_schedule_object& _sso)
+   {
+      // for scheduled
+      memset(_sso.rng_seed.begin(), 0, _sso.rng_seed.size());
+
+      witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+
+      auto init_witnesses = get_global_properties().active_witnesses;
+
+      _sso.scheduler = son_scheduler();
+      _sso.scheduler._min_token_count = std::max(int(init_witnesses.size()) / 2, 1);
+
+
+      _sso.last_scheduling_block = 0;
+
+      _sso.recent_slots_filled = fc::uint128::max_value();
    });
-
+   assert( ssobitcoin.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::bitcoin)) );
 
    // Create FBA counters
    create<fba_accumulator_object>([&]( fba_accumulator_object& acc )

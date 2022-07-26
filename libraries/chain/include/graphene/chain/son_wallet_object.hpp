@@ -21,7 +21,7 @@ namespace graphene { namespace chain {
          time_point_sec expires;
 
          flat_map<sidechain_type, string> addresses;
-         vector<son_info> sons;
+         flat_map<sidechain_type, vector<son_info> > sons;
    };
 
    struct by_valid_from;

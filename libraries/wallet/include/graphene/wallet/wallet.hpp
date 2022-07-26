@@ -1610,6 +1610,7 @@ class wallet_api
        *
        * @param voting_account the name or id of the account who is voting with their shares
        * @param son the name or id of the SONs' owner account
+       * @param sidechain the name of the sidechain
        * @param approve true if you wish to vote in favor of that SON, false to
        *                remove your vote in favor of that SON
        * @param broadcast true if you wish to broadcast the transaction
@@ -1617,6 +1618,7 @@ class wallet_api
        */
       signed_transaction vote_for_son(string voting_account,
                                              string son,
+                                             sidechain_type sidechain,
                                              bool approve,
                                              bool broadcast = false);
 
@@ -1640,6 +1642,8 @@ class wallet_api
        * @param sons_to_reject the names or ids of the SONs owner accounts you wish
        *                            to reject (these will be removed from the list of SONs
        *                            you currently approve).  This list can be empty.
+       * @param sidechain the name of the sidechain
+       *
        * @param desired_number_of_sons the number of SONs you believe the network
        *                                    should have.  You must vote for at least this many
        *                                    SONs.  You can set this to 0 to abstain from
@@ -1650,6 +1654,7 @@ class wallet_api
       signed_transaction update_son_votes(string voting_account,
                                               std::vector<std::string> sons_to_approve,
                                               std::vector<std::string> sons_to_reject,
+                                              sidechain_type sidechain,
                                               uint16_t desired_number_of_sons,
                                               bool broadcast = false);
 

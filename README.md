@@ -84,9 +84,9 @@ sudo apt-get install \
 
 Install Boost libraries from source
 ```
-wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.bz2/download' -O boost_1_67_0.tar.bz2
-tar xjf boost_1_67_0.tar.bz2
-cd boost_1_67_0/
+wget -c 'https://boostorg.jfrog.io/artifactory/main/release/1.71.0/source/boost_1_71_0.tar.bz2' -O boost_1_71_0.tar.bz2
+tar xjf boost_1_71_0.tar.bz2
+cd boost_1_71_0/
 ./bootstrap.sh
 sudo ./b2 install
 ```

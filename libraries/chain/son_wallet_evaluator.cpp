@@ -20,8 +20,16 @@ void_result recreate_son_wallet_evaluator::do_evaluate(const son_wallet_recreate
 
       bool son_sets_equal = (cur_wallet_sons.size() == new_wallet_sons.size());
       if (son_sets_equal) {
-         for( size_t i = 0; i < cur_wallet_sons.size(); i++ ) {
-            son_sets_equal = son_sets_equal && cur_wallet_sons.at(i) == new_wallet_sons.at(i);
+         for( const auto& cur_wallet_sidechain_sons : cur_wallet_sons ) {
+            const auto& sidechain = cur_wallet_sidechain_sons.first;
+            const auto& _cur_wallet_sidechain_sons = cur_wallet_sidechain_sons.second;
+
+            son_sets_equal = son_sets_equal && (_cur_wallet_sidechain_sons.size() == new_wallet_sons.at(sidechain).size());
+            if (son_sets_equal) {
+               for (size_t i = 0; i < cur_wallet_sons.size(); i++) {
+                  son_sets_equal = son_sets_equal && _cur_wallet_sidechain_sons.at(i) == new_wallet_sons.at(sidechain).at(i);
+               }
+            }
          }
       }
 
