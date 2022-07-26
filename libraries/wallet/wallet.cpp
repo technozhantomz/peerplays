@@ -2230,69 +2230,99 @@ public:
          return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account) ) }
 
+   //! Fixme - do we need to specify sidechain_type as params here?
    map<string, son_id_type> list_active_sons()
-   { try {
-      global_property_object gpo = get_global_properties();
-      vector<son_id_type> son_ids;
-      son_ids.reserve(gpo.active_sons.size());
-      std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
-                     std::inserter(son_ids, son_ids.end()),
-                     [](const son_info& swi) {
-         return swi.son_id;
-      });
-      std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
-      vector<std::string> owners;
-      for(auto obj: son_objects)
+   {
+      try
       {
-         std::string acc_id = account_id_to_string(obj->son_account);
-         owners.push_back(acc_id);
-      }
-      vector< optional< account_object> > accs = _remote_db->get_accounts(owners);
-      std::remove_if(son_objects.begin(), son_objects.end(),
-                     [](const fc::optional<son_object>& obj) -> bool { return obj.valid(); });
-      map<string, son_id_type> result;
-      std::transform(accs.begin(), accs.end(), son_objects.begin(),
-                     std::inserter(result, result.end()),
-                     [](fc::optional<account_object>& acct, fc::optional<son_object> son) {
-                        FC_ASSERT(acct, "Invalid active SONs list in global properties.");
-                        return std::make_pair<string, son_id_type>(string(acct->name), std::move(son->id));
-                     });
-      return result;
-   } FC_CAPTURE_AND_RETHROW() }
-
-   map<son_id_type, string> get_son_network_status()
-   { try {
-      global_property_object gpo = get_global_properties();
-      vector<son_id_type> son_ids;
-      son_ids.reserve(gpo.active_sons.size());
-      std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
-                     std::inserter(son_ids, son_ids.end()),
-                     [](const son_info& swi) {
-         return swi.son_id;
-      });
-
-      map<son_id_type, string> result;
-      std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
-      for(auto son_obj: son_objects) {
-         string status;
-         if (son_obj) {
-            son_statistics_object sso = get_object(son_obj->statistics);
-            if (sso.last_active_timestamp + fc::seconds(gpo.parameters.son_heartbeat_frequency()) > time_point::now()) {
-               status = "OK, regular SON heartbeat";
-            } else {
-               if (sso.last_active_timestamp + fc::seconds(gpo.parameters.son_down_time()) > time_point::now()) {
-                  status = "OK, irregular SON heartbeat, but not triggering SON down proposal";
-               } else {
-                  status = "NOT OK, irregular SON heartbeat, triggering SON down proposal";
-               }
-            }
-         } else {
-            status = "NOT OK, invalid SON id";
+         const global_property_object& gpo = get_global_properties();
+         set<son_id_type> son_ids_set;
+         for(const auto& active_sidechain_type : active_sidechain_types)
+         {
+            std::transform(gpo.active_sons.at(active_sidechain_type).cbegin(), gpo.active_sons.at(active_sidechain_type).cend(),
+                           std::inserter(son_ids_set, son_ids_set.end()),
+                           [](const son_info &swi) {
+                              return swi.son_id;
+                           });
          }
-         result[son_obj->id] = status;
+         vector<son_id_type> son_ids;
+         son_ids.reserve(son_ids_set.size());
+         for(const auto& son_id : son_ids_set)
+         {
+            son_ids.emplace_back(son_id);
+         }
+
+         std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
+         vector<std::string> owners;
+         for(auto obj: son_objects)
+         {
+            std::string acc_id = account_id_to_string(obj->son_account);
+            owners.push_back(acc_id);
+         }
+         vector< optional< account_object> > accs = _remote_db->get_accounts(owners);
+         std::remove_if(son_objects.begin(), son_objects.end(),
+                        [](const fc::optional<son_object>& obj) -> bool { return obj.valid(); });
+         map<string, son_id_type> result;
+         std::transform(accs.begin(), accs.end(), son_objects.begin(),
+                        std::inserter(result, result.end()),
+                        [](fc::optional<account_object>& acct, fc::optional<son_object> son) {
+                           FC_ASSERT(acct, "Invalid active SONs list in global properties.");
+                           return std::make_pair<string, son_id_type>(string(acct->name), std::move(son->id));
+                        });
+         return result;
       }
-      return result;
-   } FC_CAPTURE_AND_RETHROW() }
+      FC_CAPTURE_AND_RETHROW()
+   }
+
+   //! Fixme - do we need to specify sidechain_type as params here?
+   map<son_id_type, string> get_son_network_status()
+   {
+      try
+      {
+         const global_property_object& gpo = get_global_properties();
+
+         set<son_id_type> son_ids_set;
+         for(const auto& active_sidechain_type : active_sidechain_types) {
+            std::transform(gpo.active_sons.at(active_sidechain_type).cbegin(), gpo.active_sons.at(active_sidechain_type).cend(),
+                           std::inserter(son_ids_set, son_ids_set.end()),
+                           [](const son_info &swi) {
+               return swi.son_id;
+            });
+         }
+         vector<son_id_type> son_ids;
+         son_ids.reserve(son_ids_set.size());
+         std::transform(son_ids_set.cbegin(), son_ids_set.cend(),
+                        std::inserter(son_ids, son_ids.end()),
+                        [](const son_id_type& sit) {
+            return sit;
+         });
+
+         map<son_id_type, string> result;
+         std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
+         for(auto son_obj: son_objects) {
+            string status;
+            if (son_obj) {
+               son_statistics_object sso = get_object(son_obj->statistics);
+               for(const auto& active_sidechain_type : active_sidechain_types) {
+                  if (sso.last_active_timestamp.at(active_sidechain_type) + fc::seconds(gpo.parameters.son_heartbeat_frequency()) > time_point::now()) {
+                     status = "[OK, regular SON heartbeat for sidechain " + std::to_string(static_cast<unsigned int>(active_sidechain_type)) + "] ";
+                  } else {
+                     if (sso.last_active_timestamp.at(active_sidechain_type) + fc::seconds(gpo.parameters.son_down_time()) > time_point::now()) {
+                        status = "[OK, irregular SON heartbeat, but not triggering SON down proposal for sidechain " + std::to_string(static_cast<unsigned int>(active_sidechain_type)) + "] ";
+                     } else {
+                        status = "[NOT OK, irregular SON heartbeat, triggering SON down proposal for sidechain " + std::to_string(static_cast<unsigned int>(active_sidechain_type)) + "] ";
+                     }
+                  }
+               }
+            } else {
+               status = "NOT OK, invalid SON id";
+            }
+            result[son_obj->id] = status;
+         }
+         return result;
+      }
+      FC_CAPTURE_AND_RETHROW()
+   }
 
    optional<son_wallet_object> get_active_son_wallet()
    { try {
@@ -2800,6 +2830,7 @@ public:
 
    signed_transaction vote_for_son(string voting_account,
                                         string son,
+                                        sidechain_type sidechain,
                                         bool approve,
                                         bool broadcast /* = false */)
    { try {
@@ -2813,19 +2844,20 @@ public:
       account_object voting_account_object = get_account(voting_account);
       account_id_type son_account_id = get_account_id(son);
       fc::optional<son_object> son_obj = _remote_db->get_son_by_account_id(son_account_id);
-      if (!son_obj)
-         FC_THROW("Account ${son} is not registered as a son", ("son", son));
+      FC_ASSERT(son_obj, "Account ${son} is not registered as a son", ("son", son));
+      FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive, "Unexpected sidechain type");
+
       if (approve)
       {
-         auto insert_result = voting_account_object.options.votes.insert(son_obj->vote_id);
+         auto insert_result = voting_account_object.options.votes.insert(son_obj->get_sidechain_vote_id(sidechain));
          if (!insert_result.second)
-            FC_THROW("Account ${account} was already voting for son ${son}", ("account", voting_account)("son", son));
+            FC_THROW("Account ${account} has already voted for son ${son} for sidechain ${sidechain}", ("account", voting_account)("son", son)("sidechain", sidechain));
       }
       else
       {
-         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->vote_id);
+         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->get_sidechain_vote_id(sidechain));
          if (!votes_removed)
-            FC_THROW("Account ${account} is already not voting for son ${son}", ("account", voting_account)("son", son));
+            FC_THROW("Account ${account} has already unvoted for son ${son} for sidechain ${sidechain}", ("account", voting_account)("son", son)("sidechain", sidechain));
       }
       account_update_operation account_update_op;
       account_update_op.account = voting_account_object.id;
@@ -2842,6 +2874,7 @@ public:
    signed_transaction update_son_votes(string voting_account,
                                            std::vector<std::string> sons_to_approve,
                                            std::vector<std::string> sons_to_reject,
+                                           sidechain_type sidechain,
                                            uint16_t desired_number_of_sons,
                                            bool broadcast /* = false */)
    { try {
@@ -2857,9 +2890,10 @@ public:
       {
          account_id_type son_owner_account_id = get_account_id(son);
          fc::optional<son_object> son_obj = _remote_db->get_son_by_account_id(son_owner_account_id);
-         if (!son_obj)
-            FC_THROW("Account ${son} is not registered as a SON", ("son", son));
-         auto insert_result = voting_account_object.options.votes.insert(son_obj->vote_id);
+         FC_ASSERT(son_obj, "Account ${son} is not registered as a son", ("son", son));
+         FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive, "Unexpected sidechain type");
+
+         auto insert_result = voting_account_object.options.votes.insert(son_obj->get_sidechain_vote_id(sidechain));
          if (!insert_result.second)
             FC_THROW("Account ${account} was already voting for SON ${son}", ("account", voting_account)("son", son));
       }
@@ -2867,13 +2901,15 @@ public:
       {
          account_id_type son_owner_account_id = get_account_id(son);
          fc::optional<son_object> son_obj = _remote_db->get_son_by_account_id(son_owner_account_id);
-         if (!son_obj)
-            FC_THROW("Account ${son} is not registered as a SON", ("son", son));
-         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->vote_id);
+         FC_ASSERT(son_obj, "Account ${son} is not registered as a son", ("son", son));
+         FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive, "Unexpected sidechain type");
+
+         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->get_sidechain_vote_id(sidechain));
          if (!votes_removed)
             FC_THROW("Account ${account} is already not voting for SON ${son}", ("account", voting_account)("son", son));
       }
-      voting_account_object.options.extensions.value.num_son = desired_number_of_sons;
+      FC_ASSERT( voting_account_object.options.extensions.value.num_son.valid() , "Invalid son number" );
+      (*voting_account_object.options.extensions.value.num_son)[sidechain] = desired_number_of_sons;
 
       account_update_operation account_update_op;
       account_update_op.account = voting_account_object.id;
@@ -5428,19 +5464,21 @@ signed_transaction wallet_api::vote_for_committee_member(string voting_account,
 
 signed_transaction wallet_api::vote_for_son(string voting_account,
                                                    string son,
+                                                   sidechain_type sidechain,
                                                    bool approve,
                                                    bool broadcast /* = false */)
 {
-   return my->vote_for_son(voting_account, son, approve, broadcast);
+   return my->vote_for_son(voting_account, son, sidechain, approve, broadcast);
 }
 
 signed_transaction wallet_api::update_son_votes(string voting_account,
                                                     std::vector<std::string> sons_to_approve,
                                                     std::vector<std::string> sons_to_reject,
+                                                    sidechain_type sidechain,
                                                     uint16_t desired_number_of_sons,
                                                     bool broadcast /* = false */)
 {
-   return my->update_son_votes(voting_account, sons_to_approve, sons_to_reject, desired_number_of_sons, broadcast);
+   return my->update_son_votes(voting_account, sons_to_approve, sons_to_reject, sidechain, desired_number_of_sons, broadcast);
 }
 
 signed_transaction wallet_api::sidechain_deposit_transaction(  const string &son_name_or_id,

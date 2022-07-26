@@ -59,7 +59,8 @@ struct vote_id_type
       committee,
       witness,
       worker,
-      son,
+      son_bitcoin,
+      son_hive,
       VOTE_TYPE_COUNT
    };
 
@@ -144,7 +145,7 @@ void from_variant( const fc::variant& var, graphene::chain::vote_id_type& vo, ui
 
 FC_REFLECT_TYPENAME( fc::flat_set<graphene::chain::vote_id_type> )
 
-FC_REFLECT_ENUM( graphene::chain::vote_id_type::vote_type, (witness)(committee)(worker)(son)(VOTE_TYPE_COUNT) )
+FC_REFLECT_ENUM( graphene::chain::vote_id_type::vote_type, (witness)(committee)(worker)(son_bitcoin)(son_hive)(VOTE_TYPE_COUNT) )
 FC_REFLECT( graphene::chain::vote_id_type, (content) )
 
 GRAPHENE_EXTERNAL_SERIALIZATION( extern, graphene::chain::vote_id_type )

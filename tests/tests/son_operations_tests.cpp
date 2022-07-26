@@ -193,12 +193,14 @@ try {
    // Modify SON's status to active
    db.modify( *obj, [&]( son_object& _s)
    {
-      _s.status = son_status::in_maintenance;
+      _s.statuses[sidechain_type::bitcoin] = son_status::in_maintenance;
+      _s.statuses[sidechain_type::hive] = son_status::in_maintenance;
    });
 
    db.modify( *son_stats_obj, [&]( son_statistics_object& _s)
    {
-      _s.last_down_timestamp = fc::time_point_sec(db.head_block_time() - db.get_global_properties().parameters.son_deregister_time());
+      _s.last_down_timestamp[sidechain_type::bitcoin] = fc::time_point_sec(db.head_block_time() - db.get_global_properties().parameters.son_deregister_time());
+      _s.last_down_timestamp[sidechain_type::hive] = fc::time_point_sec(db.head_block_time() - db.get_global_properties().parameters.son_deregister_time());
    });
 
    auto deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
@@ -218,7 +220,8 @@ try {
    generate_block();
 
    BOOST_REQUIRE( idx.size() == 1 );
-   BOOST_REQUIRE( obj->status == son_status::deregistered );
+   BOOST_REQUIRE( obj->statuses.at(sidechain_type::bitcoin) == son_status::deregistered );
+   BOOST_REQUIRE( obj->statuses.at(sidechain_type::hive) == son_status::deregistered );
    BOOST_REQUIRE( son_stats_obj->deregistered_timestamp == now );
 
    deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
@@ -604,12 +607,14 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
       // Modify SON's status to active
       db.modify( *obj, [&]( son_object& _s)
       {
-         _s.status = son_status::active;
+         _s.statuses[sidechain_type::bitcoin] = son_status::active;
+         _s.statuses[sidechain_type::hive] = son_status::active;
       });
 
       db.modify( *son_stats_obj, [&]( son_statistics_object& _s)
       {
-         _s.last_down_timestamp = fc::time_point_sec(db.head_block_time());
+         _s.last_down_timestamp[sidechain_type::bitcoin] = fc::time_point_sec(db.head_block_time());
+         _s.last_down_timestamp[sidechain_type::hive] = fc::time_point_sec(db.head_block_time());
       });
 
       {
@@ -626,7 +631,8 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          PUSH_TX( db, trx, ~0);
          generate_block();
          trx.clear();
-         BOOST_CHECK( obj->status == son_status::request_maintenance);
+         BOOST_CHECK( obj->statuses.at(sidechain_type::bitcoin) == son_status::request_maintenance);
+         BOOST_CHECK( obj->statuses.at(sidechain_type::hive) == son_status::request_maintenance);
       }
 
       {
@@ -643,16 +649,20 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          PUSH_TX( db, trx, ~0);
          generate_block();
          trx.clear();
-         BOOST_CHECK( obj->status == son_status::active);
+         BOOST_CHECK( obj->statuses.at(sidechain_type::bitcoin) == son_status::active);
+         BOOST_CHECK( obj->statuses.at(sidechain_type::hive) == son_status::active);
       }
 
       // Modify SON's status to in_maintenance
       db.modify( *obj, [&]( son_object& _s)
       {
-         _s.status = son_status::in_maintenance;
+         _s.statuses[sidechain_type::bitcoin] = son_status::in_maintenance;
+         _s.statuses[sidechain_type::hive] = son_status::in_maintenance;
       });
 
-      uint64_t downtime = 0;
+      flat_map<sidechain_type, uint64_t> downtime;
+      downtime[sidechain_type::bitcoin] = 0;
+      downtime[sidechain_type::hive] = 0;
 
       {
          generate_block();
@@ -668,16 +678,21 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          PUSH_TX( db, trx, ~0);
          generate_block();
          trx.clear();
-         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime, op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch());
-         downtime += op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch();
-         BOOST_CHECK( obj->status == son_status::inactive);
-         BOOST_CHECK( son_stats_obj->last_active_timestamp == op.ts);
+         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime.at(sidechain_type::bitcoin), op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.at(sidechain_type::bitcoin).sec_since_epoch());
+         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime.at(sidechain_type::hive), op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.at(sidechain_type::hive).sec_since_epoch());
+         downtime[sidechain_type::bitcoin] += op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.at(sidechain_type::bitcoin).sec_since_epoch();
+         downtime[sidechain_type::hive] += op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.at(sidechain_type::hive).sec_since_epoch();
+         BOOST_CHECK( obj->statuses.at(sidechain_type::bitcoin) == son_status::inactive);
+         BOOST_CHECK( obj->statuses.at(sidechain_type::hive) == son_status::inactive);
+         BOOST_CHECK( son_stats_obj->last_active_timestamp.at(sidechain_type::bitcoin) == op.ts);
+         BOOST_CHECK( son_stats_obj->last_active_timestamp.at(sidechain_type::hive) == op.ts);
       }
 
       // Modify SON's status to in_maintenance
       db.modify( *obj, [&]( son_object& _s)
       {
-         _s.status = son_status::in_maintenance;
+         _s.statuses[sidechain_type::bitcoin] = son_status::in_maintenance;
+         _s.statuses[sidechain_type::hive] = son_status::in_maintenance;
       });
 
       // SON is selected as one of the active SONs
@@ -685,7 +700,8 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
       {
          son_info son_inf;
          son_inf.son_id = son_id_type(0);
-         _gpo.active_sons.push_back(son_inf);
+         _gpo.active_sons[sidechain_type::bitcoin].push_back(son_inf);
+         _gpo.active_sons[sidechain_type::hive].push_back(son_inf);
       });
 
       {
@@ -702,10 +718,15 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          PUSH_TX( db, trx, ~0);
          generate_block();
          trx.clear();
-         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime, downtime + op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch());
-         downtime += op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch();
-         BOOST_CHECK( obj->status == son_status::active);
-         BOOST_CHECK( son_stats_obj->last_active_timestamp == op.ts);
+
+         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime.at(sidechain_type::bitcoin), downtime.at(sidechain_type::bitcoin) + op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.at(sidechain_type::bitcoin).sec_since_epoch());
+         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime.at(sidechain_type::hive), downtime.at(sidechain_type::hive) + op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.at(sidechain_type::hive).sec_since_epoch());
+         downtime[sidechain_type::bitcoin] += op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.at(sidechain_type::bitcoin).sec_since_epoch();
+         downtime[sidechain_type::hive] += op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.at(sidechain_type::hive).sec_since_epoch();
+         BOOST_CHECK( obj->statuses.at(sidechain_type::bitcoin) == son_status::active);
+         BOOST_CHECK( obj->statuses.at(sidechain_type::hive) == son_status::active);
+         BOOST_CHECK( son_stats_obj->last_active_timestamp.at(sidechain_type::bitcoin) == op.ts);
+         BOOST_CHECK( son_stats_obj->last_active_timestamp.at(sidechain_type::hive) == op.ts);
       }
 
       {
@@ -722,9 +743,12 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          PUSH_TX( db, trx, ~0);
          generate_block();
          trx.clear();
-         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime, downtime);
-         BOOST_CHECK( obj->status == son_status::active);
-         BOOST_CHECK( son_stats_obj->last_active_timestamp == op.ts);
+         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime.at(sidechain_type::bitcoin), downtime.at(sidechain_type::bitcoin));
+         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime.at(sidechain_type::hive), downtime.at(sidechain_type::hive));
+         BOOST_CHECK( obj->statuses.at(sidechain_type::bitcoin) == son_status::active);
+         BOOST_CHECK( obj->statuses.at(sidechain_type::hive) == son_status::active);
+         BOOST_CHECK( son_stats_obj->last_active_timestamp.at(sidechain_type::bitcoin) == op.ts);
+         BOOST_CHECK( son_stats_obj->last_active_timestamp.at(sidechain_type::hive) == op.ts);
       }
    } FC_LOG_AND_RETHROW()
 }
@@ -749,7 +773,8 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
       auto son_stats_obj = sidx.find( obj->statistics );
       BOOST_REQUIRE( son_stats_obj != sidx.end() );
 
-      BOOST_CHECK( obj->status == son_status::active);
+      BOOST_CHECK( obj->statuses.at(sidechain_type::bitcoin) == son_status::active);
+      BOOST_CHECK( obj->statuses.at(sidechain_type::hive) == son_status::active);
 
       {
          // Check that transaction fails if down_ts < last_active_timestamp
@@ -758,7 +783,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          son_report_down_operation op;
          op.payer = db.get_global_properties().parameters.son_account();
          op.son_id = son_id_type(0);
-         op.down_ts = fc::time_point_sec(son_stats_obj->last_active_timestamp - fc::seconds(1));
+         op.down_ts = fc::time_point_sec(son_stats_obj->last_active_timestamp.at(sidechain_type::bitcoin) - fc::seconds(1));
 
          trx.operations.push_back(op);
          set_expiration(db, trx);
@@ -775,7 +800,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          son_report_down_operation op;
          op.payer = alice_id;
          op.son_id = son_id_type(0);
-         op.down_ts = son_stats_obj->last_active_timestamp;
+         op.down_ts = son_stats_obj->last_active_timestamp.at(sidechain_type::bitcoin);
 
          trx.operations.push_back(op);
          set_expiration(db, trx);
@@ -792,7 +817,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          son_report_down_operation op;
          op.payer = db.get_global_properties().parameters.son_account();
          op.son_id = son_id_type(0);
-         op.down_ts = son_stats_obj->last_active_timestamp;
+         op.down_ts = son_stats_obj->last_active_timestamp.at(sidechain_type::bitcoin);
 
          trx.operations.push_back(op);
          set_expiration(db, trx);
@@ -801,8 +826,10 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          generate_block();
          trx.clear();
 
-         BOOST_CHECK( obj->status == son_status::in_maintenance);
-         BOOST_CHECK( son_stats_obj->last_down_timestamp == op.down_ts);
+         BOOST_CHECK( obj->statuses.at(sidechain_type::bitcoin) == son_status::in_maintenance);
+         BOOST_CHECK( obj->statuses.at(sidechain_type::hive) == son_status::in_maintenance);
+         BOOST_CHECK( son_stats_obj->last_down_timestamp.at(sidechain_type::bitcoin) == op.down_ts);
+         BOOST_CHECK( son_stats_obj->last_down_timestamp.at(sidechain_type::hive) == op.down_ts);
       }
 
       {
@@ -812,7 +839,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          son_report_down_operation op;
          op.payer = db.get_global_properties().parameters.son_account();
          op.son_id = son_id_type(0);
-         op.down_ts = son_stats_obj->last_active_timestamp;
+         op.down_ts = son_stats_obj->last_active_timestamp.at(sidechain_type::bitcoin);
 
          trx.operations.push_back(op);
          set_expiration(db, trx);

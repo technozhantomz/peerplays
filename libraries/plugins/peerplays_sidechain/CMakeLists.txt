@@ -3,7 +3,7 @@ file(GLOB_RECURSE HEADERS "include/graphene/peerplays_sidechain/*.hpp")
 add_library( peerplays_sidechain
              peerplays_sidechain_plugin.cpp
              sidechain_api.cpp
-             sidechain_net_manager.cpp
+             sidechain_net_handler_factory.cpp
              sidechain_net_handler.cpp
              sidechain_net_handler_bitcoin.cpp
              sidechain_net_handler_hive.cpp

@@ -47,7 +47,7 @@ void_result update_sidechain_address_evaluator::do_evaluate(const sidechain_addr
 { try {
     const auto& sidx = db().get_index_type<son_index>().indices().get<by_account>();
     const auto& son_obj = sidx.find(op.payer);
-    FC_ASSERT( son_obj != sidx.end() && db().is_son_active(son_obj->id), "Non active SON trying to update deposit address object" );
+    FC_ASSERT( son_obj != sidx.end() && db().is_son_active(op.sidechain, son_obj->id), "Non active SON trying to update deposit address object" );
     const auto& sdpke_idx = db().get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_public_key_and_expires>();
     FC_ASSERT( op.deposit_address.valid() && op.deposit_public_key.valid() && op.deposit_address_data.valid(), "Update operation by SON is not valid");
     FC_ASSERT( (*op.deposit_address).length() > 0 && (*op.deposit_public_key).length() > 0 && (*op.deposit_address_data).length() > 0, "SON should create a valid deposit address with valid deposit public key");

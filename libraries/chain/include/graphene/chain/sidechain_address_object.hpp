@@ -31,7 +31,7 @@ namespace graphene { namespace chain {
          time_point_sec expires;
 
          sidechain_address_object() :
-            sidechain(sidechain_type::bitcoin),
+            sidechain(sidechain_type::bitcoin), //! FIXME - bitcoin ???
             deposit_public_key(""),
             deposit_address(""),
             withdraw_public_key(""),

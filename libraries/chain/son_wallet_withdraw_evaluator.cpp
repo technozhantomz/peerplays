@@ -23,15 +23,15 @@ void_result create_son_wallet_withdraw_evaluator::do_evaluate(const son_wallet_w
    const auto &swwo_idx = db().get_index_type<son_wallet_withdraw_index>().indices().get<by_peerplays_uid>();
    const auto swwo = swwo_idx.find(op.peerplays_uid);
    if (swwo == swwo_idx.end()) {
-      auto &gpo = db().get_global_properties();
+      const auto &gpo = db().get_global_properties();
       bool expected = false;
-      for (auto &si : gpo.active_sons) {
+      for (auto &si : gpo.active_sons.at(op.sidechain)) {
          if (op.son_id == si.son_id) {
             expected = true;
             break;
          }
       }
-      FC_ASSERT(expected, "Only active SON can create deposit");
+      FC_ASSERT(expected, "Only active SON can create withdraw");
    } else {
       bool exactly_the_same = true;
       exactly_the_same = exactly_the_same && (swwo->sidechain == op.sidechain);
@@ -76,8 +76,8 @@ object_id_type create_son_wallet_withdraw_evaluator::do_apply(const son_wallet_w
          swwo.withdraw_currency = op.withdraw_currency;
          swwo.withdraw_amount = op.withdraw_amount;
 
-         auto &gpo = db().get_global_properties();
-         for (auto &si : gpo.active_sons) {
+         const auto &gpo = db().get_global_properties();
+         for (auto &si : gpo.active_sons.at(op.sidechain)) {
             swwo.expected_reports.insert(std::make_pair(si.son_id, si.weight));
 
             auto stats_itr = db().get_index_type<son_stats_index>().indices().get<by_owner>().find(si.son_id);
@@ -140,11 +140,11 @@ void_result process_son_wallet_withdraw_evaluator::do_evaluate(const son_wallet_
 { try{
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
    FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
-   FC_ASSERT(db().get_global_properties().active_sons.size() >= db().get_chain_properties().immutable_parameters.min_son_count, "Min required voted SONs not present");
 
    const auto& idx = db().get_index_type<son_wallet_withdraw_index>().indices().get<by_id>();
    const auto& itr = idx.find(op.son_wallet_withdraw_id);
    FC_ASSERT(itr != idx.end(), "Son wallet withdraw not found");
+   FC_ASSERT(db().get_global_properties().active_sons.at(itr->sidechain).size() >= db().get_chain_properties().immutable_parameters.min_son_count, "Min required voted SONs not present");
    FC_ASSERT(!itr->processed, "Son wallet withdraw is already processed");
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
