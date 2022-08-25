@@ -76,14 +76,14 @@ bool verify_sig(const bytes &sig, const bytes &pubkey, const bytes &msg, const s
    //! Get sig_temp
    FC_ASSERT(sig.size() > 70);
    FC_ASSERT(sig[0] == 0x30);
-   FC_ASSERT(sig[1] == static_cast<char>(sig.size()-3));
+   FC_ASSERT(sig[1] == static_cast<char>(sig.size() - 3));
    FC_ASSERT(sig[2] == 0x02);
    const uint r_size = sig[3];
-   std::vector<unsigned char> sig_temp(sig.begin()+4+(r_size-32), sig.begin()+4+r_size);
-   FC_ASSERT(sig[4+r_size] == 0x02);
-   const uint s_size = sig[5+r_size];
-   FC_ASSERT(sig.size() == r_size+s_size+7);
-   sig_temp.insert(sig_temp.end(), sig.begin()+6+r_size, sig.end());
+   std::vector<unsigned char> sig_temp(sig.begin() + 4 + (r_size - 32), sig.begin() + 4 + r_size);
+   FC_ASSERT(sig[4 + r_size] == 0x02);
+   const uint s_size = sig[5 + r_size];
+   FC_ASSERT(sig.size() == r_size + s_size + 7);
+   sig_temp.insert(sig_temp.end(), sig.begin() + 6 + r_size, sig.end());
 
    std::vector<unsigned char> pubkey_temp(pubkey.begin(), pubkey.end());
    std::vector<unsigned char> msg_temp(msg.begin(), msg.end());

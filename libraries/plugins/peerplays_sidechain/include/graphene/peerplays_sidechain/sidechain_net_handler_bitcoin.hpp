@@ -1,7 +1,7 @@
 #pragma once
 
-#include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 #include <graphene/peerplays_sidechain/common/rpc_client.hpp>
+#include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
 #include <string>
 #include <thread>
@@ -23,7 +23,7 @@ public:
    uint64_t amount_;
 };
 
-class bitcoin_rpc_client: public rpc_client  {
+class bitcoin_rpc_client : public rpc_client {
 public:
    enum class multi_type {
       script,
@@ -65,7 +65,6 @@ private:
    std::string password;
    std::string wallet;
    std::string wallet_password;
-
 };
 
 // =============================================================================
