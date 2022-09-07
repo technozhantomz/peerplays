@@ -61,7 +61,7 @@ namespace graphene { namespace net {
    class node_delegate
    {
       public:
-         virtual ~node_delegate(){}
+         virtual ~node_delegate() = default;
 
          /**
           *  If delegate has the item, the network has no need to fetch it.
@@ -71,7 +71,9 @@ namespace graphene { namespace net {
          /**
           *  @brief Called when a new block comes in from the network
           *
+          *  @param blk_msg the message which contains the block
           *  @param sync_mode true if the message was fetched through the sync process, false during normal operation
+          *  @param contained_transaction_msg_ids container for the transactions to write back into
           *  @returns true if this message caused the blockchain to switch forks, false if it did not
           *
           *  @throws exception if error validating the item, otherwise the item is
@@ -195,7 +197,7 @@ namespace graphene { namespace net {
    {
       public:
         node(const std::string& user_agent);
-        ~node();
+        virtual ~node();
 
         void close();
 
@@ -213,10 +215,33 @@ namespace graphene { namespace net {
          */
         void      add_node( const fc::ip::endpoint& ep );
 
+        /*****
+         * @brief add a list of nodes to seed the p2p network
+         * @param seeds a vector of url strings
+         */
+        void add_seed_nodes( std::vector<std::string> seeds );
+
+        /****
+         * @brief add a node to seed the p2p network
+         * @param in the url as a string
+         */
+        void add_seed_node( const std::string& in);
+
         /**
          *  Attempt to connect to the specified endpoint immediately.
          */
         virtual void connect_to_endpoint( const fc::ip::endpoint& ep );
+
+        /**
+         * @brief Helper to convert a string to a collection of endpoints
+         *
+         * This converts a string (i.e. "bitshares.eu:665535" to a collection of endpoints.
+         * NOTE: Throws an exception if not in correct format or was unable to resolve URL.
+         *
+         * @param in the incoming string
+         * @returns a vector of endpoints
+         */
+        static std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string& in );
 
         /**
          *  Specifies the network interface and port upon which incoming
