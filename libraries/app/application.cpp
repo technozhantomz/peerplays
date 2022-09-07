@@ -917,7 +917,8 @@ void application::initialize(const fc::path &data_dir, const boost::program_opti
       wanted.insert("accounts_list");
       wanted.insert("affiliate_stats");
    }
-   wanted.insert("witness");
+   if (!wanted.count("delayed_node") && !wanted.count("witness"))	// explicitly requested delayed_node functionality suppresses witness functions
+     wanted.insert("witness");
    wanted.insert("bookie");
 
    int es_ah_conflict_counter = 0;
@@ -949,7 +950,7 @@ void application::startup() {
 }
 
 std::shared_ptr<abstract_plugin> application::get_plugin(const string &name) const {
-   return my->_active_plugins[name];
+   return is_plugin_enabled(name) ? my->_active_plugins[name] : nullptr;
 }
 
 bool application::is_plugin_enabled(const string &name) const {
