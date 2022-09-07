@@ -62,6 +62,7 @@ namespace graphene { namespace net
     class peer_connection_delegate
     {
     public:
+      virtual ~peer_connection_delegate() = default;
       virtual void on_message(peer_connection* originating_peer,
                               const message& received_message) = 0;
       virtual void on_connection_closed(peer_connection* originating_peer) = 0;
@@ -125,7 +126,7 @@ namespace graphene { namespace net
          * it is sitting on the queue
          */
         virtual size_t get_size_in_queue() = 0;
-        virtual ~queued_message() {}
+        virtual ~queued_message() = default;
       };
 
       /* when you queue up a 'real_queued_message', a full copy of the message is
