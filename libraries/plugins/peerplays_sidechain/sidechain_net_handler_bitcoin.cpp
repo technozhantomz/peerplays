@@ -334,9 +334,9 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    rpc_port = options.at("bitcoin-node-rpc-port").as<uint32_t>();
    rpc_user = options.at("bitcoin-node-rpc-user").as<std::string>();
    rpc_password = options.at("bitcoin-node-rpc-password").as<std::string>();
-   wallet = "";
-   if (options.count("bitcoin-wallet")) {
-      wallet = options.at("bitcoin-wallet").as<std::string>();
+   wallet_name = "";
+   if (options.count("bitcoin-wallet-name")) {
+      wallet_name = options.at("bitcoin-wallet-name").as<std::string>();
    }
    wallet_password = "";
    if (options.count("bitcoin-wallet-password")) {
@@ -356,13 +356,13 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    }
 
    std::string url = ip + ":" + std::to_string(rpc_port);
-   if (wallet.length() > 0) {
-      url = url + "/wallet/" + wallet;
+   if (!wallet_name.empty()) {
+      url = url + "/wallet/" + wallet_name;
    }
 
    bitcoin_client = std::unique_ptr<bitcoin_rpc_client>(new bitcoin_rpc_client(url, rpc_user, rpc_password, debug_rpc_calls));
-   if (!wallet.empty()) {
-      bitcoin_client->loadwallet(wallet);
+   if (!wallet_name.empty()) {
+      bitcoin_client->loadwallet(wallet_name);
    }
 
    std::string blockchain_info = bitcoin_client->getblockchaininfo();

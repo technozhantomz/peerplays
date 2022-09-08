@@ -23,15 +23,16 @@ protected:
    std::string send_post_request(std::string method, std::string params, bool show_log);
 
    std::string url;
+   std::string user;
+   std::string password;
+   bool debug_rpc_calls;
+
    std::string protocol;
    std::string host;
    std::string port;
    std::string target;
    std::string authorization;
 
-   std::string user;
-   std::string password;
-   bool debug_rpc_calls;
    uint32_t request_id;
 
 private:

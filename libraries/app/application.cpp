@@ -917,8 +917,8 @@ void application::initialize(const fc::path &data_dir, const boost::program_opti
       wanted.insert("accounts_list");
       wanted.insert("affiliate_stats");
    }
-   if (!wanted.count("delayed_node") && !wanted.count("witness"))	// explicitly requested delayed_node functionality suppresses witness functions
-     wanted.insert("witness");
+   if (!wanted.count("delayed_node") && !wanted.count("witness")) // explicitly requested delayed_node functionality suppresses witness functions
+      wanted.insert("witness");
    wanted.insert("bookie");
 
    int es_ah_conflict_counter = 0;

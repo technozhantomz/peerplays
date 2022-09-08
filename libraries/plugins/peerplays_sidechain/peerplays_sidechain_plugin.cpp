@@ -172,7 +172,7 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("bitcoin-node-rpc-port", bpo::value<uint32_t>()->default_value(8332), "RPC port of Bitcoin node");
    cli.add_options()("bitcoin-node-rpc-user", bpo::value<string>()->default_value("1"), "Bitcoin RPC user");
    cli.add_options()("bitcoin-node-rpc-password", bpo::value<string>()->default_value("1"), "Bitcoin RPC password");
-   cli.add_options()("bitcoin-wallet", bpo::value<string>(), "Bitcoin wallet");
+   cli.add_options()("bitcoin-wallet-name", bpo::value<string>(), "Bitcoin wallet name");
    cli.add_options()("bitcoin-wallet-password", bpo::value<string>(), "Bitcoin wallet password");
    cli.add_options()("bitcoin-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("02d0f137e717fb3aab7aff99904001d49a0a636c5e1342f8927a4ba2eaee8e9772", "cVN31uC9sTEr392DLVUEjrtMgLA8Yb3fpYmTRj7bomTm6nn2ANPr")),
                      "Tuple of [Bitcoin public key, Bitcoin private key] (may specify multiple times)");
@@ -181,6 +181,7 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("hive-node-rpc-url", bpo::value<string>()->default_value("127.0.0.1:28090"), "Hive node RPC URL [http[s]://]host[:port]");
    cli.add_options()("hive-node-rpc-user", bpo::value<string>(), "Hive node RPC user");
    cli.add_options()("hive-node-rpc-password", bpo::value<string>(), "Hive node RPC password");
+   cli.add_options()("hive-wallet-account-name", bpo::value<string>(), "Hive wallet account name");
    cli.add_options()("hive-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("TST6LLegbAgLAy28EHrffBVuANFWcFgmqRMW13wBmTExqFE9SCkg4", "5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n")),
                      "Tuple of [Hive public key, Hive private key] (may specify multiple times)");
 
@@ -231,9 +232,9 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
    config_ready_bitcoin = options.count("bitcoin-node-ip") &&
                           options.count("bitcoin-node-zmq-port") && options.count("bitcoin-node-rpc-port") &&
                           options.count("bitcoin-node-rpc-user") && options.count("bitcoin-node-rpc-password") &&
-                          /*options.count("bitcoin-wallet") && options.count("bitcoin-wallet-password") &&*/
+                          options.count("bitcoin-wallet-name") && options.count("bitcoin-wallet-password") &&
                           options.count("bitcoin-private-key");
-   if (!config_ready_bitcoin) {
+   if (sidechain_enabled_bitcoin && !config_ready_bitcoin) {
       wlog("Haven't set up Bitcoin sidechain parameters");
    }
 
@@ -248,27 +249,20 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
    sidechain_enabled_hive = options.at("hive-sidechain-enabled").as<bool>();
    config_ready_hive = options.count("hive-node-rpc-url") &&
                        /*options.count("hive-node-rpc-user") && options.count("hive-node-rpc-password") &&*/
+                       options.count("hive-wallet-account-name") &&
                        options.count("hive-private-key");
-   if (!config_ready_hive) {
+   if (sidechain_enabled_hive && !config_ready_hive) {
       wlog("Haven't set up Hive sidechain parameters");
    }
 
 #ifdef ENABLE_PEERPLAYS_ASSET_DEPOSITS
-   sidechain_enabled_peerplays = true; //options.at("peerplays-sidechain-enabled").as<bool>();
+   sidechain_enabled_peerplays = true;
 #else
    sidechain_enabled_peerplays = false;
 #endif
    config_ready_peerplays = true;
-   if (!config_ready_peerplays) {
+   if (sidechain_enabled_peerplays && !config_ready_peerplays) {
       wlog("Haven't set up Peerplays sidechain parameters");
-   }
-
-   if (!(config_ready_bitcoin &&
-         /*config_ready_ethereum &&*/
-         config_ready_hive &&
-         config_ready_peerplays)) {
-      wlog("Haven't set up any sidechain parameters");
-      throw;
    }
 }
 

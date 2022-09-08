@@ -2,22 +2,19 @@
 
 #include <regex>
 #include <sstream>
-#include <string>
-
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/xpressive/xpressive.hpp>
 
 #include <boost/asio/buffers_iterator.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
 #include <boost/beast/http.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/xpressive/xpressive.hpp>
 
-#include <curl/curl.h>
-
-#include <fc/crypto/base64.hpp>
 #include <fc/log/logger.hpp>
+
+#include <graphene/peerplays_sidechain/common/utils.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
@@ -55,7 +52,8 @@ rpc_client::rpc_client(std::string _url, std::string _user, std::string _passwor
          target = "/";
       }
 
-      authorization = "Basic " + fc::base64_encode(user + ":" + password);
+      authorization = "Basic " + base64_encode(user + ":" + password);
+
       results = resolver.resolve(host, port);
 
    } else {

@@ -63,7 +63,7 @@ private:
    uint32_t rpc_port;
    std::string user;
    std::string password;
-   std::string wallet;
+   std::string wallet_name;
    std::string wallet_password;
 };
 
@@ -111,17 +111,18 @@ private:
    std::string ip;
    uint32_t zmq_port;
    uint32_t rpc_port;
-   uint32_t bitcoin_major_version;
    std::string rpc_user;
    std::string rpc_password;
-   std::string wallet;
+   std::string wallet_name;
    std::string wallet_password;
 
    std::unique_ptr<bitcoin_rpc_client> bitcoin_client;
    std::unique_ptr<zmq_listener> listener;
 
    fc::future<void> on_changed_objects_task;
+
    bitcoin::bitcoin_address::network network_type;
+   uint32_t bitcoin_major_version;
 
    std::mutex event_handler_mutex;
    typedef std::lock_guard<decltype(event_handler_mutex)> scoped_lock;
