@@ -1377,10 +1377,30 @@ class wallet_api
       map<string, son_id_type> list_active_sons();
 
       /**
-       * @brief Get SON network status
-       * @return SON network status description
+       * @brief Get list of active sons
+       * @return List of active SONs
        */
-      map<son_id_type, string>  get_son_network_status();
+      flat_map<sidechain_type, vector<son_info>> get_active_sons();
+
+      /**
+       * @brief Get list of active sons
+       * @param sidechain Sidechain type [bitcoin|ethereum|hive]
+       * @return List of active SONs
+       */
+      vector<son_info> get_active_sons_by_sidechain(sidechain_type sidechain);
+
+      /**
+       * @brief Get SON network status
+       * @return SON network status description for a given sidechain type
+       */
+      map<sidechain_type, map<son_id_type, string>> get_son_network_status();
+
+      /**
+       * @brief Get SON network status
+       * @param sidechain Sidechain type [bitcoin|ethereum|hive]
+       * @return SON network status description for a given sidechain type
+       */
+      map<son_id_type, string> get_son_network_status_by_sidechain(sidechain_type sidechain);
 
       /**
        * @brief Get active SON wallet
@@ -2599,7 +2619,10 @@ FC_API( graphene::wallet::wallet_api,
         (activate_deregistered_son)
         (list_sons)
         (list_active_sons)
+        (get_active_sons)
+        (get_active_sons_by_sidechain)
         (get_son_network_status)
+        (get_son_network_status_by_sidechain)
         (request_son_maintenance)
         (cancel_request_son_maintenance)
         (get_active_son_wallet)
