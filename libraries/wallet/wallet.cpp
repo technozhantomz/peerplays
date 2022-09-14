@@ -2274,55 +2274,25 @@ public:
       FC_CAPTURE_AND_RETHROW()
    }
 
-   //! Fixme - do we need to specify sidechain_type as params here?
-   map<son_id_type, string> get_son_network_status()
-   {
-      try
-      {
-         const global_property_object& gpo = get_global_properties();
+   flat_map<sidechain_type, vector<son_info>> get_active_sons()
+   { try {
+       return _remote_db->get_active_sons();
+   } FC_CAPTURE_AND_RETHROW() }
 
-         set<son_id_type> son_ids_set;
-         for(const auto& active_sidechain_type : active_sidechain_types) {
-            std::transform(gpo.active_sons.at(active_sidechain_type).cbegin(), gpo.active_sons.at(active_sidechain_type).cend(),
-                           std::inserter(son_ids_set, son_ids_set.end()),
-                           [](const son_info &swi) {
-               return swi.son_id;
-            });
-         }
-         vector<son_id_type> son_ids;
-         son_ids.reserve(son_ids_set.size());
-         std::transform(son_ids_set.cbegin(), son_ids_set.cend(),
-                        std::inserter(son_ids, son_ids.end()),
-                        [](const son_id_type& sit) {
-            return sit;
-         });
+   vector<son_info> get_active_sons_by_sidechain(sidechain_type sidechain)
+   { try {
+       return _remote_db->get_active_sons_by_sidechain(sidechain);
+   } FC_CAPTURE_AND_RETHROW() }
 
-         map<son_id_type, string> result;
-         std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
-         for(auto son_obj: son_objects) {
-            string status;
-            if (son_obj) {
-               son_statistics_object sso = get_object(son_obj->statistics);
-               for(const auto& active_sidechain_type : active_sidechain_types) {
-                  if (sso.last_active_timestamp.at(active_sidechain_type) + fc::seconds(gpo.parameters.son_heartbeat_frequency()) > time_point::now()) {
-                     status = "[OK, regular SON heartbeat for sidechain " + std::to_string(static_cast<unsigned int>(active_sidechain_type)) + "] ";
-                  } else {
-                     if (sso.last_active_timestamp.at(active_sidechain_type) + fc::seconds(gpo.parameters.son_down_time()) > time_point::now()) {
-                        status = "[OK, irregular SON heartbeat, but not triggering SON down proposal for sidechain " + std::to_string(static_cast<unsigned int>(active_sidechain_type)) + "] ";
-                     } else {
-                        status = "[NOT OK, irregular SON heartbeat, triggering SON down proposal for sidechain " + std::to_string(static_cast<unsigned int>(active_sidechain_type)) + "] ";
-                     }
-                  }
-               }
-            } else {
-               status = "NOT OK, invalid SON id";
-            }
-            result[son_obj->id] = status;
-         }
-         return result;
-      }
-      FC_CAPTURE_AND_RETHROW()
-   }
+   map<sidechain_type, map<son_id_type, string>> get_son_network_status()
+   { try {
+       return _remote_db->get_son_network_status();
+   } FC_CAPTURE_AND_RETHROW() }
+
+   map<son_id_type, string> get_son_network_status_by_sidechain(sidechain_type sidechain)
+   { try {
+       return _remote_db->get_son_network_status_by_sidechain(sidechain);
+   } FC_CAPTURE_AND_RETHROW() }
 
    optional<son_wallet_object> get_active_son_wallet()
    { try {
@@ -5310,9 +5280,24 @@ map<string, son_id_type> wallet_api::list_active_sons()
     return my->list_active_sons();
 }
 
-map<son_id_type, string> wallet_api::get_son_network_status()
+flat_map<sidechain_type, vector<son_info>> wallet_api::get_active_sons()
+{
+    return my->get_active_sons();
+}
+
+vector<son_info> wallet_api::get_active_sons_by_sidechain(sidechain_type sidechain)
+{
+    return my->get_active_sons_by_sidechain(sidechain);
+}
+
+map<sidechain_type, map<son_id_type, string>> wallet_api::get_son_network_status()
 {
     return my->get_son_network_status();
+}
+
+map<son_id_type, string> wallet_api::get_son_network_status_by_sidechain(sidechain_type sidechain)
+{
+    return my->get_son_network_status_by_sidechain(sidechain);
 }
 
 optional<son_wallet_object> wallet_api::get_active_son_wallet()

@@ -184,6 +184,10 @@ public:
    fc::optional<son_object> get_son_by_account(const std::string account_id_or_name) const;
    map<string, son_id_type> lookup_son_accounts(const string &lower_bound_name, uint32_t limit) const;
    uint64_t get_son_count() const;
+   flat_map<sidechain_type, vector<son_info>> get_active_sons();
+   vector<son_info> get_active_sons_by_sidechain(sidechain_type sidechain);
+   map<sidechain_type, map<son_id_type, string>> get_son_network_status();
+   map<son_id_type, string> get_son_network_status_by_sidechain(sidechain_type sidechain);
 
    // SON wallets
    optional<son_wallet_object> get_active_son_wallet();
@@ -1846,6 +1850,80 @@ uint64_t database_api::get_son_count() const {
 
 uint64_t database_api_impl::get_son_count() const {
    return _db.get_index_type<son_index>().indices().size();
+}
+
+flat_map<sidechain_type, vector<son_info>> database_api::get_active_sons() {
+   return my->get_active_sons();
+}
+
+flat_map<sidechain_type, vector<son_info>> database_api_impl::get_active_sons() {
+   return get_global_properties().active_sons;
+}
+
+vector<son_info> database_api::get_active_sons_by_sidechain(sidechain_type sidechain) {
+   return my->get_active_sons_by_sidechain(sidechain);
+}
+
+vector<son_info> database_api_impl::get_active_sons_by_sidechain(sidechain_type sidechain) {
+   const global_property_object &gpo = get_global_properties();
+
+   vector<son_info> result;
+
+   if (gpo.active_sons.find(sidechain) != gpo.active_sons.end()) {
+      result = gpo.active_sons.at(sidechain);
+   }
+
+   return result;
+}
+
+map<sidechain_type, map<son_id_type, string>> database_api::get_son_network_status() {
+   return my->get_son_network_status();
+}
+
+map<sidechain_type, map<son_id_type, string>> database_api_impl::get_son_network_status() {
+   map<sidechain_type, map<son_id_type, string>> result;
+
+   for (auto active_sidechain_type : active_sidechain_types) {
+      result[active_sidechain_type] = get_son_network_status_by_sidechain(active_sidechain_type);
+   }
+
+   return result;
+}
+
+map<son_id_type, string> database_api::get_son_network_status_by_sidechain(sidechain_type sidechain) {
+   return my->get_son_network_status_by_sidechain(sidechain);
+}
+
+map<son_id_type, string> database_api_impl::get_son_network_status_by_sidechain(sidechain_type sidechain) {
+   const global_property_object &gpo = get_global_properties();
+
+   map<son_id_type, string> result;
+
+   if (gpo.active_sons.find(sidechain) != gpo.active_sons.end()) {
+      for (const auto si : gpo.active_sons.at(sidechain)) {
+         const auto son_obj = si.son_id(_db);
+         const auto sso = son_obj.statistics(_db);
+         string status;
+
+         if (sso.last_active_timestamp.find(sidechain) != sso.last_active_timestamp.end()) {
+            if (sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_heartbeat_frequency()) > time_point::now()) {
+               status = "OK, regular SON heartbeat";
+            } else {
+               if (sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_down_time()) > time_point::now()) {
+                  status = "OK, irregular SON heartbeat, but not triggering SON down proposal";
+               } else {
+                  status = "NOT OK, irregular SON heartbeat, triggering SON down proposal]";
+               }
+            }
+         } else {
+            status = "No heartbeats sent";
+         }
+
+         result[si.son_id] = status;
+      }
+   }
+
+   return result;
 }
 
 //////////////////////////////////////////////////////////////////////
