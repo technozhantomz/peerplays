@@ -84,6 +84,32 @@ typedef multi_index_container<
    >
 > key_label_index_type;
 
+/* How to write doxygen docs
+ *
+ * Good
+ * / ** Returns the block chain's rapidly-changing properties.
+ *  *
+ *  * The returned object contains information that changes every block interval
+ *  * such as the head block number, the next witness, etc.
+ *  * /
+ *
+ * Bad, no empty line
+ * / ** Returns the block chain's rapidly-changing properties.
+ *  * The returned object contains information that changes every block interval
+ *  * such as the head block number, the next witness, etc.
+ *  * /
+ *
+ * Better, using @brief tag
+ * / **
+ *  * @brief Returns the block chain's rapidly-changing properties.
+ *  * Long description text 1
+ *  * Long description text 2
+ *  * @param param1 param1 description
+ *  * @param param2 param2 description
+ *  * @returns return value description
+ *  * /
+ *  string get_rapidly_changing_properties(int32_t interval, string chain_id)
+ */
 
 struct wallet_data
 {
@@ -249,6 +275,7 @@ class wallet_api
        */
       uint64_t                          get_account_count()const;
       /** Lists all accounts controlled by this wallet.
+       *
        * This returns a list of the full account objects for all accounts whose private keys
        * we possess.
        * @returns a list of account objects
@@ -330,6 +357,7 @@ class wallet_api
       vector<force_settlement_object>   get_settle_orders(string a, uint32_t limit)const;
 
       /** Returns the block chain's slowly-changing settings.
+       *
        * This object contains all of the properties of the blockchain that are fixed
        * or that change only once per maintenance interval (daily) such as the
        * current list of witnesses, committee_members, block interval, etc.
@@ -339,6 +367,7 @@ class wallet_api
       global_property_object            get_global_properties() const;
 
       /** Returns the block chain's rapidly-changing properties.
+       *
        * The returned object contains information that changes every block interval
        * such as the head block number, the next witness, etc.
        * @see \c get_global_properties() for less-frequently changing properties
@@ -354,6 +383,7 @@ class wallet_api
       account_object                    get_account(string account_name_or_id) const;
 
       /** Returns information about the given asset.
+       *
        * @param asset_name_or_id the symbol or id of the asset in question
        * @returns the information about the asset stored in the block chain
        */
@@ -368,6 +398,7 @@ class wallet_api
       asset_bitasset_data_object        get_bitasset_data(string asset_name_or_id)const;
 
       /** Lookup the id of a named account.
+       *
        * @param account_name_or_id the name of the account to look up
        * @returns the id of the named account
        */
@@ -375,6 +406,7 @@ class wallet_api
 
       /**
        * Lookup the id of a named asset.
+       *
        * @param asset_name_or_id the symbol of an asset to look up
        * @returns the id of the given asset
        */
@@ -577,7 +609,7 @@ class wallet_api
      /**
       * Derive any number of *possible* owner keys from a given brain key.
       *
-      * NOTE: These keys may or may not match with the owner keys of any account.
+      * @note These keys may or may not match with the owner keys of any account.
       * This function is merely intended to assist with account or key recovery.
       *
       * @see suggest_brain_key()
@@ -591,7 +623,8 @@ class wallet_api
      /**
       * Determine whether a textual representation of a public key
       * (in Base-58 format) is *currently* linked
-      * to any *registered* (i.e. non-stealth) account on the blockchain
+      * to any *registered* (i.e. non-stealth) account on the blockchain.
+      *
       * @param public_key Public key
       * @return Whether a public key is known
       */
@@ -682,7 +715,7 @@ class wallet_api
                                           uint32_t referrer_percent,
                                           bool broadcast = false);
 
-      /** Updates account public keys
+      /** Updates account public keys.
        *
        * @param name the name of the existing account
        * @param old_owner the owner key for the named account to be replaced
@@ -700,7 +733,8 @@ class wallet_api
                                              bool broadcast = false);
 
       /**
-       * This method updates the key of an authority for an exisiting account.
+       * Updates the key of an authority for an exisiting account.
+
        * Warning: You can create impossible authorities using this method. The method
        * will fail if you create an impossible owner authority, but will allow impossible
        * active and posting authorities.
@@ -719,6 +753,7 @@ class wallet_api
 
       /**
        *  Upgrades an account to prime status.
+       *
        *  This makes the account holder a 'lifetime member'.
        *
        *  @todo there is no option for annual membership
@@ -786,7 +821,7 @@ class wallet_api
 
 
       /**
-       *  This method is used to convert a JSON transaction to its transactin ID.
+       *  Convert a JSON transaction to its transactin ID.
        */
       transaction_id_type get_transaction_id( const signed_transaction& trx )const { return trx.id(); }
 
@@ -794,7 +829,7 @@ class wallet_api
       /** These methods are used for stealth transfers */
       ///@{
       /**
-       *  This method can be used to set the label for a public key
+       *  Set the label for a public key
        *
        *  @note No two keys can have the same label.
        *
@@ -918,7 +953,7 @@ class wallet_api
       signed_transaction borrow_asset(string borrower_name, string amount_to_borrow, string asset_symbol,
                                       string amount_of_collateral, bool broadcast = false);
 
-      /** Cancel an existing order
+      /** Cancel an existing order.
        *
        * @param order_id the id of order to be cancelled
        * @param broadcast true to broadcast the transaction on the network
@@ -978,6 +1013,7 @@ class wallet_api
                                      bool broadcast = false);
 
       /** Update the core options on an asset.
+       *
        * There are a number of options which all assets in the network use. These options are
        * enumerated in the asset_object::asset_options struct. This command is used to update
        * these options for an existing asset.
@@ -1184,6 +1220,7 @@ class wallet_api
                                          bool broadcast = false);
 
       /** Lists all witnesses registered in the blockchain.
+       *
        * This returns a list of all account names that own witnesses, and the associated witness id,
        * sorted by name.  This lists witnesses whether they are currently voted in or not.
        *
@@ -1214,6 +1251,7 @@ class wallet_api
       map<string, committee_member_id_type>       list_committee_members(const string& lowerbound, uint32_t limit);
 
       /** Lists all workers in the blockchain.
+       *
        * This returns a list of all account names that own worker, and the associated worker id,
        * sorted by name.  This lists workers whether they are currently voted in or not.
        *
@@ -1355,6 +1393,7 @@ class wallet_api
                                               bool broadcast = false);
 
       /** Lists all SONs in the blockchain.
+       *
        * This returns a list of all account names that own SON, and the associated SON id,
        * sorted by name.  This lists SONs whether they are currently voted in or not.
        *
@@ -1582,8 +1621,7 @@ class wallet_api
          string asset_symbol,
          bool broadcast = false);
 
-      /**
-       * Withdraw a GPOS vesting balance.
+      /** Withdraw a GPOS vesting balance.
        *
        * @param account_name The account name of the witness/user, also accepts account ID or vesting balance ID type.
        * @param amount The amount to withdraw.
