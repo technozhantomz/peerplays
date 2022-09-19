@@ -186,6 +186,8 @@ void account_options::validate() const
          --needed_sons[sidechain_type::bitcoin];
       else if ( id.type() == vote_id_type::son_hive && needed_sons[sidechain_type::hive] )
          --needed_sons[sidechain_type::hive];
+      else if ( id.type() == vote_id_type::son_ethereum && needed_sons[sidechain_type::ethereum] )
+         --needed_sons[sidechain_type::ethereum];
 
    FC_ASSERT( needed_witnesses == 0,
               "May not specify fewer witnesses than the number voted for.");
@@ -195,6 +197,8 @@ void account_options::validate() const
               "May not specify fewer Bitcoin SONs than the number voted for.");
    FC_ASSERT( needed_sons[sidechain_type::hive] == 0,
               "May not specify fewer Hive SONs than the number voted for.");
+   FC_ASSERT( needed_sons[sidechain_type::ethereum] == 0,
+             "May not specify fewer Ethereum SONs than the number voted for.");
 }
 
 void affiliate_reward_distribution::validate() const

@@ -128,11 +128,13 @@ BOOST_AUTO_TEST_CASE( create_sons )
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sidechain_public_keys[sidechain_type::hive] = "hive account 1";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sidechain_public_keys[sidechain_type::hive] = "hive account 2";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       auto son1_obj = con.wallet_api_ptr->get_son("son1account");
@@ -140,16 +142,20 @@ BOOST_AUTO_TEST_CASE( create_sons )
       BOOST_CHECK_EQUAL(son1_obj.url, "http://son1");
       BOOST_CHECK_EQUAL(son1_obj.sidechain_public_keys[sidechain_type::bitcoin], "bitcoin_address 1");
       BOOST_CHECK_EQUAL(son1_obj.sidechain_public_keys[sidechain_type::hive], "hive account 1");
+      BOOST_CHECK_EQUAL(son1_obj.sidechain_public_keys[sidechain_type::ethereum], "ethereum address 1");
       BOOST_CHECK_EQUAL(son1_obj.get_sidechain_vote_id(sidechain_type::bitcoin).instance(), 22);
       BOOST_CHECK_EQUAL(son1_obj.get_sidechain_vote_id(sidechain_type::hive).instance(), 23);
+      BOOST_CHECK_EQUAL(son1_obj.get_sidechain_vote_id(sidechain_type::ethereum).instance(), 24);
 
       auto son2_obj = con.wallet_api_ptr->get_son("son2account");
       BOOST_CHECK(son2_obj.son_account == con.wallet_api_ptr->get_account_id("son2account"));
       BOOST_CHECK_EQUAL(son2_obj.url, "http://son2");
       BOOST_CHECK_EQUAL(son2_obj.sidechain_public_keys[sidechain_type::bitcoin], "bitcoin_address 2");
       BOOST_CHECK_EQUAL(son2_obj.sidechain_public_keys[sidechain_type::hive], "hive account 2");
-      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::bitcoin).instance(), 24);
-      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::hive).instance(), 25);
+      BOOST_CHECK_EQUAL(son2_obj.sidechain_public_keys[sidechain_type::ethereum], "ethereum address 2");
+      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::bitcoin).instance(), 25);
+      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::hive).instance(), 26);
+      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::ethereum).instance(), 27);
 
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");
@@ -170,6 +176,7 @@ BOOST_AUTO_TEST_CASE( cli_update_son )
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sidechain_public_keys[sidechain_type::hive] = "hive account 1";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 1";
 
       son_test_helper sth(*this);
       sth.create_son("sonmember", "http://sonmember", sidechain_public_keys);
@@ -182,19 +189,23 @@ BOOST_AUTO_TEST_CASE( cli_update_son )
       BOOST_CHECK(son_data.son_account == sonmember_acct.get_id());
       BOOST_CHECK_EQUAL(son_data.sidechain_public_keys[sidechain_type::bitcoin], "bitcoin_address 1");
       BOOST_CHECK_EQUAL(son_data.sidechain_public_keys[sidechain_type::hive], "hive account 1");
+      BOOST_CHECK_EQUAL(son_data.sidechain_public_keys[sidechain_type::ethereum], "ethereum address 1");
       BOOST_CHECK_EQUAL(son_data.get_sidechain_vote_id(sidechain_type::bitcoin).instance(), 22);
       BOOST_CHECK_EQUAL(son_data.get_sidechain_vote_id(sidechain_type::hive).instance(), 23);
+      BOOST_CHECK_EQUAL(son_data.get_sidechain_vote_id(sidechain_type::ethereum).instance(), 24);
 
       // update SON
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sidechain_public_keys[sidechain_type::hive] = "hive account 2";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 2";
 
       con.wallet_api_ptr->update_son("sonmember", "http://sonmember_updated", "", sidechain_public_keys, true);
       son_data = con.wallet_api_ptr->get_son("sonmember");
       BOOST_CHECK(son_data.url == "http://sonmember_updated");
       BOOST_CHECK_EQUAL(son_data.sidechain_public_keys[sidechain_type::bitcoin], "bitcoin_address 2");
       BOOST_CHECK_EQUAL(son_data.sidechain_public_keys[sidechain_type::hive], "hive account 2");
+      BOOST_CHECK_EQUAL(son_data.sidechain_public_keys[sidechain_type::ethereum], "ethereum address 2");
 
       // update SON signing key
       sidechain_public_keys.clear();
@@ -222,11 +233,13 @@ BOOST_AUTO_TEST_CASE( son_voting )
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sidechain_public_keys[sidechain_type::hive] = "hive account 1";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sidechain_public_keys[sidechain_type::hive] = "hive account 2";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       BOOST_CHECK(generate_maintenance_block());
@@ -253,6 +266,7 @@ BOOST_AUTO_TEST_CASE( son_voting )
       BOOST_TEST_MESSAGE("Voting for son1account");
       vote_son1_tx = con.wallet_api_ptr->vote_for_son("nathan", "son1account", sidechain_type::bitcoin, true, true);
       vote_son1_tx = con.wallet_api_ptr->vote_for_son("nathan", "son1account", sidechain_type::hive, true, true);
+      vote_son1_tx = con.wallet_api_ptr->vote_for_son("nathan", "son1account", sidechain_type::ethereum, true, true);
       BOOST_CHECK(generate_maintenance_block());
 
       // Verify that the vote is there
@@ -260,11 +274,13 @@ BOOST_AUTO_TEST_CASE( son_voting )
       son1_end_votes = son1_obj.total_votes;
       BOOST_CHECK(son1_end_votes[sidechain_type::bitcoin] > son1_start_votes[sidechain_type::bitcoin]);
       BOOST_CHECK(son1_end_votes[sidechain_type::hive] > son1_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::ethereum] > son1_start_votes[sidechain_type::ethereum]);
 
       // Vote for a son2account
       BOOST_TEST_MESSAGE("Voting for son2account");
       vote_son2_tx = con.wallet_api_ptr->vote_for_son("nathan", "son2account", sidechain_type::bitcoin, true, true);
       vote_son2_tx = con.wallet_api_ptr->vote_for_son("nathan", "son2account", sidechain_type::hive, true, true);
+      vote_son2_tx = con.wallet_api_ptr->vote_for_son("nathan", "son2account", sidechain_type::ethereum, true, true);
       BOOST_CHECK(generate_maintenance_block());
 
       // Verify that the vote is there
@@ -272,6 +288,7 @@ BOOST_AUTO_TEST_CASE( son_voting )
       son2_end_votes = son2_obj.total_votes;
       BOOST_CHECK(son2_end_votes[sidechain_type::bitcoin] > son2_start_votes[sidechain_type::bitcoin]);
       BOOST_CHECK(son2_end_votes[sidechain_type::hive] > son2_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::ethereum] > son2_start_votes[sidechain_type::ethereum]);
 
       //! Check son1account voters
       auto voters_for_son1account = con.wallet_api_ptr->get_voters("son1account").voters_for_son;
@@ -280,6 +297,8 @@ BOOST_AUTO_TEST_CASE( son_voting )
       BOOST_CHECK_EQUAL((uint32_t)voters_for_son1account->at(sidechain_type::bitcoin).voters[0].instance, nathan_account_object.id.instance());
       BOOST_REQUIRE_EQUAL(voters_for_son1account->at(sidechain_type::hive).voters.size(), 1);
       BOOST_CHECK_EQUAL((uint32_t)voters_for_son1account->at(sidechain_type::hive).voters[0].instance, nathan_account_object.id.instance());
+      BOOST_REQUIRE_EQUAL(voters_for_son1account->at(sidechain_type::ethereum).voters.size(), 1);
+      BOOST_CHECK_EQUAL((uint32_t)voters_for_son1account->at(sidechain_type::ethereum).voters[0].instance, nathan_account_object.id.instance());
 
       //! Check son2account voters
       auto voters_for_son2account = con.wallet_api_ptr->get_voters("son2account").voters_for_son;
@@ -288,6 +307,8 @@ BOOST_AUTO_TEST_CASE( son_voting )
       BOOST_CHECK_EQUAL((uint32_t)voters_for_son2account->at(sidechain_type::bitcoin).voters[0].instance, nathan_account_object.id.instance());
       BOOST_REQUIRE_EQUAL(voters_for_son2account->at(sidechain_type::hive).voters.size(), 1);
       BOOST_CHECK_EQUAL((uint32_t)voters_for_son2account->at(sidechain_type::hive).voters[0].instance, nathan_account_object.id.instance());
+      BOOST_REQUIRE_EQUAL(voters_for_son2account->at(sidechain_type::ethereum).voters.size(), 1);
+      BOOST_CHECK_EQUAL((uint32_t)voters_for_son2account->at(sidechain_type::ethereum).voters[0].instance, nathan_account_object.id.instance());
 
       //! Check votes of nathan
       auto nathan_votes_for_son = con.wallet_api_ptr->get_votes("nathan").votes_for_sons;
@@ -298,11 +319,15 @@ BOOST_AUTO_TEST_CASE( son_voting )
       BOOST_REQUIRE_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).size(), 2);
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).at(0).id.instance(), son1_obj.id.instance());
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).at(1).id.instance(), son2_obj.id.instance());
+      BOOST_REQUIRE_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).size(), 2);
+      BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).at(0).id.instance(), son1_obj.id.instance());
+      BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).at(1).id.instance(), son2_obj.id.instance());
 
       // Withdraw vote for a son1account
       BOOST_TEST_MESSAGE("Withdraw vote for a son1account");
       vote_son1_tx = con.wallet_api_ptr->vote_for_son("nathan", "son1account", sidechain_type::bitcoin, false, true);
       vote_son1_tx = con.wallet_api_ptr->vote_for_son("nathan", "son1account", sidechain_type::hive, false, true);
+      vote_son1_tx = con.wallet_api_ptr->vote_for_son("nathan", "son1account", sidechain_type::ethereum, false, true);
       BOOST_CHECK(generate_maintenance_block());
 
       // Verify that the vote is removed
@@ -310,12 +335,14 @@ BOOST_AUTO_TEST_CASE( son_voting )
       son1_end_votes = son1_obj.total_votes;
       BOOST_CHECK(son1_end_votes[sidechain_type::bitcoin] == son1_start_votes[sidechain_type::bitcoin]);
       BOOST_CHECK(son1_end_votes[sidechain_type::hive] == son1_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::ethereum] == son1_start_votes[sidechain_type::ethereum]);
 
       //! Check son1account voters
       voters_for_son1account = con.wallet_api_ptr->get_voters("son1account").voters_for_son;
       BOOST_REQUIRE(voters_for_son1account);
       BOOST_CHECK_EQUAL(voters_for_son1account->at(sidechain_type::bitcoin).voters.size(), 0);
       BOOST_CHECK_EQUAL(voters_for_son1account->at(sidechain_type::hive).voters.size(), 0);
+      BOOST_CHECK_EQUAL(voters_for_son1account->at(sidechain_type::ethereum).voters.size(), 0);
 
       //! Check votes of nathan
       nathan_votes_for_son = con.wallet_api_ptr->get_votes("nathan").votes_for_sons;
@@ -324,11 +351,14 @@ BOOST_AUTO_TEST_CASE( son_voting )
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::bitcoin).at(0).id.instance(), son2_obj.id.instance());
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).size(), 1);
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).at(0).id.instance(), son2_obj.id.instance());
+      BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).size(), 1);
+      BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).at(0).id.instance(), son2_obj.id.instance());
 
       // Withdraw vote for a son2account
       BOOST_TEST_MESSAGE("Withdraw vote for a son2account");
       vote_son2_tx = con.wallet_api_ptr->vote_for_son("nathan", "son2account", sidechain_type::bitcoin, false, true);
       vote_son2_tx = con.wallet_api_ptr->vote_for_son("nathan", "son2account", sidechain_type::hive, false, true);
+      vote_son2_tx = con.wallet_api_ptr->vote_for_son("nathan", "son2account", sidechain_type::ethereum, false, true);
       BOOST_CHECK(generate_maintenance_block());
 
       // Verify that the vote is removed
@@ -336,12 +366,14 @@ BOOST_AUTO_TEST_CASE( son_voting )
       son2_end_votes = son2_obj.total_votes;
       BOOST_CHECK(son2_end_votes[sidechain_type::bitcoin] == son2_start_votes[sidechain_type::bitcoin]);
       BOOST_CHECK(son2_end_votes[sidechain_type::hive] == son2_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::ethereum] == son2_start_votes[sidechain_type::ethereum]);
 
       //! Check son2account voters
       voters_for_son2account = con.wallet_api_ptr->get_voters("son2account").voters_for_son;
       BOOST_REQUIRE(voters_for_son2account);
       BOOST_CHECK_EQUAL(voters_for_son2account->at(sidechain_type::bitcoin).voters.size(), 0);
       BOOST_CHECK_EQUAL(voters_for_son2account->at(sidechain_type::hive).voters.size(), 0);
+      BOOST_CHECK_EQUAL(voters_for_son2account->at(sidechain_type::ethereum).voters.size(), 0);
 
       //! Check votes of nathan
       nathan_votes_for_son = con.wallet_api_ptr->get_votes("nathan").votes_for_sons;
@@ -383,6 +415,7 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
           sidechain_public_keys.clear();
           sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
           sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::ethereum] = "ethereum address " + fc::to_pretty_string(i);
           sth.create_son("sonaccount" + fc::to_pretty_string(i),
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,
@@ -400,6 +433,7 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
           std::string name = "sonaccount" + fc::to_pretty_string(i);
           vote_tx = con.wallet_api_ptr->vote_for_son(name, name, sidechain_type::bitcoin, true, true);
           vote_tx = con.wallet_api_ptr->vote_for_son(name, name, sidechain_type::hive, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name, name, sidechain_type::ethereum, true, true);
       }
       BOOST_CHECK(generate_maintenance_block());
 
@@ -409,14 +443,17 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
           std::string name2 = "sonaccount" + fc::to_pretty_string(i + 1);
           vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::bitcoin, true, true);
           vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::hive, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::ethereum, true, true);
       }
       gpo = con.wallet_api_ptr->get_global_properties();
       BOOST_TEST_MESSAGE("gpo active_sons[bitcoin]: " << gpo.active_sons.at(sidechain_type::bitcoin).size());
       BOOST_TEST_MESSAGE("gpo active_sons[hive]: " << gpo.active_sons.at(sidechain_type::hive).size());
+      BOOST_TEST_MESSAGE("gpo active_sons[ethereum]: " << gpo.active_sons.at(sidechain_type::ethereum).size());
       BOOST_CHECK(generate_maintenance_block());
       gpo = con.wallet_api_ptr->get_global_properties();
       BOOST_TEST_MESSAGE("gpo active_sons[bitcoin]: " << gpo.active_sons.at(sidechain_type::bitcoin).size());
       BOOST_TEST_MESSAGE("gpo active_sons[hive]: " << gpo.active_sons.at(sidechain_type::hive).size());
+      BOOST_TEST_MESSAGE("gpo active_sons[ethereum]: " << gpo.active_sons.at(sidechain_type::ethereum).size());
 
       for(unsigned int i = 0; i < son_number - 1; i++)
       {
@@ -424,14 +461,17 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
           std::string name2 = "sonaccount" + fc::to_pretty_string(i);
           vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::bitcoin, true, true);
           vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::hive, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::ethereum, true, true);
       }
       gpo = con.wallet_api_ptr->get_global_properties();
       BOOST_TEST_MESSAGE("gpo active_sons[bitcoin]: " << gpo.active_sons.at(sidechain_type::bitcoin).size());
       BOOST_TEST_MESSAGE("gpo active_sons[hive]: " << gpo.active_sons.at(sidechain_type::hive).size());
+      BOOST_TEST_MESSAGE("gpo active_sons[ethereum]: " << gpo.active_sons.at(sidechain_type::ethereum).size());
       BOOST_CHECK(generate_maintenance_block());
       gpo = con.wallet_api_ptr->get_global_properties();
       BOOST_TEST_MESSAGE("gpo active_sons[bitcoin]: " << gpo.active_sons.at(sidechain_type::bitcoin).size());
       BOOST_TEST_MESSAGE("gpo active_sons[hive]: " << gpo.active_sons.at(sidechain_type::hive).size());
+      BOOST_TEST_MESSAGE("gpo active_sons[ethereum]: " << gpo.active_sons.at(sidechain_type::ethereum).size());
 
       for(unsigned int i = 0; i < son_number - 2; i++)
       {
@@ -439,14 +479,17 @@ BOOST_FIXTURE_TEST_CASE( select_top_fifteen_sons, cli_fixture )
           std::string name2 = "sonaccount" + fc::to_pretty_string(i);
           vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::bitcoin, true, true);
           vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::hive, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::ethereum, true, true);
       }
       gpo = con.wallet_api_ptr->get_global_properties();
       BOOST_TEST_MESSAGE("gpo active_sons[bitcoin]: " << gpo.active_sons.at(sidechain_type::bitcoin).size());
       BOOST_TEST_MESSAGE("gpo active_sons[hive]: " << gpo.active_sons.at(sidechain_type::hive).size());
+      BOOST_TEST_MESSAGE("gpo active_sons[ethereum]: " << gpo.active_sons.at(sidechain_type::ethereum).size());
       BOOST_CHECK(generate_maintenance_block());
 
       BOOST_CHECK(gpo.active_sons.at(sidechain_type::bitcoin).size() == son_number);
       BOOST_CHECK(gpo.active_sons.at(sidechain_type::hive).size() == son_number);
+      BOOST_CHECK(gpo.active_sons.at(sidechain_type::ethereum).size() == son_number);
 
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");
@@ -468,11 +511,13 @@ BOOST_AUTO_TEST_CASE( list_son )
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sidechain_public_keys[sidechain_type::hive] = "hive account 1";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sidechain_public_keys[sidechain_type::hive] = "hive account 2";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       auto res = con.wallet_api_ptr->list_sons("", 100);
@@ -500,11 +545,13 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sidechain_public_keys[sidechain_type::hive] = "hive account 1";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sidechain_public_keys[sidechain_type::hive] = "hive account 2";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       BOOST_CHECK(generate_maintenance_block());
@@ -539,6 +586,8 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
                                                              sidechain_type::bitcoin, 2, true);
       update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
                                                              sidechain_type::hive, 2, true);
+      update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                             sidechain_type::ethereum, 2, true);
       generate_block();
       BOOST_CHECK(generate_maintenance_block());
 
@@ -546,10 +595,14 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       son1_obj = con.wallet_api_ptr->get_son("son1account");
       son1_end_votes = son1_obj.total_votes;
       BOOST_CHECK(son1_end_votes[sidechain_type::bitcoin] > son1_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::hive] > son1_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::ethereum] > son1_start_votes[sidechain_type::ethereum]);
       son1_start_votes = son1_end_votes;
       son2_obj = con.wallet_api_ptr->get_son("son2account");
       son2_end_votes = son2_obj.total_votes;
       BOOST_CHECK(son2_end_votes[sidechain_type::bitcoin] > son2_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::hive] > son2_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::ethereum] > son2_start_votes[sidechain_type::ethereum]);
       son2_start_votes = son2_end_votes;
 
       //! Check son1account voters
@@ -559,6 +612,8 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       BOOST_CHECK_EQUAL((uint32_t)voters_for_son1account->at(sidechain_type::bitcoin).voters[0].instance, nathan_account_object.id.instance());
       BOOST_REQUIRE_EQUAL(voters_for_son1account->at(sidechain_type::hive).voters.size(), 1);
       BOOST_CHECK_EQUAL((uint32_t)voters_for_son1account->at(sidechain_type::hive).voters[0].instance, nathan_account_object.id.instance());
+      BOOST_REQUIRE_EQUAL(voters_for_son1account->at(sidechain_type::ethereum).voters.size(), 1);
+      BOOST_CHECK_EQUAL((uint32_t)voters_for_son1account->at(sidechain_type::ethereum).voters[0].instance, nathan_account_object.id.instance());
 
       //! Check son2account voters
       auto voters_for_son2account = con.wallet_api_ptr->get_voters("son2account").voters_for_son;
@@ -567,6 +622,8 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       BOOST_CHECK_EQUAL((uint32_t)voters_for_son2account->at(sidechain_type::bitcoin).voters[0].instance, nathan_account_object.id.instance());
       BOOST_REQUIRE_EQUAL(voters_for_son2account->at(sidechain_type::hive).voters.size(), 1);
       BOOST_CHECK_EQUAL((uint32_t)voters_for_son2account->at(sidechain_type::hive).voters[0].instance, nathan_account_object.id.instance());
+      BOOST_REQUIRE_EQUAL(voters_for_son2account->at(sidechain_type::ethereum).voters.size(), 1);
+      BOOST_CHECK_EQUAL((uint32_t)voters_for_son2account->at(sidechain_type::ethereum).voters[0].instance, nathan_account_object.id.instance());
 
       //! Check votes of nathan
       auto nathan_votes_for_son = con.wallet_api_ptr->get_votes("nathan").votes_for_sons;
@@ -577,6 +634,9 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       BOOST_REQUIRE_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).size(), 2);
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).at(0).id.instance(), son1_obj.id.instance());
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).at(1).id.instance(), son2_obj.id.instance());
+      BOOST_REQUIRE_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).size(), 2);
+      BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).at(0).id.instance(), son1_obj.id.instance());
+      BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).at(1).id.instance(), son2_obj.id.instance());
 
       // Withdraw vote for SON 1
       accepted.clear();
@@ -587,17 +647,23 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
                                                              sidechain_type::bitcoin, 1, true);
       update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
                                                              sidechain_type::hive, 1, true);
+      update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                             sidechain_type::ethereum, 1, true);
       BOOST_CHECK(generate_maintenance_block());
 
       // Verify the votes
       son1_obj = con.wallet_api_ptr->get_son("son1account");
       son1_end_votes = son1_obj.total_votes;
       BOOST_CHECK(son1_end_votes[sidechain_type::bitcoin] < son1_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::hive] < son1_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::ethereum] < son1_start_votes[sidechain_type::ethereum]);
       son1_start_votes = son1_end_votes;
       son2_obj = con.wallet_api_ptr->get_son("son2account");
       // voice distribution changed, SON2 now has all voices
       son2_end_votes = son2_obj.total_votes;
       BOOST_CHECK(son2_end_votes[sidechain_type::bitcoin] > son2_start_votes[sidechain_type::bitcoin]); // nathan spent funds for vb, it has different voting power
+      BOOST_CHECK(son2_end_votes[sidechain_type::hive] > son2_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::ethereum] > son2_start_votes[sidechain_type::ethereum]);
       son2_start_votes = son2_end_votes;
 
       //! Check son1account voters
@@ -605,6 +671,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       BOOST_REQUIRE(voters_for_son1account);
       BOOST_CHECK_EQUAL(voters_for_son1account->at(sidechain_type::bitcoin).voters.size(), 0);
       BOOST_CHECK_EQUAL(voters_for_son1account->at(sidechain_type::hive).voters.size(), 0);
+      BOOST_CHECK_EQUAL(voters_for_son1account->at(sidechain_type::ethereum).voters.size(), 0);
 
       //! Check votes of nathan
       nathan_votes_for_son = con.wallet_api_ptr->get_votes("nathan").votes_for_sons;
@@ -613,6 +680,8 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::bitcoin).at(0).id.instance(), son2_obj.id.instance());
       BOOST_REQUIRE_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).size(), 1);
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).at(0).id.instance(), son2_obj.id.instance());
+      BOOST_REQUIRE_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).size(), 1);
+      BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).at(0).id.instance(), son2_obj.id.instance());
 
       // Try to reject incorrect SON
       accepted.clear();
@@ -622,16 +691,22 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
                                                                                sidechain_type::bitcoin, 1, true), fc::exception);
       BOOST_CHECK_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
                                                                                sidechain_type::hive, 1, true), fc::exception);
+      BOOST_CHECK_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                                               sidechain_type::ethereum, 1, true), fc::exception);
       generate_block();
 
       // Verify the votes
       son1_obj = con.wallet_api_ptr->get_son("son1account");
       son1_end_votes = son1_obj.total_votes;
       BOOST_CHECK(son1_end_votes[sidechain_type::bitcoin] == son1_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::hive] == son1_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::ethereum] == son1_start_votes[sidechain_type::ethereum]);
       son1_start_votes = son1_end_votes;
       son2_obj = con.wallet_api_ptr->get_son("son2account");
       son2_end_votes = son2_obj.total_votes;
       BOOST_CHECK(son2_end_votes[sidechain_type::bitcoin] == son2_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::hive] == son2_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::ethereum] == son2_start_votes[sidechain_type::ethereum]);
       son2_start_votes = son2_end_votes;
 
       //! Check votes of nathan
@@ -641,6 +716,8 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::bitcoin).at(0).id.instance(), son2_obj.id.instance());
       BOOST_REQUIRE_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).size(), 1);
       BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::hive).at(0).id.instance(), son2_obj.id.instance());
+      BOOST_REQUIRE_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).size(), 1);
+      BOOST_CHECK_EQUAL(nathan_votes_for_son->at(sidechain_type::ethereum).at(0).id.instance(), son2_obj.id.instance());
 
       // Reject SON2
       accepted.clear();
@@ -650,16 +727,22 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
                                                              sidechain_type::bitcoin, 0, true);
       update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
                                                              sidechain_type::hive, 0, true);
+      update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                             sidechain_type::ethereum, 0, true);
       BOOST_CHECK(generate_maintenance_block());
 
       // Verify the votes
       son1_obj = con.wallet_api_ptr->get_son("son1account");
       son1_end_votes = son1_obj.total_votes;
       BOOST_CHECK(son1_end_votes[sidechain_type::bitcoin] == son1_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::hive] == son1_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::ethereum] == son1_start_votes[sidechain_type::ethereum]);
       son1_start_votes = son1_end_votes;
       son2_obj = con.wallet_api_ptr->get_son("son2account");
       son2_end_votes = son2_obj.total_votes;
       BOOST_CHECK(son2_end_votes[sidechain_type::bitcoin] < son2_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::hive] < son2_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::ethereum] < son2_start_votes[sidechain_type::ethereum]);
       son2_start_votes = son2_end_votes;
 
       //! Check son2account voters
@@ -667,6 +750,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       BOOST_REQUIRE(voters_for_son2account);
       BOOST_CHECK_EQUAL(voters_for_son2account->at(sidechain_type::bitcoin).voters.size(), 0);
       BOOST_CHECK_EQUAL(voters_for_son2account->at(sidechain_type::hive).voters.size(), 0);
+      BOOST_CHECK_EQUAL(voters_for_son2account->at(sidechain_type::ethereum).voters.size(), 0);
 
       //! Check votes of nathan
       nathan_votes_for_son = con.wallet_api_ptr->get_votes("nathan").votes_for_sons;
@@ -681,16 +765,22 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
                                                                                  sidechain_type::bitcoin, 1, true), fc::exception);
       BOOST_REQUIRE_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
                                                                                  sidechain_type::hive, 1, true), fc::exception);
+      BOOST_REQUIRE_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                                                 sidechain_type::ethereum, 1, true), fc::exception);
       BOOST_CHECK(generate_maintenance_block());
 
       // Verify the votes
       son1_obj = con.wallet_api_ptr->get_son("son1account");
       son1_end_votes = son1_obj.total_votes;
       BOOST_CHECK(son1_end_votes[sidechain_type::bitcoin] == son1_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::hive] == son1_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::ethereum] == son1_start_votes[sidechain_type::ethereum]);
       son1_start_votes = son1_end_votes;
       son2_obj = con.wallet_api_ptr->get_son("son2account");
       son2_end_votes = son2_obj.total_votes;
       BOOST_CHECK(son2_end_votes[sidechain_type::bitcoin] == son2_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::hive] == son2_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::ethereum] == son2_start_votes[sidechain_type::ethereum]);
       son2_start_votes = son2_end_votes;
 
       //! Check votes of nathan
@@ -702,16 +792,24 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
       rejected.clear();
       BOOST_REQUIRE_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
                                                                                  sidechain_type::bitcoin, 1, true), fc::exception);
+      BOOST_REQUIRE_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                                                 sidechain_type::hive, 1, true), fc::exception);
+      BOOST_REQUIRE_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                                                 sidechain_type::ethereum, 1, true), fc::exception);
       BOOST_CHECK(generate_maintenance_block());
 
       // Verify the votes
       son1_obj = con.wallet_api_ptr->get_son("son1account");
       son1_end_votes = son1_obj.total_votes;
       BOOST_CHECK(son1_end_votes[sidechain_type::bitcoin] == son1_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::hive] == son1_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son1_end_votes[sidechain_type::bitcoin] == son1_start_votes[sidechain_type::bitcoin]);
       son1_start_votes = son1_end_votes;
       son2_obj = con.wallet_api_ptr->get_son("son2account");
       son2_end_votes = son2_obj.total_votes;
       BOOST_CHECK(son2_end_votes[sidechain_type::bitcoin] == son2_start_votes[sidechain_type::bitcoin]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::hive] == son2_start_votes[sidechain_type::hive]);
+      BOOST_CHECK(son2_end_votes[sidechain_type::ethereum] == son2_start_votes[sidechain_type::ethereum]);
       son2_start_votes = son2_end_votes;
 
       //! Check votes of nathan
@@ -734,6 +832,7 @@ BOOST_AUTO_TEST_CASE( related_functions )
       global_property_object gpo = con.wallet_api_ptr->get_global_properties();
       BOOST_CHECK(gpo.active_sons.at(sidechain_type::bitcoin).size() == 0);
       BOOST_CHECK(gpo.active_sons.at(sidechain_type::hive).size() == 0);
+      BOOST_CHECK(gpo.active_sons.at(sidechain_type::ethereum).size() == 0);
 
       flat_map<sidechain_type, string> sidechain_public_keys;
 
@@ -742,16 +841,19 @@ BOOST_AUTO_TEST_CASE( related_functions )
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 1";
       sidechain_public_keys[sidechain_type::hive] = "hive account 1";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 1";
       sth.create_son("son1account", "http://son1", sidechain_public_keys);
 
       sidechain_public_keys.clear();
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address 2";
       sidechain_public_keys[sidechain_type::hive] = "hive account 2";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address 2";
       sth.create_son("son2account", "http://son2", sidechain_public_keys);
 
       gpo = con.wallet_api_ptr->get_global_properties();
       BOOST_CHECK(gpo.active_sons.at(sidechain_type::bitcoin).size() == 2);
       BOOST_CHECK(gpo.active_sons.at(sidechain_type::hive).size() == 2);
+      BOOST_CHECK(gpo.active_sons.at(sidechain_type::ethereum).size() == 2);
 
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");
@@ -783,6 +885,7 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
           sidechain_public_keys.clear();
           sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
           sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::ethereum] = "ethereum address " + fc::to_pretty_string(i);
           sth.create_son("sonaccount" + fc::to_pretty_string(i),
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,
@@ -799,6 +902,7 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
           std::string name = "sonaccount" + fc::to_pretty_string(i);
           vote_tx = con.wallet_api_ptr->vote_for_son(name, name, sidechain_type::bitcoin, true, true);
           vote_tx = con.wallet_api_ptr->vote_for_son(name, name, sidechain_type::hive, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name, name, sidechain_type::ethereum, true, true);
       }
       BOOST_CHECK(generate_maintenance_block());
 
@@ -808,14 +912,17 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
           std::string name2 = "sonaccount" + fc::to_pretty_string(i + 1);
           vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::bitcoin, true, true);
           vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::hive, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::ethereum, true, true);
       }
       BOOST_CHECK(generate_maintenance_block());
       gpo = con.wallet_api_ptr->get_global_properties();
       BOOST_TEST_MESSAGE("gpo active_sons[bitcoin]: " << gpo.active_sons.at(sidechain_type::bitcoin).size());
       BOOST_TEST_MESSAGE("gpo active_sons[hive]: " << gpo.active_sons.at(sidechain_type::hive).size());
+      BOOST_TEST_MESSAGE("gpo active_sons[hive]: " << gpo.active_sons.at(sidechain_type::ethereum).size());
 
       BOOST_CHECK(gpo.active_sons.at(sidechain_type::bitcoin).size() == son_number);
       BOOST_CHECK(gpo.active_sons.at(sidechain_type::hive).size() == son_number);
+      BOOST_CHECK(gpo.active_sons.at(sidechain_type::ethereum).size() == son_number);
 
       map<string, son_id_type> active_sons = con.wallet_api_ptr->list_active_sons();
       BOOST_CHECK(active_sons.size() == son_number);
@@ -855,6 +962,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
           sidechain_public_keys.clear();
           sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
           sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::ethereum] = "ethereum address " + fc::to_pretty_string(i);
           sth.create_son("sonaccount" + fc::to_pretty_string(i),
                          "http://son" + fc::to_pretty_string(i),
                          sidechain_public_keys,
@@ -870,12 +978,14 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
          con.wallet_api_ptr->create_vesting_balance("sonaccount" + fc::to_pretty_string(i), "500", "1.3.0", vesting_balance_type::gpos, true);
          con.wallet_api_ptr->vote_for_son("sonaccount" + fc::to_pretty_string(i), name, sidechain_type::bitcoin, true, true);
          con.wallet_api_ptr->vote_for_son("sonaccount" + fc::to_pretty_string(i), name, sidechain_type::hive, true, true);
+         con.wallet_api_ptr->vote_for_son("sonaccount" + fc::to_pretty_string(i), name, sidechain_type::ethereum, true, true);
       }
       BOOST_CHECK(generate_maintenance_block());
 
       son_object son_obj = con.wallet_api_ptr->get_son(name);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::bitcoin) == son_status::active);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::hive) == son_status::active);
+      BOOST_CHECK(son_obj.statuses.at(sidechain_type::ethereum) == son_status::active);
 
       // put SON in maintenance mode
       con.wallet_api_ptr->request_son_maintenance(name, true);
@@ -885,6 +995,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       son_obj = con.wallet_api_ptr->get_son(name);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::bitcoin) == son_status::request_maintenance);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::hive) == son_status::request_maintenance);
+      BOOST_CHECK(son_obj.statuses.at(sidechain_type::ethereum) == son_status::request_maintenance);
 
       // restore SON activity
       con.wallet_api_ptr->cancel_request_son_maintenance(name, true);
@@ -894,6 +1005,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       son_obj = con.wallet_api_ptr->get_son(name);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::bitcoin) == son_status::active);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::hive) == son_status::active);
+      BOOST_CHECK(son_obj.statuses.at(sidechain_type::ethereum) == son_status::active);
 
       // put SON in maintenance mode
       con.wallet_api_ptr->request_son_maintenance(name, true);
@@ -903,6 +1015,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       son_obj = con.wallet_api_ptr->get_son(name);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::bitcoin)  == son_status::request_maintenance);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::hive)  == son_status::request_maintenance);
+      BOOST_CHECK(son_obj.statuses.at(sidechain_type::ethereum)  == son_status::request_maintenance);
 
       // process maintenance
       BOOST_CHECK(generate_maintenance_block());
@@ -911,7 +1024,7 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       son_obj = con.wallet_api_ptr->get_son(name);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::bitcoin) == son_status::in_maintenance);
       BOOST_CHECK(son_obj.statuses.at(sidechain_type::hive) == son_status::in_maintenance);
-
+      BOOST_CHECK(son_obj.statuses.at(sidechain_type::ethereum) == son_status::in_maintenance);
 
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");

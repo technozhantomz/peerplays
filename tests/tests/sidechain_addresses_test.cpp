@@ -135,6 +135,7 @@ BOOST_AUTO_TEST_CASE( sidechain_address_update_test ) {
       flat_map<sidechain_type, string> sidechain_public_keys;
       sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin address";
       sidechain_public_keys[sidechain_type::hive] = "hive address";
+      sidechain_public_keys[sidechain_type::ethereum] = "ethereum address";
 
       son_create_operation op;
       op.owner_account = bob_id;

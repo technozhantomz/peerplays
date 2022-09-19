@@ -92,7 +92,10 @@ vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<
    count = std::min(count, refs.size());
    std::partial_sort(refs.begin(), refs.begin() + count, refs.end(),
                    [this, sidechain](const son_object& a, const son_object& b)->bool {
-      FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive, "Unexpected sidechain type");
+      FC_ASSERT(sidechain == sidechain_type::bitcoin ||
+                sidechain == sidechain_type::ethereum ||
+                sidechain == sidechain_type::hive,
+                "Unexpected sidechain type");
 
       const share_type oa_vote = _vote_tally_buffer[a.get_sidechain_vote_id(sidechain)];
       const share_type ob_vote = _vote_tally_buffer[b.get_sidechain_vote_id(sidechain)];
@@ -718,7 +721,9 @@ void database::update_active_sons()
 
    assert( _son_count_histogram_buffer.size() > 0 );
    for( const auto& son_count_histogram_buffer : _son_count_histogram_buffer ){
+#ifndef NDEBUG
       assert( son_count_histogram_buffer.second.size() > 0 );
+#endif
    }
 
    const flat_map<sidechain_type, share_type> stake_target = [this]{
@@ -2044,7 +2049,7 @@ void database::perform_son_tasks()
       });
    }
    // create BTC asset here because son_account is the issuer of the BTC
-   if (gpo.parameters.btc_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_TIME)
+   if (gpo.parameters.btc_asset() == asset_id_type() && head_block_time() >= HARDFORK_SON_TIME)
    {
       const asset_dynamic_data_object& dyn_asset =
          create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
@@ -2063,7 +2068,7 @@ void database::perform_son_tasks()
                               asset_issuer_permission_flags::override_authority;
             a.options.core_exchange_rate.base.amount = 100000;
             a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
-            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
+            a.options.core_exchange_rate.quote.amount = 2500;
             a.options.core_exchange_rate.quote.asset_id = a.id;
             a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
             a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
@@ -2077,8 +2082,42 @@ void database::perform_son_tasks()
                gpo.pending_parameters->extensions.value.btc_asset = btc_asset.get_id();
       });
    }
+   // create ETH asset here because son_account is the issuer of the ETH
+   if (gpo.parameters.eth_asset() == asset_id_type() && head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME)
+   {
+      const asset_dynamic_data_object& dyn_asset =
+         create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
+            a.current_supply = 0;
+         });
+
+      const asset_object& eth_asset =
+         create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
+            a.symbol = "ETH";
+            a.precision = 8;
+            a.issuer = gpo.parameters.son_account();
+            a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+            a.options.market_fee_percent = 500; // 5%
+            a.options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
+            a.options.flags = asset_issuer_permission_flags::charge_market_fee |
+                              asset_issuer_permission_flags::override_authority;
+            a.options.core_exchange_rate.base.amount = 100000;
+            a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
+            a.options.core_exchange_rate.quote.amount = 2500;
+            a.options.core_exchange_rate.quote.asset_id = a.id;
+            a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
+            a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
+            a.options.whitelist_markets.clear(); // might be traded with
+            a.options.blacklist_markets.clear(); // might not be traded with
+            a.dynamic_asset_data_id = dyn_asset.id;
+         });
+      modify( gpo, [&eth_asset]( global_property_object& gpo ) {
+            gpo.parameters.extensions.value.eth_asset = eth_asset.get_id();
+            if( gpo.pending_parameters )
+               gpo.pending_parameters->extensions.value.eth_asset = eth_asset.get_id();
+      });
+   }
    // create HBD asset here because son_account is the issuer of the HBD
-   if (gpo.parameters.hbd_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_FOR_HIVE_TIME)
+   if (gpo.parameters.hbd_asset() == asset_id_type() && head_block_time() >= HARDFORK_SON_FOR_HIVE_TIME)
    {
       const asset_dynamic_data_object& dyn_asset =
          create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
@@ -2097,7 +2136,7 @@ void database::perform_son_tasks()
                               asset_issuer_permission_flags::override_authority;
             a.options.core_exchange_rate.base.amount = 100000;
             a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
-            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
+            a.options.core_exchange_rate.quote.amount = 2500;
             a.options.core_exchange_rate.quote.asset_id = a.id;
             a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
             a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
@@ -2131,7 +2170,7 @@ void database::perform_son_tasks()
                               asset_issuer_permission_flags::override_authority;
             a.options.core_exchange_rate.base.amount = 100000;
             a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
-            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
+            a.options.core_exchange_rate.quote.amount = 2500;
             a.options.core_exchange_rate.quote.asset_id = a.id;
             a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
             a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
@@ -2413,14 +2452,17 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
          if( !p.pending_parameters->extensions.value.hive_asset.valid() )
             p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
+         if( !p.pending_parameters->extensions.value.eth_asset.valid() )
+            p.pending_parameters->extensions.value.eth_asset = p.parameters.extensions.value.eth_asset;
 
          // the following parameters are not allowed to be changed. So take what is in global property
-         p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
-         p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
-         p.pending_parameters->extensions.value.maximum_son_count = p.parameters.extensions.value.maximum_son_count;
-         p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
-         p.pending_parameters->extensions.value.son_account = p.parameters.extensions.value.son_account;
          p.pending_parameters->extensions.value.gpos_period_start = p.parameters.extensions.value.gpos_period_start;
+         p.pending_parameters->extensions.value.son_account = p.parameters.extensions.value.son_account;
+         p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
+         p.pending_parameters->extensions.value.maximum_son_count = p.parameters.extensions.value.maximum_son_count;
+         p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
+         p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
+         p.pending_parameters->extensions.value.eth_asset = p.parameters.extensions.value.eth_asset;
 
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();

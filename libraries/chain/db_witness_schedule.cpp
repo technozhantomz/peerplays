@@ -77,8 +77,9 @@ witness_id_type database::get_scheduled_witness( uint32_t slot_num )const
 unsigned_int database::get_son_schedule_id( sidechain_type type )const
 {
    static const map<sidechain_type, unsigned_int> schedule_map = {
-      { sidechain_type::hive, 0 },
-      { sidechain_type::bitcoin, 1 }
+      { sidechain_type::bitcoin, 0 },
+      { sidechain_type::ethereum, 1 },
+      { sidechain_type::hive, 2 }
    };
 
    return schedule_map.at(type);
@@ -322,8 +323,10 @@ void database::update_witness_schedule(const signed_block& next_block)
 void database::update_son_schedule(const signed_block& next_block)
 {
    auto start = fc::time_point::now();
-   const global_property_object& gpo = get_global_properties();
+#ifndef NDEBUG
    const son_schedule_object& sso = get(son_schedule_id_type());
+#endif
+   const global_property_object& gpo = get_global_properties();
    const flat_map<sidechain_type, uint32_t> schedule_needs_filled = [&gpo]()
    {
       flat_map<sidechain_type, uint32_t> schedule_needs_filled;

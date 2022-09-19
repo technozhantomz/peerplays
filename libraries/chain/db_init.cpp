@@ -1101,28 +1101,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
       // Initialize witness schedule
 
-   #ifndef NDEBUG
-   const son_schedule_object& ssohive =
-#endif
-   create<son_schedule_object>([&](son_schedule_object& _sso)
-   {
-      // for scheduled
-      memset(_sso.rng_seed.begin(), 0, _sso.rng_seed.size());
-
-      witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
-
-      auto init_witnesses = get_global_properties().active_witnesses;
-
-      _sso.scheduler = son_scheduler();
-      _sso.scheduler._min_token_count = std::max(int(init_witnesses.size()) / 2, 1);
-
-
-      _sso.last_scheduling_block = 0;
-
-      _sso.recent_slots_filled = fc::uint128::max_value();
-   });
-   assert( ssohive.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::hive)) );
-
 #ifndef NDEBUG
    const son_schedule_object& ssobitcoin =
 #endif
@@ -1133,17 +1111,58 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
       witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
 
-      auto init_witnesses = get_global_properties().active_witnesses;
+      auto init_bitcoin_sons = get_global_properties().active_sons.at(sidechain_type::bitcoin);
 
       _sso.scheduler = son_scheduler();
-      _sso.scheduler._min_token_count = std::max(int(init_witnesses.size()) / 2, 1);
-
+      _sso.scheduler._min_token_count = std::max(int(init_bitcoin_sons.size()) / 2, 1);
 
       _sso.last_scheduling_block = 0;
 
       _sso.recent_slots_filled = fc::uint128::max_value();
    });
    assert( ssobitcoin.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::bitcoin)) );
+
+#ifndef NDEBUG
+   const son_schedule_object& ssoethereum =
+#endif
+   create<son_schedule_object>([&](son_schedule_object& _sso)
+   {
+      // for scheduled
+      memset(_sso.rng_seed.begin(), 0, _sso.rng_seed.size());
+
+      witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+
+      auto init_ethereum_sons = get_global_properties().active_sons.at(sidechain_type::ethereum);
+
+      _sso.scheduler = son_scheduler();
+      _sso.scheduler._min_token_count = std::max(int(init_ethereum_sons.size()) / 2, 1);
+
+      _sso.last_scheduling_block = 0;
+
+      _sso.recent_slots_filled = fc::uint128::max_value();
+   });
+   assert( ssoethereum.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::ethereum)) );
+
+#ifndef NDEBUG
+   const son_schedule_object& ssohive =
+#endif
+   create<son_schedule_object>([&](son_schedule_object& _sso)
+   {
+      // for scheduled
+      memset(_sso.rng_seed.begin(), 0, _sso.rng_seed.size());
+
+      witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+
+      auto init_hive_sons = get_global_properties().active_sons.at(sidechain_type::hive);
+
+      _sso.scheduler = son_scheduler();
+      _sso.scheduler._min_token_count = std::max(int(init_hive_sons.size()) / 2, 1);
+
+      _sso.last_scheduling_block = 0;
+
+      _sso.recent_slots_filled = fc::uint128::max_value();
+   });
+   assert( ssohive.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::hive)) );
 
    // Create FBA counters
    create<fba_accumulator_object>([&]( fba_accumulator_object& acc )

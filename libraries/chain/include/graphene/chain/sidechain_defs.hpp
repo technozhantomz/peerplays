@@ -14,7 +14,7 @@ enum class sidechain_type {
    hive
 };
 
-static const std::set<sidechain_type> active_sidechain_types = {sidechain_type::bitcoin, sidechain_type::hive};
+static const std::set<sidechain_type> active_sidechain_types = {sidechain_type::bitcoin, sidechain_type::ethereum, sidechain_type::hive};
 
 } }
 

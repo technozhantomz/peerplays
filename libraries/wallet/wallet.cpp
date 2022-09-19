@@ -2815,7 +2815,7 @@ public:
       account_id_type son_account_id = get_account_id(son);
       fc::optional<son_object> son_obj = _remote_db->get_son_by_account_id(son_account_id);
       FC_ASSERT(son_obj, "Account ${son} is not registered as a son", ("son", son));
-      FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive, "Unexpected sidechain type");
+      FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive || sidechain == sidechain_type::ethereum, "Unexpected sidechain type");
 
       if (approve)
       {
@@ -2861,7 +2861,7 @@ public:
          account_id_type son_owner_account_id = get_account_id(son);
          fc::optional<son_object> son_obj = _remote_db->get_son_by_account_id(son_owner_account_id);
          FC_ASSERT(son_obj, "Account ${son} is not registered as a son", ("son", son));
-         FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive, "Unexpected sidechain type");
+         FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive || sidechain == sidechain_type::ethereum, "Unexpected sidechain type");
 
          auto insert_result = voting_account_object.options.votes.insert(son_obj->get_sidechain_vote_id(sidechain));
          if (!insert_result.second)
@@ -2872,7 +2872,7 @@ public:
          account_id_type son_owner_account_id = get_account_id(son);
          fc::optional<son_object> son_obj = _remote_db->get_son_by_account_id(son_owner_account_id);
          FC_ASSERT(son_obj, "Account ${son} is not registered as a son", ("son", son));
-         FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive, "Unexpected sidechain type");
+         FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive || sidechain == sidechain_type::ethereum, "Unexpected sidechain type");
 
          unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->get_sidechain_vote_id(sidechain));
          if (!votes_removed)
@@ -2913,6 +2913,7 @@ public:
             case sidechain_type::peerplays : return "peerplays";
             case sidechain_type::bitcoin : return "bitcoin";
             case sidechain_type::hive : return "hive";
+            case sidechain_type::ethereum : return "ethereum";
             default:
                FC_THROW("Wrong sidechain type: ${sidechain}", ("sidechain", sidechain));
          }

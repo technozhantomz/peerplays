@@ -20,6 +20,10 @@ namespace graphene { namespace chain {
           retval = retval &&
                    (sidechain_public_keys.find( sidechain_type::hive ) != sidechain_public_keys.end()) &&
                    (sidechain_public_keys.at(sidechain_type::hive).length() > 0);
+
+          retval = retval &&
+                   (sidechain_public_keys.find( sidechain_type::ethereum ) != sidechain_public_keys.end()) &&
+                   (sidechain_public_keys.at(sidechain_type::ethereum).length() > 0);
       }
 
       return retval;
