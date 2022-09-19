@@ -40,15 +40,18 @@ object_id_type create_son_evaluator::do_apply(const son_create_operation& op)
 { try {
     vote_id_type vote_id_bitcoin;
     vote_id_type vote_id_hive;
-    db().modify(db().get_global_properties(), [&vote_id_bitcoin, &vote_id_hive](global_property_object& p) {
+    vote_id_type vote_id_ethereum;
+    db().modify(db().get_global_properties(), [&vote_id_bitcoin, &vote_id_hive, &vote_id_ethereum](global_property_object& p) {
         vote_id_bitcoin = get_next_vote_id(p, vote_id_type::son_bitcoin);
         vote_id_hive = get_next_vote_id(p, vote_id_type::son_hive);
+        vote_id_ethereum = get_next_vote_id(p, vote_id_type::son_ethereum);
     });
 
     const auto& new_son_object = db().create<son_object>( [&]( son_object& obj ){
         obj.son_account = op.owner_account;
         obj.sidechain_vote_ids[sidechain_type::bitcoin] = vote_id_bitcoin;
         obj.sidechain_vote_ids[sidechain_type::hive] = vote_id_hive;
+        obj.sidechain_vote_ids[sidechain_type::ethereum] = vote_id_ethereum;
         obj.url = op.url;
         obj.deposit = op.deposit;
         obj.signing_key = op.signing_key;

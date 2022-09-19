@@ -177,6 +177,14 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("bitcoin-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("02d0f137e717fb3aab7aff99904001d49a0a636c5e1342f8927a4ba2eaee8e9772", "cVN31uC9sTEr392DLVUEjrtMgLA8Yb3fpYmTRj7bomTm6nn2ANPr")),
                      "Tuple of [Bitcoin public key, Bitcoin private key] (may specify multiple times)");
 
+   cli.add_options()("ethereum-sidechain-enabled", bpo::value<bool>()->default_value(false), "Ethereum sidechain handler enabled");
+   cli.add_options()("ethereum-node-rpc-url", bpo::value<string>()->default_value("127.0.0.1:8545"), "Ethereum node RPC URL [http[s]://]host[:port]");
+   cli.add_options()("ethereum-node-rpc-user", bpo::value<string>(), "Ethereum RPC user");
+   cli.add_options()("ethereum-node-rpc-password", bpo::value<string>(), "Ethereum RPC password");
+   cli.add_options()("ethereum-wallet-contract-address", bpo::value<string>(), "Ethereum wallet contract address");
+   cli.add_options()("ethereum-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("5fbbb31be52608d2f52247e8400b7fcaa9e0bc12", "9bedac2bd8fe2a6f6528e066c67fc8ac0622e96828d40c0e820d83c5bd2b0589")),
+                     "Tuple of [Ethereum public key, Ethereum private key] (may specify multiple times)");
+
    cli.add_options()("hive-sidechain-enabled", bpo::value<bool>()->default_value(false), "Hive sidechain handler enabled");
    cli.add_options()("hive-node-rpc-url", bpo::value<string>()->default_value("127.0.0.1:28090"), "Hive node RPC URL [http[s]://]host[:port]");
    cli.add_options()("hive-node-rpc-user", bpo::value<string>(), "Hive node RPC user");
@@ -238,13 +246,14 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
       wlog("Haven't set up Bitcoin sidechain parameters");
    }
 
-   //sidechain_enabled_ethereum = options.at("ethereum-sidechain-enabled").as<bool>();
-   //config_ready_ethereum = options.count("ethereum-node-ip") &&
-   //                        options.count("ethereum-address") &&
-   //                        options.count("ethereum-public-key") && options.count("ethereum-private-key");
-   //if (!config_ready_ethereum) {
-   //   wlog("Haven't set up Ethereum sidechain parameters");
-   //}
+   sidechain_enabled_ethereum = options.at("ethereum-sidechain-enabled").as<bool>();
+   config_ready_ethereum = options.count("ethereum-node-rpc-url") &&
+                           /*options.count("ethereum-node-rpc-user") && options.count("ethereum-node-rpc-password") &&*/
+                           options.count("ethereum-wallet-contract-address") &&
+                           options.count("ethereum-private-key");
+   if (sidechain_enabled_ethereum && !config_ready_ethereum) {
+      wlog("Haven't set up Ethereum sidechain parameters");
+   }
 
    sidechain_enabled_hive = options.at("hive-sidechain-enabled").as<bool>();
    config_ready_hive = options.count("hive-node-rpc-url") &&
@@ -283,10 +292,10 @@ void peerplays_sidechain_plugin_impl::plugin_startup() {
       ilog("Bitcoin sidechain handler running");
    }
 
-   //if (sidechain_enabled_ethereum && config_ready_ethereum) {
-   //   net_manager->create_handler(sidechain_type::ethereum, options);
-   //   ilog("Ethereum sidechain handler running");
-   //}
+   if (sidechain_enabled_ethereum && config_ready_ethereum) {
+      net_handlers.at(sidechain_type::ethereum) = net_handler_factory.create_handler(sidechain_type::ethereum, options);
+      ilog("Ethereum sidechain handler running");
+   }
 
    if (sidechain_enabled_hive && config_ready_hive) {
       net_handlers.at(sidechain_type::hive) = net_handler_factory.create_handler(sidechain_type::hive, options);

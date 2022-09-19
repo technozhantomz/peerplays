@@ -1,6 +1,7 @@
 #include <graphene/peerplays_sidechain/sidechain_net_handler_factory.hpp>
 
 #include <graphene/peerplays_sidechain/sidechain_net_handler_bitcoin.hpp>
+#include <graphene/peerplays_sidechain/sidechain_net_handler_ethereum.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_handler_hive.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_handler_peerplays.hpp>
 
@@ -17,6 +18,9 @@ std::unique_ptr<sidechain_net_handler> sidechain_net_handler_factory::create_han
    }
    case sidechain_type::hive: {
       return std::unique_ptr<sidechain_net_handler>(new sidechain_net_handler_hive(plugin, options));
+   }
+   case sidechain_type::ethereum: {
+      return std::unique_ptr<sidechain_net_handler>(new sidechain_net_handler_ethereum(plugin, options));
    }
    case sidechain_type::peerplays: {
       return std::unique_ptr<sidechain_net_handler>(new sidechain_net_handler_peerplays(plugin, options));

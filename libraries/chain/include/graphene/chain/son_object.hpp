@@ -89,11 +89,13 @@ namespace graphene { namespace chain {
          inline vote_id_type get_sidechain_vote_id(sidechain_type sidechain) const { return sidechain_vote_ids.at(sidechain); }
          inline vote_id_type get_bitcoin_vote_id() const { return get_sidechain_vote_id(sidechain_type::bitcoin); }
          inline vote_id_type get_hive_vote_id() const { return get_sidechain_vote_id(sidechain_type::hive); }
+         inline vote_id_type get_ethereum_vote_id() const { return get_sidechain_vote_id(sidechain_type::ethereum); }
    };
 
    struct by_account;
    struct by_vote_id_bitcoin;
    struct by_vote_id_hive;
+   struct by_vote_id_ethereum;
    using son_multi_index_type = multi_index_container<
       son_object,
       indexed_by<
@@ -108,6 +110,9 @@ namespace graphene { namespace chain {
          >,
          ordered_unique< tag<by_vote_id_hive>,
             const_mem_fun<son_object, vote_id_type, &son_object::get_hive_vote_id>
+         >,
+         ordered_unique< tag<by_vote_id_ethereum>,
+            const_mem_fun<son_object, vote_id_type, &son_object::get_ethereum_vote_id>
          >
       >
    >;

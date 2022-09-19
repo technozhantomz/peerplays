@@ -2085,6 +2085,7 @@ vector<variant> database_api_impl::lookup_vote_ids(const vector<vote_id_type> &v
    const auto &against_worker_idx = _db.get_index_type<worker_index>().indices().get<by_vote_against>();
    const auto &son_bictoin_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_bitcoin>();
    const auto &son_hive_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_hive>();
+   const auto &son_ethereum_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_ethereum>();
 
    vector<variant> result;
    result.reserve(votes.size());
@@ -2136,6 +2137,14 @@ vector<variant> database_api_impl::lookup_vote_ids(const vector<vote_id_type> &v
             result.emplace_back(variant());
          break;
       }
+      case vote_id_type::son_ethereum: {
+         auto itr = son_ethereum_idx.find(id);
+         if (itr != son_ethereum_idx.end())
+            result.emplace_back(variant(*itr, 5));
+         else
+            result.emplace_back(variant());
+         break;
+      }
       case vote_id_type::VOTE_TYPE_COUNT:
          break; // supress unused enum value warnings
       default:
@@ -2173,6 +2182,9 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
       const auto son_hive_ids = get_votes_objects<son_index, by_vote_id_hive>(votes_ids, 5);
       if (!son_hive_ids.empty())
          son_ids[sidechain_type::hive] = std::move(son_hive_ids);
+      const auto son_ethereum_ids = get_votes_objects<son_index, by_vote_id_ethereum>(votes_ids, 5);
+      if (!son_ethereum_ids.empty())
+         son_ids[sidechain_type::ethereum] = std::move(son_ethereum_ids);
       return son_ids;
    }();
 
