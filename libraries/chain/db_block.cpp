@@ -40,8 +40,10 @@
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/evaluator.hpp>
 #include <graphene/chain/witness_schedule_object.hpp>
+#include <graphene/db/object_database.hpp>
 #include <fc/crypto/digest.hpp>
 
+#include <boost/filesystem.hpp>
 
 namespace {
 
@@ -196,6 +198,9 @@ bool database::push_block(const signed_block& new_block, uint32_t skip)
 
 bool database::_push_block(const signed_block& new_block)
 { try {
+   boost::filesystem::space_info si = boost::filesystem::space(get_data_dir());
+   FC_ASSERT((si.available) > 104857600, "Rejecting block due to low disk space"); // 104857600 bytes = 100 MB
+
    uint32_t skip = get_node_properties().skip_flags;
    const auto now = fc::time_point::now().sec_since_epoch();
 
@@ -726,7 +731,7 @@ void database::_apply_block( const signed_block& next_block )
 
    check_ending_lotteries();
    check_ending_nft_lotteries();
-   
+
    create_block_summary(next_block);
    place_delayed_bets(); // must happen after update_global_dynamic_data() updates the time
    clear_expired_transactions();
