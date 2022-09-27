@@ -91,20 +91,20 @@ vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<
    }
    count = std::min(count, refs.size());
    std::partial_sort(refs.begin(), refs.begin() + count, refs.end(),
-                   [this, sidechain](const son_object& a, const son_object& b)->bool {
-      FC_ASSERT(sidechain == sidechain_type::bitcoin ||
-                sidechain == sidechain_type::ethereum ||
-                sidechain == sidechain_type::hive,
-                "Unexpected sidechain type");
+      [this, sidechain](const son_object& a, const son_object& b)->bool {
+         FC_ASSERT(sidechain == sidechain_type::bitcoin ||
+                   sidechain == sidechain_type::ethereum ||
+                   sidechain == sidechain_type::hive,
+                   "Unexpected sidechain type");
 
-      const share_type oa_vote = _vote_tally_buffer[a.get_sidechain_vote_id(sidechain)];
-      const share_type ob_vote = _vote_tally_buffer[b.get_sidechain_vote_id(sidechain)];
+         const share_type oa_vote = _vote_tally_buffer[a.get_sidechain_vote_id(sidechain)];
+         const share_type ob_vote = _vote_tally_buffer[b.get_sidechain_vote_id(sidechain)];
 
-      if( oa_vote != ob_vote )
-         return oa_vote > ob_vote;
+         if( oa_vote != ob_vote )
+            return oa_vote > ob_vote;
 
-      return a.get_sidechain_vote_id(sidechain) < b.get_sidechain_vote_id(sidechain);
-});
+         return a.get_sidechain_vote_id(sidechain) < b.get_sidechain_vote_id(sidechain);
+   });
 
    refs.resize(count, refs.front());
    return refs;
@@ -1463,17 +1463,19 @@ void rolling_period_start(database& db)
 {
    if(db.head_block_time() >= HARDFORK_GPOS_TIME)
    {
-      auto gpo = db.get_global_properties();
+      const auto gpo = db.get_global_properties();
       auto period_start = db.get_global_properties().parameters.gpos_period_start();
-      auto vesting_period = db.get_global_properties().parameters.gpos_period();
+      const auto vesting_period = db.get_global_properties().parameters.gpos_period();
 
-      auto now = db.head_block_time();
-      if(now.sec_since_epoch() >= (period_start + vesting_period))
+      const auto now = db.head_block_time();
+      while(now.sec_since_epoch() >= (period_start + vesting_period))
       {
          // roll
          db.modify(db.get_global_properties(), [period_start, vesting_period](global_property_object& p) {
             p.parameters.extensions.value.gpos_period_start =  period_start + vesting_period;
          });
+
+         period_start = db.get_global_properties().parameters.gpos_period_start();
       }
    }
 }
