@@ -88,6 +88,7 @@ private:
    std::mutex access_approve_prop_mutex;
    std::mutex access_son_down_prop_mutex;
 
+   std::map<sidechain_type, bool> sidechain_enabled;
    std::map<sidechain_type, std::unique_ptr<sidechain_net_handler>> net_handlers;
    std::set<chain::son_id_type> sons;
    std::map<chain::public_key_type, fc::ecc::private_key> private_keys;
@@ -117,6 +118,13 @@ peerplays_sidechain_plugin_impl::peerplays_sidechain_plugin_impl(peerplays_sidec
             current_son_id.emplace(active_sidechain_type, son_id_type(std::numeric_limits<uint32_t>().max()));
          }
          return current_son_id;
+      }()),
+      sidechain_enabled([] {
+         std::map<sidechain_type, bool> sidechain_enabled;
+         for (const auto &active_sidechain_type : active_sidechain_types) {
+            sidechain_enabled.emplace(active_sidechain_type, false);
+         }
+         return sidechain_enabled;
       }()),
       net_handlers([] {
          std::map<sidechain_type, std::unique_ptr<sidechain_net_handler>> net_handlers;
@@ -288,21 +296,25 @@ void peerplays_sidechain_plugin_impl::plugin_startup() {
    sidechain_net_handler_factory net_handler_factory(plugin);
 
    if (sidechain_enabled_bitcoin && config_ready_bitcoin) {
+      sidechain_enabled.at(sidechain_type::bitcoin) = true;
       net_handlers.at(sidechain_type::bitcoin) = net_handler_factory.create_handler(sidechain_type::bitcoin, options);
       ilog("Bitcoin sidechain handler running");
    }
 
    if (sidechain_enabled_ethereum && config_ready_ethereum) {
+      sidechain_enabled.at(sidechain_type::ethereum) = true;
       net_handlers.at(sidechain_type::ethereum) = net_handler_factory.create_handler(sidechain_type::ethereum, options);
       ilog("Ethereum sidechain handler running");
    }
 
    if (sidechain_enabled_hive && config_ready_hive) {
+      sidechain_enabled.at(sidechain_type::hive) = true;
       net_handlers.at(sidechain_type::hive) = net_handler_factory.create_handler(sidechain_type::hive, options);
       ilog("Hive sidechain handler running");
    }
 
    if (sidechain_enabled_peerplays && config_ready_peerplays) {
+      sidechain_enabled.at(sidechain_type::peerplays) = true;
       net_handlers.at(sidechain_type::peerplays) = net_handler_factory.create_handler(sidechain_type::peerplays, options);
       ilog("Peerplays sidechain handler running");
    }
@@ -451,8 +463,10 @@ void peerplays_sidechain_plugin_impl::heartbeat_loop() {
       //! Check that son is active (at least for one sidechain_type)
       bool is_son_active = false;
       for (const auto &active_sidechain_type : active_sidechain_types) {
-         if (is_active_son(active_sidechain_type, son_id))
-            is_son_active = true;
+         if(sidechain_enabled.at(active_sidechain_type)) {
+            if (is_active_son(active_sidechain_type, son_id))
+               is_son_active = true;
+         }
       }
 
       if (is_son_active || status_in_maintenance) {
@@ -488,8 +502,10 @@ void peerplays_sidechain_plugin_impl::schedule_son_processing() {
 
    for (const auto &active_sidechain_type : active_sidechain_types) {
       _son_processing_task[active_sidechain_type] = std::async(std::launch::async, [this, next_wakeup, active_sidechain_type] {
-         std::this_thread::sleep_until(next_wakeup);
-         son_processing(active_sidechain_type);
+         if(sidechain_enabled.at(active_sidechain_type)) {
+            std::this_thread::sleep_until(next_wakeup);
+            son_processing(active_sidechain_type);
+         }
       });
    }
 }
@@ -597,7 +613,9 @@ bool peerplays_sidechain_plugin_impl::can_son_participate(sidechain_type sidecha
 std::map<sidechain_type, std::vector<std::string>> peerplays_sidechain_plugin_impl::get_son_listener_log() {
    std::map<sidechain_type, std::vector<std::string>> result;
    for (const auto &active_sidechain_type : active_sidechain_types) {
-      result.emplace(active_sidechain_type, net_handlers.at(active_sidechain_type)->get_son_listener_log());
+      if(net_handlers.at(active_sidechain_type)) {
+         result.emplace(active_sidechain_type, net_handlers.at(active_sidechain_type)->get_son_listener_log());
+      }
    }
    return result;
 }
@@ -760,35 +778,51 @@ void peerplays_sidechain_plugin_impl::create_son_deregister_proposals(sidechain_
 }
 
 void peerplays_sidechain_plugin_impl::process_proposals(sidechain_type sidechain) {
-   net_handlers.at(sidechain)->process_proposals();
+   if(net_handlers.at(sidechain)) {
+      net_handlers.at(sidechain)->process_proposals();
+   }
 }
 
 void peerplays_sidechain_plugin_impl::process_active_sons_change(sidechain_type sidechain) {
-   net_handlers.at(sidechain)->process_active_sons_change();
+   if(net_handlers.at(sidechain)) {
+      net_handlers.at(sidechain)->process_active_sons_change();
+   }
 }
 
 void peerplays_sidechain_plugin_impl::create_deposit_addresses(sidechain_type sidechain) {
-   net_handlers.at(sidechain)->create_deposit_addresses();
+   if(net_handlers.at(sidechain)) {
+      net_handlers.at(sidechain)->create_deposit_addresses();
+   }
 }
 
 void peerplays_sidechain_plugin_impl::process_deposits(sidechain_type sidechain) {
-   net_handlers.at(sidechain)->process_deposits();
+   if(net_handlers.at(sidechain)) {
+      net_handlers.at(sidechain)->process_deposits();
+   }
 }
 
 void peerplays_sidechain_plugin_impl::process_withdrawals(sidechain_type sidechain) {
-   net_handlers.at(sidechain)->process_withdrawals();
+   if(net_handlers.at(sidechain)) {
+      net_handlers.at(sidechain)->process_withdrawals();
+   }
 }
 
 void peerplays_sidechain_plugin_impl::process_sidechain_transactions(sidechain_type sidechain) {
-   net_handlers.at(sidechain)->process_sidechain_transactions();
+   if(net_handlers.at(sidechain)) {
+      net_handlers.at(sidechain)->process_sidechain_transactions();
+   }
 }
 
 void peerplays_sidechain_plugin_impl::send_sidechain_transactions(sidechain_type sidechain) {
-   net_handlers.at(sidechain)->send_sidechain_transactions();
+   if(net_handlers.at(sidechain)) {
+      net_handlers.at(sidechain)->send_sidechain_transactions();
+   }
 }
 
 void peerplays_sidechain_plugin_impl::settle_sidechain_transactions(sidechain_type sidechain) {
-   net_handlers.at(sidechain)->settle_sidechain_transactions();
+   if(net_handlers.at(sidechain)) {
+      net_handlers.at(sidechain)->settle_sidechain_transactions();
+   }
 }
 
 void peerplays_sidechain_plugin_impl::on_applied_block(const signed_block &b) {
