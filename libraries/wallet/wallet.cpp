@@ -4114,7 +4114,7 @@ public:
          "to access the debug API on the node you are connecting to.\n"
          "\n"
          "To fix this problem:\n"
-         "- Please ensure you are running debug_node, not witness_node.\n"
+         "- Please ensure you enable debug_witness plugin in witness_node.\n"
          "- Please follow the instructions in README.md to set up an apiaccess file.\n"
          "\n";
       }
