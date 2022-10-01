@@ -130,8 +130,9 @@ sub explainCType
   $type =~ s/\s+$/$1/;
   $type =~ s/\b(u?int(8|16|32|64)_t|int|unsigned)\b/integer/;  # spare the user from width and signedness
   $type =~ s/\bbool\b/boolean/;      # they're not C++ people
-  $type =~ s/^(?:vector|set|flat_set)<(.+)>$/[$1, ...]/;            # represent as JSon-like array notation
-  $type =~ s/^(?:map|flat_map)<(.+)\s*,\s*(.+)>$/{$1 => $2, ...}/;  # same for map
+  $type =~ s/^(?:vector|set|flat_set)<(.+)>$/[$1, ...]/;    # represent as JSon-like array notation
+  $type =~ s/^map<(.+)\s*,\s*(.+)>$/{$1: $2, ...}/;         # same for map
+  $type =~ s/^flat_map<(.+)\s*,\s*(.+)>$/[[$1, $2], ...]/;  # same for flat_map
   $type =~ s/^time_point_sec$/time, e.g. 2021-12-25T14:30:05/;
   return $type;
 }
