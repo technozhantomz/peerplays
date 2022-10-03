@@ -374,7 +374,9 @@ void database::initialize_hardforks()
 void database::initialize_indexes()
 {
    reset_indexes();
-   _undo_db.set_max_size( GRAPHENE_MIN_UNDO_HISTORY );
+
+   const std::lock_guard<std::mutex> undo_db_lock{_undo_db_mutex};
+   _undo_db.set_max_size(GRAPHENE_MIN_UNDO_HISTORY);
 
    //Protocol object indexes
    add_index< primary_index<asset_index, 13> >(); // 8192 assets per chunk
@@ -474,7 +476,9 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    FC_ASSERT(genesis_state.initial_active_witnesses <= genesis_state.initial_witness_candidates.size(),
              "initial_active_witnesses is larger than the number of candidate witnesses.");
 
+   const std::lock_guard<std::mutex> undo_db_lock{_undo_db_mutex};
    _undo_db.disable();
+
    struct auth_inhibitor {
       auth_inhibitor(database& db) : db(db), old_flags(db.node_properties().skip_flags)
       { db.node_properties().skip_flags |= skip_authority_check; }

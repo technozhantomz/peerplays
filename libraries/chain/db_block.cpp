@@ -162,10 +162,13 @@ void database::check_transaction_for_duplicated_operations(const signed_transact
       existed_operations_digests.insert( proposed_operations_digests.begin(), proposed_operations_digests.end() );
    });
 
-   for (auto& pending_transaction: _pending_tx)
    {
-      auto proposed_operations_digests = gather_proposed_operations_digests(pending_transaction);
-      existed_operations_digests.insert(proposed_operations_digests.begin(), proposed_operations_digests.end());
+      const std::lock_guard<std::mutex> pending_tx_lock{_pending_tx_mutex};
+      for (auto &pending_transaction : _pending_tx)
+      {
+         auto proposed_operations_digests = gather_proposed_operations_digests(pending_transaction);
+         existed_operations_digests.insert(proposed_operations_digests.begin(), proposed_operations_digests.end());
+      }
    }
 
    auto proposed_operations_digests = gather_proposed_operations_digests(trx);
@@ -187,7 +190,12 @@ bool database::push_block(const signed_block& new_block, uint32_t skip)
    bool result;
    detail::with_skip_flags( *this, skip, [&]()
    {
-      detail::without_pending_transactions( *this, std::move(_pending_tx),
+      std::vector<processed_transaction> pending_tx = [this] {
+         const std::lock_guard<std::mutex> pending_tx_lock{_pending_tx_mutex};
+         return std::move(_pending_tx);
+      }();
+
+      detail::without_pending_transactions( *this, std::move(pending_tx),
       [&]()
       {
          result = _push_block(new_block);
@@ -387,17 +395,26 @@ processed_transaction database::_push_transaction( const signed_transaction& trx
 {
    // If this is the first transaction pushed after applying a block, start a new undo session.
    // This allows us to quickly rewind to the clean state of the head block, in case a new block arrives.
-   if( !_pending_tx_session.valid() )
-      _pending_tx_session = _undo_db.start_undo_session();
+   {
+      const std::lock_guard<std::mutex> pending_tx_session_lock{_pending_tx_session_mutex};
+      if (!_pending_tx_session.valid()) {
+         const std::lock_guard<std::mutex> undo_db_lock{_undo_db_mutex};
+         _pending_tx_session = _undo_db.start_undo_session();
+      }
+   }
 
    // Create a temporary undo session as a child of _pending_tx_session.
    // The temporary session will be discarded by the destructor if
    // _apply_transaction fails.  If we make it to merge(), we
    // apply the changes.
 
+   const std::lock_guard<std::mutex> undo_db_lock{_undo_db_mutex};
    auto temp_session = _undo_db.start_undo_session();
-   auto processed_trx = _apply_transaction( trx );
-   _pending_tx.push_back(processed_trx);
+   auto processed_trx = _apply_transaction(trx);
+   {
+      const std::lock_guard<std::mutex> pending_tx_lock{_pending_tx_mutex};
+      _pending_tx.push_back(processed_trx);
+   }
 
    // notify_changed_objects();
    // The transaction applied successfully. Merge its changes into the pending block session.
@@ -410,6 +427,7 @@ processed_transaction database::_push_transaction( const signed_transaction& trx
 
 processed_transaction database::validate_transaction( const signed_transaction& trx )
 {
+   const std::lock_guard<std::mutex> undo_db_lock{_undo_db_mutex};
    auto session = _undo_db.start_undo_session();
    return _apply_transaction( trx );
 }
@@ -509,47 +527,52 @@ signed_block database::_generate_block(
    // the value of the "when" variable is known, which means we need to
    // re-apply pending transactions in this method.
    //
-   _pending_tx_session.reset();
-   _pending_tx_session = _undo_db.start_undo_session();
+   {
+      const std::lock_guard<std::mutex> pending_tx_session_lock{_pending_tx_session_mutex};
+      _pending_tx_session.reset();
+      _pending_tx_session = _undo_db.start_undo_session();
+   }
 
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)
-   for( const processed_transaction& tx : _pending_tx )
    {
-      size_t new_total_size = total_block_size + fc::raw::pack_size( tx );
+      const std::lock_guard<std::mutex> pending_tx_lock{_pending_tx_mutex};
+      for (const processed_transaction &tx : _pending_tx) {
+         size_t new_total_size = total_block_size + fc::raw::pack_size(tx);
 
-      // postpone transaction if it would make block too big
-      if( new_total_size >= maximum_block_size )
-      {
-         postponed_tx_count++;
-         continue;
-      }
+         // postpone transaction if it would make block too big
+         if (new_total_size >= maximum_block_size) {
+            postponed_tx_count++;
+            continue;
+         }
 
-      try
-      {
-         auto temp_session = _undo_db.start_undo_session();
-         processed_transaction ptx = _apply_transaction( tx );
-         temp_session.merge();
+         try {
+            auto temp_session = _undo_db.start_undo_session();
+            processed_transaction ptx = _apply_transaction(tx);
+            temp_session.merge();
 
-         // We have to recompute pack_size(ptx) because it may be different
-         // than pack_size(tx) (i.e. if one or more results increased
-         // their size)
-         total_block_size += fc::raw::pack_size( ptx );
-         pending_block.transactions.push_back( ptx );
-      }
-      catch ( const fc::exception& e )
-      {
-         // Do nothing, transaction will not be re-applied
-         wlog( "Transaction was not processed while generating block due to ${e}", ("e", e) );
-         wlog( "The transaction was ${t}", ("t", tx) );
+            // We have to recompute pack_size(ptx) because it may be different
+            // than pack_size(tx) (i.e. if one or more results increased
+            // their size)
+            total_block_size += fc::raw::pack_size(ptx);
+            pending_block.transactions.push_back(ptx);
+         } catch (const fc::exception &e) {
+            // Do nothing, transaction will not be re-applied
+            wlog("Transaction was not processed while generating block due to ${e}", ("e", e));
+            wlog("The transaction was ${t}", ("t", tx));
+         }
       }
    }
+
    if( postponed_tx_count > 0 )
    {
       wlog( "Postponed ${n} transactions due to block size limit", ("n", postponed_tx_count) );
    }
 
-   _pending_tx_session.reset();
+   {
+      const std::lock_guard<std::mutex> pending_tx_session_lock{_pending_tx_session_mutex};
+      _pending_tx_session.reset();
+   }
 
    // We have temporarily broken the invariant that
    // _pending_tx_session is the result of applying _pending_tx, as
@@ -597,7 +620,11 @@ signed_block database::_generate_block(
  */
 void database::pop_block()
 { try {
-   _pending_tx_session.reset();
+   {
+      const std::lock_guard<std::mutex> pending_tx_session_lock{_pending_tx_session_mutex};
+      _pending_tx_session.reset();
+   }
+
    auto head_id = head_block_id();
    optional<signed_block> head_block = fetch_block_by_id( head_id );
    GRAPHENE_ASSERT( head_block.valid(), pop_empty_chain, "there are no blocks to pop" );
@@ -611,6 +638,8 @@ void database::pop_block()
 
 void database::clear_pending()
 { try {
+   const std::lock_guard<std::mutex> pending_tx_lock{_pending_tx_mutex};
+   const std::lock_guard<std::mutex> pending_tx_session_lock{_pending_tx_session_mutex};
    assert( (_pending_tx.size() == 0) || _pending_tx_session.valid() );
    _pending_tx.clear();
    _pending_tx_session.reset();
