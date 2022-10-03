@@ -5758,25 +5758,24 @@ string wallet_api::gethelp(const string& method)const
    if( method == "import_key" )
    {
       ss << "usage: import_key ACCOUNT_NAME_OR_ID  WIF_PRIVATE_KEY\n\n";
-      ss << "example: import_key \"1.3.11\" 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\n";
+      ss << "example: import_key \"1.2.11\" 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\n";
       ss << "example: import_key \"usera\" 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\n";
    }
    else if( method == "transfer" )
    {
       ss << "usage: transfer FROM TO AMOUNT SYMBOL \"memo\" BROADCAST\n\n";
-      ss << "example: transfer \"1.3.11\" \"1.3.4\" 1000.03 CORE \"memo\" true\n";
+      ss << "example: transfer \"1.2.11\" \"1.2.4\" 1000.03 CORE \"memo\" true\n";
       ss << "example: transfer \"usera\" \"userb\" 1000.123 CORE \"memo\" true\n";
    }
    else if( method == "create_account_with_brain_key" )
    {
       ss << "usage: create_account_with_brain_key BRAIN_KEY ACCOUNT_NAME REGISTRAR REFERRER BROADCAST\n\n";
-      ss << "example: create_account_with_brain_key \"my really long brain key\" \"newaccount\" \"1.3.11\" \"1.3.11\" true\n";
+      ss << "example: create_account_with_brain_key \"my really long brain key\" \"newaccount\" \"1.2.11\" \"1.2.11\" true\n";
       ss << "example: create_account_with_brain_key \"my really long brain key\" \"newaccount\" \"someaccount\" \"otheraccount\" true\n";
       ss << "\n";
       ss << "This method should be used if you would like the wallet to generate new keys derived from the brain key.\n";
       ss << "The BRAIN_KEY will be used as the owner key, and the active key will be derived from the BRAIN_KEY.  Use\n";
       ss << "register_account if you already know the keys you know the public keys that you would like to register.\n";
-
    }
    else if( method == "register_account" )
    {
