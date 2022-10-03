@@ -87,6 +87,7 @@ private:
    std::mutex access_db_mutex;
    std::mutex access_approve_prop_mutex;
    std::mutex access_son_down_prop_mutex;
+   std::mutex access_son_deregister_prop_mutex;
 
    std::map<sidechain_type, bool> sidechain_enabled;
    std::map<sidechain_type, std::unique_ptr<sidechain_net_handler>> net_handlers;
@@ -463,7 +464,7 @@ void peerplays_sidechain_plugin_impl::heartbeat_loop() {
       //! Check that son is active (at least for one sidechain_type)
       bool is_son_active = false;
       for (const auto &active_sidechain_type : active_sidechain_types) {
-         if(sidechain_enabled.at(active_sidechain_type)) {
+         if (sidechain_enabled.at(active_sidechain_type)) {
             if (is_active_son(active_sidechain_type, son_id))
                is_son_active = true;
          }
@@ -501,8 +502,13 @@ void peerplays_sidechain_plugin_impl::schedule_son_processing() {
    const auto next_wakeup = now + std::chrono::microseconds(time_to_next_son_processing);
 
    for (const auto &active_sidechain_type : active_sidechain_types) {
+      if (_son_processing_task.count(active_sidechain_type) != 0 && _son_processing_task.at(active_sidechain_type).wait_for(std::chrono::seconds{0}) != std::future_status::ready) {
+         wlog("Son doesn't process in time for sidechain: ${active_sidechain_type}", ("active_sidechain_type", active_sidechain_type));
+         _son_processing_task.at(active_sidechain_type).wait();
+      }
+
       _son_processing_task[active_sidechain_type] = std::async(std::launch::async, [this, next_wakeup, active_sidechain_type] {
-         if(sidechain_enabled.at(active_sidechain_type)) {
+         if (sidechain_enabled.at(active_sidechain_type)) {
             std::this_thread::sleep_until(next_wakeup);
             son_processing(active_sidechain_type);
          }
@@ -613,7 +619,7 @@ bool peerplays_sidechain_plugin_impl::can_son_participate(sidechain_type sidecha
 std::map<sidechain_type, std::vector<std::string>> peerplays_sidechain_plugin_impl::get_son_listener_log() {
    std::map<sidechain_type, std::vector<std::string>> result;
    for (const auto &active_sidechain_type : active_sidechain_types) {
-      if(net_handlers.at(active_sidechain_type)) {
+      if (net_handlers.at(active_sidechain_type)) {
          result.emplace(active_sidechain_type, net_handlers.at(active_sidechain_type)->get_son_listener_log());
       }
    }
@@ -626,7 +632,7 @@ void peerplays_sidechain_plugin_impl::approve_proposals(sidechain_type sidechain
    // into problem of approving the same propsal since it might happens that previous
    // approved proposal didn't have time or chance to populate the list of available
    // active proposals which is consulted here in the code.
-   std::lock_guard<std::mutex> lck(access_approve_prop_mutex);
+   const std::lock_guard<std::mutex> lck{access_approve_prop_mutex};
    auto check_approve_proposal = [&](const chain::son_id_type &son_id, const chain::proposal_object &proposal) {
       if (!is_valid_son_proposal(proposal)) {
          return;
@@ -676,7 +682,7 @@ void peerplays_sidechain_plugin_impl::approve_proposals(sidechain_type sidechain
 }
 
 void peerplays_sidechain_plugin_impl::create_son_down_proposals(sidechain_type sidechain) {
-   std::lock_guard<std::mutex> lck(access_son_down_prop_mutex);
+   const std::lock_guard<std::mutex> lck{access_son_down_prop_mutex};
    auto create_son_down_proposal = [&](chain::son_id_type son_id, fc::time_point_sec last_active_ts) {
       chain::database &d = plugin.database();
       const chain::global_property_object &gpo = d.get_global_properties();
@@ -740,6 +746,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals(sidechain_type s
 }
 
 void peerplays_sidechain_plugin_impl::create_son_deregister_proposals(sidechain_type sidechain) {
+   const std::lock_guard<std::mutex> lck{access_son_down_prop_mutex};
    chain::database &d = plugin.database();
    std::set<son_id_type> sons_to_be_dereg = d.get_sons_to_be_deregistered();
    chain::son_id_type my_son_id = get_current_son_id(sidechain);
@@ -778,49 +785,49 @@ void peerplays_sidechain_plugin_impl::create_son_deregister_proposals(sidechain_
 }
 
 void peerplays_sidechain_plugin_impl::process_proposals(sidechain_type sidechain) {
-   if(net_handlers.at(sidechain)) {
+   if (net_handlers.at(sidechain)) {
       net_handlers.at(sidechain)->process_proposals();
    }
 }
 
 void peerplays_sidechain_plugin_impl::process_active_sons_change(sidechain_type sidechain) {
-   if(net_handlers.at(sidechain)) {
+   if (net_handlers.at(sidechain)) {
       net_handlers.at(sidechain)->process_active_sons_change();
    }
 }
 
 void peerplays_sidechain_plugin_impl::create_deposit_addresses(sidechain_type sidechain) {
-   if(net_handlers.at(sidechain)) {
+   if (net_handlers.at(sidechain)) {
       net_handlers.at(sidechain)->create_deposit_addresses();
    }
 }
 
 void peerplays_sidechain_plugin_impl::process_deposits(sidechain_type sidechain) {
-   if(net_handlers.at(sidechain)) {
+   if (net_handlers.at(sidechain)) {
       net_handlers.at(sidechain)->process_deposits();
    }
 }
 
 void peerplays_sidechain_plugin_impl::process_withdrawals(sidechain_type sidechain) {
-   if(net_handlers.at(sidechain)) {
+   if (net_handlers.at(sidechain)) {
       net_handlers.at(sidechain)->process_withdrawals();
    }
 }
 
 void peerplays_sidechain_plugin_impl::process_sidechain_transactions(sidechain_type sidechain) {
-   if(net_handlers.at(sidechain)) {
+   if (net_handlers.at(sidechain)) {
       net_handlers.at(sidechain)->process_sidechain_transactions();
    }
 }
 
 void peerplays_sidechain_plugin_impl::send_sidechain_transactions(sidechain_type sidechain) {
-   if(net_handlers.at(sidechain)) {
+   if (net_handlers.at(sidechain)) {
       net_handlers.at(sidechain)->send_sidechain_transactions();
    }
 }
 
 void peerplays_sidechain_plugin_impl::settle_sidechain_transactions(sidechain_type sidechain) {
-   if(net_handlers.at(sidechain)) {
+   if (net_handlers.at(sidechain)) {
       net_handlers.at(sidechain)->settle_sidechain_transactions();
    }
 }

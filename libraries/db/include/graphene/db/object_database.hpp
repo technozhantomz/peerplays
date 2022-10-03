@@ -29,6 +29,7 @@
 #include <fc/log/logger.hpp>
 
 #include <map>
+#include <mutex>
 
 namespace graphene { namespace db {
 
@@ -144,6 +145,7 @@ namespace graphene { namespace db {
          fc::path get_data_dir()const { return _data_dir; }
 
          /** public for testing purposes only... should be private in practice. */
+         mutable std::mutex                     _undo_db_mutex;
          undo_database                          _undo_db;
      protected:
          template<typename IndexType>

@@ -520,6 +520,7 @@ namespace graphene { namespace chain {
          void notify_changed_objects();
 
       private:
+         std::mutex                             _pending_tx_session_mutex;
          optional<undo_database::session>       _pending_tx_session;
          vector< unique_ptr<op_evaluator> >     _operation_evaluators;
 
@@ -602,6 +603,7 @@ namespace graphene { namespace chain {
          ///@}
          ///@}
 
+         std::mutex                             _pending_tx_mutex;
          vector< processed_transaction >        _pending_tx;
          fork_database                          _fork_db;
 
