@@ -437,42 +437,90 @@ class wallet_api
       /**
        * Get the WIF private key corresponding to a public key.  The
        * private key must already be in the wallet.
+       * @param pubkey a public key in Base58 format
+       * @return the WIF private key
        */
       string                            get_private_key( public_key_type pubkey )const;
 
       /**
        * @ingroup Transaction Builder API
+       *
+       * Create a new transaction builder.
+       * @return handle of the new transaction builder
        */
       transaction_handle_type begin_builder_transaction();
+
       /**
        * @ingroup Transaction Builder API
+       *
+       * Append a new operation to a transaction builder.
+       * @param transaction_handle handle of the transaction builder
+       * @param op the operation in JSON format
        */
       void add_operation_to_builder_transaction(transaction_handle_type transaction_handle, const operation& op);
+
       /**
        * @ingroup Transaction Builder API
+       *
+       * Replace an operation in a transaction builder with a new operation.
+       * @param handle handle of the transaction builder
+       * @param operation_index the index of the old operation in the builder to be replaced
+       * @param new_op the new operation in JSON format
        */
       void replace_operation_in_builder_transaction(transaction_handle_type handle,
                                                     unsigned operation_index,
                                                     const operation& new_op);
+
       /**
        * @ingroup Transaction Builder API
+       *
+       * Calculate and update fees for the operations in a transaction builder.
+       * @param handle handle of the transaction builder
+       * @param fee_asset symbol or ID of an asset that to be used to pay fees
+       * @return total fees
        */
       asset set_fees_on_builder_transaction(transaction_handle_type handle, string fee_asset = GRAPHENE_SYMBOL);
+
       /**
        * @ingroup Transaction Builder API
+       *
+       * Show content of a transaction builder.
+       * @param handle handle of the transaction builder
+       * @return a transaction
        */
       transaction preview_builder_transaction(transaction_handle_type handle);
+
       /**
        * @ingroup Transaction Builder API
+       *
+       * Sign the transaction in a transaction builder and optionally broadcast to the network.
+       * @param transaction_handle handle of the transaction builder
+       * @param broadcast whether to broadcast the signed transaction to the network
+       * @return a signed transaction
        */
       signed_transaction sign_builder_transaction(transaction_handle_type transaction_handle, bool broadcast = true);
+
       /** Broadcast signed transaction
        * @param tx signed transaction
        * @returns the transaction ID along with the signed transaction.
        */
       pair<transaction_id_type,signed_transaction> broadcast_transaction(signed_transaction tx);
+
       /**
        * @ingroup Transaction Builder API
+       *
+       * Create a proposal containing the operations in a transaction builder (create a new proposal_create
+       * operation, then replace the transaction builder with the new operation), then sign the transaction
+       * and optionally broadcast to the network.
+       *
+       * Note: this command is buggy because unable to specify proposer. It will be deprecated in a future release.
+       *       Please use \c propose_builder_transaction2() instead.
+       *
+       * @param handle handle of the transaction builder
+       * @param expiration when the proposal will expire
+       * @param review_period_seconds review period of the proposal in seconds
+       * @param broadcast whether to broadcast the signed transaction to the network
+       * @return a signed transaction
        */
       signed_transaction propose_builder_transaction(
           transaction_handle_type handle,
@@ -481,6 +529,20 @@ class wallet_api
           bool broadcast = true
          );
 
+      /**
+       * @ingroup Transaction Builder API
+       *
+       * Create a proposal containing the operations in a transaction builder (create a new proposal_create
+       * operation, then replace the transaction builder with the new operation), then sign the transaction
+       * and optionally broadcast to the network.
+       *
+       * @param handle handle of the transaction builder
+       * @param account_name_or_id name or ID of the account who would pay fees for creating the proposal
+       * @param expiration when the proposal will expire
+       * @param review_period_seconds review period of the proposal in seconds
+       * @param broadcast whether to broadcast the signed transaction to the network
+       * @return a signed transaction
+       */
       signed_transaction propose_builder_transaction2(
          transaction_handle_type handle,
          string account_name_or_id,
@@ -491,6 +553,9 @@ class wallet_api
 
       /**
        * @ingroup Transaction Builder API
+       *
+       * Destroy a transaction builder.
+       * @param handle handle of the transaction builder
        */
       void remove_builder_transaction(transaction_handle_type handle);
 
@@ -528,6 +593,11 @@ class wallet_api
        *
        * The wallet must be either 'new' or 'unlocked' to
        * execute this command.
+       *
+       * When used in command line, if typed "set_password" without a password followed, the user will be prompted
+       * to input a password without echo.
+       *
+       * @param password a new password
        * @ingroup Wallet Management
        */
       void    set_password(string password);
@@ -669,6 +739,10 @@ class wallet_api
       /**
        * This call will construct transaction(s) that will claim all balances controled
        * by wif_keys and deposit them into the given account.
+       *
+       * @param account_name_or_id name or ID of an account that to claim balances to
+       * @param wif_keys private WIF keys of balance objects to claim balances from
+       * @param broadcast true to broadcast the transaction on the network
        */
       vector< signed_transaction > import_balance( string account_name_or_id, const vector<string>& wif_keys, bool broadcast );
 
@@ -808,7 +882,16 @@ class wallet_api
 
       /**
        *  This method works just like transfer, except it always broadcasts and
-       *  returns the transaction ID along with the signed transaction.
+       *  returns the transaction ID (hash) along with the signed transaction.
+       * @param from the name or id of the account sending the funds
+       * @param to the name or id of the account receiving the funds
+       * @param amount the amount to send (in nominal units -- to send half of a BTS, specify 0.5)
+       * @param asset_symbol the symbol or id of the asset to send
+       * @param memo a memo to attach to the transaction.  The memo will be encrypted in the
+       *             transaction and readable for the receiver.  There is no length limit
+       *             other than the limit imposed by maximum transaction size, but transaction
+       *             increase with transaction size
+       * @returns the transaction ID (hash) along with the signed transaction transferring funds
        */
       pair<transaction_id_type,signed_transaction> transfer2(string from,
                                                              string to,
@@ -821,7 +904,9 @@ class wallet_api
 
 
       /**
-       *  Convert a JSON transaction to its transactin ID.
+       * This method is used to convert a JSON transaction to its transactin ID.
+       * @param trx a JSON transaction
+       * @return the ID (hash) of the transaction
        */
       transaction_id_type get_transaction_id( const signed_transaction& trx )const { return trx.id(); }
 
