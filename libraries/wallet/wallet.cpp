@@ -2230,50 +2230,6 @@ public:
          return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account) ) }
 
-   //! Fixme - do we need to specify sidechain_type as params here?
-   map<string, son_id_type> list_active_sons()
-   {
-      try
-      {
-         const global_property_object& gpo = get_global_properties();
-         set<son_id_type> son_ids_set;
-         for(const auto& active_sidechain_type : active_sidechain_types)
-         {
-            std::transform(gpo.active_sons.at(active_sidechain_type).cbegin(), gpo.active_sons.at(active_sidechain_type).cend(),
-                           std::inserter(son_ids_set, son_ids_set.end()),
-                           [](const son_info &swi) {
-                              return swi.son_id;
-                           });
-         }
-         vector<son_id_type> son_ids;
-         son_ids.reserve(son_ids_set.size());
-         for(const auto& son_id : son_ids_set)
-         {
-            son_ids.emplace_back(son_id);
-         }
-
-         std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
-         vector<std::string> owners;
-         for(auto obj: son_objects)
-         {
-            std::string acc_id = account_id_to_string(obj->son_account);
-            owners.push_back(acc_id);
-         }
-         vector< optional< account_object> > accs = _remote_db->get_accounts(owners);
-         std::remove_if(son_objects.begin(), son_objects.end(),
-                        [](const fc::optional<son_object>& obj) -> bool { return obj.valid(); });
-         map<string, son_id_type> result;
-         std::transform(accs.begin(), accs.end(), son_objects.begin(),
-                        std::inserter(result, result.end()),
-                        [](fc::optional<account_object>& acct, fc::optional<son_object> son) {
-                           FC_ASSERT(acct, "Invalid active SONs list in global properties.");
-                           return std::make_pair<string, son_id_type>(string(acct->name), std::move(son->id));
-                        });
-         return result;
-      }
-      FC_CAPTURE_AND_RETHROW()
-   }
-
    flat_map<sidechain_type, vector<son_info>> get_active_sons()
    { try {
        return _remote_db->get_active_sons();
@@ -5274,11 +5230,6 @@ signed_transaction wallet_api::cancel_request_son_maintenance(string owner_accou
 map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_t limit)
 {
    return my->_remote_db->lookup_son_accounts(lowerbound, limit);
-}
-
-map<string, son_id_type> wallet_api::list_active_sons()
-{
-    return my->list_active_sons();
 }
 
 flat_map<sidechain_type, vector<son_info>> wallet_api::get_active_sons()

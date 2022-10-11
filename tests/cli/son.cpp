@@ -863,9 +863,9 @@ BOOST_AUTO_TEST_CASE( related_functions )
    BOOST_TEST_MESSAGE("SON-related functions cli wallet tests end");
 }
 
-BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
+BOOST_FIXTURE_TEST_CASE( get_active_sons, cli_fixture )
 {
-   BOOST_TEST_MESSAGE("SON cli wallet tests for list_active_sons begin");
+   BOOST_TEST_MESSAGE("SON cli wallet tests for get_active_sons begin");
    try
    {
       son_test_helper sth(*this);
@@ -874,12 +874,16 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
       global_property_object gpo;
 
       gpo = con.wallet_api_ptr->get_global_properties();
-      //! Set son number as 5 (as the begining son count)
-      unsigned int son_number = 5;
+      unsigned int son_number = 15; //gpo.parameters.maximum_son_count();
 
       flat_map<sidechain_type, string> sidechain_public_keys;
-
+      BOOST_TEST_MESSAGE("Verify that there are no sons");
+      BOOST_CHECK(0 == gpo.active_sons.at(sidechain_type::bitcoin).size());
+      BOOST_CHECK(0 == gpo.active_sons.at(sidechain_type::hive).size());
+      BOOST_CHECK(0 == gpo.active_sons.at(sidechain_type::ethereum).size());
+      auto gpo_active_sons = gpo.active_sons;
       // create son accounts
+      BOOST_TEST_MESSAGE("Create son accounts");      
       for(unsigned int i = 1; i < son_number + 1; i++)
       {
           sidechain_public_keys.clear();
@@ -895,50 +899,674 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
           con.wallet_api_ptr->create_vesting_balance("sonaccount" + fc::to_pretty_string(i), "500", "1.3.0", vesting_balance_type::gpos, true);
       }
       BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
 
-      BOOST_TEST_MESSAGE("Voting for SONs");
-      for(unsigned int i = 1; i < son_number + 1; i++)
-      {
-          std::string name = "sonaccount" + fc::to_pretty_string(i);
-          vote_tx = con.wallet_api_ptr->vote_for_son(name, name, sidechain_type::bitcoin, true, true);
-          vote_tx = con.wallet_api_ptr->vote_for_son(name, name, sidechain_type::hive, true, true);
-          vote_tx = con.wallet_api_ptr->vote_for_son(name, name, sidechain_type::ethereum, true, true);
-      }
-      BOOST_CHECK(generate_maintenance_block());
+      gpo_active_sons = gpo.active_sons;
+      auto cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
 
-      for(unsigned int i = 1; i < son_number; i++)
+      BOOST_TEST_MESSAGE("Voting for SONs"); 
+      for(unsigned int i = 5; i < son_number - 1; i++)
       {
-          std::string name1 = "sonaccount" + fc::to_pretty_string(i);
-          std::string name2 = "sonaccount" + fc::to_pretty_string(i + 1);
-          vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::bitcoin, true, true);
-          vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::hive, true, true);
-          vote_tx = con.wallet_api_ptr->vote_for_son(name1, name2, sidechain_type::ethereum, true, true);
+         std::string name = "sonaccount" + fc::to_pretty_string(i);
+         std::string name2 = "sonaccount" + fc::to_pretty_string(i + 1);
+         vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::bitcoin, true, true);
+         vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::hive, true, true);
+         vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::ethereum, true, true);
       }
       BOOST_CHECK(generate_maintenance_block());
       gpo = con.wallet_api_ptr->get_global_properties();
-      BOOST_TEST_MESSAGE("gpo active_sons[bitcoin]: " << gpo.active_sons.at(sidechain_type::bitcoin).size());
-      BOOST_TEST_MESSAGE("gpo active_sons[hive]: " << gpo.active_sons.at(sidechain_type::hive).size());
-      BOOST_TEST_MESSAGE("gpo active_sons[hive]: " << gpo.active_sons.at(sidechain_type::ethereum).size());
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
 
-      BOOST_CHECK(gpo.active_sons.at(sidechain_type::bitcoin).size() == son_number);
-      BOOST_CHECK(gpo.active_sons.at(sidechain_type::hive).size() == son_number);
-      BOOST_CHECK(gpo.active_sons.at(sidechain_type::ethereum).size() == son_number);
+      gpo_active_sons = gpo.active_sons;
+      cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
 
-      map<string, son_id_type> active_sons = con.wallet_api_ptr->list_active_sons();
-      BOOST_CHECK(active_sons.size() == son_number);
-      for(unsigned int i = 1; i < son_number + 1; i++)
+      BOOST_TEST_MESSAGE("Unvoting for Specific SON");
+
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount5", "sonaccount6", sidechain_type::bitcoin, false, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount5", "sonaccount6", sidechain_type::hive, false, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount5", "sonaccount6", sidechain_type::ethereum, false, true);
+
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
+
+      gpo_active_sons = gpo.active_sons;
+      cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+
+      BOOST_TEST_MESSAGE("Unvoting for Specific SON in Specific Sidechain");
+
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount6", "sonaccount7", sidechain_type::bitcoin, false, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount7", "sonaccount8", sidechain_type::hive, false, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount8", "sonaccount9", sidechain_type::ethereum, false, true);
+
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
+
+      gpo_active_sons = gpo.active_sons;
+      cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+
+      BOOST_TEST_MESSAGE("Unvoting for all SONs");
+
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount6", "sonaccount7", sidechain_type::bitcoin, true, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount7", "sonaccount8", sidechain_type::hive, true, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount8", "sonaccount9", sidechain_type::ethereum, true, true);
+      BOOST_CHECK(generate_maintenance_block());
+
+      for(unsigned int i = 6; i < son_number - 1; i++)
       {
-          std::string name = "sonaccount" + fc::to_pretty_string(i);
-          BOOST_CHECK(active_sons.find(name) != active_sons.end());
+         std::string name = "sonaccount" + fc::to_pretty_string(i);
+         std::string name2 = "sonaccount" + fc::to_pretty_string(i + 1);
+         vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::bitcoin, false, true);
+         vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::hive, false, true);
+         vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::ethereum, false, true);
       }
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
 
-      BOOST_CHECK_NO_THROW(con.wallet_api_ptr->list_active_sons());
+      gpo_active_sons = gpo.active_sons;
+      cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+      
+      BOOST_CHECK_NO_THROW(con.wallet_api_ptr->get_active_sons());
+
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");
       edump((e.to_detail_string()));
       throw;
    }
-   BOOST_TEST_MESSAGE("SON cli wallet tests for list_active_sons end");
+   BOOST_TEST_MESSAGE("SON cli wallet tests for get_active_sons end");
+}
+
+BOOST_FIXTURE_TEST_CASE( get_active_sons_by_sidechain, cli_fixture )
+{
+   BOOST_TEST_MESSAGE("SON cli wallet tests for get_active_sons_by_sidechain begin");
+   try
+   {
+      son_test_helper sth(*this);
+
+      signed_transaction vote_tx;
+      global_property_object gpo;
+
+      gpo = con.wallet_api_ptr->get_global_properties();
+      unsigned int son_number = 15;
+
+      flat_map<sidechain_type, string> sidechain_public_keys;
+      BOOST_TEST_MESSAGE("Verify that there are no sons");
+      BOOST_CHECK(0 == gpo.active_sons.at(sidechain_type::bitcoin).size());
+      BOOST_CHECK(0 == gpo.active_sons.at(sidechain_type::hive).size());
+      BOOST_CHECK(0 == gpo.active_sons.at(sidechain_type::ethereum).size());
+
+      auto gpo_active_sons = gpo.active_sons;
+      // create son accounts
+      BOOST_TEST_MESSAGE("Create son accounts");      
+      for(unsigned int i = 1; i < son_number + 1; i++)
+      {
+          sidechain_public_keys.clear();
+          sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::ethereum] = "ethereum address " + fc::to_pretty_string(i);
+          sth.create_son("sonaccount" + fc::to_pretty_string(i),
+                         "http://son" + fc::to_pretty_string(i),
+                         sidechain_public_keys,
+                         false);
+          con.wallet_api_ptr->transfer(
+              "nathan", "sonaccount" + fc::to_pretty_string(i), "1000", "1.3.0", "Here are some CORE tokens for your new account", true );
+          con.wallet_api_ptr->create_vesting_balance("sonaccount" + fc::to_pretty_string(i), "500", "1.3.0", vesting_balance_type::gpos, true);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
+
+      gpo_active_sons = gpo.active_sons;
+      auto cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+
+      auto cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::bitcoin));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::bitcoin) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::ethereum));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::ethereum) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::hive));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::hive) == cmd_active_sons2);
+
+      BOOST_TEST_MESSAGE("Voting for SONs");
+      for(unsigned int i = 5; i < son_number - 1; i++)
+      {
+         std::string name = "sonaccount" + fc::to_pretty_string(i);
+         std::string name2 = "sonaccount" + fc::to_pretty_string(i + 1);
+         vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::bitcoin, true, true);
+         vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::hive, true, true);
+         vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::ethereum, true, true);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
+
+      gpo_active_sons = gpo.active_sons;
+      cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::bitcoin));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::bitcoin) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::ethereum));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::ethereum) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::hive));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::hive) == cmd_active_sons2);
+
+      BOOST_TEST_MESSAGE("Unvoting for Specific SON");
+
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount5", "sonaccount6", sidechain_type::bitcoin, false, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount5", "sonaccount6", sidechain_type::hive, false, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount5", "sonaccount6", sidechain_type::ethereum, false, true);
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
+
+      gpo_active_sons = gpo.active_sons;
+      cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::bitcoin));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::bitcoin) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::ethereum));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::ethereum) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::hive));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::hive) == cmd_active_sons2);
+
+      BOOST_TEST_MESSAGE("Unvoting for Specific SON in Specific Sidechain");
+
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount6", "sonaccount7", sidechain_type::bitcoin, false, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount7", "sonaccount8", sidechain_type::hive, false, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount8", "sonaccount9", sidechain_type::ethereum, false, true);
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
+
+      gpo_active_sons = gpo.active_sons;
+      cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::bitcoin));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::bitcoin) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::ethereum));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::ethereum) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::hive));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::hive) == cmd_active_sons2);
+
+      BOOST_TEST_MESSAGE("Unvoting for all SONs");
+
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount6", "sonaccount7", sidechain_type::bitcoin, true, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount7", "sonaccount8", sidechain_type::hive, true, true);
+      vote_tx = con.wallet_api_ptr->vote_for_son("sonaccount8", "sonaccount9", sidechain_type::ethereum, true, true);
+      BOOST_CHECK(generate_maintenance_block());
+
+      for(unsigned int i = 6; i < son_number - 1; i++)
+      {
+         std::string name = "sonaccount" + fc::to_pretty_string(i);
+         std::string name2 = "sonaccount" + fc::to_pretty_string(i + 1);
+         if(i == 6)
+         {
+            vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::hive, false, true);
+            vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::ethereum, false, true);
+         }
+         else if(i == 7)
+         {
+            vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::bitcoin, false, true);
+            vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::ethereum, false, true);
+         }
+         else if(i == 8)
+         {
+            vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::bitcoin, false, true);
+            vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::hive, false, true);
+         }
+         else{
+            vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::bitcoin, false, true);
+            vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::hive, false, true);
+            vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::ethereum, false, true);            
+         }
+      }
+
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      BOOST_CHECK(gpo.active_sons != gpo_active_sons);
+
+      gpo_active_sons = gpo.active_sons;
+      cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::bitcoin));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::bitcoin) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::ethereum));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::ethereum) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::hive));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::hive) == cmd_active_sons2);
+
+      BOOST_CHECK_NO_THROW(con.wallet_api_ptr->get_active_sons_by_sidechain(sidechain_type::bitcoin));
+      BOOST_CHECK_NO_THROW(con.wallet_api_ptr->get_active_sons_by_sidechain(sidechain_type::hive));
+      BOOST_CHECK_NO_THROW(con.wallet_api_ptr->get_active_sons_by_sidechain(sidechain_type::ethereum));
+
+   } catch( fc::exception& e ) {
+      BOOST_TEST_MESSAGE("SON cli wallet tests exception");
+      edump((e.to_detail_string()));
+      throw;
+   }
+   BOOST_TEST_MESSAGE("SON cli wallet tests for get_active_sons_by_sidechain end");
+}
+
+BOOST_FIXTURE_TEST_CASE( get_son_network_status, cli_fixture )
+{
+   BOOST_TEST_MESSAGE("SON get_son_network_status cli wallet tests begin");
+   try
+   {
+      son_test_helper sth(*this);
+
+      auto db = app1->chain_database();
+      signed_transaction vote_tx;
+
+      global_property_object gpo;
+      gpo = con.wallet_api_ptr->get_global_properties();
+      unsigned int son_number = gpo.parameters.maximum_son_count();
+      BOOST_TEST_MESSAGE("son_number"<<son_number);
+      flat_map<sidechain_type, string> sidechain_public_keys;
+
+      // create son accounts
+      for(unsigned int i = 1; i < son_number + 1; i++)
+      {
+          sidechain_public_keys.clear();
+          sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::ethereum] = "ethereum address " + fc::to_pretty_string(i);
+          sth.create_son("sonaccount" + fc::to_pretty_string(i),
+                         "http://son" + fc::to_pretty_string(i),
+                         sidechain_public_keys,
+                         false);
+          con.wallet_api_ptr->transfer(
+            "nathan", "sonaccount" + fc::to_pretty_string(i), "1000", "1.3.0", "Here are some CORE tokens for your new account", true );
+          con.wallet_api_ptr->create_vesting_balance("sonaccount" + fc::to_pretty_string(i), "500", "1.3.0", vesting_balance_type::gpos, true);
+
+      }
+      BOOST_CHECK(generate_maintenance_block());
+
+      auto network_status_obj = con.wallet_api_ptr->get_son_network_status();
+
+      for(map<sidechain_type, map<son_id_type, string>>::iterator outer_iter=network_status_obj.begin(); outer_iter!=network_status_obj.end(); ++outer_iter) 
+      {
+         for(map<son_id_type, string>::iterator inner_iter=outer_iter->second.begin(); inner_iter!=outer_iter->second.end(); ++inner_iter) 
+         {
+            BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+            BOOST_CHECK(inner_iter->second == "No heartbeats sent");
+         }
+      }
+
+      BOOST_TEST_MESSAGE("Voting for SONs");
+      for(unsigned int i = 1; i < son_number-1; i++)
+      {
+          std::string name = "sonaccount" + fc::to_pretty_string(i);
+          std::string name2 = "sonaccount" + fc::to_pretty_string(i + 2);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::bitcoin, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::hive, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::ethereum, true, true);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+      auto gpo_active_sons = gpo.active_sons;
+      auto cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+
+      BOOST_TEST_MESSAGE("Sending Heartbeat for sonaccount3");
+      son_object son_obj1 = con.wallet_api_ptr->get_son("sonaccount3");
+      signed_transaction trx1;
+      son_heartbeat_operation op1;
+      op1.owner_account = son_obj1.son_account;
+      op1.son_id = son_obj1.id;
+      op1.ts = db->head_block_time()+fc::seconds(2*db->block_interval());
+      trx1.operations.push_back(op1);
+      con.wallet_api_ptr->sign_transaction(trx1, true);
+
+      generate_blocks(50);
+
+      BOOST_TEST_MESSAGE("Checking Network Status");
+      network_status_obj = con.wallet_api_ptr->get_son_network_status();
+      for(map<sidechain_type, map<son_id_type, string>>::iterator outer_iter=network_status_obj.begin(); outer_iter!=network_status_obj.end(); ++outer_iter) 
+      {
+         for(map<son_id_type, string>::iterator inner_iter=outer_iter->second.begin(); inner_iter!=outer_iter->second.end(); ++inner_iter) 
+         {
+            if((inner_iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(0).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::hive).at(0).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "OK, regular SON heartbeat");
+            }
+            else{
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "No heartbeats sent");
+            }
+         }
+      }
+
+      BOOST_TEST_MESSAGE("Sending Heartbeat for sonaccount4");
+
+      son_object son_obj2 = con.wallet_api_ptr->get_son("sonaccount4");
+      signed_transaction trx2;
+      son_heartbeat_operation op2;
+      op2.owner_account = son_obj2.son_account;
+      op2.son_id = son_obj2.id;
+      op2.ts = db->head_block_time()+fc::seconds(2*db->block_interval());
+      trx2.operations.push_back(op2);
+      con.wallet_api_ptr->sign_transaction(trx2, true);
+
+      generate_blocks(50);
+
+      BOOST_TEST_MESSAGE("Checking Network Status");
+      network_status_obj = con.wallet_api_ptr->get_son_network_status();
+      for(map<sidechain_type, map<son_id_type, string>>::iterator outer_iter=network_status_obj.begin(); outer_iter!=network_status_obj.end(); ++outer_iter) 
+      {
+         for(map<son_id_type, string>::iterator inner_iter=outer_iter->second.begin(); inner_iter!=outer_iter->second.end(); ++inner_iter) 
+         {
+            if((inner_iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(0).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::hive).at(0).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "OK, irregular SON heartbeat, but not triggering SON down proposal");
+            }
+            else if((inner_iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(1).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "OK, regular SON heartbeat");               
+            }
+            else{
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "No heartbeats sent");
+            }
+         }
+      }
+
+      generate_blocks(db->head_block_time() + gpo.parameters.son_heartbeat_frequency(), false);
+      BOOST_TEST_MESSAGE("Checking Network Status");
+      network_status_obj = con.wallet_api_ptr->get_son_network_status();
+      for(map<sidechain_type, map<son_id_type, string>>::iterator outer_iter=network_status_obj.begin(); outer_iter!=network_status_obj.end(); ++outer_iter) 
+      {
+         for(map<son_id_type, string>::iterator inner_iter=outer_iter->second.begin(); inner_iter!=outer_iter->second.end(); ++inner_iter) 
+         {
+            if((inner_iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(0).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::hive).at(0).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");
+            }
+            else if((inner_iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(1).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "OK, irregular SON heartbeat, but not triggering SON down proposal");               
+            }
+            else{
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "No heartbeats sent");
+            }
+         }
+      }
+
+      generate_blocks(db->head_block_time() + gpo.parameters.son_heartbeat_frequency() + gpo.parameters.son_down_time(), false);
+      BOOST_TEST_MESSAGE("Checking Network Status");
+
+      network_status_obj = con.wallet_api_ptr->get_son_network_status();
+      for(map<sidechain_type, map<son_id_type, string>>::iterator outer_iter=network_status_obj.begin(); outer_iter!=network_status_obj.end(); ++outer_iter) 
+      {
+         for(map<son_id_type, string>::iterator inner_iter=outer_iter->second.begin(); inner_iter!=outer_iter->second.end(); ++inner_iter) 
+         {
+            if((inner_iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(0).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::hive).at(0).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");
+            }
+            else if((inner_iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
+               (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(1).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");               
+            }
+            else{
+               BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
+               BOOST_CHECK(inner_iter->second == "No heartbeats sent");
+            }
+         }
+      }
+
+   } catch( fc::exception& e ) {
+      BOOST_TEST_MESSAGE("SON cli wallet tests exception");
+      edump((e.to_detail_string()));
+      throw;
+   }
+   BOOST_TEST_MESSAGE("SON get_son_network_status cli wallet tests end");
+}
+
+BOOST_FIXTURE_TEST_CASE( get_son_network_status_by_sidechain, cli_fixture )
+{
+   BOOST_TEST_MESSAGE("SON get_son_network_status_by_sidechain cli wallet tests begin");
+   try
+   {
+      son_test_helper sth(*this);
+      signed_transaction vote_tx;
+      auto db = app1->chain_database();
+
+      global_property_object gpo;
+      gpo = con.wallet_api_ptr->get_global_properties();
+      unsigned int son_number = gpo.parameters.maximum_son_count();
+      BOOST_TEST_MESSAGE("son_number"<<son_number);
+      flat_map<sidechain_type, string> sidechain_public_keys;
+
+      // create son accounts
+      for(unsigned int i = 1; i < son_number + 1; i++)
+      {
+          sidechain_public_keys.clear();
+          sidechain_public_keys[sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::hive] = "hive account " + fc::to_pretty_string(i);
+          sidechain_public_keys[sidechain_type::ethereum] = "ethereum address " + fc::to_pretty_string(i);
+          sth.create_son("sonaccount" + fc::to_pretty_string(i),
+                         "http://son" + fc::to_pretty_string(i),
+                         sidechain_public_keys,
+                         false);
+          con.wallet_api_ptr->transfer(
+            "nathan", "sonaccount" + fc::to_pretty_string(i), "1000", "1.3.0", "Here are some CORE tokens for your new account", true );
+          con.wallet_api_ptr->create_vesting_balance("sonaccount" + fc::to_pretty_string(i), "500", "1.3.0", vesting_balance_type::gpos, true);
+
+      }
+
+      // Check Network Status Before sending Heartbeats
+      BOOST_CHECK(generate_maintenance_block());
+      for(sidechain_type sidechain:active_sidechain_types)
+      {
+         auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
+         for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 
+         {
+            BOOST_TEST_MESSAGE("status: "<< iter->second);
+            BOOST_CHECK(iter->second == "No heartbeats sent");
+         }
+      }
+
+      BOOST_TEST_MESSAGE("Voting for SONs");
+      for(unsigned int i = 1; i < son_number-1; i++)
+      {
+          std::string name = "sonaccount" + fc::to_pretty_string(i);
+          std::string name2 = "sonaccount" + fc::to_pretty_string(i + 2);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::bitcoin, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::hive, true, true);
+          vote_tx = con.wallet_api_ptr->vote_for_son(name, name2, sidechain_type::ethereum, true, true);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+      gpo = con.wallet_api_ptr->get_global_properties();
+
+      auto gpo_active_sons = gpo.active_sons;
+      auto cmd_active_sons = con.wallet_api_ptr->get_active_sons();
+      BOOST_CHECK(gpo_active_sons == cmd_active_sons);
+
+      auto cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::bitcoin));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::bitcoin) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::ethereum));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::ethereum) == cmd_active_sons2);
+
+      cmd_active_sons2 = con.wallet_api_ptr->get_active_sons_by_sidechain((sidechain_type::hive));
+      BOOST_CHECK(gpo_active_sons.at(sidechain_type::hive) == cmd_active_sons2);
+        
+      BOOST_TEST_MESSAGE("Sending Heartbeat for sonaccount3");
+      son_object son_obj1 = con.wallet_api_ptr->get_son("sonaccount3");
+      signed_transaction trx1;
+      son_heartbeat_operation op1;
+      op1.owner_account = son_obj1.son_account;
+      op1.son_id = son_obj1.id;
+      op1.ts = db->head_block_time()+fc::seconds(2*db->block_interval());
+      trx1.operations.push_back(op1);
+      con.wallet_api_ptr->sign_transaction(trx1, true);
+
+      generate_blocks(50);
+
+      BOOST_TEST_MESSAGE("Checking Network Status");      
+      for(sidechain_type sidechain:active_sidechain_types)
+      {
+         auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
+         for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 
+         {
+            if((iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(0).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::hive).at(0).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "OK, regular SON heartbeat");
+            }
+            else{
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "No heartbeats sent");
+            }
+
+         }
+      }
+
+      BOOST_TEST_MESSAGE("Sending Heartbeat for sonaccount4");
+      son_object son_obj2 = con.wallet_api_ptr->get_son("sonaccount4");
+      signed_transaction trx2;
+      son_heartbeat_operation op2;
+      op2.owner_account = son_obj2.son_account;
+      op2.son_id = son_obj2.id;
+      op2.ts = db->head_block_time()+fc::seconds(2*db->block_interval());
+      trx2.operations.push_back(op2);
+      con.wallet_api_ptr->sign_transaction(trx2, true);
+
+      generate_blocks(50);            
+      for(sidechain_type sidechain:active_sidechain_types)
+      {
+         auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
+         for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 
+         {
+           if((iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(0).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::hive).at(0).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "OK, irregular SON heartbeat, but not triggering SON down proposal");
+            }
+            else if((iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(1).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "OK, regular SON heartbeat");               
+            }
+            else{
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "No heartbeats sent");
+            }
+         }
+      }
+
+      generate_blocks(db->head_block_time() + gpo.parameters.son_heartbeat_frequency(), false);
+      BOOST_TEST_MESSAGE("Checking Network Status");
+      for(sidechain_type sidechain:active_sidechain_types)
+      {
+         auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
+         for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 
+         {
+            if((iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(0).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::hive).at(0).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");
+            }
+            else if((iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(1).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "OK, irregular SON heartbeat, but not triggering SON down proposal");               
+            }
+            else{
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "No heartbeats sent");
+            }
+         }
+      } 
+
+      generate_blocks(db->head_block_time() + gpo.parameters.son_heartbeat_frequency() + gpo.parameters.son_down_time(), false);;
+      BOOST_TEST_MESSAGE("Checking Network Status");
+      for(sidechain_type sidechain:active_sidechain_types)
+      {
+         auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
+         for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 
+         {
+            if((iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(0).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::hive).at(0).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");
+            }
+            else if((iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
+               (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(1).son_id))
+            {
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");               
+            }
+            else{
+               BOOST_TEST_MESSAGE("status: "<< iter->second);
+               BOOST_CHECK(iter->second == "No heartbeats sent");
+            }
+         }
+      }      
+
+   } catch( fc::exception& e ) {
+      BOOST_TEST_MESSAGE("SON cli wallet tests exception");
+      edump((e.to_detail_string()));
+      throw;
+   }
+   BOOST_TEST_MESSAGE("SON get_son_network_status_by_sidechain cli wallet tests end");
 }
 
 BOOST_AUTO_TEST_CASE( maintenance_test )
@@ -1035,6 +1663,4 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-
 
