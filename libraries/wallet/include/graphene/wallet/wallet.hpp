@@ -1493,13 +1493,6 @@ class wallet_api
        */
       map<string, son_id_type> list_sons(const string& lowerbound, uint32_t limit);
 
-      /** Lists active at the moment SONs.
-       * This returns a list of all account names that own active SON, and the associated SON id,
-       * sorted by name.
-       * @returns a list of active SONs mapping SON names to SON ids
-       */
-      map<string, son_id_type> list_active_sons();
-
       /**
        * @brief Get list of active sons
        * @return List of active SONs
@@ -2741,7 +2734,6 @@ FC_API( graphene::wallet::wallet_api,
         (update_son_vesting_balances)
         (activate_deregistered_son)
         (list_sons)
-        (list_active_sons)
         (get_active_sons)
         (get_active_sons_by_sidechain)
         (get_son_network_status)

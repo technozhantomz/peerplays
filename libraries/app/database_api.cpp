@@ -1906,10 +1906,10 @@ map<son_id_type, string> database_api_impl::get_son_network_status_by_sidechain(
          string status;
 
          if (sso.last_active_timestamp.find(sidechain) != sso.last_active_timestamp.end()) {
-            if (sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_heartbeat_frequency()) > time_point::now()) {
+            if (time_point_sec(sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_heartbeat_frequency())) > _db.head_block_time()) {
                status = "OK, regular SON heartbeat";
             } else {
-               if (sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_down_time()) > time_point::now()) {
+               if (time_point_sec(sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_down_time())) > _db.head_block_time()) {
                   status = "OK, irregular SON heartbeat, but not triggering SON down proposal";
                } else {
                   status = "NOT OK, irregular SON heartbeat, triggering SON down proposal]";
