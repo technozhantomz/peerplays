@@ -62,47 +62,67 @@ rpc_client::rpc_client(std::string _url, std::string _user, std::string _passwor
 }
 
 std::string rpc_client::retrieve_array_value_from_reply(std::string reply_str, std::string array_path, uint32_t idx) {
-   std::stringstream ss(reply_str);
-   boost::property_tree::ptree json;
-   boost::property_tree::read_json(ss, json);
-   if (json.find("result") == json.not_found()) {
+   if (reply_str.empty()) {
+      wlog("RPC call ${function}, empty reply string", ("function", __FUNCTION__));
       return "";
    }
 
-   auto json_result = json.get_child_optional("result");
-   if (json_result) {
-      boost::property_tree::ptree array_ptree = json_result.get();
-      if (!array_path.empty()) {
-         array_ptree = json_result.get().get_child(array_path);
+   try {
+      std::stringstream ss(reply_str);
+      boost::property_tree::ptree json;
+      boost::property_tree::read_json(ss, json);
+      if (json.find("result") == json.not_found()) {
+         return "";
       }
-      uint32_t array_el_idx = -1;
-      for (const auto &array_el : array_ptree) {
-         array_el_idx = array_el_idx + 1;
-         if (array_el_idx == idx) {
-            std::stringstream ss_res;
-            boost::property_tree::json_parser::write_json(ss_res, array_el.second);
-            return ss_res.str();
+
+      auto json_result = json.get_child_optional("result");
+      if (json_result) {
+         boost::property_tree::ptree array_ptree = json_result.get();
+         if (!array_path.empty()) {
+            array_ptree = json_result.get().get_child(array_path);
+         }
+         uint32_t array_el_idx = -1;
+         for (const auto &array_el : array_ptree) {
+            array_el_idx = array_el_idx + 1;
+            if (array_el_idx == idx) {
+               std::stringstream ss_res;
+               boost::property_tree::json_parser::write_json(ss_res, array_el.second);
+               return ss_res.str();
+            }
          }
       }
+   } catch (const boost::property_tree::json_parser::json_parser_error &e) {
+      wlog("RPC call ${function} failed: ${e}", ("function", __FUNCTION__)("e", e.what()));
    }
 
    return "";
 }
 
 std::string rpc_client::retrieve_value_from_reply(std::string reply_str, std::string value_path) {
-   std::stringstream ss(reply_str);
-   boost::property_tree::ptree json;
-   boost::property_tree::read_json(ss, json);
-   if (json.find("result") == json.not_found()) {
+   if (reply_str.empty()) {
+      wlog("RPC call ${function}, empty reply string", ("function", __FUNCTION__));
       return "";
    }
 
-   auto json_result = json.get_child_optional("result");
-   if (json_result) {
-      return json_result.get().get<std::string>(value_path);
+   try {
+      std::stringstream ss(reply_str);
+      boost::property_tree::ptree json;
+      boost::property_tree::read_json(ss, json);
+      if (json.find("result") == json.not_found()) {
+         return "";
+      }
+
+      auto json_result = json.get_child_optional("result");
+      if (json_result) {
+         return json_result.get().get<std::string>(value_path);
+      }
+
+      return json.get<std::string>("result");
+   } catch (const boost::property_tree::json_parser::json_parser_error &e) {
+      wlog("RPC call ${function} failed: ${e}", ("function", __FUNCTION__)("e", e.what()));
    }
 
-   return json.get<std::string>("result");
+   return "";
 }
 
 std::string rpc_client::send_post_request(std::string method, std::string params, bool show_log) {
@@ -118,23 +138,27 @@ std::string rpc_client::send_post_request(std::string method, std::string params
 
    body << " }";
 
-   const auto reply = send_post_request(body.str(), show_log);
+   try {
+      const auto reply = send_post_request(body.str(), show_log);
 
-   if (reply.body.empty()) {
-      wlog("RPC call ${function} failed", ("function", __FUNCTION__));
-      return "";
-   }
+      if (reply.body.empty()) {
+         wlog("RPC call ${function} failed", ("function", __FUNCTION__));
+         return "";
+      }
 
-   std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
-   boost::property_tree::ptree json;
-   boost::property_tree::read_json(ss, json);
+      std::stringstream ss(std::string(reply.body.begin(), reply.body.end()));
+      boost::property_tree::ptree json;
+      boost::property_tree::read_json(ss, json);
 
-   if (json.count("error") && !json.get_child("error").empty()) {
-      wlog("RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body.str())("msg", ss.str()));
-   }
+      if (json.count("error") && !json.get_child("error").empty()) {
+         wlog("RPC call ${function} with body ${body} failed with reply '${msg}'", ("function", __FUNCTION__)("body", body.str())("msg", ss.str()));
+      }
 
-   if (reply.status == 200) {
-      return ss.str();
+      if (reply.status == 200) {
+         return ss.str();
+      }
+   } catch (const boost::system::system_error &e) {
+      elog("RPC call ${function} failed: ${e}", ("function", __FUNCTION__)("e", e.what()));
    }
 
    return "";
