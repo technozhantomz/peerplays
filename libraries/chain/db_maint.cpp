@@ -720,11 +720,11 @@ void database::update_active_sons()
    }
 
    assert( _son_count_histogram_buffer.size() > 0 );
-   for( const auto& son_count_histogram_buffer : _son_count_histogram_buffer ){
 #ifndef NDEBUG
+   for( const auto& son_count_histogram_buffer : _son_count_histogram_buffer ){
       assert( son_count_histogram_buffer.second.size() > 0 );
-#endif
    }
+#endif
 
    const flat_map<sidechain_type, share_type> stake_target = [this]{
       flat_map<sidechain_type, share_type> stake_target;
