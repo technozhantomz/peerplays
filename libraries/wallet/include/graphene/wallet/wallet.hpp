@@ -263,12 +263,25 @@ class wallet_api
 
       fc::ecc::private_key derive_private_key(const std::string& prefix_string, int sequence_number) const;
 
+      /** Returns info about head block, chain_id, maintenance, participation, current active witnesses and
+       * committee members.
+       * @returns runtime info about the blockchain
+       */
       variant                           info();
       /** Returns info such as client version, git version of graphene/fc, version of boost, openssl.
        * @returns compile time info and client and dependencies versions
        */
       variant_object                    about() const;
+      /** Returns info about a specified block.
+       * @param num height of the block to retrieve
+       * @returns info about the block, or null if not found
+       */
       optional<signed_block_with_info>    get_block( uint32_t num );
+      /** Get signed blocks
+       * @param block_num_from The lowest block number
+       * @param block_num_to The highest block number
+       * @returns A list of signed blocks from block_num_from till block_num_to
+       */
       vector<optional<signed_block>>      get_blocks(uint32_t block_num_from, uint32_t block_num_to)const;
       /** Returns the number of accounts registered on the blockchain
        * @returns the number of registered accounts
@@ -351,9 +364,38 @@ class wallet_api
 
       vector<account_balance_object> list_core_accounts()const;
 
+      /** Get OHLCV data of a trading pair in a time range
+       * @param symbol Asset symbol or ID in a trading pair
+       * @param symbol2 The other asset symbol or ID in the trading pair
+       * @param bucket Length of each time bucket in seconds.
+       * Note: it need to be within result of get_market_history_buckets() API, otherwise no data will be returned
+       * @param start The start of a time range, E.G. "2018-01-01T00:00:00"
+       * @param end The end of the time range
+       * @return A list of OHLCV data, in "least recent first" order.
+       * If there are more than 200 records in the specified time range, the first 200 records will be returned.
+       */
       vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket, fc::time_point_sec start, fc::time_point_sec end)const;
+
+      /** Get limit orders in a given market
+       * @param a symbol or ID of asset being sold
+       * @param b symbol or ID of asset being purchased
+       * @param limit Maximum number of orders to retrieve
+       * @return The limit orders, ordered from least price to greatest
+       */
       vector<limit_order_object>        get_limit_orders(string a, string b, uint32_t limit)const;
+
+      /** Get call orders (aka margin positions) for a given asset
+       * @param a symbol or ID of the debt asset
+       * @param limit Maximum number of orders to retrieve
+       * @return The call orders, ordered from earliest to be called to latest
+       */
       vector<call_order_object>         get_call_orders(string a, uint32_t limit)const;
+
+      /** Get forced settlement orders in a given asset
+       * @param a Symbol or ID of asset being settled
+       * @param limit Maximum number of orders to retrieve
+       * @return The settle orders, ordered from earliest settlement date to latest
+       */
       vector<force_settlement_object>   get_settle_orders(string a, uint32_t limit)const;
 
       /** Returns the block chain's slowly-changing settings.
@@ -732,8 +774,26 @@ class wallet_api
        */
       bool import_key(string account_name_or_id, string wif_key);
 
+      /** Imports accounts from Peerplays 0.x wallet file.
+       * Current wallet file must be unlocked to perform the import.
+       *
+       * @param filename the Peerplays 0.x wallet file to import
+       * @param password the password to encrypt the Peerplays 0.x wallet file
+       * @returns a map containing the accounts found and whether imported
+       */
       map<string, bool> import_accounts( string filename, string password );
 
+      /** Imports from a Peerplays 0.x wallet file, find keys that were bound to a given account name on the
+       * Peerplays 0.x chain, rebind them to an account name on the 2.0 chain.
+       * Current wallet file must be unlocked to perform the import.
+       *
+       * @param filename the Peerplays 0.x wallet file to import
+       * @param password the password to encrypt the Peerplays 0.x wallet file
+       * @param src_account_name name of the account on Peerplays 0.x chain
+       * @param dest_account_name name of the account on Peerplays 2.0 chain,
+       *                          can be same or different to \c src_account_name
+       * @returns whether the import has succeeded
+       */
       bool import_account_keys( string filename, string password, string src_account_name, string dest_account_name );
 
       /**
@@ -921,9 +981,17 @@ class wallet_api
        *  @return true if the label was set, otherwise false
        */
       bool                        set_key_label( public_key_type, string label );
+
+      /** Get label of a public key.
+       * @param key a public key
+       * @return the label if already set by \c set_key_label(), or an empty string if not set
+       */
       string                      get_key_label( public_key_type )const;
 
-      /** @return the public key associated with the given label */
+      /* Get the public key associated with a given label.
+       * @param label a label
+       * @return the public key associated with the given label
+       */
       public_key_type             get_public_key( string label )const;
       ///@}
 
@@ -1620,6 +1688,7 @@ class wallet_api
        * @param url Same as for create_witness.  The empty string makes it remain the same.
        * @param block_signing_key The new block signing public key.  The empty string makes it remain the same.
        * @param broadcast true if you wish to broadcast the transaction.
+       * @return the signed transaction
        */
       signed_transaction update_witness(string witness_name,
                                         string url,
@@ -1638,6 +1707,7 @@ class wallet_api
        * @param url Any text
        * @param worker_settings {"type" : "burn"|"refund"|"vesting", "pay_vesting_period_days" : x}
        * @param broadcast true if you wish to broadcast the transaction.
+       * @return the signed transaction
        */
       signed_transaction create_worker(
          string owner_account,
@@ -1656,6 +1726,7 @@ class wallet_api
        * @param account The account which will pay the fee and update votes.
        * @param delta {"vote_for" : [...], "vote_against" : [...], "vote_abstain" : [...]}
        * @param broadcast true if you wish to broadcast the transaction.
+       * @return the signed transaction
        */
       signed_transaction update_worker_votes(
          string account,
@@ -1670,7 +1741,7 @@ class wallet_api
        * @param asset_symbol the symbol of the asset to vest
        * @param vesting_type "normal", "gpos" or "son"
        * @param broadcast true to broadcast the transaction on the network
-       * @returns the signed transaction registering a vesting object
+       * @return the signed transaction registering a vesting object
        */
       signed_transaction create_vesting_balance(string owner_account,
                                         string amount,
@@ -1682,6 +1753,7 @@ class wallet_api
        * Get information about a vesting balance object.
        *
        * @param account_name An account name, account ID, or vesting balance object ID.
+       * @return a list of vesting balance objects with additional info
        */
       vector< vesting_balance_object_with_info > get_vesting_balances( string account_name );
 
@@ -1692,6 +1764,7 @@ class wallet_api
        * @param amount The amount to withdraw.
        * @param asset_symbol The symbol of the asset to withdraw.
        * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction
        */
       signed_transaction withdraw_vesting(
          string witness_name,
@@ -1705,6 +1778,7 @@ class wallet_api
        * @param amount The amount to withdraw.
        * @param asset_symbol The symbol of the asset to withdraw.
        * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction
        */
       signed_transaction withdraw_GPOS_vesting_balance(
          string account_name,
@@ -2064,6 +2138,13 @@ class wallet_api
          bool broadcast /* = false */
          );
 
+      /**
+       * Returns the order book for the market base:quote.
+       * @param base symbol or ID of the base asset
+       * @param quote symbol or ID of the quote asset
+       * @param limit depth of the order book to retrieve, for bids and asks each, capped at 50
+       * @return Order book of the market
+       */
       order_book get_order_book( const string& base, const string& quote, unsigned limit = 50);
 
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);

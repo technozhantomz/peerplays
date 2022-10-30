@@ -5706,53 +5706,12 @@ string wallet_api::gethelp(const string& method)const
    std::stringstream ss;
    ss << "\n";
 
-   if( method == "import_key" )
-   {
-      ss << "usage: import_key ACCOUNT_NAME_OR_ID  WIF_PRIVATE_KEY\n\n";
-      ss << "example: import_key \"1.2.11\" 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\n";
-      ss << "example: import_key \"usera\" 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\n";
-   }
-   else if( method == "transfer" )
-   {
-      ss << "usage: transfer FROM TO AMOUNT SYMBOL \"memo\" BROADCAST\n\n";
-      ss << "example: transfer \"1.2.11\" \"1.2.4\" 1000.03 CORE \"memo\" true\n";
-      ss << "example: transfer \"usera\" \"userb\" 1000.123 CORE \"memo\" true\n";
-   }
-   else if( method == "create_account_with_brain_key" )
-   {
-      ss << "usage: create_account_with_brain_key BRAIN_KEY ACCOUNT_NAME REGISTRAR REFERRER BROADCAST\n\n";
-      ss << "example: create_account_with_brain_key \"my really long brain key\" \"newaccount\" \"1.2.11\" \"1.2.11\" true\n";
-      ss << "example: create_account_with_brain_key \"my really long brain key\" \"newaccount\" \"someaccount\" \"otheraccount\" true\n";
-      ss << "\n";
-      ss << "This method should be used if you would like the wallet to generate new keys derived from the brain key.\n";
-      ss << "The BRAIN_KEY will be used as the owner key, and the active key will be derived from the BRAIN_KEY.  Use\n";
-      ss << "register_account if you already know the keys you know the public keys that you would like to register.\n";
-   }
-   else if( method == "register_account" )
-   {
-      ss << "usage: register_account ACCOUNT_NAME OWNER_PUBLIC_KEY ACTIVE_PUBLIC_KEY REGISTRAR REFERRER REFERRER_PERCENT BROADCAST\n\n";
-      ss << "example: register_account \"newaccount\" \"CORE6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\" \"CORE6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\" \"1.3.11\" \"1.3.11\" 50 true\n";
-      ss << "\n";
-      ss << "Use this method to register an account for which you do not know the private keys.";
-   }
-   else if( method == "create_asset" )
-   {
-      ss << "usage: ISSUER SYMBOL PRECISION_DIGITS OPTIONS BITASSET_OPTIONS BROADCAST\n\n";
-      ss << "PRECISION_DIGITS: the number of digits after the decimal point\n\n";
-      ss << "Example value of OPTIONS: \n";
-      ss << fc::json::to_pretty_string( graphene::chain::asset_options() );
-      ss << "\nExample value of BITASSET_OPTIONS: \n";
-      ss << fc::json::to_pretty_string( graphene::chain::bitasset_options() );
-      ss << "\nBITASSET_OPTIONS may be null\n";
-   }
+   std::string doxygenHelpString = my->method_documentation.get_detailed_description(method);
+   if (!doxygenHelpString.empty())
+      ss << doxygenHelpString;
    else
-   {
-      std::string doxygenHelpString = my->method_documentation.get_detailed_description(method);
-      if (!doxygenHelpString.empty())
-         ss << doxygenHelpString;
-      else
-         ss << "No help defined for method " << method << "\n";
-   }
+      ss << "No help defined for method " << method << "\n";
+
 
    return ss.str();
 }
