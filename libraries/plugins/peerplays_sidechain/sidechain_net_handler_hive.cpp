@@ -478,6 +478,10 @@ void sidechain_net_handler_hive::process_primary_wallet() {
    const auto &active_sw = swi.rbegin();
    if (active_sw != swi.rend()) {
 
+      const auto &prev_sw = std::next(active_sw);
+      if (prev_sw != swi.rend() && active_sw->sons.at(sidechain) == prev_sw->sons.at(sidechain))
+         return;
+
       if ((active_sw->addresses.find(sidechain) == active_sw->addresses.end()) ||
           (active_sw->addresses.at(sidechain).empty())) {
 
