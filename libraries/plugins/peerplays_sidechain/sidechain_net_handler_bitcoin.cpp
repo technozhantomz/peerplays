@@ -706,6 +706,10 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
    const auto &active_sw = swi.rbegin();
    if (active_sw != swi.rend()) {
 
+      const auto &prev_sw = std::next(active_sw);
+      if (prev_sw != swi.rend() && active_sw->sons.at(sidechain) == prev_sw->sons.at(sidechain))
+         return;
+
       if ((active_sw->addresses.find(sidechain) == active_sw->addresses.end()) ||
           (active_sw->addresses.at(sidechain).empty())) {
 
@@ -742,7 +746,6 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
 
             proposal_op.proposed_ops.emplace_back(swu_op);
 
-            const auto &prev_sw = std::next(active_sw);
             if (prev_sw != swi.rend()) {
                std::string new_pw_address = active_pw_pt.get<std::string>("result.address");
                std::string tx_str = create_primary_wallet_transaction(*prev_sw, new_pw_address);

@@ -399,6 +399,10 @@ void sidechain_net_handler_ethereum::process_primary_wallet() {
    const auto &active_sw = swi.rbegin();
    if (active_sw != swi.rend()) {
 
+      const auto &prev_sw = std::next(active_sw);
+      if (prev_sw != swi.rend() && active_sw->sons.at(sidechain) == prev_sw->sons.at(sidechain))
+         return;
+
       if ((active_sw->addresses.find(sidechain) == active_sw->addresses.end()) ||
           (active_sw->addresses.at(sidechain).empty())) {
 
@@ -423,6 +427,21 @@ void sidechain_net_handler_ethereum::process_primary_wallet() {
          swu_op.address = wallet_contract_address;
          proposal_op.proposed_ops.emplace_back(swu_op);
 
+         const auto signers = [this, &prev_sw, &active_sw, &swi] {
+            std::vector<son_info> signers;
+            //! Check if we don't have any previous set of active SONs use the current one
+            if (prev_sw != swi.rend()) {
+               if (!prev_sw->sons.at(sidechain).empty())
+                  signers = prev_sw->sons.at(sidechain);
+               else
+                  signers = active_sw->sons.at(sidechain);
+            } else {
+               signers = active_sw->sons.at(sidechain);
+            }
+
+            return signers;
+         }();
+
          std::string tx_str = create_primary_wallet_transaction(gpo.active_sons.at(sidechain), active_sw->id.operator std::string());
          if (!tx_str.empty()) {
             sidechain_transaction_create_operation stc_op;
@@ -430,7 +449,7 @@ void sidechain_net_handler_ethereum::process_primary_wallet() {
             stc_op.object_id = active_sw->id;
             stc_op.sidechain = sidechain;
             stc_op.transaction = tx_str;
-            stc_op.signers = gpo.active_sons.at(sidechain);
+            stc_op.signers = signers;
             proposal_op.proposed_ops.emplace_back(stc_op);
          }
 
