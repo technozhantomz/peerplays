@@ -24,9 +24,10 @@ object_id_type add_sidechain_address_evaluator::do_apply(const sidechain_address
 
     if (addr_itr != sidechain_addresses_idx.end())
     {
-        db().modify(*addr_itr, [&](sidechain_address_object &sao) {
-            sao.expires = db().head_block_time();
-        });
+        //db().modify(*addr_itr, [&](sidechain_address_object &sao) {
+        //    sao.expires = db().head_block_time();
+        //});
+        db().remove(*addr_itr);
     }
 
     const auto& new_sidechain_address_object = db().create<sidechain_address_object>( [&]( sidechain_address_object& obj ){
@@ -106,9 +107,10 @@ void_result delete_sidechain_address_evaluator::do_apply(const sidechain_address
     const auto& idx = db().get_index_type<sidechain_address_index>().indices().get<by_id>();
     auto sidechain_address = idx.find(op.sidechain_address_id);
     if(sidechain_address != idx.end()) {
-        db().modify(*sidechain_address, [&](sidechain_address_object &sao) {
-            sao.expires = db().head_block_time();
-        });
+        //db().modify(*sidechain_address, [&](sidechain_address_object &sao) {
+        //    sao.expires = db().head_block_time();
+        //});
+        db().remove(*sidechain_address);
     }
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
