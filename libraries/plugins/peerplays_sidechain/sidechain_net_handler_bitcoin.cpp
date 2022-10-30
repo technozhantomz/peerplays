@@ -30,14 +30,13 @@ bitcoin_rpc_client::bitcoin_rpc_client(std::string _url, std::string _user, std:
 }
 
 std::string bitcoin_rpc_client::createwallet(const std::string &wallet_name) {
-   std::string params = std::string("[\"") + wallet_name + std::string("\"]");
-   std::string str = send_post_request("createwallet", params, debug_rpc_calls);
-   return str;
+   const std::string params = std::string("[\"") + wallet_name + std::string("\"]");
+   return send_post_request("createwallet", params, debug_rpc_calls);
 }
 
 uint64_t bitcoin_rpc_client::estimatesmartfee(uint16_t conf_target) {
-   std::string params = std::string("[") + std::to_string(conf_target) + std::string("]");
-   std::string str = send_post_request("estimatesmartfee", params, debug_rpc_calls);
+   const std::string params = std::string("[") + std::to_string(conf_target) + std::string("]");
+   const std::string str = send_post_request("estimatesmartfee", params, debug_rpc_calls);
 
    if (str.length() == 0) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -60,26 +59,23 @@ uint64_t bitcoin_rpc_client::estimatesmartfee(uint16_t conf_target) {
 }
 
 std::string bitcoin_rpc_client::getblock(const std::string &block_hash, int32_t verbosity) {
-   std::string params = std::string("[\"") + block_hash + std::string("\",") + std::to_string(verbosity) + std::string("]");
-   std::string str = send_post_request("getblock", params, debug_rpc_calls);
-   return str;
+   const std::string params = std::string("[\"") + block_hash + std::string("\",") + std::to_string(verbosity) + std::string("]");
+   return send_post_request("getblock", params, debug_rpc_calls);
 }
 
 std::string bitcoin_rpc_client::getnetworkinfo() {
-   std::string params = std::string("[]");
-   std::string str = send_post_request("getnetworkinfo", params, debug_rpc_calls);
-   return str;
+   static const std::string params = std::string("[]");
+   return send_post_request("getnetworkinfo", params, debug_rpc_calls);
 }
 
 std::string bitcoin_rpc_client::getrawtransaction(const std::string &txid, const bool verbose) {
-   std::string params = std::string("[\"") + txid + std::string("\",") + (verbose ? "true" : "false") + std::string("]");
-   std::string str = send_post_request("getrawtransaction", params, debug_rpc_calls);
-   return str;
+   const std::string params = std::string("[\"") + txid + std::string("\",") + (verbose ? "true" : "false") + std::string("]");
+   return send_post_request("getrawtransaction", params, debug_rpc_calls);
 }
 
 std::string bitcoin_rpc_client::getblockchaininfo() {
-   std::string params = std::string("[]");
-   std::string str = send_post_request("getblockchaininfo", params, debug_rpc_calls);
+   static const std::string params = std::string("[]");
+   const std::string str = send_post_request("getblockchaininfo", params, debug_rpc_calls);
 
    if (str.length() > 0) {
 
@@ -130,8 +126,8 @@ void bitcoin_rpc_client::importmulti(const std::vector<multi_params> &address_or
 
 std::vector<btc_txout> bitcoin_rpc_client::listunspent(const uint32_t minconf, const uint32_t maxconf) {
    std::vector<btc_txout> result;
-   std::string params = std::string("[") + std::to_string(minconf) + "," + std::to_string(maxconf) + std::string("]");
-   std::string str = send_post_request("listunspent", params, debug_rpc_calls);
+   const std::string params = std::string("[") + std::to_string(minconf) + "," + std::to_string(maxconf) + std::string("]");
+   const std::string str = send_post_request("listunspent", params, debug_rpc_calls);
 
    if (str.length() == 0) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -167,7 +163,7 @@ std::vector<btc_txout> bitcoin_rpc_client::listunspent_by_address_and_amount(con
    params += std::string("} ]");
 
    std::vector<btc_txout> result;
-   std::string str = send_post_request("listunspent", params, debug_rpc_calls);
+   const std::string str = send_post_request("listunspent", params, debug_rpc_calls);
 
    if (str.length() == 0) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -194,16 +190,13 @@ std::vector<btc_txout> bitcoin_rpc_client::listunspent_by_address_and_amount(con
 }
 
 std::string bitcoin_rpc_client::loadwallet(const std::string &filename) {
-
-   std::string params = std::string("[\"") + filename + std::string("\"]");
-   std::string str = send_post_request("loadwallet", params, debug_rpc_calls);
-   return str;
+   const std::string params = std::string("[\"") + filename + std::string("\"]");
+   return send_post_request("loadwallet", params, debug_rpc_calls);
 }
 
 std::string bitcoin_rpc_client::sendrawtransaction(const std::string &tx_hex) {
-
-   std::string params = std::string("[\"") + tx_hex + std::string("\"]");
-   std::string str = send_post_request("sendrawtransaction", params, debug_rpc_calls);
+   const std::string params = std::string("[\"") + tx_hex + std::string("\"]");
+   const std::string str = send_post_request("sendrawtransaction", params, debug_rpc_calls);
 
    if (str.length() > 0) {
       std::stringstream ss(str);
@@ -225,8 +218,8 @@ std::string bitcoin_rpc_client::sendrawtransaction(const std::string &tx_hex) {
 }
 
 std::string bitcoin_rpc_client::walletlock() {
-   std::string params = std::string("[]");
-   std::string str = send_post_request("walletlock", params, debug_rpc_calls);
+   static const std::string params = std::string("[]");
+   const std::string str = send_post_request("walletlock", params, debug_rpc_calls);
 
    if (str.length() == 0) {
       wlog("Bitcoin RPC call ${function} failed", ("function", __FUNCTION__));
@@ -243,8 +236,8 @@ std::string bitcoin_rpc_client::walletlock() {
 }
 
 bool bitcoin_rpc_client::walletpassphrase(const std::string &passphrase, uint32_t timeout) {
-   std::string params = std::string("[\"") + passphrase + std::string("\",") + std::to_string(timeout) + std::string("]");
-   std::string str = send_post_request("walletpassphrase", params, debug_rpc_calls);
+   const std::string params = std::string("[\"") + passphrase + std::string("\",") + std::to_string(timeout) + std::string("]");
+   const std::string str = send_post_request("walletpassphrase", params, debug_rpc_calls);
    if (str.length() == 0)
       return false;
    else
@@ -366,6 +359,10 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    }
 
    std::string blockchain_info = bitcoin_client->getblockchaininfo();
+   if (blockchain_info.empty()) {
+      elog("No Bitcoin node running at ${url}", ("url", url));
+      FC_ASSERT(false);
+   }
    std::stringstream bci_ss(std::string(blockchain_info.begin(), blockchain_info.end()));
    boost::property_tree::ptree bci_json;
    boost::property_tree::read_json(bci_ss, bci_json);
@@ -385,6 +382,10 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    }
 
    std::string network_info_str = bitcoin_client->getnetworkinfo();
+   if (network_info_str.empty()) {
+      elog("No Bitcoin node running at ${url}", ("url", url));
+      FC_ASSERT(false);
+   }
    std::stringstream network_info_ss(network_info_str);
    boost::property_tree::ptree network_info_json;
    boost::property_tree::read_json(network_info_ss, network_info_json);
@@ -526,48 +527,50 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
          uint64_t swdo_amount = swdo->sidechain_amount.value;
          uint64_t swdo_vout = std::stoll(swdo->sidechain_uid.substr(swdo->sidechain_uid.find_last_of("-") + 1));
 
-         std::string tx_str = bitcoin_client->getrawtransaction(swdo_txid, true);
-         std::stringstream tx_ss(tx_str);
-         boost::property_tree::ptree tx_json;
-         boost::property_tree::read_json(tx_ss, tx_json);
+         const std::string tx_str = bitcoin_client->getrawtransaction(swdo_txid, true);
+         if (tx_str != "") {
+            std::stringstream tx_ss(tx_str);
+            boost::property_tree::ptree tx_json;
+            boost::property_tree::read_json(tx_ss, tx_json);
 
-         if (tx_json.count("error") && tx_json.get_child("error").empty()) {
+            if (tx_json.count("error") && tx_json.get_child("error").empty()) {
 
-            std::string tx_txid = tx_json.get<std::string>("result.txid");
-            uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
-            std::string tx_address = "";
-            uint64_t tx_amount = -1;
-            uint64_t tx_vout = -1;
+               std::string tx_txid = tx_json.get<std::string>("result.txid");
+               uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
+               std::string tx_address = "";
+               uint64_t tx_amount = -1;
+               uint64_t tx_vout = -1;
 
-            for (auto &input : tx_json.get_child("result.vout")) {
-               std::string tx_vout_s = input.second.get<std::string>("n");
-               tx_vout = std::stoll(tx_vout_s);
-               if (tx_vout == swdo_vout) {
-                  if (bitcoin_major_version > 21) {
-                     std::string address = input.second.get<std::string>("scriptPubKey.address");
-                     if (address == swdo_address) {
-                        tx_address = address;
-                     }
-                  } else {
-                     for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
-                        if (address.second.data() == swdo_address) {
-                           tx_address = address.second.data();
-                           break;
+               for (auto &input : tx_json.get_child("result.vout")) {
+                  std::string tx_vout_s = input.second.get<std::string>("n");
+                  tx_vout = std::stoll(tx_vout_s);
+                  if (tx_vout == swdo_vout) {
+                     if (bitcoin_major_version > 21) {
+                        std::string address = input.second.get<std::string>("scriptPubKey.address");
+                        if (address == swdo_address) {
+                           tx_address = address;
+                        }
+                     } else {
+                        for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
+                           if (address.second.data() == swdo_address) {
+                              tx_address = address.second.data();
+                              break;
+                           }
                         }
                      }
+                     std::string tx_amount_s = input.second.get<std::string>("value");
+                     tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
+                     tx_amount = std::stoll(tx_amount_s);
+                     break;
                   }
-                  std::string tx_amount_s = input.second.get<std::string>("value");
-                  tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
-                  tx_amount = std::stoll(tx_amount_s);
-                  break;
                }
-            }
 
-            process_ok = (swdo_txid == tx_txid) &&
-                         (swdo_address == tx_address) &&
-                         (swdo_amount == tx_amount) &&
-                         (swdo_vout == tx_vout) &&
-                         (gpo.parameters.son_bitcoin_min_tx_confirmations() <= tx_confirmations);
+               process_ok = (swdo_txid == tx_txid) &&
+                            (swdo_address == tx_address) &&
+                            (swdo_amount == tx_amount) &&
+                            (swdo_vout == tx_vout) &&
+                            (gpo.parameters.son_bitcoin_min_tx_confirmations() <= tx_confirmations);
+            }
          }
 
          object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
@@ -939,59 +942,61 @@ bool sidechain_net_handler_bitcoin::settle_sidechain_transaction(const sidechain
       return false;
    }
 
-   std::string tx_str = bitcoin_client->getrawtransaction(sto.sidechain_transaction, true);
-   std::stringstream tx_ss(tx_str);
-   boost::property_tree::ptree tx_json;
-   boost::property_tree::read_json(tx_ss, tx_json);
+   const std::string tx_str = bitcoin_client->getrawtransaction(sto.sidechain_transaction, true);
+   if (tx_str != "") {
+      std::stringstream tx_ss(tx_str);
+      boost::property_tree::ptree tx_json;
+      boost::property_tree::read_json(tx_ss, tx_json);
 
-   if ((tx_json.count("error")) && (!tx_json.get_child("error").empty())) {
-      return false;
-   }
+      if ((tx_json.count("error")) && (!tx_json.get_child("error").empty())) {
+         return false;
+      }
 
-   const chain::global_property_object &gpo = database.get_global_properties();
+      const chain::global_property_object &gpo = database.get_global_properties();
 
-   using namespace bitcoin;
-   std::vector<std::pair<fc::ecc::public_key, uint16_t>> pubkey_weights;
-   for (auto si : sto.signers) {
-      auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(si.public_key)));
-      pubkey_weights.push_back(std::make_pair(pub_key, si.weight));
-   }
-   btc_weighted_multisig_address addr(pubkey_weights, network_type);
+      using namespace bitcoin;
+      std::vector<std::pair<fc::ecc::public_key, uint16_t>> pubkey_weights;
+      for (auto si : sto.signers) {
+         auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(si.public_key)));
+         pubkey_weights.push_back(std::make_pair(pub_key, si.weight));
+      }
+      btc_weighted_multisig_address addr(pubkey_weights, network_type);
 
-   std::string tx_txid = tx_json.get<std::string>("result.txid");
-   uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
-   std::string tx_address = addr.get_address();
-   int64_t tx_amount = -1;
+      std::string tx_txid = tx_json.get<std::string>("result.txid");
+      uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
+      std::string tx_address = addr.get_address();
+      int64_t tx_amount = -1;
 
-   if (tx_confirmations >= gpo.parameters.son_bitcoin_min_tx_confirmations()) {
-      if (sto.object_id.is<son_wallet_deposit_id_type>()) {
-         for (auto &input : tx_json.get_child("result.vout")) {
-            if (bitcoin_major_version > 21) {
-               std::string address = input.second.get<std::string>("scriptPubKey.address");
-               if (address == tx_address) {
-                  std::string tx_amount_s = input.second.get<std::string>("value");
-                  tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
-                  tx_amount = std::stoll(tx_amount_s);
-               }
-            } else {
-               for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
-                  if (address.second.data() == tx_address) {
+      if (tx_confirmations >= gpo.parameters.son_bitcoin_min_tx_confirmations()) {
+         if (sto.object_id.is<son_wallet_deposit_id_type>()) {
+            for (auto &input : tx_json.get_child("result.vout")) {
+               if (bitcoin_major_version > 21) {
+                  std::string address = input.second.get<std::string>("scriptPubKey.address");
+                  if (address == tx_address) {
                      std::string tx_amount_s = input.second.get<std::string>("value");
                      tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
                      tx_amount = std::stoll(tx_amount_s);
-                     break;
+                  }
+               } else {
+                  for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
+                     if (address.second.data() == tx_address) {
+                        std::string tx_amount_s = input.second.get<std::string>("value");
+                        tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
+                        tx_amount = std::stoll(tx_amount_s);
+                        break;
+                     }
                   }
                }
             }
+            settle_amount = asset(tx_amount, database.get_global_properties().parameters.btc_asset());
+            return true;
          }
-         settle_amount = asset(tx_amount, database.get_global_properties().parameters.btc_asset());
-         return true;
-      }
 
-      if (sto.object_id.is<son_wallet_withdraw_id_type>()) {
-         auto swwo = database.get<son_wallet_withdraw_object>(sto.object_id);
-         settle_amount = asset(swwo.withdraw_amount, database.get_global_properties().parameters.btc_asset());
-         return true;
+         if (sto.object_id.is<son_wallet_withdraw_id_type>()) {
+            auto swwo = database.get<son_wallet_withdraw_object>(sto.object_id);
+            settle_amount = asset(swwo.withdraw_amount, database.get_global_properties().parameters.btc_asset());
+            return true;
+         }
       }
    }
    return false;
@@ -1041,11 +1046,11 @@ std::string sidechain_net_handler_bitcoin::create_primary_wallet_transaction(con
    }
 
    uint64_t fee_rate = bitcoin_client->estimatesmartfee();
-   uint64_t min_fee_rate = 1000;
+   const uint64_t min_fee_rate = 1000;
    fee_rate = std::max(fee_rate, min_fee_rate);
 
    uint64_t total_amount = 0.0;
-   std::vector<btc_txout> inputs = bitcoin_client->listunspent_by_address_and_amount(prev_pw_address, 0);
+   const std::vector<btc_txout> inputs = bitcoin_client->listunspent_by_address_and_amount(prev_pw_address, 0);
 
    if (inputs.size() == 0) {
       elog("Failed to find UTXOs to spend for ${pw}", ("pw", prev_pw_address));
@@ -1088,7 +1093,7 @@ std::string sidechain_net_handler_bitcoin::create_deposit_transaction(const son_
    std::string nvout = suid.substr(suid.find_last_of("-") + 1);
    uint64_t deposit_amount = swdo.sidechain_amount.value;
    uint64_t fee_rate = bitcoin_client->estimatesmartfee();
-   uint64_t min_fee_rate = 1000;
+   const uint64_t min_fee_rate = 1000;
    fee_rate = std::max(fee_rate, min_fee_rate);
 
    if (fee_rate >= deposit_amount) {
@@ -1131,11 +1136,11 @@ std::string sidechain_net_handler_bitcoin::create_withdrawal_transaction(const s
    std::string redeem_script = json.get<std::string>("redeemScript");
 
    int64_t fee_rate = bitcoin_client->estimatesmartfee();
-   int64_t min_fee_rate = 1000;
+   const int64_t min_fee_rate = 1000;
    fee_rate = std::max(fee_rate, min_fee_rate);
 
    int64_t total_amount = 0;
-   std::vector<btc_txout> inputs = bitcoin_client->listunspent_by_address_and_amount(pw_address, 0);
+   const std::vector<btc_txout> inputs = bitcoin_client->listunspent_by_address_and_amount(pw_address, 0);
 
    if (inputs.size() == 0) {
       elog("Failed to find UTXOs to spend for ${pw}", ("pw", pw_address));
@@ -1243,14 +1248,11 @@ std::string sidechain_net_handler_bitcoin::send_transaction(const sidechain_tran
    // Add redeemscripts to vins and make tx ready for sending
    sign_witness_transaction_finalize(tx, redeem_scripts, false);
    std::string final_tx_hex = fc::to_hex(pack(tx));
-   std::string res = bitcoin_client->sendrawtransaction(final_tx_hex);
-
-   return res;
+   return bitcoin_client->sendrawtransaction(final_tx_hex);
 }
 
 void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) {
-
-   std::string block = bitcoin_client->getblock(event_data);
+   const std::string block = bitcoin_client->getblock(event_data);
    if (block.empty())
       return;
 

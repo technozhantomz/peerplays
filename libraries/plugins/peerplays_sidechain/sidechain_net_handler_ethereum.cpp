@@ -33,13 +33,13 @@ std::string ethereum_rpc_client::admin_node_info() {
 }
 
 std::string ethereum_rpc_client::eth_get_block_by_number(std::string block_number, bool full_block) {
-   std::string params = "[ \"" + block_number + "\", " + (full_block ? "true" : "false") + "]";
+   const std::string params = "[ \"" + block_number + "\", " + (full_block ? "true" : "false") + "]";
    return send_post_request("eth_getBlockByNumber", params, debug_rpc_calls);
 }
 
 std::string ethereum_rpc_client::eth_get_logs(std::string wallet_contract_address) {
-   std::string params = "[{\"address\": \"" + wallet_contract_address + "\"}]";
-   std::string reply_str = send_post_request("eth_getLogs", params, debug_rpc_calls);
+   const std::string params = "[{\"address\": \"" + wallet_contract_address + "\"}]";
+   const std::string reply_str = send_post_request("eth_getLogs", params, debug_rpc_calls);
    return retrieve_value_from_reply(reply_str, "");
 }
 
@@ -56,28 +56,32 @@ std::string ethereum_rpc_client::eth_gas_price() {
 }
 
 std::string ethereum_rpc_client::get_chain_id() {
-   std::string reply_str = net_version();
+   const std::string reply_str = net_version();
    return retrieve_value_from_reply(reply_str, "");
 }
 
 std::string ethereum_rpc_client::get_network_id() {
-   std::string reply_str = admin_node_info();
+   const std::string reply_str = admin_node_info();
    return retrieve_value_from_reply(reply_str, "protocols.eth.network");
 }
 
 std::string ethereum_rpc_client::get_nonce(const std::string &address) {
-   std::string reply_str = eth_get_transaction_count("[\"" + address + "\", \"latest\"]");
-   const auto nonce_val = ethereum::from_hex<boost::multiprecision::uint256_t>(retrieve_value_from_reply(reply_str, ""));
-   return nonce_val == 0 ? ethereum::add_0x("0") : ethereum::add_0x(ethereum::to_hex(nonce_val));
+   const std::string reply_str = eth_get_transaction_count("[\"" + address + "\", \"latest\"]");
+   const auto nonce_string = retrieve_value_from_reply(reply_str, "");
+   if (!nonce_string.empty()) {
+      const auto nonce_val = ethereum::from_hex<boost::multiprecision::uint256_t>(nonce_string);
+      return nonce_val == 0 ? ethereum::add_0x("0") : ethereum::add_0x(ethereum::to_hex(nonce_val));
+   }
+   return "";
 }
 
 std::string ethereum_rpc_client::get_gas_price() {
-   std::string reply_str = eth_gas_price();
+   const std::string reply_str = eth_gas_price();
    return retrieve_value_from_reply(reply_str, "");
 }
 
 std::string ethereum_rpc_client::get_gas_limit() {
-   std::string reply_str = eth_get_block_by_number("latest", false);
+   const std::string reply_str = eth_get_block_by_number("latest", false);
    if (!reply_str.empty()) {
       std::stringstream ss(reply_str);
       boost::property_tree::ptree json;
@@ -138,13 +142,18 @@ sidechain_net_handler_ethereum::sidechain_net_handler_ethereum(peerplays_sidecha
 
    rpc_client = new ethereum_rpc_client(rpc_url, rpc_user, rpc_password, debug_rpc_calls);
 
-   std::string chain_id_str = rpc_client->get_chain_id();
+   const std::string chain_id_str = rpc_client->get_chain_id();
    if (chain_id_str.empty()) {
       elog("No Ethereum node running at ${url}", ("url", rpc_url));
       FC_ASSERT(false);
    }
    chain_id = std::stoll(chain_id_str);
-   std::string network_id_str = rpc_client->get_network_id();
+
+   const std::string network_id_str = rpc_client->get_network_id();
+   if (network_id_str.empty()) {
+      elog("No Ethereum node running at ${url}", ("url", rpc_url));
+      FC_ASSERT(false);
+   }
    network_id = std::stoll(network_id_str);
 
    ilog("Running on Ethereum network, chain id ${chain_id_str}, network id ${network_id_str}", ("chain_id_str", chain_id_str)("network_id_str", network_id_str));
@@ -697,7 +706,7 @@ void sidechain_net_handler_ethereum::schedule_ethereum_listener() {
 void sidechain_net_handler_ethereum::ethereum_listener_loop() {
    schedule_ethereum_listener();
 
-   std::string reply = rpc_client->eth_get_block_by_number("latest", false);
+   const std::string reply = rpc_client->eth_get_block_by_number("latest", false);
    //std::string reply = rpc_client->eth_get_logs(wallet_contract_address);
    if (!reply.empty()) {
       std::stringstream ss(reply);
@@ -716,7 +725,7 @@ void sidechain_net_handler_ethereum::ethereum_listener_loop() {
 }
 
 void sidechain_net_handler_ethereum::handle_event(const std::string &event_data) {
-   std::string block = rpc_client->eth_get_block_by_number("latest", true);
+   const std::string block = rpc_client->eth_get_block_by_number("latest", true);
    if (block != "") {
       add_to_son_listener_log("BLOCK   : " + event_data);
       std::stringstream ss(block);
