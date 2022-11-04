@@ -28,10 +28,6 @@ ethereum_rpc_client::ethereum_rpc_client(const std::string &url, const std::stri
       rpc_client(url, user_name, password, debug_rpc_calls) {
 }
 
-std::string ethereum_rpc_client::admin_node_info() {
-   return send_post_request("admin_nodeInfo", "", debug_rpc_calls);
-}
-
 std::string ethereum_rpc_client::eth_get_block_by_number(std::string block_number, bool full_block) {
    const std::string params = "[ \"" + block_number + "\", " + (full_block ? "true" : "false") + "]";
    return send_post_request("eth_getBlockByNumber", params, debug_rpc_calls);
@@ -41,6 +37,10 @@ std::string ethereum_rpc_client::eth_get_logs(std::string wallet_contract_addres
    const std::string params = "[{\"address\": \"" + wallet_contract_address + "\"}]";
    const std::string reply_str = send_post_request("eth_getLogs", params, debug_rpc_calls);
    return retrieve_value_from_reply(reply_str, "");
+}
+
+std::string ethereum_rpc_client::eth_chainId() {
+   return send_post_request("eth_chainId", "", debug_rpc_calls);
 }
 
 std::string ethereum_rpc_client::net_version() {
@@ -56,13 +56,14 @@ std::string ethereum_rpc_client::eth_gas_price() {
 }
 
 std::string ethereum_rpc_client::get_chain_id() {
-   const std::string reply_str = net_version();
-   return retrieve_value_from_reply(reply_str, "");
+   const std::string reply_str = eth_chainId();
+   const auto chain_id_string = retrieve_value_from_reply(reply_str, "");
+   return chain_id_string.empty() ? "" : std::to_string(ethereum::from_hex<long long>(chain_id_string));
 }
 
 std::string ethereum_rpc_client::get_network_id() {
-   const std::string reply_str = admin_node_info();
-   return retrieve_value_from_reply(reply_str, "protocols.eth.network");
+   const std::string reply_str = net_version();
+   return retrieve_value_from_reply(reply_str, "");
 }
 
 std::string ethereum_rpc_client::get_nonce(const std::string &address) {
