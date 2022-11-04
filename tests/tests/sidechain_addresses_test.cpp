@@ -129,6 +129,9 @@ BOOST_AUTO_TEST_CASE( sidechain_address_delete_test ) {
 
    BOOST_TEST_MESSAGE("sidechain_address_delete_test");
 
+   generate_blocks(HARDFORK_SIDECHAIN_DELETE_TIME);
+   generate_block();
+
    INVOKE(sidechain_address_add_test);
 
    GET_ACTOR(alice);
@@ -151,18 +154,64 @@ BOOST_AUTO_TEST_CASE( sidechain_address_delete_test ) {
       sign(trx, alice_private_key);
       PUSH_TX(db, trx, ~0);
    }
-   time_point_sec now = db.head_block_time();
+   //time_point_sec now = db.head_block_time();
    generate_block();
 
    {
       BOOST_TEST_MESSAGE("Check sidechain_address_delete_operation results");
 
       const auto& idx = db.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain_and_expires>();
-      BOOST_REQUIRE( idx.size() == 1 );
-      auto obj = idx.find( boost::make_tuple( alice_id, sidechain_type::bitcoin, time_point_sec::maximum() ) );
-      BOOST_REQUIRE( obj == idx.end() );
-      auto expired_obj = idx.find( boost::make_tuple( alice_id, sidechain_type::bitcoin, now ) );
-      BOOST_REQUIRE( expired_obj != idx.end() );
+      BOOST_REQUIRE( idx.size() == 0 );
+   }
+}
+
+BOOST_AUTO_TEST_CASE(sidechain_address_delete_create_test) {
+
+   BOOST_TEST_MESSAGE("sidechain_address_delete_create_test");
+
+   generate_blocks(HARDFORK_SIDECHAIN_DELETE_TIME);
+   generate_block();
+
+   INVOKE(sidechain_address_add_test);
+
+   GET_ACTOR(alice);
+
+   const auto &idx = db.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain_and_expires>();
+   BOOST_REQUIRE(idx.size() == 1);
+   auto obj = idx.find(boost::make_tuple(alice_id, sidechain_type::bitcoin, time_point_sec::maximum()));
+   BOOST_REQUIRE(obj != idx.end());
+
+   {
+      BOOST_TEST_MESSAGE("Delete and create sidechain address");
+      sidechain_address_delete_operation op_del;
+      op_del.payer = alice_id;
+      op_del.sidechain_address_id = sidechain_address_id_type(0);
+      op_del.sidechain_address_account = alice_id;
+      op_del.sidechain = obj->sidechain;
+
+      sidechain_address_add_operation op_create;
+      op_create.payer = alice_id;
+      op_create.sidechain_address_account = alice_id;
+      op_create.sidechain = sidechain_type::bitcoin;
+      op_create.deposit_public_key = "deposit_public_key";
+      op_create.withdraw_public_key = "withdraw_public_key";
+      op_create.withdraw_address = "withdraw_address";
+
+      trx.operations.push_back(op_del);
+      trx.operations.push_back(op_create);
+      sign(trx, alice_private_key);
+      PUSH_TX(db, trx, ~0);
+   }
+
+   // both transactions should goes in one block (delete + create)
+   generate_block();
+
+   {
+      BOOST_TEST_MESSAGE("Check sidechain_address_delete_add_operation results");
+      const auto &idx = db.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain_and_expires>();
+      BOOST_REQUIRE(idx.size() == 1);
+      auto obj = idx.find(boost::make_tuple(alice_id, sidechain_type::bitcoin, time_point_sec::maximum()));
+      BOOST_REQUIRE(obj != idx.end());
    }
 }
 
