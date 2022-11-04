@@ -22,11 +22,14 @@ object_id_type add_sidechain_address_evaluator::do_apply(const sidechain_address
     const auto &sidechain_addresses_idx = db().get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain_and_expires>();
     const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(op.sidechain_address_account, op.sidechain, time_point_sec::maximum()));
 
-    if (addr_itr != sidechain_addresses_idx.end())
-    {
-        db().modify(*addr_itr, [&](sidechain_address_object &sao) {
-            sao.expires = db().head_block_time();
-        });
+    if (addr_itr != sidechain_addresses_idx.end()) {
+       if (db().head_block_time() >= HARDFORK_SIDECHAIN_DELETE_TIME) {
+          db().remove(*addr_itr);
+       } else {
+          db().modify(*addr_itr, [&](sidechain_address_object &sao) {
+             sao.expires = db().head_block_time();
+          });
+       }
     }
 
     const auto& new_sidechain_address_object = db().create<sidechain_address_object>( [&]( sidechain_address_object& obj ){
@@ -105,10 +108,15 @@ void_result delete_sidechain_address_evaluator::do_apply(const sidechain_address
 { try {
     const auto& idx = db().get_index_type<sidechain_address_index>().indices().get<by_id>();
     auto sidechain_address = idx.find(op.sidechain_address_id);
-    if(sidechain_address != idx.end()) {
-        db().modify(*sidechain_address, [&](sidechain_address_object &sao) {
-            sao.expires = db().head_block_time();
-        });
+
+    if (sidechain_address != idx.end()) {
+       if (db().head_block_time() >= HARDFORK_SIDECHAIN_DELETE_TIME) {
+          db().remove(*sidechain_address);
+       } else {
+          db().modify(*sidechain_address, [&](sidechain_address_object &sao) {
+             sao.expires = db().head_block_time();
+          });
+       }
     }
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
