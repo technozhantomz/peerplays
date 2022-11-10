@@ -100,14 +100,14 @@ signed_transaction raw_transaction::sign(const std::string &private_key) const {
    for (int i = 1; i < 33; i++)
       r.emplace_back((char)result.at(i));
 
-   bytes v = bytes{char(recid + from_hex<int>(chain_id) * 2 + 35)};
+   unsigned int v = recid + from_hex<unsigned int>(chain_id) * 2 + 35;
 
    bytes s;
    for (int i = 33; i < 65; i++)
       s.emplace_back((char)result.at(i));
 
    tr.r = fc::to_hex((char *)&r[0], r.size());
-   tr.v = fc::to_hex((char *)&v[0], v.size());
+   tr.v = to_hex(v);
    tr.s = fc::to_hex((char *)&s[0], s.size());
 
    return tr;
@@ -157,8 +157,8 @@ signed_transaction::signed_transaction(const std::string &raw_tx) :
 std::string signed_transaction::recover(const std::string &chain_id) const {
    fc::ecc::compact_signature input64;
    fc::from_hex(r, (char *)&input64.at(1), 32);
-   fc::from_hex(v, (char *)&input64.at(0), 1);
-   int recid = input64.at(0) - from_hex<int>(chain_id) * 2 - 35;
+   const int recid = from_hex<unsigned int>(v) - from_hex<unsigned int>(chain_id) * 2 - 35;
+   fc::from_hex(std::to_string(recid), (char *)&input64.at(0), 1);
    fc::from_hex(s, (char *)&input64.at(33), 32);
 
    secp256k1_ecdsa_recoverable_signature sig;
