@@ -15,9 +15,9 @@ class ethereum_rpc_client : public rpc_client {
 public:
    ethereum_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls);
 
-   std::string admin_node_info();
    std::string eth_get_block_by_number(std::string block_number, bool full_block);
    std::string eth_get_logs(std::string wallet_contract_address);
+   std::string eth_chainId();
    std::string net_version();
    std::string eth_get_transaction_count(const std::string &params);
    std::string eth_gas_price();
