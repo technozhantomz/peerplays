@@ -28,6 +28,11 @@ ethereum_rpc_client::ethereum_rpc_client(const std::string &url, const std::stri
       rpc_client(url, user_name, password, debug_rpc_calls) {
 }
 
+std::string ethereum_rpc_client::eth_blockNumber() {
+   const std::string reply_str = send_post_request("eth_blockNumber", "", debug_rpc_calls);
+   return retrieve_value_from_reply(reply_str, "");
+}
+
 std::string ethereum_rpc_client::eth_get_block_by_number(std::string block_number, bool full_block) {
    const std::string params = "[ \"" + block_number + "\", " + (full_block ? "true" : "false") + "]";
    return send_post_request("eth_getBlockByNumber", params, debug_rpc_calls);
@@ -159,7 +164,8 @@ sidechain_net_handler_ethereum::sidechain_net_handler_ethereum(peerplays_sidecha
 
    ilog("Running on Ethereum network, chain id ${chain_id_str}, network id ${network_id_str}", ("chain_id_str", chain_id_str)("network_id_str", network_id_str));
 
-   last_block_received = 0;
+   const auto block_number = rpc_client->eth_blockNumber();
+   last_block_received = !block_number.empty() ? ethereum::from_hex<uint64_t>(block_number) : 0;
    schedule_ethereum_listener();
    event_received.connect([this](const std::string &event_data) {
       std::thread(&sidechain_net_handler_ethereum::handle_event, this, event_data).detach();
@@ -707,31 +713,42 @@ void sidechain_net_handler_ethereum::schedule_ethereum_listener() {
 void sidechain_net_handler_ethereum::ethereum_listener_loop() {
    schedule_ethereum_listener();
 
-   const std::string reply = rpc_client->eth_get_block_by_number("latest", false);
+   const auto reply = rpc_client->eth_blockNumber();
    //std::string reply = rpc_client->eth_get_logs(wallet_contract_address);
+
    if (!reply.empty()) {
-      std::stringstream ss(reply);
-      boost::property_tree::ptree json;
-      boost::property_tree::read_json(ss, json);
-      if (json.count("result")) {
-         std::string head_block_number_s = json.get<std::string>("result.number");
-         uint64_t head_block_number = std::strtoul(head_block_number_s.c_str(), nullptr, 16);
-         if (head_block_number != last_block_received) {
-            std::string event_data = std::to_string(head_block_number);
-            handle_event(event_data);
-            last_block_received = head_block_number;
+      uint64_t head_block_number = ethereum::from_hex<uint64_t>(reply);
+
+      if (head_block_number != last_block_received) {
+         //! Check that current block number is greater than last one
+         if (head_block_number < last_block_received) {
+            wlog("Head block ${head_block_number} is greater than last received block ${last_block_received}", ("head_block_number", head_block_number)("last_block_received", last_block_received));
+            return;
          }
+
+         //! Send event data for all blocks that passed
+         for (uint64_t i = last_block_received + 1; i <= head_block_number; ++i) {
+            const std::string block_number = ethereum::add_0x(ethereum::to_hex(i, false));
+            handle_event(block_number);
+         }
+
+         last_block_received = head_block_number;
       }
    }
 }
 
-void sidechain_net_handler_ethereum::handle_event(const std::string &event_data) {
-   const std::string block = rpc_client->eth_get_block_by_number("latest", true);
+void sidechain_net_handler_ethereum::handle_event(const std::string &block_number) {
+   const std::string block = rpc_client->eth_get_block_by_number(block_number, true);
    if (block != "") {
-      add_to_son_listener_log("BLOCK   : " + event_data);
+      add_to_son_listener_log("BLOCK   : " + block_number);
       std::stringstream ss(block);
       boost::property_tree::ptree block_json;
       boost::property_tree::read_json(ss, block_json);
+
+      if (block_json.get<string>("result") == "null") {
+         wlog("No data for block ${block_number}", ("block_number", block_number));
+         return;
+      }
 
       size_t tx_idx = -1;
       for (const auto &tx_child : block_json.get_child("result.transactions")) {

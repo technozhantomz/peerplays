@@ -15,6 +15,7 @@ class ethereum_rpc_client : public rpc_client {
 public:
    ethereum_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls);
 
+   std::string eth_blockNumber();
    std::string eth_get_block_by_number(std::string block_number, bool full_block);
    std::string eth_get_logs(std::string wallet_contract_address);
    std::string eth_chainId();
@@ -69,7 +70,7 @@ private:
    boost::signals2::signal<void(const std::string &)> event_received;
    void schedule_ethereum_listener();
    void ethereum_listener_loop();
-   void handle_event(const std::string &event_data);
+   void handle_event(const std::string &block_number);
 };
 
 }} // namespace graphene::peerplays_sidechain

@@ -15,12 +15,14 @@ std::string add_0x(const std::string &s);
 std::string remove_0x(const std::string &s);
 
 template <typename T>
-std::string to_hex(const T &val) {
+std::string to_hex(const T &val, bool add_front_zero = true) {
    std::stringstream stream;
    stream << std::hex << val;
    std::string result(stream.str());
-   if (result.size() % 2)
-      result = "0" + result;
+   if(add_front_zero) {
+      if (result.size() % 2)
+         result = "0" + result;
+   }
    return result;
 }
 
