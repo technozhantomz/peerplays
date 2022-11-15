@@ -244,6 +244,9 @@ BOOST_AUTO_TEST_CASE( sidechain_address_delete_test ) {
 
    BOOST_TEST_MESSAGE("sidechain_address_delete_test");
 
+   generate_blocks(HARDFORK_SIDECHAIN_DELETE_TIME);
+   generate_block();
+
    INVOKE(sidechain_address_add_test);
 
    GET_ACTOR(alice);
@@ -266,18 +269,12 @@ BOOST_AUTO_TEST_CASE( sidechain_address_delete_test ) {
       sign(trx, alice_private_key);
       PUSH_TX(db, trx, ~0);
    }
-   //time_point_sec now = db.head_block_time();
-   generate_block();
 
+   generate_block();
    {
       BOOST_TEST_MESSAGE("Check sidechain_address_delete_operation results");
 
       const auto& idx = db.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain_and_expires>();
-      //BOOST_REQUIRE( idx.size() == 1 );
-      //auto obj = idx.find( boost::make_tuple( alice_id, sidechain_type::bitcoin, time_point_sec::maximum() ) );
-      //BOOST_REQUIRE( obj == idx.end() );
-      //auto expired_obj = idx.find( boost::make_tuple( alice_id, sidechain_type::bitcoin, now ) );
-      //BOOST_REQUIRE( expired_obj != idx.end() );
       BOOST_REQUIRE( idx.size() == 0 );
    }
 }
@@ -285,6 +282,9 @@ BOOST_AUTO_TEST_CASE( sidechain_address_delete_test ) {
 BOOST_AUTO_TEST_CASE(sidechain_address_delete_create_test) {
 
    BOOST_TEST_MESSAGE("sidechain_address_delete_create_test");
+
+   generate_blocks(HARDFORK_SIDECHAIN_DELETE_TIME);
+   generate_block();
 
    INVOKE(sidechain_address_add_test);
 
