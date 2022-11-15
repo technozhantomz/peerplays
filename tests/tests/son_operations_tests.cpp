@@ -208,9 +208,9 @@ try {
 
    db.modify( *son_stats_obj, [&]( son_statistics_object& _s)
    {
-      _s.last_down_timestamp[sidechain_type::bitcoin] = fc::time_point_sec(db.head_block_time() - db.get_global_properties().parameters.son_deregister_time());
-      _s.last_down_timestamp[sidechain_type::hive] = fc::time_point_sec(db.head_block_time() - db.get_global_properties().parameters.son_deregister_time());
-      _s.last_down_timestamp[sidechain_type::ethereum] = fc::time_point_sec(db.head_block_time() - db.get_global_properties().parameters.son_deregister_time());
+      _s.last_active_timestamp[sidechain_type::bitcoin] = fc::time_point_sec(db.head_block_time() - db.get_global_properties().parameters.son_deregister_time());
+      _s.last_active_timestamp[sidechain_type::hive] = fc::time_point_sec(db.head_block_time() - db.get_global_properties().parameters.son_deregister_time());
+      _s.last_active_timestamp[sidechain_type::ethereum] = fc::time_point_sec(db.head_block_time() - db.get_global_properties().parameters.son_deregister_time());
    });
 
    auto deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));

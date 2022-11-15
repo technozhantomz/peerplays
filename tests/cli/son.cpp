@@ -1313,7 +1313,7 @@ BOOST_FIXTURE_TEST_CASE( get_son_network_status, cli_fixture )
                (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
             {
                BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
-               BOOST_CHECK(inner_iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");
+               BOOST_CHECK(inner_iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal");
             }
             else if((inner_iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
                (inner_iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
@@ -1342,14 +1342,14 @@ BOOST_FIXTURE_TEST_CASE( get_son_network_status, cli_fixture )
                (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
             {
                BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
-               BOOST_CHECK(inner_iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");
+               BOOST_CHECK(inner_iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal");
             }
             else if((inner_iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
                (inner_iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
                (inner_iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(1).son_id))
             {
                BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
-               BOOST_CHECK(inner_iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");               
+               BOOST_CHECK(inner_iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal");
             }
             else{
                BOOST_TEST_MESSAGE("status: "<< inner_iter->second);
@@ -1517,7 +1517,7 @@ BOOST_FIXTURE_TEST_CASE( get_son_network_status_by_sidechain, cli_fixture )
                (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
             {
                BOOST_TEST_MESSAGE("status: "<< iter->second);
-               BOOST_CHECK(iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");
+               BOOST_CHECK(iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal");
             }
             else if((iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
                (iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
@@ -1545,14 +1545,14 @@ BOOST_FIXTURE_TEST_CASE( get_son_network_status_by_sidechain, cli_fixture )
                (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(0).son_id))
             {
                BOOST_TEST_MESSAGE("status: "<< iter->second);
-               BOOST_CHECK(iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");
+               BOOST_CHECK(iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal");
             }
             else if((iter->first == gpo.active_sons.at(sidechain_type::bitcoin).at(1).son_id) &&
                (iter->first == gpo.active_sons.at(sidechain_type::hive).at(1).son_id) &&
                (iter->first == gpo.active_sons.at(sidechain_type::ethereum).at(1).son_id))
             {
                BOOST_TEST_MESSAGE("status: "<< iter->second);
-               BOOST_CHECK(iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal]");               
+               BOOST_CHECK(iter->second == "NOT OK, irregular SON heartbeat, triggering SON down proposal");
             }
             else{
                BOOST_TEST_MESSAGE("status: "<< iter->second);
