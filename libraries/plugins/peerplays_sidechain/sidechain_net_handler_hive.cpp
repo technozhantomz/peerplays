@@ -806,6 +806,11 @@ bool sidechain_net_handler_hive::settle_sidechain_transaction(const sidechain_tr
    return false;
 }
 
+optional<asset> sidechain_net_handler_hive::estimate_withdrawal_transaction_fee() const {
+   wlog("estimate_withdrawal_transaction_fee not implemented for sidechain: ${sidechain}", ("sidechain", sidechain));
+   return optional<asset>{};
+}
+
 void sidechain_net_handler_hive::schedule_hive_listener() {
    fc::time_point now = fc::time_point::now();
    int64_t time_to_next = 1000;

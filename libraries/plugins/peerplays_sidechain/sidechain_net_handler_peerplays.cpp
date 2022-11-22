@@ -290,4 +290,9 @@ bool sidechain_net_handler_peerplays::settle_sidechain_transaction(const sidecha
    return true;
 }
 
+optional<asset> sidechain_net_handler_peerplays::estimate_withdrawal_transaction_fee() const {
+   wlog("estimate_withdrawal_transaction_fee not implemented for sidechain: ${sidechain}", ("sidechain", sidechain));
+   return optional<asset>{};
+}
+
 }} // namespace graphene::peerplays_sidechain

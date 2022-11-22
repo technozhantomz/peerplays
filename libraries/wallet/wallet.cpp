@@ -3291,6 +3291,25 @@ public:
          return sign_transaction(trx, broadcast);
    } FC_CAPTURE_AND_RETHROW((order_id)) }
 
+   sidechain_type get_sidechain_type_from_asset(asset_id_type asset_id) const
+   {
+      const auto& gpo = _remote_db->get_global_properties();
+
+      if(asset_id == gpo.parameters.btc_asset())
+         return sidechain_type::bitcoin;
+
+      if(asset_id == gpo.parameters.eth_asset())
+         return sidechain_type::ethereum;
+
+      if(asset_id == gpo.parameters.hbd_asset())
+         return sidechain_type::hive;
+
+      if(asset_id == gpo.parameters.hive_asset())
+         return sidechain_type::hive;
+
+      return sidechain_type::unknown;
+   }
+
    signed_transaction transfer(string from, string to, string amount,
                                string asset_symbol, string memo, bool broadcast = false)
    { try {
@@ -3322,6 +3341,19 @@ public:
       tx.operations.push_back(xfer_op);
       set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
       tx.validate();
+
+      //! For sidechain withdrawal check if amount is greater than fee
+      if(to_id == _remote_db->get_global_properties().parameters.son_account()) {
+         const auto sidechain = get_sidechain_type_from_asset(asset_obj->id);
+         const auto transaction_fee = estimate_withdrawal_transaction_fee(sidechain);
+
+         if(transaction_fee) {
+            if (*transaction_fee >= xfer_op.amount) {
+               FC_THROW("Transaction fee: ${sidechain_fee}, would be grater than transfer amount ${amount}",
+                        ("sidechain_fee", get_asset(transaction_fee->asset_id).amount_to_pretty_string(transaction_fee->amount))("amount", get_asset(xfer_op.amount.asset_id).amount_to_pretty_string(xfer_op.amount.amount)));
+            }
+         }
+      }
 
       return sign_transaction(tx, broadcast);
    } FC_CAPTURE_AND_RETHROW( (from)(to)(amount)(asset_symbol)(memo)(broadcast) ) }
@@ -4218,6 +4250,31 @@ public:
       try
       {
          return (*_remote_sidechain)->get_son_listener_log();
+      }
+      FC_CAPTURE_AND_RETHROW()
+   }
+
+   optional<asset> estimate_withdrawal_transaction_fee(sidechain_type sidechain)
+   {
+      use_sidechain_api();
+      try
+      {
+         return (*_remote_sidechain)->estimate_withdrawal_transaction_fee(sidechain);
+      }
+      FC_CAPTURE_AND_RETHROW()
+   }
+
+   std::string eth_estimate_withdrawal_transaction_fee()
+   {
+      try
+      {
+         const auto transaction_fee = estimate_withdrawal_transaction_fee(sidechain_type::ethereum);
+         if(transaction_fee)
+         {
+            return get_asset(transaction_fee->asset_id).amount_to_pretty_string(transaction_fee->amount);
+         }
+
+         return "Can't get fee value";
       }
       FC_CAPTURE_AND_RETHROW()
    }
@@ -7271,6 +7328,16 @@ voters_info wallet_api::get_voters(const string &account_name_or_id) const
 std::map<sidechain_type, std::vector<std::string>> wallet_api::get_son_listener_log() const
 {
    return my->get_son_listener_log();
+}
+
+optional<asset> wallet_api::estimate_withdrawal_transaction_fee(sidechain_type sidechain) const
+{
+   return my->estimate_withdrawal_transaction_fee(sidechain);
+}
+
+std::string wallet_api::eth_estimate_withdrawal_transaction_fee() const
+{
+   return my->eth_estimate_withdrawal_transaction_fee();
 }
 
 // default ctor necessary for FC_REFLECT

@@ -50,6 +50,7 @@ public:
 
    void add_to_son_listener_log(std::string trx_id);
    std::vector<std::string> get_son_listener_log();
+   virtual optional<asset> estimate_withdrawal_transaction_fee() const = 0;
 
 protected:
    peerplays_sidechain_plugin &plugin;
