@@ -54,6 +54,7 @@ public:
    void log_son_proposal_retry(sidechain_type sidechain, int op_type, object_id_type object_id);
    bool can_son_participate(sidechain_type sidechain, int op_type, object_id_type object_id);
    std::map<sidechain_type, std::vector<std::string>> get_son_listener_log();
+   optional<asset> estimate_withdrawal_transaction_fee(sidechain_type sidechain);
 };
 
 }} // namespace graphene::peerplays_sidechain

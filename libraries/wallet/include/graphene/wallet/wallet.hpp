@@ -2676,6 +2676,19 @@ class wallet_api
        */
       std::map<sidechain_type, std::vector<std::string>> get_son_listener_log() const;
 
+      /**
+       * @brief Estimate transaction fee for withdrawal
+       * @param sidechain Sidechain type (bitcoin, HIVE, etc)
+       * @return Transaction fee
+       */
+      optional<asset> estimate_withdrawal_transaction_fee(sidechain_type sidechain) const;
+
+      /**
+       * @brief Estimate gas fee for withdrawal transaction for ETH
+       * @return Gas fee in ETH
+       */
+      std::string eth_estimate_withdrawal_transaction_fee() const;
+
       fc::signal<void(bool)> lock_changed;
       std::shared_ptr<detail::wallet_api_impl> my;
       void encrypt_keys();
@@ -2976,4 +2989,6 @@ FC_API( graphene::wallet::wallet_api,
         (get_voters_by_id)
         (get_voters)
         (get_son_listener_log)
+        (estimate_withdrawal_transaction_fee)
+        (eth_estimate_withdrawal_transaction_fee)
       )

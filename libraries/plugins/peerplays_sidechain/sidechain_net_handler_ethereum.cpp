@@ -60,6 +60,10 @@ std::string ethereum_rpc_client::eth_gas_price() {
    return send_post_request("eth_gasPrice", "", debug_rpc_calls);
 }
 
+std::string ethereum_rpc_client::eth_estimateGas(const std::string &params) {
+   return send_post_request("eth_estimateGas", params, debug_rpc_calls);
+}
+
 std::string ethereum_rpc_client::get_chain_id() {
    const std::string reply_str = eth_chainId();
    const auto chain_id_string = retrieve_value_from_reply(reply_str, "");
@@ -98,6 +102,11 @@ std::string ethereum_rpc_client::get_gas_limit() {
       }
    }
    return std::string{};
+}
+
+std::string ethereum_rpc_client::get_estimate_gas(const std::string &params) {
+   const std::string reply_str = eth_estimateGas(params);
+   return retrieve_value_from_reply(reply_str, "");
 }
 
 std::string ethereum_rpc_client::eth_send_transaction(const std::string &params) {
@@ -649,6 +658,44 @@ bool sidechain_net_handler_ethereum::settle_sidechain_transaction(const sidechai
       return true;
 
    return false;
+}
+
+optional<asset> sidechain_net_handler_ethereum::estimate_withdrawal_transaction_fee() const {
+   const auto &gpo = database.get_global_properties();
+   if (gpo.active_sons.at(sidechain).empty()) {
+      wlog("No active sons for sidechain: ${sidechain}", ("sidechain", sidechain));
+      return optional<asset>{};
+   }
+
+   const auto &active_son = gpo.active_sons.at(sidechain).at(0);
+   const auto &s_idx = database.get_index_type<son_index>().indices().get<by_id>();
+   const auto son = s_idx.find(active_son.son_id);
+   if (son == s_idx.end()) {
+      wlog("Can't find son for id: ${son_id}", ("son_id", active_son.son_id));
+      return optional<asset>{};
+   }
+
+   if (!son->sidechain_public_keys.contains(sidechain)) {
+      wlog("No public keys for current son: ${account_id}", ("account_id", son->son_account));
+      return optional<asset>{};
+   }
+
+   const auto &assets_by_symbol = database.get_index_type<asset_index>().indices().get<by_symbol>();
+   auto asset_itr = assets_by_symbol.find("ETH");
+   if (asset_itr == assets_by_symbol.end()) {
+      wlog("Could not find asset matching ETH");
+      return optional<asset>{};
+   }
+
+   const auto &public_key = son->sidechain_public_keys.at(sidechain);
+   const ethereum::withdrawal_encoder encoder;
+   const auto data = encoder.encode(public_key, 1 * 10000000000, son_wallet_withdraw_id_type{0}.operator object_id_type().operator std::string());
+   const std::string params = "[{\"from\":\"" + ethereum::add_0x(public_key) + "\", \"to\":\"" + wallet_contract_address + "\", \"data\":\"" + data + "\"}]";
+
+   const auto estimate_gas = ethereum::from_hex<int64_t>(rpc_client->get_estimate_gas(params));
+   const auto gas_price = ethereum::from_hex<int64_t>(rpc_client->get_gas_price());
+   const auto eth_gas_fee = double(estimate_gas * gas_price) / double{1000000000000000000};
+   return asset_itr->amount_from_string(std::to_string(eth_gas_fee));
 }
 
 std::string sidechain_net_handler_ethereum::create_primary_wallet_transaction(const std::vector<son_info> &son_pubkeys, const std::string &object_id) {

@@ -48,6 +48,7 @@ public:
    void log_son_proposal_retry(sidechain_type sidechain, int op_type, object_id_type object_id);
    bool can_son_participate(sidechain_type sidechain, int op_type, object_id_type object_id);
    std::map<sidechain_type, std::vector<std::string>> get_son_listener_log();
+   optional<asset> estimate_withdrawal_transaction_fee(sidechain_type sidechain);
 
    void schedule_heartbeat_loop();
    void heartbeat_loop();
@@ -626,6 +627,15 @@ std::map<sidechain_type, std::vector<std::string>> peerplays_sidechain_plugin_im
    return result;
 }
 
+optional<asset> peerplays_sidechain_plugin_impl::estimate_withdrawal_transaction_fee(sidechain_type sidechain) {
+   if (!net_handlers.at(sidechain)) {
+      wlog("Net handler is null for sidechain: ${sidechain}", ("sidechain", sidechain));
+      return optional<asset>();
+   }
+
+   return net_handlers.at(sidechain)->estimate_withdrawal_transaction_fee();
+}
+
 void peerplays_sidechain_plugin_impl::approve_proposals(sidechain_type sidechain) {
    // prevent approving duplicate proposals with lock for parallel execution.
    // We can have the same propsals, but in the case of parallel execution we can run
@@ -920,6 +930,10 @@ bool peerplays_sidechain_plugin::can_son_participate(sidechain_type sidechain, i
 
 std::map<sidechain_type, std::vector<std::string>> peerplays_sidechain_plugin::get_son_listener_log() {
    return my->get_son_listener_log();
+}
+
+optional<asset> peerplays_sidechain_plugin::estimate_withdrawal_transaction_fee(sidechain_type sidechain) {
+   return my->estimate_withdrawal_transaction_fee(sidechain);
 }
 
 }} // namespace graphene::peerplays_sidechain

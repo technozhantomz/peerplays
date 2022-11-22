@@ -1002,6 +1002,11 @@ bool sidechain_net_handler_bitcoin::settle_sidechain_transaction(const sidechain
    return false;
 }
 
+optional<asset> sidechain_net_handler_bitcoin::estimate_withdrawal_transaction_fee() const {
+   wlog("estimate_withdrawal_transaction_fee not implemented for sidechain: ${sidechain}", ("sidechain", sidechain));
+   return optional<asset>{};
+}
+
 std::string sidechain_net_handler_bitcoin::create_primary_wallet_address(const std::vector<son_info> &son_pubkeys) {
    using namespace bitcoin;
 

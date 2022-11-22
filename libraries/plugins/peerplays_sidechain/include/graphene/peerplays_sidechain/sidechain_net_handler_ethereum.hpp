@@ -22,12 +22,14 @@ public:
    std::string net_version();
    std::string eth_get_transaction_count(const std::string &params);
    std::string eth_gas_price();
+   std::string eth_estimateGas(const std::string &params);
 
    std::string get_chain_id();
    std::string get_network_id();
    std::string get_nonce(const std::string &address);
    std::string get_gas_price();
    std::string get_gas_limit();
+   std::string get_estimate_gas(const std::string &params);
 
    std::string eth_send_transaction(const std::string &params);
    std::string eth_send_raw_transaction(const std::string &params);
@@ -47,6 +49,7 @@ public:
    std::string process_sidechain_transaction(const sidechain_transaction_object &sto);
    std::string send_sidechain_transaction(const sidechain_transaction_object &sto);
    bool settle_sidechain_transaction(const sidechain_transaction_object &sto, asset &settle_amount);
+   virtual optional<asset> estimate_withdrawal_transaction_fee() const override;
 
 private:
    std::string rpc_url;
