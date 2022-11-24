@@ -3,9 +3,10 @@ file(GLOB_RECURSE HEADERS "include/graphene/peerplays_sidechain/*.hpp")
 add_library( peerplays_sidechain
              peerplays_sidechain_plugin.cpp
              sidechain_api.cpp
-             sidechain_net_manager.cpp
+             sidechain_net_handler_factory.cpp
              sidechain_net_handler.cpp
              sidechain_net_handler_bitcoin.cpp
+             sidechain_net_handler_ethereum.cpp
              sidechain_net_handler_hive.cpp
              sidechain_net_handler_peerplays.cpp
              bitcoin/bech32.cpp
@@ -17,6 +18,11 @@ add_library( peerplays_sidechain
              bitcoin/sign_bitcoin_transaction.cpp
              common/rpc_client.cpp
              common/utils.cpp
+             ethereum/encoders.cpp
+             ethereum/decoders.cpp
+             ethereum/transaction.cpp
+             ethereum/types.cpp
+             ethereum/utils.cpp
              hive/asset.cpp
              hive/operations.cpp
              hive/transaction.cpp
@@ -36,7 +42,7 @@ endif()
 unset(ENABLE_PEERPLAYS_ASSET_DEPOSITS)
 unset(ENABLE_PEERPLAYS_ASSET_DEPOSITS CACHE)
 
-target_link_libraries( peerplays_sidechain PRIVATE curl graphene_plugin zmq )
+target_link_libraries( peerplays_sidechain PRIVATE graphene_plugin sha3 zmq )
 target_include_directories( peerplays_sidechain
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 

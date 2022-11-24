@@ -184,6 +184,10 @@ public:
    fc::optional<son_object> get_son_by_account(const std::string account_id_or_name) const;
    map<string, son_id_type> lookup_son_accounts(const string &lower_bound_name, uint32_t limit) const;
    uint64_t get_son_count() const;
+   flat_map<sidechain_type, vector<son_info>> get_active_sons();
+   vector<son_info> get_active_sons_by_sidechain(sidechain_type sidechain);
+   map<sidechain_type, map<son_id_type, string>> get_son_network_status();
+   map<son_id_type, string> get_son_network_status_by_sidechain(sidechain_type sidechain);
 
    // SON wallets
    optional<son_wallet_object> get_active_son_wallet();
@@ -236,9 +240,6 @@ public:
 
    // Proposed transactions
    vector<proposal_object> get_proposed_transactions(const std::string account_id_or_name) const;
-
-   // Blinded balances
-   vector<blinded_balance_object> get_blinded_balances(const flat_set<commitment_type> &commitments) const;
 
    // Tournaments
    vector<tournament_object> get_tournaments_in_state(tournament_state state, uint32_t limit) const;
@@ -1851,6 +1852,80 @@ uint64_t database_api_impl::get_son_count() const {
    return _db.get_index_type<son_index>().indices().size();
 }
 
+flat_map<sidechain_type, vector<son_info>> database_api::get_active_sons() {
+   return my->get_active_sons();
+}
+
+flat_map<sidechain_type, vector<son_info>> database_api_impl::get_active_sons() {
+   return get_global_properties().active_sons;
+}
+
+vector<son_info> database_api::get_active_sons_by_sidechain(sidechain_type sidechain) {
+   return my->get_active_sons_by_sidechain(sidechain);
+}
+
+vector<son_info> database_api_impl::get_active_sons_by_sidechain(sidechain_type sidechain) {
+   const global_property_object &gpo = get_global_properties();
+
+   vector<son_info> result;
+
+   if (gpo.active_sons.find(sidechain) != gpo.active_sons.end()) {
+      result = gpo.active_sons.at(sidechain);
+   }
+
+   return result;
+}
+
+map<sidechain_type, map<son_id_type, string>> database_api::get_son_network_status() {
+   return my->get_son_network_status();
+}
+
+map<sidechain_type, map<son_id_type, string>> database_api_impl::get_son_network_status() {
+   map<sidechain_type, map<son_id_type, string>> result;
+
+   for (auto active_sidechain_type : active_sidechain_types) {
+      result[active_sidechain_type] = get_son_network_status_by_sidechain(active_sidechain_type);
+   }
+
+   return result;
+}
+
+map<son_id_type, string> database_api::get_son_network_status_by_sidechain(sidechain_type sidechain) {
+   return my->get_son_network_status_by_sidechain(sidechain);
+}
+
+map<son_id_type, string> database_api_impl::get_son_network_status_by_sidechain(sidechain_type sidechain) {
+   const global_property_object &gpo = get_global_properties();
+
+   map<son_id_type, string> result;
+
+   if (gpo.active_sons.find(sidechain) != gpo.active_sons.end()) {
+      for (const auto si : gpo.active_sons.at(sidechain)) {
+         const auto son_obj = si.son_id(_db);
+         const auto sso = son_obj.statistics(_db);
+         string status;
+
+         if (sso.last_active_timestamp.find(sidechain) != sso.last_active_timestamp.end()) {
+            if (time_point_sec(sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_heartbeat_frequency())) > _db.head_block_time()) {
+               status = "OK, regular SON heartbeat";
+            } else {
+               if (time_point_sec(sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_down_time())) > _db.head_block_time()) {
+                  status = "OK, irregular SON heartbeat, but not triggering SON down proposal";
+               } else {
+                  status = "NOT OK, irregular SON heartbeat, triggering SON down proposal";
+               }
+            }
+         } else {
+            status = "No heartbeats sent";
+         }
+
+         result[si.son_id] = status;
+      }
+   }
+
+   return result;
+}
+
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
 // SON Wallets                                                      //
@@ -2086,7 +2161,9 @@ vector<variant> database_api_impl::lookup_vote_ids(const vector<vote_id_type> &v
    const auto &committee_idx = _db.get_index_type<committee_member_index>().indices().get<by_vote_id>();
    const auto &for_worker_idx = _db.get_index_type<worker_index>().indices().get<by_vote_for>();
    const auto &against_worker_idx = _db.get_index_type<worker_index>().indices().get<by_vote_against>();
-   const auto &son_idx = _db.get_index_type<son_index>().indices().get<by_vote_id>();
+   const auto &son_bictoin_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_bitcoin>();
+   const auto &son_hive_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_hive>();
+   const auto &son_ethereum_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_ethereum>();
 
    vector<variant> result;
    result.reserve(votes.size());
@@ -2122,15 +2199,30 @@ vector<variant> database_api_impl::lookup_vote_ids(const vector<vote_id_type> &v
          }
          break;
       }
-      case vote_id_type::son: {
-         auto itr = son_idx.find(id);
-         if (itr != son_idx.end())
+      case vote_id_type::son_bitcoin: {
+         auto itr = son_bictoin_idx.find(id);
+         if (itr != son_bictoin_idx.end())
             result.emplace_back(variant(*itr, 5));
          else
             result.emplace_back(variant());
          break;
       }
-
+      case vote_id_type::son_hive: {
+         auto itr = son_hive_idx.find(id);
+         if (itr != son_hive_idx.end())
+            result.emplace_back(variant(*itr, 5));
+         else
+            result.emplace_back(variant());
+         break;
+      }
+      case vote_id_type::son_ethereum: {
+         auto itr = son_ethereum_idx.find(id);
+         if (itr != son_ethereum_idx.end())
+            result.emplace_back(variant(*itr, 5));
+         else
+            result.emplace_back(variant());
+         break;
+      }
       case vote_id_type::VOTE_TYPE_COUNT:
          break; // supress unused enum value warnings
       default:
@@ -2155,12 +2247,24 @@ vector<vote_id_type> database_api_impl::get_votes_ids(const string &account_name
 votes_info database_api_impl::get_votes(const string &account_name_or_id) const {
    votes_info result;
 
-   const auto &votes_ids = get_votes_ids(account_name_or_id);
-   const auto &committee_ids = get_votes_objects<committee_member_index, by_vote_id>(votes_ids);
-   const auto &witness_ids = get_votes_objects<witness_index, by_vote_id>(votes_ids);
-   const auto &for_worker_ids = get_votes_objects<worker_index, by_vote_for>(votes_ids);
-   const auto &against_worker_ids = get_votes_objects<worker_index, by_vote_against>(votes_ids);
-   const auto &son_ids = get_votes_objects<son_index, by_vote_id>(votes_ids, 5);
+   const auto votes_ids = get_votes_ids(account_name_or_id);
+   const auto committee_ids = get_votes_objects<committee_member_index, by_vote_id>(votes_ids);
+   const auto witness_ids = get_votes_objects<witness_index, by_vote_id>(votes_ids);
+   const auto for_worker_ids = get_votes_objects<worker_index, by_vote_for>(votes_ids);
+   const auto against_worker_ids = get_votes_objects<worker_index, by_vote_against>(votes_ids);
+   const auto son_ids = [this, &votes_ids]() {
+      flat_map<sidechain_type, vector<variant>> son_ids;
+      const auto son_bitcoin_ids = get_votes_objects<son_index, by_vote_id_bitcoin>(votes_ids, 5);
+      if (!son_bitcoin_ids.empty())
+         son_ids[sidechain_type::bitcoin] = std::move(son_bitcoin_ids);
+      const auto son_hive_ids = get_votes_objects<son_index, by_vote_id_hive>(votes_ids, 5);
+      if (!son_hive_ids.empty())
+         son_ids[sidechain_type::hive] = std::move(son_hive_ids);
+      const auto son_ethereum_ids = get_votes_objects<son_index, by_vote_id_ethereum>(votes_ids, 5);
+      if (!son_ethereum_ids.empty())
+         son_ids[sidechain_type::ethereum] = std::move(son_ethereum_ids);
+      return son_ids;
+   }();
 
    //! Fill votes info
    if (!committee_ids.empty()) {
@@ -2204,11 +2308,15 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
    }
 
    if (!son_ids.empty()) {
-      vector<votes_info_object> votes_for_sons;
-      votes_for_sons.reserve(son_ids.size());
-      for (const auto &son : son_ids) {
-         const auto &son_obj = son.as<son_object>(6);
-         votes_for_sons.emplace_back(votes_info_object{son_obj.vote_id, son_obj.id});
+      flat_map<sidechain_type, vector<votes_info_object>> votes_for_sons;
+      for (const auto &son_sidechain_ids : son_ids) {
+         const auto &sidechain = son_sidechain_ids.first;
+         const auto &sidechain_ids = son_sidechain_ids.second;
+         votes_for_sons[sidechain].reserve(sidechain_ids.size());
+         for (const auto &son : sidechain_ids) {
+            const auto &son_obj = son.as<son_object>(6);
+            votes_for_sons[sidechain].emplace_back(votes_info_object{son_obj.get_sidechain_vote_id(sidechain), son_obj.id});
+         }
       }
       result.votes_for_sons = std::move(votes_for_sons);
    }
@@ -2382,12 +2490,16 @@ voters_info database_api_impl::get_voters(const string &account_name_or_id) cons
 
    //! Info for son voters
    if (son_object) {
-      const auto &son_voters = get_voters_by_id(son_object->vote_id);
-      voters_info_object voters_for_son;
-      voters_for_son.vote_id = son_object->vote_id;
-      voters_for_son.voters.reserve(son_voters.size());
-      for (const auto &voter : son_voters) {
-         voters_for_son.voters.emplace_back(voter.get_id());
+      flat_map<sidechain_type, voters_info_object> voters_for_son;
+      for (const auto &vote_id : son_object->sidechain_vote_ids) {
+         const auto &son_voters = get_voters_by_id(vote_id.second);
+         voters_info_object voters_for_sidechain_son;
+         voters_for_sidechain_son.vote_id = vote_id.second;
+         voters_for_sidechain_son.voters.reserve(son_voters.size());
+         for (const auto &voter : son_voters) {
+            voters_for_sidechain_son.voters.emplace_back(voter.get_id());
+         }
+         voters_for_son[vote_id.first] = std::move(voters_for_sidechain_son);
       }
       result.voters_for_son = std::move(voters_for_son);
    }
@@ -2647,29 +2759,6 @@ vector<proposal_object> database_api_impl::get_proposed_transactions(const std::
       else if (p.available_active_approvals.find(id) != p.available_active_approvals.end())
          result.push_back(p);
    });
-   return result;
-}
-
-//////////////////////////////////////////////////////////////////////
-//                                                                  //
-// Blinded balances                                                 //
-//                                                                  //
-//////////////////////////////////////////////////////////////////////
-
-vector<blinded_balance_object> database_api::get_blinded_balances(const flat_set<commitment_type> &commitments) const {
-   return my->get_blinded_balances(commitments);
-}
-
-vector<blinded_balance_object> database_api_impl::get_blinded_balances(const flat_set<commitment_type> &commitments) const {
-   vector<blinded_balance_object> result;
-   result.reserve(commitments.size());
-   const auto &bal_idx = _db.get_index_type<blinded_balance_index>();
-   const auto &by_commitment_idx = bal_idx.indices().get<by_commitment>();
-   for (const auto &c : commitments) {
-      auto itr = by_commitment_idx.find(c);
-      if (itr != by_commitment_idx.end())
-         result.push_back(*itr);
-   }
    return result;
 }
 
@@ -2975,8 +3064,8 @@ uint64_t database_api::nft_get_total_supply(const nft_metadata_id_type nft_metad
 }
 
 uint64_t database_api_impl::nft_get_total_supply(const nft_metadata_id_type nft_metadata_id) const {
-   const auto &idx_nft_md = _db.get_index_type<nft_metadata_index>().indices().get<by_id>();
-   return idx_nft_md.size();
+   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_metadata>();
+   return idx_nft.count(nft_metadata_id);
 }
 
 nft_object database_api::nft_token_by_index(const nft_metadata_id_type nft_metadata_id, const uint64_t token_idx) const {

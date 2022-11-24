@@ -675,6 +675,32 @@ public:
     */
    uint64_t get_son_count() const;
 
+   /**
+    * @brief Get list of active sons
+    * @return List of active SONs
+    */
+   flat_map<sidechain_type, vector<son_info>> get_active_sons();
+
+   /**
+    * @brief Get list of active sons
+    * @param sidechain Sidechain type [bitcoin|ethereum|hive]
+    * @return List of active SONs
+    */
+   vector<son_info> get_active_sons_by_sidechain(sidechain_type sidechain);
+
+   /**
+    * @brief Get SON network status
+    * @return SON network status description for a given sidechain type
+    */
+   map<sidechain_type, map<son_id_type, string>> get_son_network_status();
+
+   /**
+    * @brief Get SON network status
+    * @param sidechain Sidechain type [bitcoin|ethereum|hive]
+    * @return SON network status description for a given sidechain type
+    */
+   map<son_id_type, string> get_son_network_status_by_sidechain(sidechain_type sidechain);
+
    /////////////////////////
    // SON Wallets      //
    /////////////////////////
@@ -876,15 +902,6 @@ public:
     *  @return the set of proposed transactions relevant to the specified account id.
     */
    vector<proposal_object> get_proposed_transactions(const std::string account_id_or_name) const;
-
-   //////////////////////
-   // Blinded balances //
-   //////////////////////
-
-   /**
-    *  @return the set of blinded balance objects by commitment ID
-    */
-   vector<blinded_balance_object> get_blinded_balances(const flat_set<commitment_type> &commitments) const;
 
    /////////////////
    // Tournaments //
@@ -1158,6 +1175,10 @@ FC_API(graphene::app::database_api,
    (get_son_by_account)
    (lookup_son_accounts)
    (get_son_count)
+   (get_active_sons)
+   (get_active_sons_by_sidechain)
+   (get_son_network_status)
+   (get_son_network_status_by_sidechain)
 
    // SON wallets
    (get_active_son_wallet)
@@ -1197,9 +1218,6 @@ FC_API(graphene::app::database_api,
 
    // Proposed transactions
    (get_proposed_transactions)
-
-   // Blinded balances
-   (get_blinded_balances)
 
    // Tournaments
    (get_tournaments_in_state)

@@ -65,6 +65,7 @@ struct cli_fixture
                                int miss_blocks = 0);
 
    void generate_blocks(fc::time_point_sec timestamp, bool miss_intermediate_blocks = true, uint32_t skip = ~0);
+   void generate_blocks( uint32_t block_count );
 
    ///////////
    /// @brief Skip intermediate blocks, and generate a maintenance block

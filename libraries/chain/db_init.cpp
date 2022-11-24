@@ -329,10 +329,54 @@ void database::initialize_evaluators()
    register_evaluator<random_number_store_evaluator>();
 }
 
+
+void database::initialize_hardforks()
+{
+  _hardfork_times.emplace_back(HARDFORK_357_TIME);
+  _hardfork_times.emplace_back(HARDFORK_359_TIME);
+  _hardfork_times.emplace_back(HARDFORK_385_TIME);
+  _hardfork_times.emplace_back(HARDFORK_409_TIME);
+  _hardfork_times.emplace_back(HARDFORK_413_TIME);
+  _hardfork_times.emplace_back(HARDFORK_415_TIME);
+  _hardfork_times.emplace_back(HARDFORK_416_TIME);
+  _hardfork_times.emplace_back(HARDFORK_419_TIME);
+  _hardfork_times.emplace_back(HARDFORK_436_TIME);
+  _hardfork_times.emplace_back(HARDFORK_445_TIME);
+  _hardfork_times.emplace_back(HARDFORK_453_TIME);
+  _hardfork_times.emplace_back(HARDFORK_480_TIME);
+  _hardfork_times.emplace_back(HARDFORK_483_TIME);
+  _hardfork_times.emplace_back(HARDFORK_516_TIME);
+  _hardfork_times.emplace_back(HARDFORK_533_TIME);
+  _hardfork_times.emplace_back(HARDFORK_538_TIME);
+  _hardfork_times.emplace_back(HARDFORK_555_TIME);
+  _hardfork_times.emplace_back(HARDFORK_563_TIME);
+  _hardfork_times.emplace_back(HARDFORK_572_TIME);
+  _hardfork_times.emplace_back(HARDFORK_599_TIME);
+  _hardfork_times.emplace_back(HARDFORK_607_TIME);
+  _hardfork_times.emplace_back(HARDFORK_613_TIME);
+  _hardfork_times.emplace_back(HARDFORK_615_TIME);
+  _hardfork_times.emplace_back(HARDFORK_999_TIME);
+  _hardfork_times.emplace_back(HARDFORK_1000_TIME);
+  _hardfork_times.emplace_back(HARDFORK_1001_TIME);
+  _hardfork_times.emplace_back(HARDFORK_5050_1_TIME);
+  _hardfork_times.emplace_back(HARDFORK_CORE_429_TIME);
+  _hardfork_times.emplace_back(HARDFORK_GPOS_TIME);
+  _hardfork_times.emplace_back(HARDFORK_NFT_TIME);
+  _hardfork_times.emplace_back(HARDFORK_SON_FOR_HIVE_TIME);
+  _hardfork_times.emplace_back(HARDFORK_SON_TIME);
+  _hardfork_times.emplace_back(HARDFORK_SON2_TIME);
+  _hardfork_times.emplace_back(HARDFORK_SON3_TIME);
+  _hardfork_times.emplace_back(HARDFORK_SWEEPS_TIME);
+
+  std::sort(_hardfork_times.begin(), _hardfork_times.end());
+}
+
 void database::initialize_indexes()
 {
    reset_indexes();
-   _undo_db.set_max_size( GRAPHENE_MIN_UNDO_HISTORY );
+
+   const std::lock_guard<std::mutex> undo_db_lock{_undo_db_mutex};
+   _undo_db.set_max_size(GRAPHENE_MIN_UNDO_HISTORY);
 
    //Protocol object indexes
    add_index< primary_index<asset_index, 13> >(); // 8192 assets per chunk
@@ -432,7 +476,9 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    FC_ASSERT(genesis_state.initial_active_witnesses <= genesis_state.initial_witness_candidates.size(),
              "initial_active_witnesses is larger than the number of candidate witnesses.");
 
+   const std::lock_guard<std::mutex> undo_db_lock{_undo_db_mutex};
    _undo_db.disable();
+
    struct auth_inhibitor {
       auth_inhibitor(database& db) : db(db), old_flags(db.node_properties().skip_flags)
       { db.node_properties().skip_flags |= skip_authority_check; }
@@ -1058,8 +1104,9 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    FC_ASSERT( _p_witness_schedule_obj->id == witness_schedule_id_type() );
 
       // Initialize witness schedule
+
 #ifndef NDEBUG
-   const son_schedule_object& sso =
+   const son_schedule_object& ssobitcoin =
 #endif
    create<son_schedule_object>([&](son_schedule_object& _sso)
    {
@@ -1068,23 +1115,58 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
       witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
 
-      auto init_witnesses = get_global_properties().active_witnesses;
+      auto init_bitcoin_sons = get_global_properties().active_sons.at(sidechain_type::bitcoin);
 
       _sso.scheduler = son_scheduler();
-      _sso.scheduler._min_token_count = std::max(int(init_witnesses.size()) / 2, 1);
-
+      _sso.scheduler._min_token_count = std::max(int(init_bitcoin_sons.size()) / 2, 1);
 
       _sso.last_scheduling_block = 0;
 
       _sso.recent_slots_filled = fc::uint128::max_value();
    });
-   assert( sso.id == son_schedule_id_type() );
+   assert( ssobitcoin.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::bitcoin)) );
 
-   // Enable fees
-   modify(get_global_properties(), [&genesis_state](global_property_object& p) {
-      p.parameters.current_fees = genesis_state.initial_parameters.current_fees;
+#ifndef NDEBUG
+   const son_schedule_object& ssoethereum =
+#endif
+   create<son_schedule_object>([&](son_schedule_object& _sso)
+   {
+      // for scheduled
+      memset(_sso.rng_seed.begin(), 0, _sso.rng_seed.size());
+
+      witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+
+      auto init_ethereum_sons = get_global_properties().active_sons.at(sidechain_type::ethereum);
+
+      _sso.scheduler = son_scheduler();
+      _sso.scheduler._min_token_count = std::max(int(init_ethereum_sons.size()) / 2, 1);
+
+      _sso.last_scheduling_block = 0;
+
+      _sso.recent_slots_filled = fc::uint128::max_value();
    });
+   assert( ssoethereum.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::ethereum)) );
 
+#ifndef NDEBUG
+   const son_schedule_object& ssohive =
+#endif
+   create<son_schedule_object>([&](son_schedule_object& _sso)
+   {
+      // for scheduled
+      memset(_sso.rng_seed.begin(), 0, _sso.rng_seed.size());
+
+      witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+
+      auto init_hive_sons = get_global_properties().active_sons.at(sidechain_type::hive);
+
+      _sso.scheduler = son_scheduler();
+      _sso.scheduler._min_token_count = std::max(int(init_hive_sons.size()) / 2, 1);
+
+      _sso.last_scheduling_block = 0;
+
+      _sso.recent_slots_filled = fc::uint128::max_value();
+   });
+   assert( ssohive.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::hive)) );
 
    // Create FBA counters
    create<fba_accumulator_object>([&]( fba_accumulator_object& acc )

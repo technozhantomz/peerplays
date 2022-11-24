@@ -28,25 +28,23 @@
 #include <graphene/peerplays_sidechain/hive/transaction.hpp>
 #include <graphene/utilities/key_conversion.hpp>
 
-#include <boost/asio.hpp>
-
 namespace graphene { namespace peerplays_sidechain {
 
-hive_node_rpc_client::hive_node_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls) :
+hive_rpc_client::hive_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls) :
       rpc_client(url, user_name, password, debug_rpc_calls) {
 }
 
-std::string hive_node_rpc_client::account_history_api_get_transaction(std::string transaction_id) {
-   std::string params = "{ \"id\": \"" + transaction_id + "\" }";
+std::string hive_rpc_client::account_history_api_get_transaction(std::string transaction_id) {
+   const std::string params = "{ \"id\": \"" + transaction_id + "\" }";
    return send_post_request("account_history_api.get_transaction", params, debug_rpc_calls);
 }
 
-std::string hive_node_rpc_client::block_api_get_block(uint32_t block_number) {
-   std::string params = "{ \"block_num\": " + std::to_string(block_number) + " }";
+std::string hive_rpc_client::block_api_get_block(uint32_t block_number) {
+   const std::string params = "{ \"block_num\": " + std::to_string(block_number) + " }";
    return send_post_request("block_api.get_block", params, debug_rpc_calls);
 }
 
-std::string hive_node_rpc_client::condenser_api_get_accounts(std::vector<std::string> accounts) {
+std::string hive_rpc_client::condenser_api_get_accounts(std::vector<std::string> accounts) {
    std::string params = "";
    for (auto account : accounts) {
       if (!params.empty()) {
@@ -58,59 +56,59 @@ std::string hive_node_rpc_client::condenser_api_get_accounts(std::vector<std::st
    return send_post_request("condenser_api.get_accounts", params, debug_rpc_calls);
 }
 
-std::string hive_node_rpc_client::condenser_api_get_config() {
-   std::string params = "[]";
+std::string hive_rpc_client::condenser_api_get_config() {
+   static const std::string params = "[]";
    return send_post_request("condenser_api.get_config", params, debug_rpc_calls);
 }
 
-std::string hive_node_rpc_client::database_api_get_dynamic_global_properties() {
+std::string hive_rpc_client::database_api_get_dynamic_global_properties() {
    return send_post_request("database_api.get_dynamic_global_properties", "", debug_rpc_calls);
 }
 
-std::string hive_node_rpc_client::database_api_get_version() {
+std::string hive_rpc_client::database_api_get_version() {
    return send_post_request("database_api.get_version", "", debug_rpc_calls);
 }
 
-std::string hive_node_rpc_client::network_broadcast_api_broadcast_transaction(std::string htrx) {
-   std::string params = "{ \"trx\": " + htrx + ", \"max_block_age\": -1 }";
+std::string hive_rpc_client::network_broadcast_api_broadcast_transaction(std::string htrx) {
+   const std::string params = "{ \"trx\": " + htrx + ", \"max_block_age\": -1 }";
    return send_post_request("network_broadcast_api.broadcast_transaction", params, debug_rpc_calls);
 }
 
-std::string hive_node_rpc_client::get_account(std::string account) {
+std::string hive_rpc_client::get_account(std::string account) {
    std::vector<std::string> accounts;
    accounts.push_back(account);
    std::string reply_str = condenser_api_get_accounts(accounts);
    return retrieve_array_value_from_reply(reply_str, "", 0);
 }
 
-std::string hive_node_rpc_client::get_account_memo_key(std::string account) {
+std::string hive_rpc_client::get_account_memo_key(std::string account) {
    std::string reply_str = get_account(account);
    reply_str = "{\"result\":" + reply_str + "}";
    return retrieve_value_from_reply(reply_str, "memo_key");
 }
 
-std::string hive_node_rpc_client::get_chain_id() {
-   std::string reply_str = database_api_get_version();
+std::string hive_rpc_client::get_chain_id() {
+   const std::string reply_str = database_api_get_version();
    return retrieve_value_from_reply(reply_str, "chain_id");
 }
 
-std::string hive_node_rpc_client::get_head_block_id() {
-   std::string reply_str = database_api_get_dynamic_global_properties();
+std::string hive_rpc_client::get_head_block_id() {
+   const std::string reply_str = database_api_get_dynamic_global_properties();
    return retrieve_value_from_reply(reply_str, "head_block_id");
 }
 
-std::string hive_node_rpc_client::get_head_block_time() {
-   std::string reply_str = database_api_get_dynamic_global_properties();
+std::string hive_rpc_client::get_head_block_time() {
+   const std::string reply_str = database_api_get_dynamic_global_properties();
    return retrieve_value_from_reply(reply_str, "time");
 }
 
-std::string hive_node_rpc_client::get_is_test_net() {
-   std::string reply_str = condenser_api_get_config();
+std::string hive_rpc_client::get_is_test_net() {
+   const std::string reply_str = condenser_api_get_config();
    return retrieve_value_from_reply(reply_str, "IS_TEST_NET");
 }
 
-std::string hive_node_rpc_client::get_last_irreversible_block_num() {
-   std::string reply_str = database_api_get_dynamic_global_properties();
+std::string hive_rpc_client::get_last_irreversible_block_num() {
+   const std::string reply_str = database_api_get_dynamic_global_properties();
    return retrieve_value_from_reply(reply_str, "last_irreversible_block_num");
 }
 
@@ -122,17 +120,19 @@ sidechain_net_handler_hive::sidechain_net_handler_hive(peerplays_sidechain_plugi
       debug_rpc_calls = options.at("debug-rpc-calls").as<bool>();
    }
 
-   node_rpc_url = options.at("hive-node-rpc-url").as<std::string>();
-   if (options.count("hive-node-rpc-user")) {
-      node_rpc_user = options.at("hive-node-rpc-user").as<std::string>();
+   rpc_url = options.at("hive-node-rpc-url").as<std::string>();
+   if (options.count("hive-rpc-user")) {
+      rpc_user = options.at("hive-rpc-user").as<std::string>();
    } else {
-      node_rpc_user = "";
+      rpc_user = "";
    }
-   if (options.count("hive-node-rpc-password")) {
-      node_rpc_password = options.at("hive-node-rpc-password").as<std::string>();
+   if (options.count("hive-rpc-password")) {
+      rpc_password = options.at("hive-rpc-password").as<std::string>();
    } else {
-      node_rpc_password = "";
+      rpc_password = "";
    }
+
+   wallet_account_name = options.at("hive-wallet-account-name").as<std::string>();
 
    if (options.count("hive-private-key")) {
       const std::vector<std::string> pub_priv_keys = options["hive-private-key"].as<std::vector<std::string>>();
@@ -146,16 +146,16 @@ sidechain_net_handler_hive::sidechain_net_handler_hive(peerplays_sidechain_plugi
       }
    }
 
-   node_rpc_client = new hive_node_rpc_client(node_rpc_url, node_rpc_user, node_rpc_password, debug_rpc_calls);
+   rpc_client = new hive_rpc_client(rpc_url, rpc_user, rpc_password, debug_rpc_calls);
 
-   std::string chain_id_str = node_rpc_client->get_chain_id();
+   const std::string chain_id_str = rpc_client->get_chain_id();
    if (chain_id_str.empty()) {
-      elog("No Hive node running at ${url}", ("url", node_rpc_url));
+      elog("No Hive node running at ${url}", ("url", rpc_url));
       FC_ASSERT(false);
    }
    chain_id = chain_id_type(chain_id_str);
 
-   std::string is_test_net = node_rpc_client->get_is_test_net();
+   const std::string is_test_net = rpc_client->get_is_test_net();
    network_type = is_test_net.compare("true") == 0 ? hive::network::testnet : hive::network::mainnet;
    if (network_type == hive::network::mainnet) {
       ilog("Running on Hive mainnet, chain id ${chain_id_str}", ("chain_id_str", chain_id_str));
@@ -180,7 +180,7 @@ sidechain_net_handler_hive::~sidechain_net_handler_hive() {
 }
 
 bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
-   //ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id()));
+   //ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
 
    bool should_approve = false;
 
@@ -213,8 +213,8 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
       const auto swo = idx.find(swo_id);
       if (swo != idx.end()) {
 
-         auto active_sons = gpo.active_sons;
-         vector<son_info> wallet_sons = swo->sons;
+         auto active_sons = gpo.active_sons.at(sidechain);
+         vector<son_info> wallet_sons = swo->sons.at(sidechain);
 
          bool son_sets_equal = (active_sons.size() == wallet_sons.size());
 
@@ -225,7 +225,7 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
          }
 
          if (son_sets_equal) {
-            address_ok = (op_obj_idx_0.get<son_wallet_update_operation>().address == "son-account");
+            address_ok = (op_obj_idx_0.get<son_wallet_update_operation>().address == wallet_account_name);
          }
 
          if (po.proposed_transaction.operations.size() >= 2) {
@@ -251,17 +251,17 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
                      uint32_t total_weight = 0;
                      for (const auto &wallet_son : wallet_sons) {
                         total_weight = total_weight + wallet_son.weight;
-                        account_auths[wallet_son.sidechain_public_keys.at(sidechain)] = wallet_son.weight;
+                        account_auths[wallet_son.public_key] = wallet_son.weight;
                      }
 
-                     std::string memo_key = node_rpc_client->get_account_memo_key("son-account");
+                     const std::string memo_key = rpc_client->get_account_memo_key(wallet_account_name);
 
                      hive::authority active;
                      active.weight_threshold = total_weight * 2 / 3 + 1;
                      active.account_auths = account_auths;
 
                      hive::account_update_operation auo;
-                     auo.account = "son-account";
+                     auo.account = wallet_account_name;
                      auo.active = active;
                      auo.memo_key = op_trx.operations[0].get<hive::account_update_operation>().memo_key;
 
@@ -303,7 +303,7 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
          uint64_t swdo_sidechain_amount = swdo->sidechain_amount.value;
          uint64_t swdo_op_idx = std::stoll(swdo->sidechain_uid.substr(swdo->sidechain_uid.find_last_of("-")));
 
-         std::string tx_str = node_rpc_client->account_history_api_get_transaction(swdo_txid);
+         const std::string tx_str = rpc_client->account_history_api_get_transaction(swdo_txid);
          if (tx_str != "") {
 
             std::stringstream ss_tx(tx_str);
@@ -408,7 +408,7 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
                   }
 
                   hive::transfer_operation t_op;
-                  t_op.from = "son-account";
+                  t_op.from = wallet_account_name;
                   t_op.to = swwo->withdraw_address;
                   t_op.amount.amount = swwo->withdraw_amount;
                   t_op.amount.symbol = symbol;
@@ -478,6 +478,10 @@ void sidechain_net_handler_hive::process_primary_wallet() {
    const auto &active_sw = swi.rbegin();
    if (active_sw != swi.rend()) {
 
+      const auto &prev_sw = std::next(active_sw);
+      if (prev_sw != swi.rend() && active_sw->sons.at(sidechain) == prev_sw->sons.at(sidechain))
+         return;
+
       if ((active_sw->addresses.find(sidechain) == active_sw->addresses.end()) ||
           (active_sw->addresses.at(sidechain).empty())) {
 
@@ -487,15 +491,15 @@ void sidechain_net_handler_hive::process_primary_wallet() {
 
          const chain::global_property_object &gpo = database.get_global_properties();
 
-         auto active_sons = gpo.active_sons;
+         const auto &active_sons = gpo.active_sons.at(sidechain);
          fc::flat_map<std::string, uint16_t> account_auths;
          uint32_t total_weight = 0;
          for (const auto &active_son : active_sons) {
             total_weight = total_weight + active_son.weight;
-            account_auths[active_son.sidechain_public_keys.at(sidechain)] = active_son.weight;
+            account_auths[active_son.public_key] = active_son.weight;
          }
 
-         std::string memo_key = node_rpc_client->get_account_memo_key("son-account");
+         const std::string memo_key = rpc_client->get_account_memo_key(wallet_account_name);
 
          if (memo_key.empty()) {
             return;
@@ -506,14 +510,14 @@ void sidechain_net_handler_hive::process_primary_wallet() {
          active.account_auths = account_auths;
 
          hive::account_update_operation auo;
-         auo.account = "son-account";
+         auo.account = wallet_account_name;
          auo.active = active;
          auo.memo_key = hive::public_key_type(memo_key);
 
-         std::string block_id_str = node_rpc_client->get_head_block_id();
+         const std::string block_id_str = rpc_client->get_head_block_id();
          hive::block_id_type head_block_id(block_id_str);
 
-         std::string head_block_time_str = node_rpc_client->get_head_block_time();
+         const std::string head_block_time_str = rpc_client->get_head_block_time();
          time_point head_block_time = fc::time_point_sec::from_iso_string(head_block_time_str);
 
          hive::signed_transaction htrx;
@@ -530,7 +534,7 @@ void sidechain_net_handler_hive::process_primary_wallet() {
          }
 
          proposal_create_operation proposal_op;
-         proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+         proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
          uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
          proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -538,7 +542,7 @@ void sidechain_net_handler_hive::process_primary_wallet() {
          swu_op.payer = gpo.parameters.son_account();
          swu_op.son_wallet_id = active_sw->id;
          swu_op.sidechain = sidechain;
-         swu_op.address = "son-account";
+         swu_op.address = wallet_account_name;
 
          proposal_op.proposed_ops.emplace_back(swu_op);
 
@@ -547,11 +551,11 @@ void sidechain_net_handler_hive::process_primary_wallet() {
          stc_op.object_id = active_sw->id;
          stc_op.sidechain = sidechain;
          stc_op.transaction = tx_str;
-         stc_op.signers = gpo.active_sons;
+         stc_op.signers = gpo.active_sons.at(sidechain);
 
          proposal_op.proposed_ops.emplace_back(stc_op);
 
-         signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+         signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
          try {
             trx.validate();
             database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -575,7 +579,7 @@ void sidechain_net_handler_hive::process_sidechain_addresses() {
                     if (sao.expires == time_point_sec::maximum()) {
                        if (sao.deposit_address == "") {
                           sidechain_address_update_operation op;
-                          op.payer = plugin.get_current_son_object().son_account;
+                          op.payer = plugin.get_current_son_object(sidechain).son_account;
                           op.sidechain_address_id = sao.id;
                           op.sidechain_address_account = sao.sidechain_address_account;
                           op.sidechain = sao.sidechain;
@@ -585,7 +589,7 @@ void sidechain_net_handler_hive::process_sidechain_addresses() {
                           op.withdraw_public_key = sao.withdraw_public_key;
                           op.withdraw_address = sao.withdraw_address;
 
-                          signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), op);
+                          signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), op);
                           try {
                              trx.validate();
                              database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -617,7 +621,7 @@ bool sidechain_net_handler_hive::process_deposit(const son_wallet_deposit_object
    }
 
    proposal_create_operation proposal_op;
-   proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+   proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
    uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
    proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -633,7 +637,7 @@ bool sidechain_net_handler_hive::process_deposit(const son_wallet_deposit_object
    ai_op.issue_to_account = swdo.peerplays_from;
    proposal_op.proposed_ops.emplace_back(ai_op);
 
-   signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+   signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
    try {
       trx.validate();
       database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -662,16 +666,16 @@ bool sidechain_net_handler_hive::process_withdrawal(const son_wallet_withdraw_ob
    }
 
    hive::transfer_operation t_op;
-   t_op.from = "son-account";
+   t_op.from = wallet_account_name;
    t_op.to = swwo.withdraw_address;
    t_op.amount.amount = swwo.withdraw_amount;
    t_op.amount.symbol = symbol;
    t_op.memo = "";
 
-   std::string block_id_str = node_rpc_client->get_head_block_id();
+   const std::string block_id_str = rpc_client->get_head_block_id();
    hive::block_id_type head_block_id(block_id_str);
 
-   std::string head_block_time_str = node_rpc_client->get_head_block_time();
+   const std::string head_block_time_str = rpc_client->get_head_block_time();
    time_point head_block_time = fc::time_point_sec::from_iso_string(head_block_time_str);
 
    hive::signed_transaction htrx;
@@ -690,7 +694,7 @@ bool sidechain_net_handler_hive::process_withdrawal(const son_wallet_withdraw_ob
    //=====
 
    proposal_create_operation proposal_op;
-   proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
+   proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
    uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
    proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
@@ -704,10 +708,10 @@ bool sidechain_net_handler_hive::process_withdrawal(const son_wallet_withdraw_ob
    stc_op.object_id = swwo.id;
    stc_op.sidechain = sidechain;
    stc_op.transaction = tx_str;
-   stc_op.signers = gpo.active_sons;
+   stc_op.signers = gpo.active_sons.at(sidechain);
    proposal_op.proposed_ops.emplace_back(stc_op);
 
-   signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
+   signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
    try {
       trx.validate();
       database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -727,10 +731,10 @@ std::string sidechain_net_handler_hive::process_sidechain_transaction(const side
    hive::signed_transaction htrx;
    fc::raw::unpack(ss_trx, htrx, 1000);
 
-   std::string chain_id_str = node_rpc_client->get_chain_id();
+   const std::string chain_id_str = rpc_client->get_chain_id();
    const hive::chain_id_type chain_id(chain_id_str);
 
-   fc::optional<fc::ecc::private_key> privkey = graphene::utilities::wif_to_key(get_private_key(plugin.get_current_son_object().sidechain_public_keys.at(sidechain)));
+   fc::optional<fc::ecc::private_key> privkey = graphene::utilities::wif_to_key(get_private_key(plugin.get_current_son_object(sidechain).sidechain_public_keys.at(sidechain)));
    signature_type st = htrx.sign(*privkey, chain_id);
 
    std::stringstream ss_st;
@@ -755,7 +759,7 @@ std::string sidechain_net_handler_hive::send_sidechain_transaction(const sidecha
    }
 
    std::string params = fc::json::to_string(htrx);
-   node_rpc_client->network_broadcast_api_broadcast_transaction(params);
+   rpc_client->network_broadcast_api_broadcast_transaction(params);
 
    return htrx.id().str();
 }
@@ -770,7 +774,7 @@ bool sidechain_net_handler_hive::settle_sidechain_transaction(const sidechain_tr
       return false;
    }
 
-   std::string tx_str = node_rpc_client->account_history_api_get_transaction(sto.sidechain_transaction);
+   const std::string tx_str = rpc_client->account_history_api_get_transaction(sto.sidechain_transaction);
    if (tx_str != "") {
 
       std::stringstream ss_tx(tx_str);
@@ -781,7 +785,7 @@ bool sidechain_net_handler_hive::settle_sidechain_transaction(const sidechain_tr
 
       std::string tx_txid = tx_json.get<std::string>("result.transaction_id");
       uint32_t tx_block_num = tx_json.get<uint32_t>("result.block_num");
-      uint32_t last_irreversible_block = std::stoul(node_rpc_client->get_last_irreversible_block_num());
+      const uint32_t last_irreversible_block = std::stoul(rpc_client->get_last_irreversible_block_num());
 
       //std::string tx_address = addr.get_address();
       //int64_t tx_amount = -1;
@@ -802,6 +806,11 @@ bool sidechain_net_handler_hive::settle_sidechain_transaction(const sidechain_tr
    return false;
 }
 
+optional<asset> sidechain_net_handler_hive::estimate_withdrawal_transaction_fee() const {
+   wlog("estimate_withdrawal_transaction_fee not implemented for sidechain: ${sidechain}", ("sidechain", sidechain));
+   return optional<asset>{};
+}
+
 void sidechain_net_handler_hive::schedule_hive_listener() {
    fc::time_point now = fc::time_point::now();
    int64_t time_to_next = 1000;
@@ -817,7 +826,7 @@ void sidechain_net_handler_hive::schedule_hive_listener() {
 void sidechain_net_handler_hive::hive_listener_loop() {
    schedule_hive_listener();
 
-   std::string reply = node_rpc_client->database_api_get_dynamic_global_properties();
+   const std::string reply = rpc_client->database_api_get_dynamic_global_properties();
    if (!reply.empty()) {
       std::stringstream ss(reply);
       boost::property_tree::ptree json;
@@ -832,7 +841,7 @@ void sidechain_net_handler_hive::hive_listener_loop() {
       }
    }
 
-   //std::string reply = node_rpc_client->get_last_irreversible_block_num();
+   //std::string reply = rpc_client->get_last_irreversible_block_num();
    //if (!reply.empty()) {
    //   uint64_t last_irreversible_block = std::stoul(reply);
    //   if (last_irreversible_block != last_block_received) {
@@ -844,7 +853,7 @@ void sidechain_net_handler_hive::hive_listener_loop() {
 }
 
 void sidechain_net_handler_hive::handle_event(const std::string &event_data) {
-   std::string block = node_rpc_client->block_api_get_block(std::atoll(event_data.c_str()));
+   const std::string block = rpc_client->block_api_get_block(std::atoll(event_data.c_str()));
    if (block != "") {
       add_to_son_listener_log("BLOCK   : " + event_data);
       std::stringstream ss(block);
@@ -869,7 +878,7 @@ void sidechain_net_handler_hive::handle_event(const std::string &event_data) {
                std::string from = op_value.get<std::string>("from");
                std::string to = op_value.get<std::string>("to");
 
-               if (to == "son-account") {
+               if (to == wallet_account_name) {
 
                   const auto &amount_child = op_value.get_child("amount");
 

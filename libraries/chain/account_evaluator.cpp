@@ -62,10 +62,19 @@ void verify_account_votes( const database& db, const account_options& options )
    const auto& gpo = db.get_global_properties();
    const auto& chain_params = gpo.parameters;
 
+   FC_ASSERT( db.find_object(options.voting_account), "Invalid proxy account specified." );
+
    FC_ASSERT( options.num_witness <= chain_params.maximum_witness_count,
               "Voted for more witnesses than currently allowed (${c})", ("c", chain_params.maximum_witness_count) );
    FC_ASSERT( options.num_committee <= chain_params.maximum_committee_count,
               "Voted for more committee members than currently allowed (${c})", ("c", chain_params.maximum_committee_count) );
+   FC_ASSERT( chain_params.extensions.value.maximum_son_count.valid() , "Invalid maximum son count" );
+   FC_ASSERT( options.extensions.value.num_son.valid() , "Invalid son number" );
+   for(const auto& num_sons : *options.extensions.value.num_son)
+   {
+      FC_ASSERT( num_sons.second <= *chain_params.extensions.value.maximum_son_count,
+                "Voted for more sons than currently allowed (${c})", ("c", *chain_params.extensions.value.maximum_son_count) );
+   }
    FC_ASSERT( db.find_object(options.voting_account), "Invalid proxy account specified." );
 
    uint32_t max_vote_id = gpo.next_available_vote_id;

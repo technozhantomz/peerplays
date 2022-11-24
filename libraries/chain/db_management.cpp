@@ -44,6 +44,7 @@ database::database() :
 {
    initialize_indexes();
    initialize_evaluators();
+   initialize_hardforks();
 }
 
 database::~database()
@@ -111,6 +112,7 @@ void database::reindex( fc::path data_dir )
    uint32_t undo_point = last_block_num < 50 ? 0 : last_block_num - 50;
 
    ilog( "Replaying blocks, starting at ${next}...", ("next",head_block_num() + 1) );
+   const std::lock_guard<std::mutex> undo_db_lock{_undo_db_mutex};
    auto_undo_enabler undo(_slow_replays, _undo_db);
    if( head_block_num() >= undo_point )
    {

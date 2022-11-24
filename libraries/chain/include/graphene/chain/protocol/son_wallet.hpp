@@ -11,7 +11,7 @@ namespace graphene { namespace chain {
         asset fee;
         account_id_type payer;
 
-        vector<son_info> sons;
+        flat_map<sidechain_type, vector<son_info> > sons;
 
         account_id_type fee_payer()const { return payer; }
         share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }

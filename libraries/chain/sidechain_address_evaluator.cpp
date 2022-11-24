@@ -22,11 +22,14 @@ object_id_type add_sidechain_address_evaluator::do_apply(const sidechain_address
     const auto &sidechain_addresses_idx = db().get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain_and_expires>();
     const auto &addr_itr = sidechain_addresses_idx.find(std::make_tuple(op.sidechain_address_account, op.sidechain, time_point_sec::maximum()));
 
-    if (addr_itr != sidechain_addresses_idx.end())
-    {
-        db().modify(*addr_itr, [&](sidechain_address_object &sao) {
-            sao.expires = db().head_block_time();
-        });
+    if (addr_itr != sidechain_addresses_idx.end()) {
+       if (db().head_block_time() >= HARDFORK_SIDECHAIN_DELETE_TIME) {
+          db().remove(*addr_itr);
+       } else {
+          db().modify(*addr_itr, [&](sidechain_address_object &sao) {
+             sao.expires = db().head_block_time();
+          });
+       }
     }
 
     const auto& new_sidechain_address_object = db().create<sidechain_address_object>( [&]( sidechain_address_object& obj ){
@@ -47,7 +50,7 @@ void_result update_sidechain_address_evaluator::do_evaluate(const sidechain_addr
 { try {
     const auto& sidx = db().get_index_type<son_index>().indices().get<by_account>();
     const auto& son_obj = sidx.find(op.payer);
-    FC_ASSERT( son_obj != sidx.end() && db().is_son_active(son_obj->id), "Non active SON trying to update deposit address object" );
+    FC_ASSERT( son_obj != sidx.end() && db().is_son_active(op.sidechain, son_obj->id), "Non active SON trying to update deposit address object" );
     const auto& sdpke_idx = db().get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_public_key_and_expires>();
     FC_ASSERT( op.deposit_address.valid() && op.deposit_public_key.valid() && op.deposit_address_data.valid(), "Update operation by SON is not valid");
     FC_ASSERT( (*op.deposit_address).length() > 0 && (*op.deposit_public_key).length() > 0 && (*op.deposit_address_data).length() > 0, "SON should create a valid deposit address with valid deposit public key");
@@ -105,10 +108,14 @@ void_result delete_sidechain_address_evaluator::do_apply(const sidechain_address
 { try {
     const auto& idx = db().get_index_type<sidechain_address_index>().indices().get<by_id>();
     auto sidechain_address = idx.find(op.sidechain_address_id);
-    if(sidechain_address != idx.end()) {
-        db().modify(*sidechain_address, [&](sidechain_address_object &sao) {
-            sao.expires = db().head_block_time();
-        });
+    if (sidechain_address != idx.end()) {
+       if (db().head_block_time() >= HARDFORK_SIDECHAIN_DELETE_TIME) {
+          db().remove(*sidechain_address);
+       } else {
+          db().modify(*sidechain_address, [&](sidechain_address_object &sao) {
+             sao.expires = db().head_block_time();
+          });
+       }
     }
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
