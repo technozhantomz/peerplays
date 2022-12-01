@@ -3349,7 +3349,7 @@ public:
 
          if(transaction_fee) {
             if (*transaction_fee >= xfer_op.amount) {
-               FC_THROW("Transaction fee: ${sidechain_fee}, would be grater than transfer amount ${amount}",
+               FC_THROW("Transaction fee: ${sidechain_fee}, is greater than transferred amount ${amount}",
                         ("sidechain_fee", get_asset(transaction_fee->asset_id).amount_to_pretty_string(transaction_fee->amount))("amount", get_asset(xfer_op.amount.asset_id).amount_to_pretty_string(xfer_op.amount.amount)));
             }
          }
