@@ -9,4 +9,17 @@ typedef uint64_t network_id_type;
 
 using bytes = std::vector<char>;
 
+class signature {
+public:
+   std::string v;
+   std::string r;
+   std::string s;
+
+   signature() = default;
+   signature(const std::string &sign);
+
+   std::string serialize() const;
+   void deserialize(const std::string &sign);
+};
+
 }}} // namespace graphene::peerplays_sidechain::ethereum

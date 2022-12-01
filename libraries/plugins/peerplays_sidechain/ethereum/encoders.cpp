@@ -2,7 +2,6 @@
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/format.hpp>
-#include <stdlib.h>
 
 #include <graphene/peerplays_sidechain/ethereum/utils.hpp>
 
@@ -19,12 +18,16 @@ std::string base_encoder::encode_address(const std::string &value) {
 
 std::string base_encoder::encode_string(const std::string &value) {
    std::string data = (boost::format("%x") % boost::io::group(std::setw(64), std::setfill('0'), value.size())).str();
-   data += boost::algorithm::hex(value) + std::string((64 - value.size() * 2 % 64), '0');
+   data += boost::algorithm::hex(value);
+   if (value.size() % 32 != 0) {
+      data += std::string((64 - value.size() * 2 % 64), '0');
+   }
    return data;
 }
 
 //! update_owners_encoder
-std::string update_owners_encoder::encode(const std::vector<std::pair<std::string, uint16_t>> &owners_weights, const std::string &object_id) const {
+const std::string update_owners_encoder::function_signature = "f6afbeff"; //! updateOwners_(address,(address,uint256)[],string)
+std::string update_owners_encoder::encode(const std::vector<std::pair<std::string, uint16_t>> &owners_weights, const std::string &object_id) {
    std::string data = "0x" + function_signature;
    data += base_encoder::encode_uint256(64);
    data += base_encoder::encode_uint256((owners_weights.size() * 2 + 3) * 32);
@@ -39,12 +42,58 @@ std::string update_owners_encoder::encode(const std::vector<std::pair<std::strin
 }
 
 //! withdrawal_encoder
-std::string withdrawal_encoder::encode(const std::string &to, boost::multiprecision::uint256_t amount, const std::string &object_id) const {
+const std::string withdrawal_encoder::function_signature = "cf7c8f6d"; //! withdraw_(address,address,uint256,string)
+std::string withdrawal_encoder::encode(const std::string &to, boost::multiprecision::uint256_t amount, const std::string &object_id) {
    std::string data = "0x" + function_signature;
    data += base_encoder::encode_address(to);
    data += base_encoder::encode_uint256(amount);
    data += base_encoder::encode_uint256(32 * 3);
    data += base_encoder::encode_string(object_id);
+
+   return data;
+}
+
+//! signature_encoder
+signature_encoder::signature_encoder(const std::string &function_hash) :
+      function_signature{function_hash} {
+}
+
+std::string signature_encoder::get_function_signature_from_transaction(const std::string &transaction) {
+   const std::string tr = remove_0x(transaction);
+   if (tr.substr(0, 8) == update_owners_encoder::function_signature)
+      return update_owners_function_signature;
+
+   if (tr.substr(0, 8) == withdrawal_encoder::function_signature)
+      return withdrawal_function_signature;
+
+   return "";
+}
+
+std::string signature_encoder::encode(const std::vector<encoded_sign_transaction> &transactions) const {
+   std::string data = "0x" + function_signature;
+   data += base_encoder::encode_uint256(32);
+   data += base_encoder::encode_uint256(transactions.size());
+   size_t offset = (transactions.size()) * 32;
+   for (const auto &transaction : transactions) {
+      data += base_encoder::encode_uint256(offset);
+      const auto transaction_data = remove_0x(transaction.data);
+      offset += 5 * 32 + transaction_data.size() / 2;
+      if (transaction_data.size() / 2 % 32 != 0) {
+         offset += 32 - transaction_data.size() / 2 % 32;
+      }
+   }
+   for (const auto &transaction : transactions) {
+      data += base_encoder::encode_uint256(4 * 32);
+      data += base_encoder::encode_address(transaction.sign.v);
+      data += base_encoder::encode_address(transaction.sign.r);
+      data += base_encoder::encode_address(transaction.sign.s);
+      const auto transaction_data = remove_0x(transaction.data);
+      data += base_encoder::encode_uint256(transaction_data.size() / 2);
+      data += transaction_data;
+      if (transaction_data.size() % 64 != 0) {
+         data += std::string((64 - transaction_data.size() % 64), '0');
+      }
+   }
 
    return data;
 }
