@@ -22,7 +22,43 @@ const secp256k1_context *eth_context() {
    return ctx;
 }
 
-//! transaction
+bytes keccak_hash(const std::string &data) {
+   bytes hash;
+   hash.resize(32);
+   const auto transaction_string = boost::algorithm::unhex(remove_0x(data));
+   keccak_256((const unsigned char *)transaction_string.data(), transaction_string.size(), (unsigned char *)hash.data());
+
+   return hash;
+}
+
+signature sign_hash(const bytes &hash, const std::string &chain_id, const std::string &private_key) {
+   const bytes priv_key = parse_hex(private_key);
+
+   int recid = 0;
+   secp256k1_ecdsa_recoverable_signature sig;
+   FC_ASSERT(secp256k1_ecdsa_sign_recoverable(eth_context(), &sig, (const unsigned char *)hash.data(), (const unsigned char *)priv_key.data(), NULL, NULL));
+   fc::ecc::compact_signature result;
+   FC_ASSERT(secp256k1_ecdsa_recoverable_signature_serialize_compact(eth_context(), (unsigned char *)result.begin() + 1, &recid, &sig));
+
+   unsigned int v = recid + from_hex<unsigned int>(chain_id) * 2 + 35;
+
+   bytes r;
+   for (int i = 1; i < 33; i++)
+      r.emplace_back((char)result.at(i));
+
+   bytes s;
+   for (int i = 33; i < 65; i++)
+      s.emplace_back((char)result.at(i));
+
+   signature eth_sig;
+   eth_sig.v = to_hex(v);
+   eth_sig.r = fc::to_hex((char *)&r[0], r.size());
+   eth_sig.s = fc::to_hex((char *)&s[0], s.size());
+
+   return eth_sig;
+}
+
+//! base_transaction
 
 base_transaction::base_transaction(const std::string &raw_tx) {
 }
@@ -70,12 +106,7 @@ raw_transaction::raw_transaction(const std::string &raw_tx) :
 }
 
 bytes raw_transaction::hash() const {
-   bytes hash;
-   hash.resize(32);
-   const auto transaction_string = boost::algorithm::unhex(remove_0x(serialize()));
-   keccak_256((const unsigned char *)transaction_string.data(), transaction_string.size(), (unsigned char *)hash.data());
-
-   return hash;
+   return keccak_hash(serialize());
 }
 
 signed_transaction raw_transaction::sign(const std::string &private_key) const {
@@ -88,27 +119,10 @@ signed_transaction raw_transaction::sign(const std::string &private_key) const {
    tr.value = value;
    tr.data = data;
 
-   const bytes priv_key = parse_hex(private_key);
-
-   int recid = 0;
-   secp256k1_ecdsa_recoverable_signature sig;
-   FC_ASSERT(secp256k1_ecdsa_sign_recoverable(eth_context(), &sig, (const unsigned char *)hash().data(), (const unsigned char *)priv_key.data(), NULL, NULL));
-   fc::ecc::compact_signature result;
-   FC_ASSERT(secp256k1_ecdsa_recoverable_signature_serialize_compact(eth_context(), (unsigned char *)result.begin() + 1, &recid, &sig));
-
-   bytes r;
-   for (int i = 1; i < 33; i++)
-      r.emplace_back((char)result.at(i));
-
-   unsigned int v = recid + from_hex<unsigned int>(chain_id) * 2 + 35;
-
-   bytes s;
-   for (int i = 33; i < 65; i++)
-      s.emplace_back((char)result.at(i));
-
-   tr.r = fc::to_hex((char *)&r[0], r.size());
-   tr.v = to_hex(v);
-   tr.s = fc::to_hex((char *)&s[0], s.size());
+   const auto sig = sign_hash(hash(), chain_id, private_key);
+   tr.v = sig.v;
+   tr.r = sig.r;
+   tr.s = sig.s;
 
    return tr;
 }

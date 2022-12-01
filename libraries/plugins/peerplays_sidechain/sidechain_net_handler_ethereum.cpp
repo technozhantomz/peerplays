@@ -585,33 +585,65 @@ std::string sidechain_net_handler_ethereum::process_sidechain_transaction(const 
 std::string sidechain_net_handler_ethereum::send_sidechain_transaction(const sidechain_transaction_object &sto) {
    boost::property_tree::ptree pt;
    boost::property_tree::ptree pt_array;
+
+   std::vector<ethereum::encoded_sign_transaction> transactions;
    for (const auto &signature : sto.signatures) {
-      const auto &transaction = signature.second;
 
       //! Check if we have this signed transaction, if not, don't send it
-      if (transaction.empty())
+      if (signature.second.empty())
          continue;
 
+      ethereum::encoded_sign_transaction transaction{sto.transaction, ethereum::signature{signature.second}};
+      transactions.emplace_back(transaction);
+   }
+
+   const auto &current_son = plugin.get_current_son_object(sidechain);
+   FC_ASSERT(current_son.sidechain_public_keys.contains(sidechain), "No public keys for current son: ${account_id}", ("account_id", current_son.son_account));
+   const auto &public_key = current_son.sidechain_public_keys.at(sidechain);
+
+   const auto function_signature = ethereum::signature_encoder::get_function_signature_from_transaction(sto.transaction);
+   if (function_signature.empty()) {
+      elog("Function signature is empty for transaction id ${id}, transaction ${transaction}", ("id", sto.id)("transaction", sto.transaction));
+      return std::string{}; //! Return empty string, as we have error in sending
+   }
+
+   const ethereum::signature_encoder encoder{function_signature};
 #ifdef SEND_RAW_TRANSACTION
-      const std::string sidechain_transaction = rpc_client->eth_send_raw_transaction(transaction);
+   ethereum::raw_transaction raw_tr;
+   raw_tr.nonce = rpc_client->get_nonce(ethereum::add_0x(public_key));
+   raw_tr.gas_price = rpc_client->get_gas_price();
+   raw_tr.gas_limit = rpc_client->get_gas_limit();
+   raw_tr.to = wallet_contract_address;
+   raw_tr.value = "";
+   raw_tr.data = encoder.encode(transactions);
+   raw_tr.chain_id = ethereum::add_0x(ethereum::to_hex(chain_id));
+
+   const auto sign_tr = raw_tr.sign(get_private_key(public_key));
+   const std::string sidechain_transaction = rpc_client->eth_send_raw_transaction(sign_tr.serialize());
 #else
-      const std::string sidechain_transaction = rpc_client->eth_send_transaction(transaction);
+   ethereum::transaction raw_tr;
+   raw_tr.data = encoder.encode(transactions);
+   raw_tr.to = wallet_contract_address;
+   raw_tr.from = ethereum::add_0x(public_key);
+
+   const auto sign_tr = raw_tr.sign(get_private_key(public_key));
+   const std::string sidechain_transaction = rpc_client->eth_send_transaction(sign_tr.serialize());
 #endif
 
-      std::stringstream ss_tx(sidechain_transaction);
-      boost::property_tree::ptree tx_json;
-      boost::property_tree::read_json(ss_tx, tx_json);
-      if (tx_json.count("result") && !tx_json.count("error")) {
-         boost::property_tree::ptree node;
-         node.put("transaction", transaction);
-         node.put("transaction_receipt", tx_json.get<std::string>("result"));
-         pt_array.push_back(std::make_pair("", node));
-      } else {
-         //! Fixme
-         //! How should we proceed with error in eth_send_transaction
-         elog("Error in eth_send_transaction for transaction ${id}, transaction ${transaction}", ("id", sto.id)("transaction", transaction));
-         return std::string{}; //! Return empty string, as we have error in sending
-      }
+   std::stringstream ss_tx(sidechain_transaction);
+   boost::property_tree::ptree tx_json;
+   boost::property_tree::read_json(ss_tx, tx_json);
+   if (tx_json.count("result") && !tx_json.count("error")) {
+      boost::property_tree::ptree node;
+      node.put("transaction", sto.transaction);
+      node.put("sidechain_transaction", sidechain_transaction);
+      node.put("transaction_receipt", tx_json.get<std::string>("result"));
+      pt_array.push_back(std::make_pair("", node));
+   } else {
+      //! Fixme
+      //! How should we proceed with error in eth_send_transaction
+      elog("Error in eth send transaction for transaction id ${id}, transaction ${transaction}, sidechain_transaction ${sidechain_transaction}", ("id", sto.id)("transaction", sto.transaction)("sidechain_transaction", sidechain_transaction));
+      return std::string{}; //! Return empty string, as we have error in sending
    }
    pt.add_child("result_array", pt_array);
 
@@ -705,8 +737,7 @@ std::string sidechain_net_handler_ethereum::create_primary_wallet_transaction(co
       owners_weights.emplace_back(std::make_pair(pub_key_str, son.weight));
    }
 
-   const ethereum::update_owners_encoder encoder;
-   return encoder.encode(owners_weights, object_id);
+   return ethereum::update_owners_encoder::encode(owners_weights, object_id);
 }
 
 std::string sidechain_net_handler_ethereum::create_deposit_transaction(const son_wallet_deposit_object &swdo) {
@@ -714,8 +745,7 @@ std::string sidechain_net_handler_ethereum::create_deposit_transaction(const son
 }
 
 std::string sidechain_net_handler_ethereum::create_withdrawal_transaction(const son_wallet_withdraw_object &swwo) {
-   const ethereum::withdrawal_encoder encoder;
-   return encoder.encode(swwo.withdraw_address.substr(2), swwo.withdraw_amount.value * 10000000000, swwo.id.operator std::string());
+   return ethereum::withdrawal_encoder::encode(swwo.withdraw_address.substr(2), swwo.withdraw_amount.value * 10000000000, swwo.id.operator std::string());
 }
 
 std::string sidechain_net_handler_ethereum::sign_transaction(const sidechain_transaction_object &sto) {
@@ -724,25 +754,11 @@ std::string sidechain_net_handler_ethereum::sign_transaction(const sidechain_tra
 
    const auto &public_key = current_son.sidechain_public_keys.at(sidechain);
 
-#ifdef SEND_RAW_TRANSACTION
-   ethereum::raw_transaction raw_tr;
-   raw_tr.nonce = rpc_client->get_nonce(ethereum::add_0x(public_key));
-   raw_tr.gas_price = rpc_client->get_gas_price();
-   raw_tr.gas_limit = rpc_client->get_gas_limit();
-   raw_tr.to = wallet_contract_address;
-   raw_tr.value = "";
-   raw_tr.data = sto.transaction;
-   raw_tr.chain_id = ethereum::add_0x(ethereum::to_hex(chain_id));
+   //! We need to change v value according to chain_id
+   auto signature = ethereum::sign_hash(ethereum::keccak_hash(sto.transaction), ethereum::add_0x(ethereum::to_hex(chain_id)), get_private_key(public_key));
+   signature.v = ethereum::to_hex(ethereum::from_hex<unsigned int>(signature.v) - 2 * chain_id - 35 + 27);
 
-   const auto sign_tr = raw_tr.sign(get_private_key(public_key));
-   return sign_tr.serialize();
-#else
-   ethereum::transaction sign_transaction;
-   sign_transaction.data = sto.transaction;
-   sign_transaction.to = wallet_contract_address;
-   sign_transaction.from = "0x" + public_key;
-   return sign_transaction.sign(get_private_key(public_key)).serialize();
-#endif
+   return signature.serialize();
 }
 
 void sidechain_net_handler_ethereum::schedule_ethereum_listener() {

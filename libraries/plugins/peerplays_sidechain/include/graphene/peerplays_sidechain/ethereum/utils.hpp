@@ -19,7 +19,7 @@ std::string to_hex(const T &val, bool add_front_zero = true) {
    std::stringstream stream;
    stream << std::hex << val;
    std::string result(stream.str());
-   if(add_front_zero) {
+   if (add_front_zero) {
       if (result.size() % 2)
          result = "0" + result;
    }
