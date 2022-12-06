@@ -686,8 +686,18 @@ bool sidechain_net_handler_ethereum::settle_sidechain_transaction(const sidechai
    if (count != json.get_child("result_array").size()) {
       wlog("Not all receipts received for transaction ${id}", ("id", sto.id));
       return false;
-   } else
+   } else {
+      if (sto.object_id.is<son_wallet_id_type>()) {
+         settle_amount = asset(0, database.get_global_properties().parameters.eth_asset());
+      }
+
+      if (sto.object_id.is<son_wallet_withdraw_id_type>()) {
+         auto swwo = database.get<son_wallet_withdraw_object>(sto.object_id);
+         settle_amount = asset(swwo.withdraw_amount, database.get_global_properties().parameters.eth_asset());
+      }
+
       return true;
+   }
 
    return false;
 }
