@@ -730,8 +730,7 @@ optional<asset> sidechain_net_handler_ethereum::estimate_withdrawal_transaction_
    }
 
    const auto &public_key = son->sidechain_public_keys.at(sidechain);
-   const ethereum::withdrawal_encoder encoder;
-   const auto data = encoder.encode(public_key, 1 * 10000000000, son_wallet_withdraw_id_type{0}.operator object_id_type().operator std::string());
+   const auto data = ethereum::withdrawal_encoder::encode(public_key, 1 * 10000000000, son_wallet_withdraw_id_type{0}.operator object_id_type().operator std::string());
    const std::string params = "[{\"from\":\"" + ethereum::add_0x(public_key) + "\", \"to\":\"" + wallet_contract_address + "\", \"data\":\"" + data + "\"}]";
 
    const auto estimate_gas = ethereum::from_hex<int64_t>(rpc_client->get_estimate_gas(params));

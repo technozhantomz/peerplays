@@ -26,7 +26,7 @@ std::string base_encoder::encode_string(const std::string &value) {
 }
 
 //! update_owners_encoder
-const std::string update_owners_encoder::function_signature = "f6afbeff"; //! updateOwners_(address,(address,uint256)[],string)
+const std::string update_owners_encoder::function_signature = "23ab6adf"; //! updateOwners((address,uint256)[],string)
 std::string update_owners_encoder::encode(const std::vector<std::pair<std::string, uint16_t>> &owners_weights, const std::string &object_id) {
    std::string data = "0x" + function_signature;
    data += base_encoder::encode_uint256(64);
@@ -42,7 +42,7 @@ std::string update_owners_encoder::encode(const std::vector<std::pair<std::strin
 }
 
 //! withdrawal_encoder
-const std::string withdrawal_encoder::function_signature = "cf7c8f6d"; //! withdraw_(address,address,uint256,string)
+const std::string withdrawal_encoder::function_signature = "e088747b"; //! withdraw(address,uint256,string)
 std::string withdrawal_encoder::encode(const std::string &to, boost::multiprecision::uint256_t amount, const std::string &object_id) {
    std::string data = "0x" + function_signature;
    data += base_encoder::encode_address(to);
