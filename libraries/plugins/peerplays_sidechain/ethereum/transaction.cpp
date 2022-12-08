@@ -210,8 +210,8 @@ std::string signed_transaction::serialize() const {
                                   rlp_encoder::encode(remove_0x(value)) +
                                   rlp_encoder::encode(remove_0x(data)) +
                                   rlp_encoder::encode(remove_0x(v)) +
-                                  rlp_encoder::encode(remove_0x(r)) +
-                                  rlp_encoder::encode(remove_0x(s));
+                                  rlp_encoder::encode(remove_leading_00(remove_0x(r))) +
+                                  rlp_encoder::encode(remove_leading_00(remove_0x(s)));
 
    return add_0x(bytes2hex(rlp_encoder::encode_length(serialized.size(), 192) + serialized));
 }
@@ -234,9 +234,9 @@ void signed_transaction::deserialize(const std::string &raw_tx) {
    boost::algorithm::to_lower(data);
    v = add_0x(rlp_array.at(6));
    boost::algorithm::to_lower(v);
-   r = add_0x(rlp_array.at(7));
+   r = add_0x(add_leading_00(rlp_array.at(7)));
    boost::algorithm::to_lower(r);
-   s = add_0x(rlp_array.at(8));
+   s = add_0x(add_leading_00(rlp_array.at(8)));
    boost::algorithm::to_lower(s);
 }
 

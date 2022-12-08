@@ -21,11 +21,11 @@ sidechain_net_handler::sidechain_net_handler(peerplays_sidechain_plugin &_plugin
 sidechain_net_handler::~sidechain_net_handler() {
 }
 
-sidechain_type sidechain_net_handler::get_sidechain() {
+sidechain_type sidechain_net_handler::get_sidechain() const {
    return sidechain;
 }
 
-std::vector<std::string> sidechain_net_handler::get_sidechain_deposit_addresses() {
+std::vector<std::string> sidechain_net_handler::get_sidechain_deposit_addresses() const {
    std::vector<std::string> result;
 
    const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>();
@@ -38,7 +38,7 @@ std::vector<std::string> sidechain_net_handler::get_sidechain_deposit_addresses(
    return result;
 }
 
-std::vector<std::string> sidechain_net_handler::get_sidechain_withdraw_addresses() {
+std::vector<std::string> sidechain_net_handler::get_sidechain_withdraw_addresses() const {
    std::vector<std::string> result;
 
    const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>();
@@ -51,7 +51,20 @@ std::vector<std::string> sidechain_net_handler::get_sidechain_withdraw_addresses
    return result;
 }
 
-std::string sidechain_net_handler::get_private_key(std::string public_key) {
+std::vector<sidechain_transaction_object> sidechain_net_handler::get_sidechain_transaction_objects(sidechain_transaction_status status) const {
+   std::vector<sidechain_transaction_object> result;
+
+   const auto &idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_sidechain_and_status>();
+   const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, status));
+   std::for_each(idx_range.first, idx_range.second,
+                 [&result](const sidechain_transaction_object &sto) {
+                    result.push_back(sto);
+                 });
+
+   return result;
+}
+
+std::string sidechain_net_handler::get_private_key(std::string public_key) const {
    auto private_key_itr = private_keys.find(public_key);
    if (private_key_itr != private_keys.end()) {
       return private_key_itr->second;
@@ -473,10 +486,9 @@ void sidechain_net_handler::process_withdrawals() {
 }
 
 void sidechain_net_handler::process_sidechain_transactions() {
-   const auto &idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_sidechain_and_status>();
-   const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, sidechain_transaction_status::valid));
+   const auto stos = get_sidechain_transaction_objects(sidechain_transaction_status::valid);
 
-   std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
+   std::for_each(stos.cbegin(), stos.cend(), [&](const sidechain_transaction_object &sto) {
       if ((sto.id == object_id_type(0, 0, 0)) || !signer_expected(sto, plugin.get_current_son_id(sidechain))) {
          return;
       }
@@ -520,10 +532,9 @@ void sidechain_net_handler::process_sidechain_transactions() {
 }
 
 void sidechain_net_handler::send_sidechain_transactions() {
-   const auto &idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_sidechain_and_status>();
-   const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, sidechain_transaction_status::complete));
+   const auto stos = get_sidechain_transaction_objects(sidechain_transaction_status::complete);
 
-   std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
+   std::for_each(stos.cbegin(), stos.cend(), [&](const sidechain_transaction_object &sto) {
       if (sto.id == object_id_type(0, 0, 0)) {
          return;
       }
@@ -555,10 +566,9 @@ void sidechain_net_handler::send_sidechain_transactions() {
 }
 
 void sidechain_net_handler::settle_sidechain_transactions() {
-   const auto &idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_sidechain_and_status>();
-   const auto &idx_range = idx.equal_range(std::make_tuple(sidechain, sidechain_transaction_status::sent));
+   const auto stos = get_sidechain_transaction_objects(sidechain_transaction_status::sent);
 
-   std::for_each(idx_range.first, idx_range.second, [&](const sidechain_transaction_object &sto) {
+   std::for_each(stos.cbegin(), stos.cend(), [&](const sidechain_transaction_object &sto) {
       if (sto.id == object_id_type(0, 0, 0)) {
          return;
       }
