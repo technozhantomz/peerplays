@@ -14,6 +14,10 @@ std::string add_0x(const std::string &s);
 
 std::string remove_0x(const std::string &s);
 
+std::string add_leading_00(const std::string &s);
+
+std::string remove_leading_00(const std::string &s);
+
 template <typename T>
 std::string to_hex(const T &val, bool add_front_zero = true) {
    std::stringstream stream;

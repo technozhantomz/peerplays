@@ -20,10 +20,11 @@ public:
    sidechain_net_handler(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options);
    virtual ~sidechain_net_handler();
 
-   sidechain_type get_sidechain();
-   std::vector<std::string> get_sidechain_deposit_addresses();
-   std::vector<std::string> get_sidechain_withdraw_addresses();
-   std::string get_private_key(std::string public_key);
+   sidechain_type get_sidechain() const;
+   std::vector<std::string> get_sidechain_deposit_addresses() const;
+   std::vector<std::string> get_sidechain_withdraw_addresses() const;
+   std::vector<sidechain_transaction_object> get_sidechain_transaction_objects(sidechain_transaction_status status) const;
+   std::string get_private_key(std::string public_key) const;
 
    bool proposal_exists(int32_t operation_tag, const object_id_type &object_id, boost::optional<chain::operation &> proposal_op = boost::none);
    bool signer_expected(const sidechain_transaction_object &sto, son_id_type signer);

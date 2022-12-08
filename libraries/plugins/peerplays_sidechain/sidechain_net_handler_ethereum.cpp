@@ -76,7 +76,7 @@ std::string ethereum_rpc_client::get_network_id() {
 }
 
 std::string ethereum_rpc_client::get_nonce(const std::string &address) {
-   const std::string reply_str = eth_get_transaction_count("[\"" + address + "\", \"latest\"]");
+   const std::string reply_str = eth_get_transaction_count("[\"" + address + "\", \"pending\"]");
    const auto nonce_string = retrieve_value_from_reply(reply_str, "");
    if (!nonce_string.empty()) {
       const auto nonce_val = ethereum::from_hex<boost::multiprecision::uint256_t>(nonce_string);
