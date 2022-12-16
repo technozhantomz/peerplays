@@ -11,15 +11,14 @@ RUN \
       apt-utils \
       autoconf \
       bash \
+      bison \
       build-essential \
       ca-certificates \
-      cmake \
       dnsutils \
-      doxygen \
       expect \
+      flex \
       git \
       graphviz \
-      libboost-all-dev \
       libbz2-dev \
       libcurl4-openssl-dev \
       libncurses-dev \
@@ -35,7 +34,6 @@ RUN \
       ntp \
       openssh-server \
       pkg-config \
-      perl \
       python3 \
       python3-jinja2 \
       sudo \
@@ -52,6 +50,31 @@ RUN echo 'peerplays:peerplays' | chpasswd
 
 # SSH
 EXPOSE 22
+
+#===============================================================================
+# Boost setup
+#===============================================================================
+
+WORKDIR /home/peerplays/
+
+RUN \
+     wget https://boostorg.jfrog.io/artifactory/main/release/1.72.0/source/boost_1_72_0.tar.gz && \
+    tar -xzvf boost_1_72_0.tar.gz boost_1_72_0 && \
+    cd boost_1_72_0/ && \
+    ./bootstrap.sh && \
+    ./b2 install
+
+#===============================================================================
+# cmake setup
+#===============================================================================
+
+WORKDIR /home/peerplays/
+
+RUN \
+    wget -c 'https://cmake.org/files/v3.23/cmake-3.23.1-linux-x86_64.sh' -O cmake-3.23.1-linux-x86_64.sh && \
+    chmod 755 ./cmake-3.23.1-linux-x86_64.sh && \
+    ./cmake-3.23.1-linux-x86_64.sh --prefix=/usr/ --skip-license && \
+    cmake --version
 
 #===============================================================================
 # libzmq setup
@@ -86,6 +109,37 @@ RUN \
     ldconfig
 
 #===============================================================================
+# Doxygen setup
+#===============================================================================
+
+WORKDIR /home/peerplays/
+
+RUN \
+    sudo apt install -y bison flex && \
+    wget https://github.com/doxygen/doxygen/archive/refs/tags/Release_1_8_17.tar.gz && \
+    tar -xvf Release_1_8_17.tar.gz && \
+    cd doxygen-Release_1_8_17 && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j$(nproc) install && \
+    ldconfig
+
+#===============================================================================
+# Perl setup
+#===============================================================================
+
+WORKDIR /home/peerplays/
+
+RUN \
+    wget https://github.com/Perl/perl5/archive/refs/tags/v5.30.0.tar.gz && \
+    tar -xvf v5.30.0.tar.gz && \
+    cd perl5-5.30.0 && \
+    ./Configure -des && \
+    make -j$(nproc) install && \
+    ldconfig
+
+#===============================================================================
 # Peerplays setup
 #===============================================================================
 
@@ -106,6 +160,9 @@ ADD . peerplays
 # Configure Peerplays
 RUN \
     cd peerplays && \
+    git submodule update --init --recursive && \
+    git symbolic-ref --short HEAD && \
+    git log --oneline -n 5 && \
     mkdir build && \
     cd build && \
     cmake -DCMAKE_BUILD_TYPE=Release ..
