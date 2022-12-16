@@ -980,13 +980,13 @@ class wallet_api
        *
        *  @return true if the label was set, otherwise false
        */
-      bool                        set_key_label( public_key_type, string label );
+      bool                        set_key_label( public_key_type key, string label );
 
       /** Get label of a public key.
        * @param key a public key
        * @return the label if already set by \c set_key_label(), or an empty string if not set
        */
-      string                      get_key_label( public_key_type )const;
+      string                      get_key_label( public_key_type key )const;
 
       /* Get the public key associated with a given label.
        * @param label a label
