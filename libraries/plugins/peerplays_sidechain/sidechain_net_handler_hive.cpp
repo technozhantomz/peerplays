@@ -256,13 +256,14 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
 
                      const std::string memo_key = rpc_client->get_account_memo_key(wallet_account_name);
 
-                     hive::authority active;
-                     active.weight_threshold = total_weight * 2 / 3 + 1;
-                     active.account_auths = account_auths;
+                     hive::authority a;
+                     a.weight_threshold = total_weight * 2 / 3 + 1;
+                     a.account_auths = account_auths;
 
                      hive::account_update_operation auo;
                      auo.account = wallet_account_name;
-                     auo.active = active;
+                     auo.owner = a;
+                     auo.active = a;
                      auo.memo_key = op_trx.operations[0].get<hive::account_update_operation>().memo_key;
 
                      hive::signed_transaction htrx;
@@ -505,13 +506,14 @@ void sidechain_net_handler_hive::process_primary_wallet() {
             return;
          }
 
-         hive::authority active;
-         active.weight_threshold = total_weight * 2 / 3 + 1;
-         active.account_auths = account_auths;
+         hive::authority a;
+         a.weight_threshold = total_weight * 2 / 3 + 1;
+         a.account_auths = account_auths;
 
          hive::account_update_operation auo;
          auo.account = wallet_account_name;
-         auo.active = active;
+         auo.owner = a;
+         auo.active = a;
          auo.memo_key = hive::public_key_type(memo_key);
 
          const std::string block_id_str = rpc_client->get_head_block_id();
@@ -546,12 +548,27 @@ void sidechain_net_handler_hive::process_primary_wallet() {
 
          proposal_op.proposed_ops.emplace_back(swu_op);
 
+         const auto signers = [this, &prev_sw, &active_sw, &swi] {
+            std::vector<son_info> signers;
+            //! Check if we don't have any previous set of active SONs use the current one
+            if (prev_sw != swi.rend()) {
+               if (!prev_sw->sons.at(sidechain).empty())
+                  signers = prev_sw->sons.at(sidechain);
+               else
+                  signers = active_sw->sons.at(sidechain);
+            } else {
+               signers = active_sw->sons.at(sidechain);
+            }
+
+            return signers;
+         }();
+
          sidechain_transaction_create_operation stc_op;
          stc_op.payer = gpo.parameters.son_account();
          stc_op.object_id = active_sw->id;
          stc_op.sidechain = sidechain;
          stc_op.transaction = tx_str;
-         stc_op.signers = gpo.active_sons.at(sidechain);
+         stc_op.signers = signers;
 
          proposal_op.proposed_ops.emplace_back(stc_op);
 
