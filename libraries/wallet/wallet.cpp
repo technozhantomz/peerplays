@@ -7027,9 +7027,28 @@ bool wallet_api::nft_is_approved_for_all(string owner_account_id_or_name, string
    return my->_remote_db->nft_is_approved_for_all(owner_account.id, operator_account.id);
 }
 
-vector<nft_object> wallet_api::nft_get_all_tokens() const
+vector<nft_object> wallet_api::nft_get_all_tokens(uint32_t limit, optional<nft_id_type> lower_id) const
 {
-   return my->_remote_db->nft_get_all_tokens();
+   nft_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->nft_get_all_tokens(lb_id, limit);
+}
+
+vector<nft_object> wallet_api::nft_get_tokens_by_owner(account_id_type owner, uint32_t limit, optional<nft_id_type> lower_id) const
+{
+   nft_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->nft_get_tokens_by_owner(owner, lb_id, limit);
+}
+
+vector<nft_metadata_object> wallet_api::nft_get_metadata_by_owner(account_id_type owner, uint32_t limit, optional<nft_metadata_id_type> lower_id) const
+{
+   nft_metadata_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->nft_get_metadata_by_owner(owner, lb_id, limit);
 }
 
 signed_transaction wallet_api::nft_lottery_buy_ticket( nft_metadata_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy, bool broadcast )

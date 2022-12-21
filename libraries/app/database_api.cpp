@@ -269,8 +269,9 @@ public:
    uint64_t nft_get_total_supply(const nft_metadata_id_type nft_metadata_id) const;
    nft_object nft_token_by_index(const nft_metadata_id_type nft_metadata_id, const uint64_t token_idx) const;
    nft_object nft_token_of_owner_by_index(const nft_metadata_id_type nft_metadata_id, const account_id_type owner, const uint64_t token_idx) const;
-   vector<nft_object> nft_get_all_tokens() const;
-   vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner) const;
+   vector<nft_object> nft_get_all_tokens(const nft_id_type lower_id, uint32_t limit) const;
+   vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner, const nft_id_type lower_id, uint32_t limit) const;
+   vector<nft_metadata_object> nft_get_metadata_by_owner(const account_id_type owner, const nft_metadata_id_type lower_id, uint32_t limit) const;
 
    // Marketplace
    vector<offer_object> list_offers(const offer_id_type lower_id, uint32_t limit) const;
@@ -291,6 +292,7 @@ public:
    uint32_t api_limit_get_limit_orders_by_account = 101;
    uint32_t api_limit_get_order_book = 50;
    uint32_t api_limit_all_offers_count = 100;
+   uint32_t api_limit_nft_tokens = 100;
    uint32_t api_limit_lookup_accounts = 1000;
    uint32_t api_limit_lookup_witness_accounts = 1000;
    uint32_t api_limit_lookup_committee_member_accounts = 1000;
@@ -3102,30 +3104,61 @@ nft_object database_api_impl::nft_token_of_owner_by_index(const nft_metadata_id_
    return {};
 }
 
-vector<nft_object> database_api::nft_get_all_tokens() const {
-   return my->nft_get_all_tokens();
+vector<nft_object> database_api::nft_get_all_tokens(const nft_id_type lower_id, uint32_t limit) const {
+   return my->nft_get_all_tokens(lower_id, limit);
 }
 
-vector<nft_object> database_api_impl::nft_get_all_tokens() const {
+vector<nft_object> database_api_impl::nft_get_all_tokens(const nft_id_type lower_id, uint32_t limit) const {
+   FC_ASSERT(limit <= api_limit_nft_tokens,
+             "Number of queried nft tokens can not be greater than ${configured_limit}",
+             ("configured_limit", api_limit_nft_tokens));
+
    const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_id>();
    vector<nft_object> result;
-   for (auto itr = idx_nft.begin(); itr != idx_nft.end(); ++itr) {
-      result.push_back(*itr);
-   }
+   result.reserve(limit);
+   auto itr = idx_nft.lower_bound(lower_id);
+   while (limit-- && itr != idx_nft.end())
+      result.emplace_back(*itr++);
    return result;
 }
 
-vector<nft_object> database_api::nft_get_tokens_by_owner(const account_id_type owner) const {
-   return my->nft_get_tokens_by_owner(owner);
+vector<nft_object> database_api::nft_get_tokens_by_owner(const account_id_type owner, const nft_id_type lower_id, uint32_t limit) const {
+   return my->nft_get_tokens_by_owner(owner, lower_id, limit);
 }
 
-vector<nft_object> database_api_impl::nft_get_tokens_by_owner(const account_id_type owner) const {
+vector<nft_object> database_api_impl::nft_get_tokens_by_owner(const account_id_type owner, const nft_id_type lower_id, uint32_t limit) const {
+   FC_ASSERT(limit <= api_limit_nft_tokens,
+             "Number of queried nft tokens can not be greater than ${configured_limit}",
+             ("configured_limit", api_limit_nft_tokens));
    const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_owner>();
    auto idx_nft_range = idx_nft.equal_range(owner);
    vector<nft_object> result;
-   for (auto itr = idx_nft_range.first; itr != idx_nft_range.second; ++itr) {
-      result.push_back(*itr);
-   }
+   result.reserve(limit);
+   auto itr = std::find_if(idx_nft_range.first, idx_nft_range.second, [&lower_id](const nft_object &obj) {
+         return !(obj.id.instance() < lower_id.instance);
+      });
+   while (limit-- && itr != idx_nft_range.second)
+     result.emplace_back(*itr++);
+   return result;
+}
+
+vector<nft_metadata_object> database_api::nft_get_metadata_by_owner(const account_id_type owner, const nft_metadata_id_type lower_id, uint32_t limit) const {
+   return my->nft_get_metadata_by_owner(owner, lower_id, limit);
+}
+
+vector<nft_metadata_object> database_api_impl::nft_get_metadata_by_owner(const account_id_type owner, const nft_metadata_id_type lower_id, uint32_t limit) const {
+   FC_ASSERT(limit <= api_limit_nft_tokens,
+             "Number of queried nft metadata objects can not be greater than ${configured_limit}",
+             ("configured_limit", api_limit_nft_tokens));
+   const auto &idx_nft = _db.get_index_type<nft_metadata_index>().indices().get<by_owner>();
+   auto idx_nft_range = idx_nft.equal_range(owner);
+   vector<nft_metadata_object> result;
+   result.reserve(limit);
+   auto itr = std::find_if(idx_nft_range.first, idx_nft_range.second, [&lower_id](const nft_metadata_object &obj) {
+         return !(obj.id.instance() < lower_id.instance);
+      });
+   while (limit-- && itr != idx_nft_range.second)
+      result.emplace_back(*itr++);
    return result;
 }
 

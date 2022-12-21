@@ -2571,9 +2571,29 @@ class wallet_api
 
       /**
        * @brief Returns all tokens
+       * @param limit the maximum number of NFT objects to return (max: 100)
+       * @param lower_id ID of the first NFT object to include in the list.
        * @return Returns vector of NFT objects, empty vector if none
        */
-      vector<nft_object> nft_get_all_tokens() const;
+      vector<nft_object> nft_get_all_tokens(uint32_t limit, optional<nft_id_type> lower_id) const;
+
+      /**
+       * @brief Returns all tokens owned by owner
+       * @param owner NFT owner account ID
+       * @param limit the maximum number of NFT objects to return (max: 100)
+       * @param lower_id ID of the first NFT object to include in the list.
+       * @return Returns vector of NFT objects, empty vector if none
+       */
+      vector<nft_object> nft_get_tokens_by_owner(account_id_type owner, uint32_t limit, optional<nft_id_type> lower_id) const;
+
+      /**
+       * @brief Returns all NFT metadata objects owned by owner
+       * @param owner NFT owner account ID
+       * @param limit the maximum number of NFT metadata objects to return (max: 100)
+       * @param lower_id ID of the first NFT metadata object to include in the list.
+       * @return Returns vector of NFT metadata objects, empty vector if none
+       */
+      vector<nft_metadata_object> nft_get_metadata_by_owner(account_id_type owner, uint32_t limit, optional<nft_metadata_id_type> lower_id) const;
       signed_transaction nft_lottery_buy_ticket( nft_metadata_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy, bool broadcast );
 
       signed_transaction create_offer(set<nft_id_type> item_ids,
@@ -2943,6 +2963,8 @@ FC_API( graphene::wallet::wallet_api,
         (nft_get_approved)
         (nft_is_approved_for_all)
         (nft_get_all_tokens)
+        (nft_get_tokens_by_owner)
+        (nft_get_metadata_by_owner)
         (nft_lottery_buy_ticket)
         (create_offer)
         (create_bid)
