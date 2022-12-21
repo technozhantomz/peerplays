@@ -1027,14 +1027,25 @@ public:
     * @brief Returns list of all available NTF's
     * @return List of all available NFT's
     */
-   vector<nft_object> nft_get_all_tokens() const;
+   vector<nft_object> nft_get_all_tokens(const nft_id_type lower_id, uint32_t limit) const;
 
    /**
     * @brief Returns NFT's owned by owner
     * @param owner NFT owner
+    * @param lower_id ID of the first NFT to return
+    * @param limit Maximum number of results to return
     * @return List of NFT owned by owner
     */
-   vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner) const;
+   vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner, const nft_id_type lower_id, uint32_t limit) const;
+
+   /**
+    * @brief Returns NFT metadata owned by owner
+    * @param owner NFT owner
+    * @param lower_id ID of the first NFT metadata to return
+    * @param limit Maximum number of results to return
+    * @return List of NFT owned by owner
+    */
+   vector<nft_metadata_object> nft_get_metadata_by_owner(const account_id_type owner, const nft_metadata_id_type lower_id, uint32_t limit) const;
 
    //////////////////
    // MARKET PLACE //
@@ -1249,6 +1260,7 @@ FC_API(graphene::app::database_api,
    (nft_token_of_owner_by_index)
    (nft_get_all_tokens)
    (nft_get_tokens_by_owner)
+   (nft_get_metadata_by_owner)
 
    // Marketplace
    (list_offers)
