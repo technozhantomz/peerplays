@@ -191,17 +191,6 @@ struct worker_vote_delta
    flat_set<worker_id_type> vote_abstain;
 };
 
-struct signed_block_with_info : public signed_block
-{
-   signed_block_with_info();
-   signed_block_with_info( const signed_block& block );
-   signed_block_with_info( const signed_block_with_info& block ) = default;
-
-   block_id_type block_id;
-   public_key_type signing_key;
-   vector< transaction_id_type > transaction_ids;
-};
-
 struct vesting_balance_object_with_info : public vesting_balance_object
 {
    vesting_balance_object_with_info();
@@ -276,7 +265,12 @@ class wallet_api
        * @param num height of the block to retrieve
        * @returns info about the block, or null if not found
        */
-      optional<signed_block_with_info>    get_block( uint32_t num );
+      optional<signed_block>              get_block( uint32_t num );
+      /** Returns info about a specified block, with some extra info.
+       * @param num height of the block to retrieve
+       * @returns info about the block, or null if not found
+       */
+      optional<signed_block_with_info>    get_block2( uint32_t num );
       /** Get signed blocks
        * @param block_num_from The lowest block number
        * @param block_num_to The highest block number
@@ -2762,9 +2756,6 @@ FC_REFLECT( graphene::wallet::worker_vote_delta,
    (vote_abstain)
 )
 
-FC_REFLECT_DERIVED( graphene::wallet::signed_block_with_info, (graphene::chain::signed_block),
-   (block_id)(signing_key)(transaction_ids) )
-
 FC_REFLECT_DERIVED( graphene::wallet::vesting_balance_object_with_info, (graphene::chain::vesting_balance_object),
    (allowed_withdraw)(allowed_withdraw_time) )
 
@@ -2882,6 +2873,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_account)
         (get_account_id)
         (get_block)
+        (get_block2)
         (get_blocks)
         (get_account_count)
         (get_account_history)

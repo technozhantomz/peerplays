@@ -4549,9 +4549,14 @@ bool wallet_api::copy_wallet_file(string destination_filename)
    return my->copy_wallet_file(destination_filename);
 }
 
-optional<signed_block_with_info> wallet_api::get_block(uint32_t num)
+optional<signed_block> wallet_api::get_block(uint32_t num)
 {
    return my->_remote_db->get_block(num);
+}
+
+optional<signed_block_with_info> wallet_api::get_block2(uint32_t num)
+{
+   return my->_remote_db->get_block2(num);
 }
 
 vector<optional<signed_block>> wallet_api::get_blocks(uint32_t block_num_from, uint32_t block_num_to) const
@@ -7289,10 +7294,6 @@ vector<account_role_object> wallet_api::get_account_roles_by_owner(string owner_
    account_object owner_account = my->get_account(owner_account_id_or_name);
    return my->_remote_db->get_account_roles_by_owner(owner_account.id);
 }
-// default ctor necessary for FC_REFLECT
-signed_block_with_info::signed_block_with_info()
-{
-}
 
 order_book wallet_api::get_order_book( const string& base, const string& quote, unsigned limit )
 {
@@ -7357,17 +7358,6 @@ optional<asset> wallet_api::estimate_withdrawal_transaction_fee(sidechain_type s
 std::string wallet_api::eth_estimate_withdrawal_transaction_fee() const
 {
    return my->eth_estimate_withdrawal_transaction_fee();
-}
-
-// default ctor necessary for FC_REFLECT
-signed_block_with_info::signed_block_with_info( const signed_block& block )
-   : signed_block( block )
-{
-   block_id = id();
-   signing_key = signee();
-   transaction_ids.reserve( transactions.size() );
-   for( const processed_transaction& tx : transactions )
-      transaction_ids.push_back( tx.id() );
 }
 
 vesting_balance_object_with_info::vesting_balance_object_with_info()
