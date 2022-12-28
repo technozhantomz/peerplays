@@ -208,7 +208,7 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
 
            if (itr->statuses.at(sidechain) == son_status::in_maintenance) {
               db().modify(itr->statistics(db()), [&](son_statistics_object &sso) {
-                 sso.current_interval_downtime[sidechain] += op.ts.sec_since_epoch() - sso.last_down_timestamp.at(sidechain).sec_since_epoch();
+                 sso.current_interval_downtime[sidechain] += op.ts.sec_since_epoch() - (sso.last_down_timestamp.contains(sidechain) ? sso.last_down_timestamp.at(sidechain).sec_since_epoch() : op.ts.sec_since_epoch());
                  sso.last_active_timestamp[sidechain] = op.ts;
               });
 
@@ -245,7 +245,8 @@ void_result son_report_down_evaluator::do_evaluate(const son_report_down_operati
     }
     FC_ASSERT(status_need_to_report_down, "Inactive/Deregistered/in_maintenance SONs cannot be reported on as down");
     for(const auto& active_sidechain_type : active_sidechain_types) {
-      FC_ASSERT(op.down_ts >= stats.last_active_timestamp.at(active_sidechain_type), "sidechain = ${sidechain} down_ts should be greater than last_active_timestamp", ("sidechain", active_sidechain_type));
+      if(stats.last_active_timestamp.contains(active_sidechain_type))
+         FC_ASSERT(op.down_ts >= stats.last_active_timestamp.at(active_sidechain_type), "sidechain = ${sidechain} down_ts should be greater than last_active_timestamp", ("sidechain", active_sidechain_type));
     }
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

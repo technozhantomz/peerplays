@@ -398,14 +398,14 @@ bool peerplays_sidechain_plugin_impl::is_son_down_op_valid(const chain::operatio
    const chain::global_property_object &gpo = d.get_global_properties();
    const chain::dynamic_global_property_object &dgpo = d.get_dynamic_global_properties();
    const auto &idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
-   son_report_down_operation down_op = op.get<son_report_down_operation>();
-   auto son_obj = idx.find(down_op.son_id);
+   const son_report_down_operation down_op = op.get<son_report_down_operation>();
+   const auto son_obj = idx.find(down_op.son_id);
    if (son_obj == idx.end()) {
       return false;
    }
-   auto stats = son_obj->statistics(d);
-   fc::time_point_sec last_maintenance_time = dgpo.next_maintenance_time - gpo.parameters.maintenance_interval;
-   int64_t down_threshold = gpo.parameters.son_down_time();
+   const auto stats = son_obj->statistics(d);
+   const fc::time_point_sec last_maintenance_time = dgpo.next_maintenance_time - gpo.parameters.maintenance_interval;
+   const int64_t down_threshold = gpo.parameters.son_down_time();
 
    bool status_son_down_op_valid = true;
    for (const auto &status : son_obj->statuses) {
@@ -414,9 +414,11 @@ bool peerplays_sidechain_plugin_impl::is_son_down_op_valid(const chain::operatio
    }
    if (status_son_down_op_valid) {
       for (const auto &active_sidechain_type : active_sidechain_types) {
-         fc::time_point_sec last_active_ts = ((stats.last_active_timestamp.at(active_sidechain_type) > last_maintenance_time) ? stats.last_active_timestamp.at(active_sidechain_type) : last_maintenance_time);
-         if (((fc::time_point::now() - last_active_ts) <= fc::seconds(down_threshold))) {
-            status_son_down_op_valid = false;
+         if (stats.last_active_timestamp.contains(active_sidechain_type)) {
+            const fc::time_point_sec last_active_ts = ((stats.last_active_timestamp.at(active_sidechain_type) > last_maintenance_time) ? stats.last_active_timestamp.at(active_sidechain_type) : last_maintenance_time);
+            if (((fc::time_point::now() - last_active_ts) <= fc::seconds(down_threshold))) {
+               status_son_down_op_valid = false;
+            }
          }
       }
    }
@@ -705,7 +707,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals(sidechain_type s
       proposal_create_operation proposal_op;
       proposal_op.fee_paying_account = get_current_son_object(sidechain).son_account;
       proposal_op.proposed_ops.emplace_back(op_wrapper(son_down_op));
-      uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
+      const uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
       proposal_op.expiration_time = time_point_sec(d.head_block_time().sec_since_epoch() + lifetime);
       return proposal_op;
    };
@@ -714,19 +716,27 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals(sidechain_type s
    const chain::global_property_object &gpo = d.get_global_properties();
    const chain::dynamic_global_property_object &dgpo = d.get_dynamic_global_properties();
    const auto &idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
-   std::set<son_id_type> sons_being_reported_down = d.get_sons_being_reported_down();
-   chain::son_id_type my_son_id = get_current_son_id(sidechain);
+   const std::set<son_id_type> sons_being_reported_down = d.get_sons_being_reported_down();
+   const chain::son_id_type my_son_id = get_current_son_id(sidechain);
 
    //! Fixme - check this part of the code
    for (auto son_inf : gpo.active_sons.at(sidechain)) {
       if (my_son_id == son_inf.son_id || (sons_being_reported_down.find(son_inf.son_id) != sons_being_reported_down.end())) {
          continue;
       }
-      auto son_obj = idx.find(son_inf.son_id);
-      auto stats = son_obj->statistics(d);
-      fc::time_point_sec last_maintenance_time = dgpo.next_maintenance_time - gpo.parameters.maintenance_interval;
-      fc::time_point_sec last_active_ts = ((stats.last_active_timestamp.at(sidechain) > last_maintenance_time) ? stats.last_active_timestamp.at(sidechain) : last_maintenance_time);
-      int64_t down_threshold = gpo.parameters.son_down_time();
+
+      const auto son_obj = idx.find(son_inf.son_id);
+      const auto stats = son_obj->statistics(d);
+      const fc::time_point_sec last_maintenance_time = dgpo.next_maintenance_time - gpo.parameters.maintenance_interval;
+      const fc::time_point_sec last_active_ts = [&stats, &sidechain, &last_maintenance_time] {
+         fc::time_point_sec last_active_ts;
+         if (stats.last_active_timestamp.contains(sidechain)) {
+            last_active_ts = (stats.last_active_timestamp.at(sidechain) > last_maintenance_time) ? stats.last_active_timestamp.at(sidechain) : last_maintenance_time;
+         } else
+            last_active_ts = last_maintenance_time;
+         return last_active_ts;
+      }();
+      const int64_t down_threshold = gpo.parameters.son_down_time();
 
       bool status_son_down_valid = true;
       for (const auto &status : son_obj->statuses) {
@@ -756,7 +766,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals(sidechain_type s
 }
 
 void peerplays_sidechain_plugin_impl::create_son_deregister_proposals(sidechain_type sidechain) {
-   const std::lock_guard<std::mutex> lck{access_son_down_prop_mutex};
+   const std::lock_guard<std::mutex> lck{access_son_deregister_prop_mutex};
    chain::database &d = plugin.database();
    std::set<son_id_type> sons_to_be_dereg = d.get_sons_to_be_deregistered();
    chain::son_id_type my_son_id = get_current_son_id(sidechain);
