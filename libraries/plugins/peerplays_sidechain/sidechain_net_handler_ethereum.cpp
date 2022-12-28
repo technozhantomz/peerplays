@@ -121,6 +121,10 @@ std::string ethereum_rpc_client::eth_get_transaction_receipt(const std::string &
    return send_post_request("eth_getTransactionReceipt", "[\"" + params + "\"]", debug_rpc_calls);
 }
 
+std::string ethereum_rpc_client::eth_get_transaction_by_hash(const std::string &params) {
+   return send_post_request("eth_getTransactionByHash", "[\"" + params + "\"]", debug_rpc_calls);
+}
+
 sidechain_net_handler_ethereum::sidechain_net_handler_ethereum(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
       sidechain_net_handler(_plugin, options) {
    sidechain = sidechain_type::ethereum;
@@ -213,13 +217,13 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
    case chain::operation::tag<chain::son_wallet_update_operation>::value: {
       bool address_ok = false;
       bool transaction_ok = false;
-      son_wallet_id_type swo_id = op_obj_idx_0.get<son_wallet_update_operation>().son_wallet_id;
+      const son_wallet_id_type swo_id = op_obj_idx_0.get<son_wallet_update_operation>().son_wallet_id;
       const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
       const auto swo = idx.find(swo_id);
       if (swo != idx.end()) {
 
-         auto active_sons = gpo.active_sons.at(sidechain);
-         vector<son_info> wallet_sons = swo->sons.at(sidechain);
+         const auto active_sons = gpo.active_sons.at(sidechain);
+         const vector<son_info> wallet_sons = swo->sons.at(sidechain);
 
          bool son_sets_equal = (active_sons.size() == wallet_sons.size());
 
@@ -234,8 +238,8 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
          }
 
          if (po.proposed_transaction.operations.size() >= 2) {
-            object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
-            std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
+            const object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
+            const std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
             const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
             const auto st = st_idx.find(object_id);
@@ -265,64 +269,45 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
 
    case chain::operation::tag<chain::son_wallet_deposit_process_operation>::value: {
       bool process_ok = false;
-      son_wallet_deposit_id_type swdo_id = op_obj_idx_0.get<son_wallet_deposit_process_operation>().son_wallet_deposit_id;
+      const son_wallet_deposit_id_type swdo_id = op_obj_idx_0.get<son_wallet_deposit_process_operation>().son_wallet_deposit_id;
       const auto &idx = database.get_index_type<son_wallet_deposit_index>().indices().get<by_id>();
       const auto swdo = idx.find(swdo_id);
       if (swdo != idx.end()) {
 
-         //std::string swdo_txid = swdo->sidechain_transaction_id;
-         //std::string swdo_sidechain_from = swdo->sidechain_from;
-         //std::string swdo_sidechain_currency = swdo->sidechain_currency;
-         //uint64_t swdo_sidechain_amount = swdo->sidechain_amount.value;
-         //uint64_t swdo_op_idx = std::stoll(swdo->sidechain_uid.substr(swdo->sidechain_uid.find_last_of("-")));
-         //
-         //std::string tx_str = rpc_client->account_history_api_get_transaction(swdo_txid);
-         //if (tx_str != "") {
-         //
-         //   std::stringstream ss_tx(tx_str);
-         //   boost::property_tree::ptree tx;
-         //   boost::property_tree::read_json(ss_tx, tx);
-         //
-         //   uint64_t op_idx = -1;
-         //   for (const auto &ops : tx.get_child("result.operations")) {
-         //      const auto &op = ops.second;
-         //      op_idx = op_idx + 1;
-         //      if (op_idx == swdo_op_idx) {
-         //         std::string operation_type = op.get<std::string>("type");
-         //
-         //         if (operation_type == "transfer_operation") {
-         //            const auto &op_value = op.get_child("value");
-         //
-         //            std::string sidechain_from = op_value.get<std::string>("from");
-         //
-         //            const auto &amount_child = op_value.get_child("amount");
-         //
-         //            uint64_t amount = amount_child.get<uint64_t>("amount");
-         //            std::string nai = amount_child.get<std::string>("nai");
-         //            std::string sidechain_currency = "";
-         //            if ((nai == "@@000000013" /*?? HBD*/) || (nai == "@@000000013" /*TBD*/)) {
-         //               sidechain_currency = "HBD";
-         //            }
-         //            if ((nai == "@@000000021") /*?? HIVE*/ || (nai == "@@000000021" /*TESTS*/)) {
-         //               sidechain_currency = "HIVE";
-         //            }
-         //
-         //            std::string memo = op_value.get<std::string>("memo");
-         //            boost::trim(memo);
-         //            if (!memo.empty()) {
-         //               sidechain_from = memo;
-         //            }
-         //
-         //            process_ok = (swdo_sidechain_from == sidechain_from) &&
-         //                         (swdo_sidechain_currency == sidechain_currency) &&
-         //                         (swdo_sidechain_amount == amount);
-         //         }
-         //      }
-         //   }
-         //}
-      }
+         const std::string swdo_txid = swdo->sidechain_transaction_id;
+         const std::string swdo_sidechain_from = swdo->sidechain_from;
+         const std::string swdo_sidechain_currency = swdo->sidechain_currency;
+         const uint64_t swdo_sidechain_amount = swdo->sidechain_amount.value;
 
-      process_ok = true;
+         const std::string tx_str = rpc_client->eth_get_transaction_by_hash(swdo_txid);
+         if (tx_str != "") {
+
+            std::stringstream ss_tx(tx_str);
+            boost::property_tree::ptree tx;
+            boost::property_tree::read_json(ss_tx, tx);
+
+            if (tx.get<std::string>("result") != "null") {
+
+               const std::string sidechain_from = tx.get<std::string>("result.from");
+               const std::string sidechain_to = tx.get<std::string>("result.to");
+               const std::string value_s = tx.get<std::string>("result.value");
+               boost::multiprecision::uint256_t amount(value_s);
+               amount = amount / 100000;
+               amount = amount / 100000;
+               const fc::safe<uint64_t> sidechain_amount = amount;
+
+               std::string cmp_sidechain_to = sidechain_to;
+               std::transform(cmp_sidechain_to.begin(), cmp_sidechain_to.end(), cmp_sidechain_to.begin(), ::toupper);
+               std::string cmp_wallet_contract_address = wallet_contract_address;
+               std::transform(cmp_wallet_contract_address.begin(), cmp_wallet_contract_address.end(), cmp_wallet_contract_address.begin(), ::toupper);
+
+               process_ok = (swdo_sidechain_from == sidechain_from) &&
+                            (cmp_sidechain_to == cmp_wallet_contract_address) &&
+                            (swdo_sidechain_currency == "ETH") &&
+                            (swdo_sidechain_amount == sidechain_amount.value);
+            }
+         }
+      }
 
       should_approve = process_ok;
       break;
@@ -331,23 +316,23 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
    case chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value: {
       bool process_ok = false;
       bool transaction_ok = false;
-      son_wallet_withdraw_id_type swwo_id = op_obj_idx_0.get<son_wallet_withdraw_process_operation>().son_wallet_withdraw_id;
+      const son_wallet_withdraw_id_type swwo_id = op_obj_idx_0.get<son_wallet_withdraw_process_operation>().son_wallet_withdraw_id;
       const auto &idx = database.get_index_type<son_wallet_withdraw_index>().indices().get<by_id>();
       const auto swwo = idx.find(swwo_id);
       if (swwo != idx.end()) {
-         uint32_t swwo_block_num = swwo->block_num;
-         std::string swwo_peerplays_transaction_id = swwo->peerplays_transaction_id;
-         uint32_t swwo_op_idx = std::stoll(swwo->peerplays_uid.substr(swwo->peerplays_uid.find_last_of("-") + 1));
+         const uint32_t swwo_block_num = swwo->block_num;
+         const std::string swwo_peerplays_transaction_id = swwo->peerplays_transaction_id;
+         const uint32_t swwo_op_idx = std::stoll(swwo->peerplays_uid.substr(swwo->peerplays_uid.find_last_of("-") + 1));
 
          const auto &block = database.fetch_block_by_number(swwo_block_num);
 
          for (const auto &tx : block->transactions) {
             if (tx.id().str() == swwo_peerplays_transaction_id) {
-               operation op = tx.operations[swwo_op_idx];
-               transfer_operation t_op = op.get<transfer_operation>();
+               const operation op = tx.operations[swwo_op_idx];
+               const transfer_operation t_op = op.get<transfer_operation>();
 
-               price asset_price = database.get<asset_object>(t_op.amount.asset_id).options.core_exchange_rate;
-               asset peerplays_asset = asset(t_op.amount.amount * asset_price.base.amount / asset_price.quote.amount);
+               const price asset_price = database.get<asset_object>(t_op.amount.asset_id).options.core_exchange_rate;
+               const asset peerplays_asset = asset(t_op.amount.amount * asset_price.base.amount / asset_price.quote.amount);
 
                process_ok = (t_op.to == gpo.parameters.son_account()) &&
                             (swwo->peerplays_from == t_op.from) &&
@@ -356,8 +341,8 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
             }
          }
 
-         object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
-         std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
+         const object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
+         const std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
          const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
          const auto st = st_idx.find(object_id);
@@ -384,9 +369,9 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
 
    case chain::operation::tag<chain::sidechain_transaction_sign_operation>::value: {
       should_approve = true;
-      son_id_type signer = op_obj_idx_0.get<sidechain_transaction_sign_operation>().signer;
-      std::string signature = op_obj_idx_0.get<sidechain_transaction_sign_operation>().signature;
-      sidechain_transaction_id_type sidechain_transaction_id = op_obj_idx_0.get<sidechain_transaction_sign_operation>().sidechain_transaction_id;
+      const son_id_type signer = op_obj_idx_0.get<sidechain_transaction_sign_operation>().signer;
+      const std::string signature = op_obj_idx_0.get<sidechain_transaction_sign_operation>().signature;
+      const sidechain_transaction_id_type sidechain_transaction_id = op_obj_idx_0.get<sidechain_transaction_sign_operation>().sidechain_transaction_id;
       const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_id>();
       const auto sto = st_idx.find(sidechain_transaction_id);
       if (sto == st_idx.end()) {
@@ -497,6 +482,11 @@ void sidechain_net_handler_ethereum::process_sidechain_addresses() {
 }
 
 bool sidechain_net_handler_ethereum::process_deposit(const son_wallet_deposit_object &swdo) {
+
+   if (proposal_exists(chain::operation::tag<chain::son_wallet_deposit_process_operation>::value, swdo.id)) {
+      return false;
+   }
+
    const chain::global_property_object &gpo = database.get_global_properties();
 
    price asset_price = database.get<asset_object>(database.get_global_properties().parameters.eth_asset()).options.core_exchange_rate;

@@ -3135,10 +3135,10 @@ vector<nft_object> database_api_impl::nft_get_tokens_by_owner(const account_id_t
    vector<nft_object> result;
    result.reserve(limit);
    auto itr = std::find_if(idx_nft_range.first, idx_nft_range.second, [&lower_id](const nft_object &obj) {
-         return !(obj.id.instance() < lower_id.instance);
-      });
+      return !(obj.id.instance() < lower_id.instance);
+   });
    while (limit-- && itr != idx_nft_range.second)
-     result.emplace_back(*itr++);
+      result.emplace_back(*itr++);
    return result;
 }
 
@@ -3155,8 +3155,8 @@ vector<nft_metadata_object> database_api_impl::nft_get_metadata_by_owner(const a
    vector<nft_metadata_object> result;
    result.reserve(limit);
    auto itr = std::find_if(idx_nft_range.first, idx_nft_range.second, [&lower_id](const nft_metadata_object &obj) {
-         return !(obj.id.instance() < lower_id.instance);
-      });
+      return !(obj.id.instance() < lower_id.instance);
+   });
    while (limit-- && itr != idx_nft_range.second)
       result.emplace_back(*itr++);
    return result;
