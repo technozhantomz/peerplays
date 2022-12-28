@@ -236,8 +236,10 @@ std::set<son_id_type> database::get_sons_to_be_deregistered()
             // TODO : We need to add a function that returns if we can deregister SON
             // i.e. with introduction of PW code, we have to make a decision if the SON
             // is needed for release of funds from the PW
-            if (head_block_time() - stats.last_active_timestamp.at(sidechain) < fc::seconds(get_global_properties().parameters.son_deregister_time())) {
-               need_to_be_deregistered = false;
+            if(stats.last_active_timestamp.contains(sidechain)) {
+               if (head_block_time() - stats.last_active_timestamp.at(sidechain) < fc::seconds(get_global_properties().parameters.son_deregister_time())) {
+                  need_to_be_deregistered = false;
+               }
             }
          }
       }
@@ -311,9 +313,10 @@ bool database::is_son_dereg_valid( son_id_type son_id )
 
       if(status_son_dereg_valid)
       {
-         if(head_block_time() - son->statistics(*this).last_active_timestamp.at(sidechain) < fc::seconds(get_global_properties().parameters.son_deregister_time()))
-         {
-            status_son_dereg_valid = false;
+         if(son->statistics(*this).last_active_timestamp.contains(sidechain)) {
+            if (head_block_time() - son->statistics(*this).last_active_timestamp.at(sidechain) < fc::seconds(get_global_properties().parameters.son_deregister_time())) {
+               status_son_dereg_valid = false;
+            }
          }
       }
    }
