@@ -191,17 +191,6 @@ struct worker_vote_delta
    flat_set<worker_id_type> vote_abstain;
 };
 
-struct signed_block_with_info : public signed_block
-{
-   signed_block_with_info();
-   signed_block_with_info( const signed_block& block );
-   signed_block_with_info( const signed_block_with_info& block ) = default;
-
-   block_id_type block_id;
-   public_key_type signing_key;
-   vector< transaction_id_type > transaction_ids;
-};
-
 struct vesting_balance_object_with_info : public vesting_balance_object
 {
    vesting_balance_object_with_info();
@@ -276,7 +265,12 @@ class wallet_api
        * @param num height of the block to retrieve
        * @returns info about the block, or null if not found
        */
-      optional<signed_block_with_info>    get_block( uint32_t num );
+      optional<signed_block>              get_block( uint32_t num );
+      /** Returns info about a specified block, with some extra info.
+       * @param num height of the block to retrieve
+       * @returns info about the block, or null if not found
+       */
+      optional<signed_block_with_info>    get_block2( uint32_t num );
       /** Get signed blocks
        * @param block_num_from The lowest block number
        * @param block_num_to The highest block number
@@ -980,13 +974,13 @@ class wallet_api
        *
        *  @return true if the label was set, otherwise false
        */
-      bool                        set_key_label( public_key_type, string label );
+      bool                        set_key_label( public_key_type key, string label );
 
       /** Get label of a public key.
        * @param key a public key
        * @return the label if already set by \c set_key_label(), or an empty string if not set
        */
-      string                      get_key_label( public_key_type )const;
+      string                      get_key_label( public_key_type key )const;
 
       /* Get the public key associated with a given label.
        * @param label a label
@@ -2571,9 +2565,29 @@ class wallet_api
 
       /**
        * @brief Returns all tokens
+       * @param limit the maximum number of NFT objects to return (max: 100)
+       * @param lower_id ID of the first NFT object to include in the list.
        * @return Returns vector of NFT objects, empty vector if none
        */
-      vector<nft_object> nft_get_all_tokens() const;
+      vector<nft_object> nft_get_all_tokens(uint32_t limit, optional<nft_id_type> lower_id) const;
+
+      /**
+       * @brief Returns all tokens owned by owner
+       * @param owner NFT owner account ID
+       * @param limit the maximum number of NFT objects to return (max: 100)
+       * @param lower_id ID of the first NFT object to include in the list.
+       * @return Returns vector of NFT objects, empty vector if none
+       */
+      vector<nft_object> nft_get_tokens_by_owner(account_id_type owner, uint32_t limit, optional<nft_id_type> lower_id) const;
+
+      /**
+       * @brief Returns all NFT metadata objects owned by owner
+       * @param owner NFT owner account ID
+       * @param limit the maximum number of NFT metadata objects to return (max: 100)
+       * @param lower_id ID of the first NFT metadata object to include in the list.
+       * @return Returns vector of NFT metadata objects, empty vector if none
+       */
+      vector<nft_metadata_object> nft_get_metadata_by_owner(account_id_type owner, uint32_t limit, optional<nft_metadata_id_type> lower_id) const;
       signed_transaction nft_lottery_buy_ticket( nft_metadata_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy, bool broadcast );
 
       signed_transaction create_offer(set<nft_id_type> item_ids,
@@ -2742,9 +2756,6 @@ FC_REFLECT( graphene::wallet::worker_vote_delta,
    (vote_abstain)
 )
 
-FC_REFLECT_DERIVED( graphene::wallet::signed_block_with_info, (graphene::chain::signed_block),
-   (block_id)(signing_key)(transaction_ids) )
-
 FC_REFLECT_DERIVED( graphene::wallet::vesting_balance_object_with_info, (graphene::chain::vesting_balance_object),
    (allowed_withdraw)(allowed_withdraw_time) )
 
@@ -2862,6 +2873,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_account)
         (get_account_id)
         (get_block)
+        (get_block2)
         (get_blocks)
         (get_account_count)
         (get_account_history)
@@ -2943,6 +2955,8 @@ FC_API( graphene::wallet::wallet_api,
         (nft_get_approved)
         (nft_is_approved_for_all)
         (nft_get_all_tokens)
+        (nft_get_tokens_by_owner)
+        (nft_get_metadata_by_owner)
         (nft_lottery_buy_ticket)
         (create_offer)
         (create_bid)

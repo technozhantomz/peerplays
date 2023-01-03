@@ -34,6 +34,7 @@ public:
    std::string eth_send_transaction(const std::string &params);
    std::string eth_send_raw_transaction(const std::string &params);
    std::string eth_get_transaction_receipt(const std::string &params);
+   std::string eth_get_transaction_by_hash(const std::string &params);
 };
 
 class sidechain_net_handler_ethereum : public sidechain_net_handler {

@@ -49,4 +49,24 @@ std::string remove_0x(const std::string &s) {
    return s;
 }
 
+std::string add_leading_00(const std::string &s) {
+   std::string result = s;
+
+   while (result.size() < 64) {
+      result = "00" + result;
+   }
+
+   return result;
+}
+
+std::string remove_leading_00(const std::string &s) {
+   std::string result = s;
+
+   while (result.size() > 1 && result.substr(0, 2) == "00") {
+      result = result.substr(2);
+   }
+
+   return result;
+}
+
 }}} // namespace graphene::peerplays_sidechain::ethereum

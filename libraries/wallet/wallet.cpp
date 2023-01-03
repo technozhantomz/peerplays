@@ -3349,7 +3349,7 @@ public:
 
          if(transaction_fee) {
             if (*transaction_fee >= xfer_op.amount) {
-               FC_THROW("Transaction fee: ${sidechain_fee}, would be grater than transfer amount ${amount}",
+               FC_THROW("Transaction fee: ${sidechain_fee}, is greater than or equal to the transferred amount ${amount}",
                         ("sidechain_fee", get_asset(transaction_fee->asset_id).amount_to_pretty_string(transaction_fee->amount))("amount", get_asset(xfer_op.amount.asset_id).amount_to_pretty_string(xfer_op.amount.amount)));
             }
          }
@@ -4549,9 +4549,14 @@ bool wallet_api::copy_wallet_file(string destination_filename)
    return my->copy_wallet_file(destination_filename);
 }
 
-optional<signed_block_with_info> wallet_api::get_block(uint32_t num)
+optional<signed_block> wallet_api::get_block(uint32_t num)
 {
    return my->_remote_db->get_block(num);
+}
+
+optional<signed_block_with_info> wallet_api::get_block2(uint32_t num)
+{
+   return my->_remote_db->get_block2(num);
 }
 
 vector<optional<signed_block>> wallet_api::get_blocks(uint32_t block_num_from, uint32_t block_num_to) const
@@ -7027,9 +7032,28 @@ bool wallet_api::nft_is_approved_for_all(string owner_account_id_or_name, string
    return my->_remote_db->nft_is_approved_for_all(owner_account.id, operator_account.id);
 }
 
-vector<nft_object> wallet_api::nft_get_all_tokens() const
+vector<nft_object> wallet_api::nft_get_all_tokens(uint32_t limit, optional<nft_id_type> lower_id) const
 {
-   return my->_remote_db->nft_get_all_tokens();
+   nft_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->nft_get_all_tokens(lb_id, limit);
+}
+
+vector<nft_object> wallet_api::nft_get_tokens_by_owner(account_id_type owner, uint32_t limit, optional<nft_id_type> lower_id) const
+{
+   nft_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->nft_get_tokens_by_owner(owner, lb_id, limit);
+}
+
+vector<nft_metadata_object> wallet_api::nft_get_metadata_by_owner(account_id_type owner, uint32_t limit, optional<nft_metadata_id_type> lower_id) const
+{
+   nft_metadata_id_type lb_id;
+   if(lower_id)
+      lb_id = *lower_id;
+   return my->_remote_db->nft_get_metadata_by_owner(owner, lb_id, limit);
 }
 
 signed_transaction wallet_api::nft_lottery_buy_ticket( nft_metadata_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy, bool broadcast )
@@ -7270,10 +7294,6 @@ vector<account_role_object> wallet_api::get_account_roles_by_owner(string owner_
    account_object owner_account = my->get_account(owner_account_id_or_name);
    return my->_remote_db->get_account_roles_by_owner(owner_account.id);
 }
-// default ctor necessary for FC_REFLECT
-signed_block_with_info::signed_block_with_info()
-{
-}
 
 order_book wallet_api::get_order_book( const string& base, const string& quote, unsigned limit )
 {
@@ -7338,17 +7358,6 @@ optional<asset> wallet_api::estimate_withdrawal_transaction_fee(sidechain_type s
 std::string wallet_api::eth_estimate_withdrawal_transaction_fee() const
 {
    return my->eth_estimate_withdrawal_transaction_fee();
-}
-
-// default ctor necessary for FC_REFLECT
-signed_block_with_info::signed_block_with_info( const signed_block& block )
-   : signed_block( block )
-{
-   block_id = id();
-   signing_key = signee();
-   transaction_ids.reserve( transactions.size() );
-   for( const processed_transaction& tx : transactions )
-      transaction_ids.push_back( tx.id() );
 }
 
 vesting_balance_object_with_info::vesting_balance_object_with_info()

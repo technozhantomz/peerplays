@@ -4,7 +4,17 @@
 #include <string>
 #include <vector>
 
+#include <graphene/peerplays_sidechain/ethereum/types.hpp>
+
 namespace graphene { namespace peerplays_sidechain { namespace ethereum {
+
+const std::string update_owners_function_signature = "9d608673"; //! updateOwners((bytes,(uint8,bytes32,bytes32))[])
+const std::string withdrawal_function_signature = "daac6c81";    //! withdraw((bytes,(uint8,bytes32,bytes32))[])
+
+struct encoded_sign_transaction {
+   std::string data;
+   signature sign;
+};
 
 class base_encoder {
 public:
@@ -15,16 +25,27 @@ public:
 
 class update_owners_encoder {
 public:
-   const std::string function_signature = "23ab6adf"; //! updateOwners((address,uint256)[],string)
+   static const std::string function_signature;
 
-   std::string encode(const std::vector<std::pair<std::string, uint16_t>> &owners_weights, const std::string &object_id) const;
+   static std::string encode(const std::vector<std::pair<std::string, uint16_t>> &owners_weights, const std::string &object_id);
 };
 
 class withdrawal_encoder {
 public:
-   const std::string function_signature = "e088747b"; //! withdraw(address,uint256,string)
+   static const std::string function_signature;
 
-   std::string encode(const std::string &to, boost::multiprecision::uint256_t amount, const std::string &object_id) const;
+   static std::string encode(const std::string &to, boost::multiprecision::uint256_t amount, const std::string &object_id);
+};
+
+class signature_encoder {
+public:
+   const std::string function_signature;
+
+   signature_encoder(const std::string &function_hash);
+
+   static std::string get_function_signature_from_transaction(const std::string &transaction);
+
+   std::string encode(const std::vector<encoded_sign_transaction> &transactions) const;
 };
 
 class rlp_encoder {
@@ -38,36 +59,5 @@ private:
    static int char2int(char input);
    static void hex2bin(const char *src, char *target);
 };
-
-/*class ethereum_function_call_encoder {
-public:
-   enum operation_t {
-      OPERATION_CALL,
-      OPERATION_DELEGATE_CALL
-   };
-
-   static constexpr const char *const default_prev_addr = "0000000000000000000000000000000000000001";
-
-   std::string encode_function_signature(const std::string &function_signature);
-   std::string encode_address(const std::string &addr);
-   std::string encode_uint256(const std::string &value);
-   std::string encode_uint8(uint8_t value);
-   std::string encode_bytes(const std::string &values);
-};
-
-class safe_transaction_encoder {
-public:
-   static constexpr const char *const default_safe_tx_gas = "0";
-   static constexpr const char *const default_data_gas = "0";
-   static constexpr const char *const default_gas_price = "0";
-   static constexpr const char *const default_gas_token = "0000000000000000000000000000000000000000";
-   static constexpr const char *const default_refund_receiver = "0000000000000000000000000000000000000000";
-
-   std::string create_safe_address(const std::vector<std::string> &owner_addresses, uint32_t threshold);
-   std::string build_transaction(const std::string &safe_account_addr, const std::string &value, const std::string &data, uint8_t operation, const std::string &safeTxGas, const std::string &dataGas, const std::string &gasPrice, const std::string &gasToken, const std::string &refundReceiver);
-
-private:
-   ethereum_function_call_encoder m_ethereum_function_call_encoder;
-};*/
 
 }}} // namespace graphene::peerplays_sidechain::ethereum

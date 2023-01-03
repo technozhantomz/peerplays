@@ -310,7 +310,10 @@ void database::update_son_metrics(const flat_map<sidechain_type, vector<son_info
             if (is_active_son) {
                _stats.total_voted_time[sidechain] = _stats.total_voted_time[sidechain] + get_global_properties().parameters.maintenance_interval;
             }
-            _stats.total_downtime[sidechain] += _stats.current_interval_downtime[sidechain];
+            if(!_stats.current_interval_downtime.contains(sidechain))
+               _stats.current_interval_downtime[sidechain] = 0;
+
+            _stats.total_downtime[sidechain] += _stats.current_interval_downtime.at(sidechain);
             _stats.current_interval_downtime[sidechain] = 0;
             _stats.sidechain_txs_reported[sidechain] = 0;
          });
