@@ -190,22 +190,25 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
    //                                  (sed.sidechain_currency.compare("HIVE") != 0);
 #endif
 
-   bool deposit_condition = (sed.peerplays_to == gpo.parameters.son_account()) &&
-                            (((sed.sidechain == sidechain_type::bitcoin) && (sed.sidechain_currency.compare("BTC") == 0)) ||
-                             ((sed.sidechain == sidechain_type::ethereum) && (sed.sidechain_currency.compare("ETH") == 0)) ||
-                             ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("HBD") == 0)) ||
-                             ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("HIVE") == 0)) ||
-                             enable_peerplays_asset_deposits);
+   const bool deposit_condition = (sed.peerplays_to == gpo.parameters.son_account()) &&
+                                  (sed.sidechain == sidechain) &&
+                                  (sed.type == sidechain_event_type::deposit) &&
+                                  (((sed.sidechain == sidechain_type::bitcoin) && (sed.sidechain_currency.compare("BTC") == 0)) ||
+                                   ((sed.sidechain == sidechain_type::ethereum) && (!sed.sidechain_currency.empty())) ||
+                                   ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("HBD") == 0)) ||
+                                   ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("HIVE") == 0)) ||
+                                   enable_peerplays_asset_deposits);
 
-   bool withdraw_condition = (sed.peerplays_to == gpo.parameters.son_account()) && (sed.sidechain == sidechain) && //! Fixme -> sidechain_type::peerplays
-                             ((sed.sidechain_currency == object_id_to_string(gpo.parameters.btc_asset())) ||
-                              (sed.sidechain_currency == object_id_to_string(gpo.parameters.eth_asset())) ||
-                              (sed.sidechain_currency == object_id_to_string(gpo.parameters.hbd_asset())) ||
-                              (sed.sidechain_currency == object_id_to_string(gpo.parameters.hive_asset())));
+   const bool withdraw_condition = (sed.peerplays_to == gpo.parameters.son_account()) &&
+                                   (sed.sidechain == sidechain) &&
+                                   (sed.type == sidechain_event_type::withdrawal) &&
+                                   (((sed.sidechain == sidechain_type::bitcoin) && (sed.sidechain_currency == object_id_to_string(gpo.parameters.btc_asset()))) ||
+                                    ((sed.sidechain == sidechain_type::ethereum) && (!sed.sidechain_currency.empty())) ||
+                                    ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency == object_id_to_string(gpo.parameters.hbd_asset()))) ||
+                                    ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency == object_id_to_string(gpo.parameters.hive_asset()))));
 
    // Deposit request
    if (deposit_condition) {
-
       for (son_id_type son_id : plugin.get_sons()) {
          if (plugin.is_active_son(sidechain, son_id)) {
 
@@ -269,7 +272,17 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
          withdraw_currency_price = database.get<asset_object>(database.get_global_properties().parameters.hive_asset()).options.core_exchange_rate;
       }
       if (withdraw_currency.empty()) {
-         return;
+         //! This is ERC-20 withdrawal
+         const auto asset_object_id = string_to_object_id(sed.sidechain_currency);
+         const auto &assets_by_id = database.get_index_type<asset_index>().indices().get<by_id>();
+         const auto asset_itr = assets_by_id.find(asset_object_id);
+         if (asset_itr == assets_by_id.end()) {
+            wlog("Could not find asset: ${asset_object_id}", ("asset_object_id", asset_object_id));
+            return;
+         }
+
+         withdraw_currency = asset_itr->symbol;
+         withdraw_currency_price = asset_itr->options.core_exchange_rate;
       }
 
       for (son_id_type son_id : plugin.get_sons()) {
@@ -663,9 +676,10 @@ void sidechain_net_handler::on_applied_block(const signed_block &b) {
                continue;
             }
 
-            bool is_tracked_asset =
+            const bool is_tracked_asset =
                   ((sidechain == sidechain_type::bitcoin) && (transfer_op.amount.asset_id == gpo.parameters.btc_asset())) ||
                   ((sidechain == sidechain_type::ethereum) && (transfer_op.amount.asset_id == gpo.parameters.eth_asset())) ||
+                  (sidechain == sidechain_type::ethereum) ||
                   ((sidechain == sidechain_type::hive) && (transfer_op.amount.asset_id == gpo.parameters.hbd_asset())) ||
                   ((sidechain == sidechain_type::hive) && (transfer_op.amount.asset_id == gpo.parameters.hive_asset()));
 
@@ -691,7 +705,8 @@ void sidechain_net_handler::on_applied_block(const signed_block &b) {
             sidechain_event_data sed;
             sed.timestamp = database.head_block_time();
             sed.block_num = database.head_block_num();
-            sed.sidechain = sidechain; //! Fixme -> sidechain_type::peerplays
+            sed.sidechain = sidechain;
+            sed.type = sidechain_event_type::withdrawal;
             sed.sidechain_uid = sidechain_uid;
             sed.sidechain_transaction_id = trx.id().str();
             sed.sidechain_from = sidechain_from;

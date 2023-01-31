@@ -28,7 +28,7 @@ std::string base_encoder::encode_string(const std::string &value) {
 //! update_owners_encoder
 const std::string update_owners_encoder::function_signature = "23ab6adf"; //! updateOwners((address,uint256)[],string)
 std::string update_owners_encoder::encode(const std::vector<std::pair<std::string, uint16_t>> &owners_weights, const std::string &object_id) {
-   std::string data = "0x" + function_signature;
+   std::string data = add_0x(function_signature);
    data += base_encoder::encode_uint256(64);
    data += base_encoder::encode_uint256((owners_weights.size() * 2 + 3) * 32);
    data += base_encoder::encode_uint256(owners_weights.size());
@@ -44,7 +44,7 @@ std::string update_owners_encoder::encode(const std::vector<std::pair<std::strin
 //! withdrawal_encoder
 const std::string withdrawal_encoder::function_signature = "e088747b"; //! withdraw(address,uint256,string)
 std::string withdrawal_encoder::encode(const std::string &to, boost::multiprecision::uint256_t amount, const std::string &object_id) {
-   std::string data = "0x" + function_signature;
+   std::string data = add_0x(function_signature);
    data += base_encoder::encode_address(to);
    data += base_encoder::encode_uint256(amount);
    data += base_encoder::encode_uint256(32 * 3);
@@ -53,7 +53,23 @@ std::string withdrawal_encoder::encode(const std::string &to, boost::multiprecis
    return data;
 }
 
+//! withdrawal_erc20_encoder
+const std::string withdrawal_erc20_encoder::function_signature = "483c0467"; //! withdrawERC20(address,address,uint256,string)
+std::string withdrawal_erc20_encoder::encode(const std::string &token, const std::string &to, boost::multiprecision::uint256_t amount, const std::string &object_id) {
+   std::string data = add_0x(function_signature);
+   data += base_encoder::encode_address(token);
+   data += base_encoder::encode_address(to);
+   data += base_encoder::encode_uint256(amount);
+   data += base_encoder::encode_uint256(32 * 4);
+   data += base_encoder::encode_string(object_id);
+
+   return data;
+}
+
 //! signature_encoder
+const std::string update_owners_function_signature = "9d608673";    //! updateOwners((bytes,(uint8,bytes32,bytes32))[])
+const std::string withdrawal_function_signature = "daac6c81";       //! withdraw((bytes,(uint8,bytes32,bytes32))[])
+const std::string withdrawal_erc20_function_signature = "d2bf2866"; //! withdrawERC20((bytes,(uint8,bytes32,bytes32))[])
 signature_encoder::signature_encoder(const std::string &function_hash) :
       function_signature{function_hash} {
 }
@@ -66,11 +82,14 @@ std::string signature_encoder::get_function_signature_from_transaction(const std
    if (tr.substr(0, 8) == withdrawal_encoder::function_signature)
       return withdrawal_function_signature;
 
+   if (tr.substr(0, 8) == withdrawal_erc20_encoder::function_signature)
+      return withdrawal_erc20_function_signature;
+
    return "";
 }
 
 std::string signature_encoder::encode(const std::vector<encoded_sign_transaction> &transactions) const {
-   std::string data = "0x" + function_signature;
+   std::string data = add_0x(function_signature);
    data += base_encoder::encode_uint256(32);
    data += base_encoder::encode_uint256(transactions.size());
    size_t offset = (transactions.size()) * 32;

@@ -192,6 +192,8 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("ethereum-node-rpc-user", bpo::value<string>(), "Ethereum RPC user");
    cli.add_options()("ethereum-node-rpc-password", bpo::value<string>(), "Ethereum RPC password");
    cli.add_options()("ethereum-wallet-contract-address", bpo::value<string>(), "Ethereum wallet contract address");
+   cli.add_options()("erc-20-address", bpo::value<vector<string>>()->composing()->multitoken(),
+                     "Tuple of [ERC-20 symbol, ERC-20 address] (may specify multiple times)");
    cli.add_options()("ethereum-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("5fbbb31be52608d2f52247e8400b7fcaa9e0bc12", "9bedac2bd8fe2a6f6528e066c67fc8ac0622e96828d40c0e820d83c5bd2b0589")),
                      "Tuple of [Ethereum public key, Ethereum private key] (may specify multiple times)");
 
@@ -630,6 +632,11 @@ std::map<sidechain_type, std::vector<std::string>> peerplays_sidechain_plugin_im
 }
 
 optional<asset> peerplays_sidechain_plugin_impl::estimate_withdrawal_transaction_fee(sidechain_type sidechain) {
+   if (net_handlers.count(sidechain) == 0) {
+      wlog("No net handler for sidechain: ${sidechain}", ("sidechain", sidechain));
+      return optional<asset>();
+   }
+
    if (!net_handlers.at(sidechain)) {
       wlog("Net handler is null for sidechain: ${sidechain}", ("sidechain", sidechain));
       return optional<asset>();

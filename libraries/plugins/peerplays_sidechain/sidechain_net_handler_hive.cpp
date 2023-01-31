@@ -950,6 +950,7 @@ void sidechain_net_handler_hive::handle_event(const std::string &event_data) {
                   sed.timestamp = database.head_block_time();
                   sed.block_num = database.head_block_num();
                   sed.sidechain = sidechain;
+                  sed.type = sidechain_event_type::deposit;
                   sed.sidechain_uid = sidechain_uid;
                   sed.sidechain_transaction_id = transaction_id;
                   sed.sidechain_from = from;

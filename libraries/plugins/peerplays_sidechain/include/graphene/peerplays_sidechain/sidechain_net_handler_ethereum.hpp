@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include <boost/bimap.hpp>
 #include <boost/signals2.hpp>
 
 #include <graphene/peerplays_sidechain/common/rpc_client.hpp>
@@ -53,10 +54,14 @@ public:
    virtual optional<asset> estimate_withdrawal_transaction_fee() const override;
 
 private:
+   using bimap_type = boost::bimap<std::string, std::string>;
+
+private:
    std::string rpc_url;
    std::string rpc_user;
    std::string rpc_password;
    std::string wallet_contract_address;
+   bimap_type erc20_addresses;
 
    ethereum_rpc_client *rpc_client;
 
@@ -64,7 +69,6 @@ private:
    ethereum::network_id_type network_id;
 
    std::string create_primary_wallet_transaction(const std::vector<son_info> &son_pubkeys, const std::string &object_id);
-   std::string create_deposit_transaction(const son_wallet_deposit_object &swdo);
    std::string create_withdrawal_transaction(const son_wallet_withdraw_object &swwo);
 
    std::string sign_transaction(const sidechain_transaction_object &sto);
