@@ -1,9 +1,30 @@
 #pragma once
 
+#include <boost/multiprecision/cpp_int.hpp>
 #include <string>
 #include <vector>
 
+#include <fc/optional.hpp>
+
 namespace graphene { namespace peerplays_sidechain { namespace ethereum {
+
+class base_decoder {
+public:
+   static boost::multiprecision::uint256_t decode_uint256(const std::string &value);
+   static std::string decode_address(const std::string &value);
+};
+
+struct deposit_erc20_transaction {
+   std::string token;
+   boost::multiprecision::uint256_t amount;
+};
+
+class deposit_erc20_decoder {
+public:
+   static const std::string function_signature;
+
+   static fc::optional<deposit_erc20_transaction> decode(const std::string &input);
+};
 
 class rlp_decoder {
 private:

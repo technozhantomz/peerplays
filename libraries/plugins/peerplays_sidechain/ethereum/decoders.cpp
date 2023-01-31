@@ -5,8 +5,51 @@
 
 namespace graphene { namespace peerplays_sidechain { namespace ethereum {
 
-//! rlp_decoder
+//! base_decoder
+boost::multiprecision::uint256_t base_decoder::decode_uint256(const std::string &value) {
+   boost::multiprecision::uint256_t result = 0;
 
+   boost::multiprecision::uint256_t power(1);
+   uint8_t digit;
+   int pos = value.size() - 1;
+   while (pos >= 0) {
+      digit = 0;
+      if ('0' <= value[pos] && value[pos] <= '9') {
+         digit = value[pos] - '0';
+      } else if ('a' <= value[pos] && value[pos] <= 'z') {
+         digit = value[pos] - 'a' + 10;
+      }
+      result += digit * power;
+      pos--;
+      power *= 16;
+   }
+
+   return result;
+}
+
+std::string base_decoder::decode_address(const std::string &value) {
+   return value.substr(24, 40);
+}
+
+//! deposit_erc20_decoder
+const std::string deposit_erc20_decoder::function_signature = "97feb926"; //! depositERC20(address,uint256)
+fc::optional<deposit_erc20_transaction> deposit_erc20_decoder::decode(const std::string &input) {
+   const auto input_without_0x = remove_0x(input);
+   if (function_signature != input_without_0x.substr(0, 8)) {
+      return fc::optional<deposit_erc20_transaction>{};
+   }
+   if (input_without_0x.size() != 136) {
+      return fc::optional<deposit_erc20_transaction>{};
+   }
+
+   deposit_erc20_transaction erc_20;
+   erc_20.token = add_0x(base_decoder::decode_address(input_without_0x.substr(8, 64)));
+   erc_20.amount = base_decoder::decode_uint256(input_without_0x.substr(72, 64));
+
+   return erc_20;
+}
+
+//! rlp_decoder
 namespace {
 const signed char p_util_hexdigit[256] =
       {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,

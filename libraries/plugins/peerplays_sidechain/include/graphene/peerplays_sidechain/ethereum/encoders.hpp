@@ -8,9 +8,6 @@
 
 namespace graphene { namespace peerplays_sidechain { namespace ethereum {
 
-const std::string update_owners_function_signature = "9d608673"; //! updateOwners((bytes,(uint8,bytes32,bytes32))[])
-const std::string withdrawal_function_signature = "daac6c81";    //! withdraw((bytes,(uint8,bytes32,bytes32))[])
-
 struct encoded_sign_transaction {
    std::string data;
    signature sign;
@@ -35,6 +32,13 @@ public:
    static const std::string function_signature;
 
    static std::string encode(const std::string &to, boost::multiprecision::uint256_t amount, const std::string &object_id);
+};
+
+class withdrawal_erc20_encoder {
+public:
+   static const std::string function_signature;
+
+   static std::string encode(const std::string &token, const std::string &to, boost::multiprecision::uint256_t amount, const std::string &object_id);
 };
 
 class signature_encoder {
