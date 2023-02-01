@@ -234,7 +234,8 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
       bool address_ok = false;
       bool transaction_ok = false;
       const son_wallet_id_type swo_id = op_obj_idx_0.get<son_wallet_update_operation>().son_wallet_id;
-      const auto id = (swo_id.instance.value - std::distance(active_sidechain_types.begin(), active_sidechain_types.find(sidechain))) / active_sidechain_types.size();
+      const auto ast = active_sidechain_types(database.head_block_time());
+      const auto id = (swo_id.instance.value - std::distance(ast.begin(), ast.find(sidechain))) / ast.size();
       const son_wallet_id_type op_id{ id };
       const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
       const auto swo = idx.find(op_id);
@@ -257,7 +258,7 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
 
          if (po.proposed_transaction.operations.size() >= 2) {
             const object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
-            const auto id = (object_id.instance() - std::distance(active_sidechain_types.begin(), active_sidechain_types.find(sidechain))) / active_sidechain_types.size();
+            const auto id = (object_id.instance() - std::distance(ast.begin(), ast.find(sidechain))) / ast.size();
             const object_id_type obj_id{ object_id.space(), object_id.type(), id };
             const std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
@@ -456,7 +457,8 @@ void sidechain_net_handler_ethereum::process_primary_wallet() {
       if ((active_sw->addresses.find(sidechain) == active_sw->addresses.end()) ||
           (active_sw->addresses.at(sidechain).empty())) {
 
-         const auto id = active_sw->id.instance() * active_sidechain_types.size() + std::distance(active_sidechain_types.begin(), active_sidechain_types.find(sidechain));
+         const auto ast = active_sidechain_types(database.head_block_time());
+         const auto id = active_sw->id.instance() * ast.size() + std::distance(ast.begin(), ast.find(sidechain));
          const object_id_type op_id{ active_sw->id.space(), active_sw->id.type(), id };
 
          if (proposal_exists(chain::operation::tag<chain::son_wallet_update_operation>::value, op_id)) {
