@@ -20,7 +20,7 @@
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/protocol/son_wallet.hpp>
-#include <graphene/chain/son_info.hpp>
+#include <graphene/chain/son_sidechain_info.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
 #include <graphene/peerplays_sidechain/common/utils.hpp>
 #include <graphene/peerplays_sidechain/hive/asset.hpp>
@@ -213,8 +213,8 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
       const auto swo = idx.find(swo_id);
       if (swo != idx.end()) {
 
-         auto active_sons = gpo.active_sons.at(sidechain);
-         vector<son_info> wallet_sons = swo->sons.at(sidechain);
+         const auto &active_sons = gpo.active_sons.at(sidechain);
+         const auto &wallet_sons = swo->sons.at(sidechain);
 
          bool son_sets_equal = (active_sons.size() == wallet_sons.size());
 
@@ -549,7 +549,7 @@ void sidechain_net_handler_hive::process_primary_wallet() {
          proposal_op.proposed_ops.emplace_back(swu_op);
 
          const auto signers = [this, &prev_sw, &active_sw, &swi] {
-            std::vector<son_info> signers;
+            std::vector<son_sidechain_info> signers;
             //! Check if we don't have any previous set of active SONs use the current one
             if (prev_sw != swi.rend()) {
                if (!prev_sw->sons.at(sidechain).empty())
@@ -568,8 +568,14 @@ void sidechain_net_handler_hive::process_primary_wallet() {
          stc_op.object_id = active_sw->id;
          stc_op.sidechain = sidechain;
          stc_op.transaction = tx_str;
-         stc_op.signers = signers;
-
+         for (const auto &signer : gpo.active_sons.at(sidechain)) {
+            son_info si;
+            si.son_id = signer.son_id;
+            si.weight = signer.weight;
+            si.signing_key = signer.signing_key;
+            si.sidechain_public_keys[sidechain] = signer.public_key;
+            stc_op.signers.emplace_back(std::move(si));
+         }
          proposal_op.proposed_ops.emplace_back(stc_op);
 
          signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
@@ -725,7 +731,14 @@ bool sidechain_net_handler_hive::process_withdrawal(const son_wallet_withdraw_ob
    stc_op.object_id = swwo.id;
    stc_op.sidechain = sidechain;
    stc_op.transaction = tx_str;
-   stc_op.signers = gpo.active_sons.at(sidechain);
+   for (const auto &signer : gpo.active_sons.at(sidechain)) {
+      son_info si;
+      si.son_id = signer.son_id;
+      si.weight = signer.weight;
+      si.signing_key = signer.signing_key;
+      si.sidechain_public_keys[sidechain] = signer.public_key;
+      stc_op.signers.emplace_back(std::move(si));
+   }
    proposal_op.proposed_ops.emplace_back(stc_op);
 
    signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);

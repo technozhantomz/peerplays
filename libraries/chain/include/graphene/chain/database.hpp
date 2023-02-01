@@ -584,14 +584,14 @@ namespace graphene { namespace chain {
          void perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props);
          void update_active_witnesses();
          void update_active_committee_members();
-         void update_son_metrics( const flat_map<sidechain_type, vector<son_info> >& curr_active_sons );
+         void update_son_metrics( const flat_map<sidechain_type, vector<son_sidechain_info> >& curr_active_sons );
          void update_active_sons();
          void remove_son_proposal( const proposal_object& proposal );
          void remove_inactive_son_down_proposals( const vector<son_id_type>& son_ids_to_remove );
          void remove_inactive_son_proposals( const vector<son_id_type>& son_ids_to_remove );
-         void update_son_statuses( const flat_map<sidechain_type, vector<son_info> >& curr_active_sons,
-                                   const flat_map<sidechain_type, vector<son_info> >& new_active_sons );
-         void update_son_wallet( const flat_map<sidechain_type, vector<son_info> >& new_active_sons );
+         void update_son_statuses( const flat_map<sidechain_type, vector<son_sidechain_info> >& curr_active_sons,
+                                   const flat_map<sidechain_type, vector<son_sidechain_info> >& new_active_sons );
+         void update_son_wallet( const flat_map<sidechain_type, vector<son_sidechain_info> >& new_active_sons );
          void update_worker_votes();
 
          public:
@@ -636,7 +636,7 @@ namespace graphene { namespace chain {
          vector<uint64_t>                             _committee_count_histogram_buffer;
          flat_map<sidechain_type, vector<uint64_t> >  _son_count_histogram_buffer = []{
             flat_map<sidechain_type, vector<uint64_t> >  son_count_histogram_buffer;
-            for(const auto& active_sidechain_type : active_sidechain_types){
+            for(const auto& active_sidechain_type : all_sidechain_types){
                son_count_histogram_buffer[active_sidechain_type] = vector<uint64_t>{};
             }
             return son_count_histogram_buffer;

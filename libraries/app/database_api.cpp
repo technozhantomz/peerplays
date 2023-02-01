@@ -196,8 +196,8 @@ public:
    fc::optional<son_object> get_son_by_account(const std::string account_id_or_name) const;
    map<string, son_id_type> lookup_son_accounts(const string &lower_bound_name, uint32_t limit) const;
    uint64_t get_son_count() const;
-   flat_map<sidechain_type, vector<son_info>> get_active_sons();
-   vector<son_info> get_active_sons_by_sidechain(sidechain_type sidechain);
+   flat_map<sidechain_type, vector<son_sidechain_info>> get_active_sons();
+   vector<son_sidechain_info> get_active_sons_by_sidechain(sidechain_type sidechain);
    map<sidechain_type, map<son_id_type, string>> get_son_network_status();
    map<son_id_type, string> get_son_network_status_by_sidechain(sidechain_type sidechain);
 
@@ -1877,22 +1877,22 @@ uint64_t database_api_impl::get_son_count() const {
    return _db.get_index_type<son_index>().indices().size();
 }
 
-flat_map<sidechain_type, vector<son_info>> database_api::get_active_sons() {
+flat_map<sidechain_type, vector<son_sidechain_info>> database_api::get_active_sons() {
    return my->get_active_sons();
 }
 
-flat_map<sidechain_type, vector<son_info>> database_api_impl::get_active_sons() {
+flat_map<sidechain_type, vector<son_sidechain_info>> database_api_impl::get_active_sons() {
    return get_global_properties().active_sons;
 }
 
-vector<son_info> database_api::get_active_sons_by_sidechain(sidechain_type sidechain) {
+vector<son_sidechain_info> database_api::get_active_sons_by_sidechain(sidechain_type sidechain) {
    return my->get_active_sons_by_sidechain(sidechain);
 }
 
-vector<son_info> database_api_impl::get_active_sons_by_sidechain(sidechain_type sidechain) {
+vector<son_sidechain_info> database_api_impl::get_active_sons_by_sidechain(sidechain_type sidechain) {
    const global_property_object &gpo = get_global_properties();
 
-   vector<son_info> result;
+   vector<son_sidechain_info> result;
 
    if (gpo.active_sons.find(sidechain) != gpo.active_sons.end()) {
       result = gpo.active_sons.at(sidechain);
@@ -1908,7 +1908,7 @@ map<sidechain_type, map<son_id_type, string>> database_api::get_son_network_stat
 map<sidechain_type, map<son_id_type, string>> database_api_impl::get_son_network_status() {
    map<sidechain_type, map<son_id_type, string>> result;
 
-   for (auto active_sidechain_type : active_sidechain_types) {
+   for (auto active_sidechain_type : active_sidechain_types(_db.head_block_time())) {
       result[active_sidechain_type] = get_son_network_status_by_sidechain(active_sidechain_type);
    }
 
@@ -2340,7 +2340,9 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
          votes_for_sons[sidechain].reserve(sidechain_ids.size());
          for (const auto &son : sidechain_ids) {
             const auto &son_obj = son.as<son_object>(6);
-            votes_for_sons[sidechain].emplace_back(votes_info_object{son_obj.get_sidechain_vote_id(sidechain), son_obj.id});
+            if(son_obj.get_sidechain_vote_id(sidechain).valid()) {
+               votes_for_sons[sidechain].emplace_back(votes_info_object{*son_obj.get_sidechain_vote_id(sidechain), son_obj.id});
+            }
          }
       }
       result.votes_for_sons = std::move(votes_for_sons);

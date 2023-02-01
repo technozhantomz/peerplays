@@ -68,7 +68,8 @@ private:
    ethereum::chain_id_type chain_id;
    ethereum::network_id_type network_id;
 
-   std::string create_primary_wallet_transaction(const std::vector<son_info> &son_pubkeys, const std::string &object_id);
+   std::string create_primary_wallet_transaction(const std::vector<son_sidechain_info> &son_pubkeys, const std::string &object_id);
+   std::string create_deposit_transaction(const son_wallet_deposit_object &swdo);
    std::string create_withdrawal_transaction(const son_wallet_withdraw_object &swwo);
 
    std::string sign_transaction(const sidechain_transaction_object &sto);

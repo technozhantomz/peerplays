@@ -69,11 +69,13 @@ void verify_account_votes( const database& db, const account_options& options )
    FC_ASSERT( options.num_committee <= chain_params.maximum_committee_count,
               "Voted for more committee members than currently allowed (${c})", ("c", chain_params.maximum_committee_count) );
    FC_ASSERT( chain_params.extensions.value.maximum_son_count.valid() , "Invalid maximum son count" );
-   FC_ASSERT( options.extensions.value.num_son.valid() , "Invalid son number" );
-   for(const auto& num_sons : *options.extensions.value.num_son)
+   if ( options.extensions.value.num_son.valid() )
    {
-      FC_ASSERT( num_sons.second <= *chain_params.extensions.value.maximum_son_count,
-                "Voted for more sons than currently allowed (${c})", ("c", *chain_params.extensions.value.maximum_son_count) );
+      for(const auto& num_sons : *options.extensions.value.num_son)
+      {
+         FC_ASSERT( num_sons.second <= *chain_params.extensions.value.maximum_son_count,
+                   "Voted for more sons than currently allowed (${c})", ("c", *chain_params.extensions.value.maximum_son_count) );
+      }
    }
    FC_ASSERT( db.find_object(options.voting_account), "Invalid proxy account specified." );
 
@@ -188,6 +190,12 @@ object_id_type account_create_evaluator::do_apply( const account_create_operatio
       obj.owner            = o.owner;
       obj.active           = o.active;
       obj.options          = o.options;
+
+      if (!obj.options.extensions.value.num_son.valid())
+      {
+         obj.options.extensions.value = account_options::ext();
+      }
+
       obj.statistics = d.create<account_statistics_object>([&obj](account_statistics_object& s){
                            s.owner = obj.id;
                            s.name = obj.name;

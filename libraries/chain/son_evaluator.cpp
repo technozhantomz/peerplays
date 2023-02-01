@@ -38,20 +38,29 @@ void_result create_son_evaluator::do_evaluate(const son_create_operation& op)
 
 object_id_type create_son_evaluator::do_apply(const son_create_operation& op)
 { try {
-    vote_id_type vote_id_bitcoin;
-    vote_id_type vote_id_hive;
-    vote_id_type vote_id_ethereum;
-    db().modify(db().get_global_properties(), [&vote_id_bitcoin, &vote_id_hive, &vote_id_ethereum](global_property_object& p) {
-        vote_id_bitcoin = get_next_vote_id(p, vote_id_type::son_bitcoin);
-        vote_id_hive = get_next_vote_id(p, vote_id_type::son_hive);
-        vote_id_ethereum = get_next_vote_id(p, vote_id_type::son_ethereum);
-    });
+    vote_id_type vote_id;
+    flat_map<sidechain_type, vote_id_type> vote_ids;
 
-    const auto& new_son_object = db().create<son_object>( [&]( son_object& obj ){
+    const auto now = db().head_block_time();
+    if( now < HARDFORK_SON_FOR_ETHEREUM_TIME ) {
+      db().modify(db().get_global_properties(), [&vote_id](global_property_object &p) {
+         vote_id = get_next_vote_id(p, vote_id_type::son_bitcoin);
+      });
+    }
+    else {
+      db().modify(db().get_global_properties(), [&vote_ids](global_property_object &p) {
+         vote_ids[sidechain_type::bitcoin] = get_next_vote_id(p, vote_id_type::son_bitcoin);
+         vote_ids[sidechain_type::hive] = get_next_vote_id(p, vote_id_type::son_hive);
+         vote_ids[sidechain_type::ethereum] = get_next_vote_id(p, vote_id_type::son_ethereum);
+      });
+    }
+
+    const auto& new_son_object = db().create<son_object>( [&]( son_object& obj ) {
         obj.son_account = op.owner_account;
-        obj.sidechain_vote_ids[sidechain_type::bitcoin] = vote_id_bitcoin;
-        obj.sidechain_vote_ids[sidechain_type::hive] = vote_id_hive;
-        obj.sidechain_vote_ids[sidechain_type::ethereum] = vote_id_ethereum;
+        if( now < HARDFORK_SON_FOR_ETHEREUM_TIME )
+           obj.sidechain_vote_ids[sidechain_type::bitcoin] = vote_id;
+        else
+           obj.sidechain_vote_ids = vote_ids;
         obj.url = op.url;
         obj.deposit = op.deposit;
         obj.signing_key = op.signing_key;
@@ -168,7 +177,7 @@ void_result son_heartbeat_evaluator::do_evaluate(const son_heartbeat_operation& 
     fc::time_point_sec min_ts = db().head_block_time() - fc::seconds(5 * db().block_interval());
     // Account for server ntp sync difference
     fc::time_point_sec max_ts = db().head_block_time() + fc::seconds(5 * db().block_interval());
-    for(const auto& active_sidechain_type : active_sidechain_types) {
+    for(const auto& active_sidechain_type : active_sidechain_types(db().head_block_time())) {
       if(stats.last_active_timestamp.contains(active_sidechain_type))
          FC_ASSERT(op.ts > stats.last_active_timestamp.at(active_sidechain_type), "Heartbeat sent for sidechain = ${sidechain} without waiting minimum time", ("sidechain", active_sidechain_type));
       if(stats.last_down_timestamp.contains(active_sidechain_type))
@@ -195,7 +204,7 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
            active_son_ids.reserve(active_sons.size());
            std::transform(active_sons.cbegin(), active_sons.cend(),
                           std::inserter(active_son_ids, active_son_ids.end()),
-                          [](const son_info &swi) {
+                          [](const son_sidechain_info &swi) {
                              return swi.son_id;
                           });
 
@@ -244,7 +253,7 @@ void_result son_report_down_evaluator::do_evaluate(const son_report_down_operati
           status_need_to_report_down = true;
     }
     FC_ASSERT(status_need_to_report_down, "Inactive/Deregistered/in_maintenance SONs cannot be reported on as down");
-    for(const auto& active_sidechain_type : active_sidechain_types) {
+    for(const auto& active_sidechain_type : active_sidechain_types(db().head_block_time())) {
       if(stats.last_active_timestamp.contains(active_sidechain_type))
          FC_ASSERT(op.down_ts >= stats.last_active_timestamp.at(active_sidechain_type), "sidechain = ${sidechain} down_ts should be greater than last_active_timestamp", ("sidechain", active_sidechain_type));
     }

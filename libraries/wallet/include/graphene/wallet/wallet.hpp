@@ -1559,14 +1559,14 @@ class wallet_api
        * @brief Get list of active sons
        * @return List of active SONs
        */
-      flat_map<sidechain_type, vector<son_info>> get_active_sons();
+      flat_map<sidechain_type, vector<son_sidechain_info>> get_active_sons();
 
       /**
        * @brief Get list of active sons
        * @param sidechain Sidechain type [bitcoin|ethereum|hive]
        * @return List of active SONs
        */
-      vector<son_info> get_active_sons_by_sidechain(sidechain_type sidechain);
+      vector<son_sidechain_info> get_active_sons_by_sidechain(sidechain_type sidechain);
 
       /**
        * @brief Get SON network status

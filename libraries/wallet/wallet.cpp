@@ -2230,12 +2230,12 @@ public:
          return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account) ) }
 
-   flat_map<sidechain_type, vector<son_info>> get_active_sons()
+   flat_map<sidechain_type, vector<son_sidechain_info>> get_active_sons()
    { try {
        return _remote_db->get_active_sons();
    } FC_CAPTURE_AND_RETHROW() }
 
-   vector<son_info> get_active_sons_by_sidechain(sidechain_type sidechain)
+   vector<son_sidechain_info> get_active_sons_by_sidechain(sidechain_type sidechain)
    { try {
        return _remote_db->get_active_sons_by_sidechain(sidechain);
    } FC_CAPTURE_AND_RETHROW() }
@@ -2775,13 +2775,15 @@ public:
 
       if (approve)
       {
-         auto insert_result = voting_account_object.options.votes.insert(son_obj->get_sidechain_vote_id(sidechain));
+         FC_ASSERT(son_obj->get_sidechain_vote_id(sidechain).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", sidechain)("son", *son_obj));
+         auto insert_result = voting_account_object.options.votes.insert(*son_obj->get_sidechain_vote_id(sidechain));
          if (!insert_result.second)
             FC_THROW("Account ${account} has already voted for son ${son} for sidechain ${sidechain}", ("account", voting_account)("son", son)("sidechain", sidechain));
       }
       else
       {
-         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->get_sidechain_vote_id(sidechain));
+         FC_ASSERT(son_obj->get_sidechain_vote_id(sidechain).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", sidechain)("son", *son_obj));
+         unsigned votes_removed = voting_account_object.options.votes.erase(*son_obj->get_sidechain_vote_id(sidechain));
          if (!votes_removed)
             FC_THROW("Account ${account} has already unvoted for son ${son} for sidechain ${sidechain}", ("account", voting_account)("son", son)("sidechain", sidechain));
       }
@@ -2819,7 +2821,8 @@ public:
          FC_ASSERT(son_obj, "Account ${son} is not registered as a son", ("son", son));
          FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive || sidechain == sidechain_type::ethereum, "Unexpected sidechain type");
 
-         auto insert_result = voting_account_object.options.votes.insert(son_obj->get_sidechain_vote_id(sidechain));
+         FC_ASSERT(son_obj->get_sidechain_vote_id(sidechain).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", sidechain)("son", *son_obj));
+         auto insert_result = voting_account_object.options.votes.insert(*son_obj->get_sidechain_vote_id(sidechain));
          if (!insert_result.second)
             FC_THROW("Account ${account} was already voting for SON ${son}", ("account", voting_account)("son", son));
       }
@@ -2830,7 +2833,8 @@ public:
          FC_ASSERT(son_obj, "Account ${son} is not registered as a son", ("son", son));
          FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive || sidechain == sidechain_type::ethereum, "Unexpected sidechain type");
 
-         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->get_sidechain_vote_id(sidechain));
+         FC_ASSERT(son_obj->get_sidechain_vote_id(sidechain).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", sidechain)("son", *son_obj));
+         unsigned votes_removed = voting_account_object.options.votes.erase(*son_obj->get_sidechain_vote_id(sidechain));
          if (!votes_removed)
             FC_THROW("Account ${account} is already not voting for SON ${son}", ("account", voting_account)("son", son));
       }
@@ -5294,12 +5298,12 @@ map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_
    return my->_remote_db->lookup_son_accounts(lowerbound, limit);
 }
 
-flat_map<sidechain_type, vector<son_info>> wallet_api::get_active_sons()
+flat_map<sidechain_type, vector<son_sidechain_info>> wallet_api::get_active_sons()
 {
     return my->get_active_sons();
 }
 
-vector<son_info> wallet_api::get_active_sons_by_sidechain(sidechain_type sidechain)
+vector<son_sidechain_info> wallet_api::get_active_sons_by_sidechain(sidechain_type sidechain)
 {
     return my->get_active_sons_by_sidechain(sidechain);
 }

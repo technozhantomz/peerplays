@@ -10,12 +10,13 @@ namespace graphene { namespace chain {
 
 void_result create_son_wallet_withdraw_evaluator::do_evaluate(const son_wallet_withdraw_create_operation& op)
 { try {
-   FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
-
+   const auto now = db().head_block_time();
+   FC_ASSERT(now >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
    const auto &son_idx = db().get_index_type<son_index>().indices().get<by_id>();
    const auto so = son_idx.find(op.son_id);
    FC_ASSERT(so != son_idx.end(), "SON not found");
    FC_ASSERT(so->son_account == op.payer, "Payer is not SON account owner");
+   FC_ASSERT(!(op.sidechain == sidechain_type::peerplays && now >= HARDFORK_SON_FOR_ETHEREUM_TIME), "Peerplays sidechain type is not allowed");
 
    const auto &ss_idx = db().get_index_type<son_stats_index>().indices().get<by_owner>();
    FC_ASSERT(ss_idx.find(op.son_id) != ss_idx.end(), "Statistic object for a given SON ID does not exists");
@@ -23,9 +24,17 @@ void_result create_son_wallet_withdraw_evaluator::do_evaluate(const son_wallet_w
    const auto &swwo_idx = db().get_index_type<son_wallet_withdraw_index>().indices().get<by_peerplays_uid>();
    const auto swwo = swwo_idx.find(op.peerplays_uid);
    if (swwo == swwo_idx.end()) {
+      const sidechain_type sidechain = [&op]{
+         if(op.sidechain == sidechain_type::peerplays){
+            return op.withdraw_sidechain;
+         }
+         else
+            return op.sidechain;
+      }();
+
       const auto &gpo = db().get_global_properties();
       bool expected = false;
-      for (auto &si : gpo.active_sons.at(op.sidechain)) {
+      for (auto &si : gpo.active_sons.at(sidechain)) {
          if (op.son_id == si.son_id) {
             expected = true;
             break;
@@ -76,8 +85,16 @@ object_id_type create_son_wallet_withdraw_evaluator::do_apply(const son_wallet_w
          swwo.withdraw_currency = op.withdraw_currency;
          swwo.withdraw_amount = op.withdraw_amount;
 
+         const sidechain_type sidechain = [&op]{
+            if(op.sidechain == sidechain_type::peerplays){
+               return op.withdraw_sidechain;
+            }
+            else
+               return op.sidechain;
+         }();
+
          const auto &gpo = db().get_global_properties();
-         for (auto &si : gpo.active_sons.at(op.sidechain)) {
+         for (auto &si : gpo.active_sons.at(sidechain)) {
             swwo.expected_reports.insert(std::make_pair(si.son_id, si.weight));
 
             auto stats_itr = db().get_index_type<son_stats_index>().indices().get<by_owner>().find(si.son_id);
@@ -138,13 +155,17 @@ object_id_type create_son_wallet_withdraw_evaluator::do_apply(const son_wallet_w
 
 void_result process_son_wallet_withdraw_evaluator::do_evaluate(const son_wallet_withdraw_process_operation& op)
 { try{
-   FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
+   const auto now = db().head_block_time();
+   FC_ASSERT(now >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
    FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
 
    const auto& idx = db().get_index_type<son_wallet_withdraw_index>().indices().get<by_id>();
    const auto& itr = idx.find(op.son_wallet_withdraw_id);
    FC_ASSERT(itr != idx.end(), "Son wallet withdraw not found");
-   FC_ASSERT(db().get_global_properties().active_sons.at(itr->sidechain).size() >= db().get_chain_properties().immutable_parameters.min_son_count, "Min required voted SONs not present");
+   FC_ASSERT(!(itr->sidechain == sidechain_type::peerplays && now >= HARDFORK_SON_FOR_ETHEREUM_TIME), "Peerplays sidechain type is not allowed");
+   if(itr->sidechain != sidechain_type::peerplays) {
+      FC_ASSERT(db().get_global_properties().active_sons.at(itr->sidechain).size() >= db().get_chain_properties().immutable_parameters.min_son_count, "Min required voted SONs not present");
+   }
    FC_ASSERT(!itr->processed, "Son wallet withdraw is already processed");
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

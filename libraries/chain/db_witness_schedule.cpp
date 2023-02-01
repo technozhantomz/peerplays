@@ -204,17 +204,18 @@ void database::update_son_schedule()
 {
    const global_property_object& gpo = get_global_properties();
 
-   for(const auto& active_sidechain_type : active_sidechain_types)
+   for(const auto& active_sidechain_type : active_sidechain_types(head_block_time()))
    {
       const son_schedule_object& sidechain_sso = get(son_schedule_id_type(get_son_schedule_id(active_sidechain_type)));
-      if( head_block_num() % gpo.active_sons.at(active_sidechain_type).size() == 0)
+      if( gpo.active_sons.at(active_sidechain_type).size() != 0 &&
+            head_block_num() % gpo.active_sons.at(active_sidechain_type).size() == 0)
       {
          modify( sidechain_sso, [&]( son_schedule_object& _sso )
          {
             _sso.current_shuffled_sons.clear();
             _sso.current_shuffled_sons.reserve( gpo.active_sons.at(active_sidechain_type).size() );
 
-            for ( const son_info &w : gpo.active_sons.at(active_sidechain_type) ) {
+            for ( const auto &w : gpo.active_sons.at(active_sidechain_type) ) {
                   _sso.current_shuffled_sons.push_back(w.son_id);
             }
 
@@ -350,7 +351,7 @@ void database::update_son_schedule(const signed_block& next_block)
    assert( dpo.random.data_size() == witness_scheduler_rng::seed_length );
    assert( witness_scheduler_rng::seed_length == sso.rng_seed.size() );
 
-   for(const auto& active_sidechain_type : active_sidechain_types)
+   for(const auto& active_sidechain_type : active_sidechain_types(head_block_time()))
    {
       const son_schedule_object& sidechain_sso = get(son_schedule_id_type(get_son_schedule_id(active_sidechain_type)));
       son_id_type first_son;

@@ -65,7 +65,15 @@ namespace graphene { namespace chain {
 
          account_id_type son_account;
          flat_map<sidechain_type, vote_id_type> sidechain_vote_ids;
-         flat_map<sidechain_type, uint64_t> total_votes;
+         flat_map<sidechain_type, uint64_t> total_votes = []()
+         {
+            flat_map<sidechain_type, uint64_t> total_votes;
+            for(const auto& active_sidechain_type : all_sidechain_types)
+            {
+               total_votes[active_sidechain_type] = 0;
+            }
+            return total_votes;
+         }();
          string url;
          vesting_balance_id_type deposit;
          public_key_type signing_key;
@@ -74,7 +82,7 @@ namespace graphene { namespace chain {
          flat_map<sidechain_type, son_status> statuses = []()
          {
             flat_map<sidechain_type, son_status> statuses;
-            for(const auto& active_sidechain_type : active_sidechain_types)
+            for(const auto& active_sidechain_type : all_sidechain_types)
             {
                statuses[active_sidechain_type] = son_status::inactive;
             }
@@ -83,13 +91,15 @@ namespace graphene { namespace chain {
          flat_map<sidechain_type, string> sidechain_public_keys;
 
          void pay_son_fee(share_type pay, database& db);
-         bool has_valid_config()const;
-         bool has_valid_config(time_point_sec head_block_time)const;
+         bool has_valid_config(time_point_sec head_block_time, sidechain_type sidechain) const;
 
-         inline vote_id_type get_sidechain_vote_id(sidechain_type sidechain) const { return sidechain_vote_ids.at(sidechain); }
-         inline vote_id_type get_bitcoin_vote_id() const { return get_sidechain_vote_id(sidechain_type::bitcoin); }
-         inline vote_id_type get_hive_vote_id() const { return get_sidechain_vote_id(sidechain_type::hive); }
-         inline vote_id_type get_ethereum_vote_id() const { return get_sidechain_vote_id(sidechain_type::ethereum); }
+         inline optional<vote_id_type> get_sidechain_vote_id(sidechain_type sidechain) const { return sidechain_vote_ids.contains(sidechain) ? sidechain_vote_ids.at(sidechain) : optional<vote_id_type>{}; }
+         inline optional<vote_id_type> get_bitcoin_vote_id() const { return get_sidechain_vote_id(sidechain_type::bitcoin); }
+         inline optional<vote_id_type> get_hive_vote_id() const { return get_sidechain_vote_id(sidechain_type::hive); }
+         inline optional<vote_id_type> get_ethereum_vote_id() const { return get_sidechain_vote_id(sidechain_type::ethereum); }
+
+      private:
+         bool has_valid_config(sidechain_type sidechain) const;
    };
 
    struct by_account;
@@ -105,14 +115,14 @@ namespace graphene { namespace chain {
          ordered_unique< tag<by_account>,
             member<son_object, account_id_type, &son_object::son_account>
          >,
-         ordered_unique< tag<by_vote_id_bitcoin>,
-            const_mem_fun<son_object, vote_id_type, &son_object::get_bitcoin_vote_id>
+         ordered_non_unique< tag<by_vote_id_bitcoin>,
+            const_mem_fun<son_object, optional<vote_id_type>, &son_object::get_bitcoin_vote_id>
          >,
-         ordered_unique< tag<by_vote_id_hive>,
-            const_mem_fun<son_object, vote_id_type, &son_object::get_hive_vote_id>
+         ordered_non_unique< tag<by_vote_id_hive>,
+            const_mem_fun<son_object, optional<vote_id_type>, &son_object::get_hive_vote_id>
          >,
-         ordered_unique< tag<by_vote_id_ethereum>,
-            const_mem_fun<son_object, vote_id_type, &son_object::get_ethereum_vote_id>
+         ordered_non_unique< tag<by_vote_id_ethereum>,
+            const_mem_fun<son_object, optional<vote_id_type>, &son_object::get_ethereum_vote_id>
          >
       >
    >;

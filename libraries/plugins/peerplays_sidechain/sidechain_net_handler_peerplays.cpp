@@ -197,7 +197,14 @@ bool sidechain_net_handler_peerplays::process_deposit(const son_wallet_deposit_o
       stc_op.object_id = swdo.id;
       stc_op.sidechain = sidechain;
       stc_op.transaction = tx_str;
-      stc_op.signers = gpo.active_sons.at(sidechain);
+      for (const auto &signer : gpo.active_sons.at(sidechain)) {
+         son_info si;
+         si.son_id = signer.son_id;
+         si.weight = signer.weight;
+         si.signing_key = signer.signing_key;
+         si.sidechain_public_keys[sidechain] = signer.public_key;
+         stc_op.signers.emplace_back(std::move(si));
+      }
 
       proposal_create_operation proposal_op;
       proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
