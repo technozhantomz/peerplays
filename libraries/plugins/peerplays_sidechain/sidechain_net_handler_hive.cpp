@@ -209,8 +209,10 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
       bool address_ok = false;
       bool transaction_ok = false;
       son_wallet_id_type swo_id = op_obj_idx_0.get<son_wallet_update_operation>().son_wallet_id;
+      const auto id = (swo_id.instance.value - std::distance(active_sidechain_types.begin(), active_sidechain_types.find(sidechain))) / active_sidechain_types.size();
+      const son_wallet_id_type op_id{ id };
       const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
-      const auto swo = idx.find(swo_id);
+      const auto swo = idx.find(op_id);
       if (swo != idx.end()) {
 
          auto active_sons = gpo.active_sons.at(sidechain);
@@ -229,18 +231,20 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
          }
 
          if (po.proposed_transaction.operations.size() >= 2) {
-            object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
+            const object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
+            const auto id = (object_id.instance() - std::distance(active_sidechain_types.begin(), active_sidechain_types.find(sidechain))) / active_sidechain_types.size();
+            const object_id_type obj_id{ object_id.space(), object_id.type(), id };
             std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
             const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
-            const auto st = st_idx.find(object_id);
+            const auto st = st_idx.find(obj_id);
             if (st == st_idx.end()) {
 
                std::string tx_str = "";
 
-               if (object_id.is<son_wallet_id_type>()) {
+               if (obj_id.is<son_wallet_id_type>()) {
                   const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
-                  const auto swo = idx.find(object_id);
+                  const auto swo = idx.find(obj_id);
                   if (swo != idx.end()) {
 
                      std::stringstream ss_trx(boost::algorithm::unhex(op_tx_str));
@@ -486,7 +490,10 @@ void sidechain_net_handler_hive::process_primary_wallet() {
       if ((active_sw->addresses.find(sidechain) == active_sw->addresses.end()) ||
           (active_sw->addresses.at(sidechain).empty())) {
 
-         if (proposal_exists(chain::operation::tag<chain::son_wallet_update_operation>::value, active_sw->id)) {
+         const auto id = active_sw->id.instance() * active_sidechain_types.size() + std::distance(active_sidechain_types.begin(), active_sidechain_types.find(sidechain));
+         const object_id_type op_id{ active_sw->id.space(), active_sw->id.type(), id };
+
+         if (proposal_exists(chain::operation::tag<chain::son_wallet_update_operation>::value, op_id)) {
             return;
          }
 
@@ -542,7 +549,7 @@ void sidechain_net_handler_hive::process_primary_wallet() {
 
          son_wallet_update_operation swu_op;
          swu_op.payer = gpo.parameters.son_account();
-         swu_op.son_wallet_id = active_sw->id;
+         swu_op.son_wallet_id = op_id;
          swu_op.sidechain = sidechain;
          swu_op.address = wallet_account_name;
 
@@ -565,7 +572,7 @@ void sidechain_net_handler_hive::process_primary_wallet() {
 
          sidechain_transaction_create_operation stc_op;
          stc_op.payer = gpo.parameters.son_account();
-         stc_op.object_id = active_sw->id;
+         stc_op.object_id = op_id;
          stc_op.sidechain = sidechain;
          stc_op.transaction = tx_str;
          stc_op.signers = signers;
