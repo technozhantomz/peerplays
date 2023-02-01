@@ -39,7 +39,7 @@ public:
         fixture_(fixture)
     {
         fixture_.init_nathan();
-        fixture_.generate_blocks(HARDFORK_SON3_TIME);
+        fixture_.generate_blocks(HARDFORK_SON_FOR_ETHEREUM_TIME);
         fixture_.generate_block();
     }
 
@@ -143,9 +143,12 @@ BOOST_AUTO_TEST_CASE( create_sons )
       BOOST_CHECK_EQUAL(son1_obj.sidechain_public_keys[sidechain_type::bitcoin], "bitcoin_address 1");
       BOOST_CHECK_EQUAL(son1_obj.sidechain_public_keys[sidechain_type::hive], "hive account 1");
       BOOST_CHECK_EQUAL(son1_obj.sidechain_public_keys[sidechain_type::ethereum], "ethereum address 1");
-      BOOST_CHECK_EQUAL(son1_obj.get_sidechain_vote_id(sidechain_type::bitcoin).instance(), 22);
-      BOOST_CHECK_EQUAL(son1_obj.get_sidechain_vote_id(sidechain_type::hive).instance(), 23);
-      BOOST_CHECK_EQUAL(son1_obj.get_sidechain_vote_id(sidechain_type::ethereum).instance(), 24);
+      BOOST_REQUIRE(son1_obj.get_sidechain_vote_id(sidechain_type::bitcoin));
+      BOOST_CHECK_EQUAL(son1_obj.get_sidechain_vote_id(sidechain_type::bitcoin)->instance(), 22);
+      BOOST_REQUIRE(son1_obj.get_sidechain_vote_id(sidechain_type::hive));
+      BOOST_CHECK_EQUAL(son1_obj.get_sidechain_vote_id(sidechain_type::hive)->instance(), 23);
+      BOOST_REQUIRE(son1_obj.get_sidechain_vote_id(sidechain_type::ethereum));
+      BOOST_CHECK_EQUAL(son1_obj.get_sidechain_vote_id(sidechain_type::ethereum)->instance(), 24);
 
       auto son2_obj = con.wallet_api_ptr->get_son("son2account");
       BOOST_CHECK(son2_obj.son_account == con.wallet_api_ptr->get_account_id("son2account"));
@@ -153,9 +156,12 @@ BOOST_AUTO_TEST_CASE( create_sons )
       BOOST_CHECK_EQUAL(son2_obj.sidechain_public_keys[sidechain_type::bitcoin], "bitcoin_address 2");
       BOOST_CHECK_EQUAL(son2_obj.sidechain_public_keys[sidechain_type::hive], "hive account 2");
       BOOST_CHECK_EQUAL(son2_obj.sidechain_public_keys[sidechain_type::ethereum], "ethereum address 2");
-      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::bitcoin).instance(), 25);
-      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::hive).instance(), 26);
-      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::ethereum).instance(), 27);
+      BOOST_REQUIRE(son2_obj.get_sidechain_vote_id(sidechain_type::bitcoin));
+      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::bitcoin)->instance(), 25);
+      BOOST_REQUIRE(son2_obj.get_sidechain_vote_id(sidechain_type::hive));
+      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::hive)->instance(), 26);
+      BOOST_REQUIRE(son2_obj.get_sidechain_vote_id(sidechain_type::ethereum));
+      BOOST_CHECK_EQUAL(son2_obj.get_sidechain_vote_id(sidechain_type::ethereum)->instance(), 27);
 
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");
@@ -190,9 +196,12 @@ BOOST_AUTO_TEST_CASE( cli_update_son )
       BOOST_CHECK_EQUAL(son_data.sidechain_public_keys[sidechain_type::bitcoin], "bitcoin_address 1");
       BOOST_CHECK_EQUAL(son_data.sidechain_public_keys[sidechain_type::hive], "hive account 1");
       BOOST_CHECK_EQUAL(son_data.sidechain_public_keys[sidechain_type::ethereum], "ethereum address 1");
-      BOOST_CHECK_EQUAL(son_data.get_sidechain_vote_id(sidechain_type::bitcoin).instance(), 22);
-      BOOST_CHECK_EQUAL(son_data.get_sidechain_vote_id(sidechain_type::hive).instance(), 23);
-      BOOST_CHECK_EQUAL(son_data.get_sidechain_vote_id(sidechain_type::ethereum).instance(), 24);
+      BOOST_REQUIRE(son_data.get_sidechain_vote_id(sidechain_type::bitcoin));
+      BOOST_CHECK_EQUAL(son_data.get_sidechain_vote_id(sidechain_type::bitcoin)->instance(), 22);
+      BOOST_REQUIRE(son_data.get_sidechain_vote_id(sidechain_type::hive));
+      BOOST_CHECK_EQUAL(son_data.get_sidechain_vote_id(sidechain_type::hive)->instance(), 23);
+      BOOST_REQUIRE(son_data.get_sidechain_vote_id(sidechain_type::ethereum));
+      BOOST_CHECK_EQUAL(son_data.get_sidechain_vote_id(sidechain_type::ethereum)->instance(), 24);
 
       // update SON
       sidechain_public_keys.clear();
@@ -1400,7 +1409,7 @@ BOOST_FIXTURE_TEST_CASE( get_son_network_status_by_sidechain, cli_fixture )
 
       // Check Network Status Before sending Heartbeats
       BOOST_CHECK(generate_maintenance_block());
-      for(sidechain_type sidechain:active_sidechain_types)
+      for(sidechain_type sidechain : all_sidechain_types)
       {
          auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
          for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 
@@ -1448,7 +1457,7 @@ BOOST_FIXTURE_TEST_CASE( get_son_network_status_by_sidechain, cli_fixture )
       generate_blocks(50);
 
       BOOST_TEST_MESSAGE("Checking Network Status");      
-      for(sidechain_type sidechain:active_sidechain_types)
+      for(sidechain_type sidechain : all_sidechain_types)
       {
          auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
          for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 
@@ -1479,7 +1488,7 @@ BOOST_FIXTURE_TEST_CASE( get_son_network_status_by_sidechain, cli_fixture )
       con.wallet_api_ptr->sign_transaction(trx2, true);
 
       generate_blocks(50);            
-      for(sidechain_type sidechain:active_sidechain_types)
+      for(sidechain_type sidechain : all_sidechain_types)
       {
          auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
          for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 
@@ -1507,7 +1516,7 @@ BOOST_FIXTURE_TEST_CASE( get_son_network_status_by_sidechain, cli_fixture )
 
       generate_blocks(db->head_block_time() + gpo.parameters.son_heartbeat_frequency(), false);
       BOOST_TEST_MESSAGE("Checking Network Status");
-      for(sidechain_type sidechain:active_sidechain_types)
+      for(sidechain_type sidechain : all_sidechain_types)
       {
          auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
          for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 
@@ -1535,7 +1544,7 @@ BOOST_FIXTURE_TEST_CASE( get_son_network_status_by_sidechain, cli_fixture )
 
       generate_blocks(db->head_block_time() + gpo.parameters.son_heartbeat_frequency() + gpo.parameters.son_down_time(), false);;
       BOOST_TEST_MESSAGE("Checking Network Status");
-      for(sidechain_type sidechain:active_sidechain_types)
+      for(sidechain_type sidechain : all_sidechain_types)
       {
          auto network_status_obj = con.wallet_api_ptr->get_son_network_status_by_sidechain(sidechain);
          for(map<son_id_type, string>::iterator iter=network_status_obj.begin(); iter!=network_status_obj.end(); ++iter) 

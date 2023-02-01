@@ -342,7 +342,7 @@ bool database::is_son_active( sidechain_type type, son_id_type son_id )
    active_son_ids.reserve(gpo_as.size());
    std::transform(gpo_as.cbegin(), gpo_as.cend(),
                   std::inserter(active_son_ids, active_son_ids.end()),
-                  [](const son_info& swi) {
+                  [](const son_sidechain_info& swi) {
       return swi.son_id;
    });
 

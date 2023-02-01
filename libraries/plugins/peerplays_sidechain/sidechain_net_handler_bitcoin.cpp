@@ -13,7 +13,7 @@
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/protocol/son_wallet.hpp>
 #include <graphene/chain/sidechain_transaction_object.hpp>
-#include <graphene/chain/son_info.hpp>
+#include <graphene/chain/son_sidechain_info.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_address.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/bitcoin_transaction.hpp>
@@ -455,7 +455,7 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
       if (swo != idx.end()) {
 
          const auto &active_sons = gpo.active_sons.at(sidechain);
-         vector<son_info> wallet_sons = swo->sons.at(sidechain);
+         const auto &wallet_sons = swo->sons.at(sidechain);
 
          bool son_sets_equal = (active_sons.size() == wallet_sons.size());
 
@@ -468,7 +468,7 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
          if (son_sets_equal) {
             const auto &active_sons = gpo.active_sons.at(sidechain);
             vector<string> son_pubkeys_bitcoin;
-            for (const son_info &si : active_sons) {
+            for (const auto &si : active_sons) {
                son_pubkeys_bitcoin.push_back(si.public_key);
             }
 
@@ -768,7 +768,14 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
                   stc_op.object_id = prev_op_id;
                   stc_op.sidechain = sidechain;
                   stc_op.transaction = tx_str;
-                  stc_op.signers = prev_sw->sons.at(sidechain);
+                  for (const auto &signer : prev_sw->sons.at(sidechain)) {
+                     son_info si;
+                     si.son_id = signer.son_id;
+                     si.weight = signer.weight;
+                     si.signing_key = signer.signing_key;
+                     si.sidechain_public_keys[sidechain] = signer.public_key;
+                     stc_op.signers.emplace_back(std::move(si));
+                  }
                   proposal_op.proposed_ops.emplace_back(stc_op);
                }
             }
@@ -871,7 +878,14 @@ bool sidechain_net_handler_bitcoin::process_deposit(const son_wallet_deposit_obj
       stc_op.object_id = swdo.id;
       stc_op.sidechain = sidechain;
       stc_op.transaction = tx_str;
-      stc_op.signers = gpo.active_sons.at(sidechain);
+      for (const auto &signer : gpo.active_sons.at(sidechain)) {
+         son_info si;
+         si.son_id = signer.son_id;
+         si.weight = signer.weight;
+         si.signing_key = signer.signing_key;
+         si.sidechain_public_keys[sidechain] = signer.public_key;
+         stc_op.signers.emplace_back(std::move(si));
+      }
       proposal_op.proposed_ops.emplace_back(stc_op);
 
       signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
@@ -915,7 +929,14 @@ bool sidechain_net_handler_bitcoin::process_withdrawal(const son_wallet_withdraw
       stc_op.object_id = swwo.id;
       stc_op.sidechain = sidechain;
       stc_op.transaction = tx_str;
-      stc_op.signers = gpo.active_sons.at(sidechain);
+      for (const auto &signer : gpo.active_sons.at(sidechain)) {
+         son_info si;
+         si.son_id = signer.son_id;
+         si.weight = signer.weight;
+         si.signing_key = signer.signing_key;
+         si.sidechain_public_keys[sidechain] = signer.public_key;
+         stc_op.signers.emplace_back(std::move(si));
+      }
       proposal_op.proposed_ops.emplace_back(stc_op);
 
       signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
@@ -1017,7 +1038,7 @@ optional<asset> sidechain_net_handler_bitcoin::estimate_withdrawal_transaction_f
    return optional<asset>{};
 }
 
-std::string sidechain_net_handler_bitcoin::create_primary_wallet_address(const std::vector<son_info> &son_pubkeys) {
+std::string sidechain_net_handler_bitcoin::create_primary_wallet_address(const std::vector<son_sidechain_info> &son_pubkeys) {
    using namespace bitcoin;
 
    std::vector<std::pair<fc::ecc::public_key, uint16_t>> pubkey_weights;

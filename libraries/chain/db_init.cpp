@@ -365,7 +365,7 @@ void database::initialize_hardforks()
   _hardfork_times.emplace_back(HARDFORK_SON_FOR_HIVE_TIME);
   _hardfork_times.emplace_back(HARDFORK_SON_TIME);
   _hardfork_times.emplace_back(HARDFORK_SON2_TIME);
-  _hardfork_times.emplace_back(HARDFORK_SON3_TIME);
+  _hardfork_times.emplace_back(HARDFORK_SON_FOR_ETHEREUM_TIME);
   _hardfork_times.emplace_back(HARDFORK_SWEEPS_TIME);
 
   std::sort(_hardfork_times.begin(), _hardfork_times.end());

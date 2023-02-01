@@ -84,7 +84,7 @@ vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<
    std::vector<std::reference_wrapper<const son_object>> refs;
    for( auto& son : all_sons )
    {
-      if(son.has_valid_config(head_block_time()) && son.statuses.at(sidechain) != son_status::deregistered)
+      if(son.has_valid_config(head_block_time(), sidechain) && son.statuses.at(sidechain) != son_status::deregistered)
       {
          refs.push_back(std::cref(son));
       }
@@ -97,8 +97,10 @@ vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<
                    sidechain == sidechain_type::hive,
                    "Unexpected sidechain type");
 
-         const share_type oa_vote = _vote_tally_buffer[a.get_sidechain_vote_id(sidechain)];
-         const share_type ob_vote = _vote_tally_buffer[b.get_sidechain_vote_id(sidechain)];
+         FC_ASSERT(a.get_sidechain_vote_id(sidechain).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", sidechain)("son", a));
+         FC_ASSERT(b.get_sidechain_vote_id(sidechain).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", sidechain)("son", b));
+         const share_type oa_vote = _vote_tally_buffer.size() > *a.get_sidechain_vote_id(sidechain) ? _vote_tally_buffer[*a.get_sidechain_vote_id(sidechain)] : 0;
+         const share_type ob_vote = _vote_tally_buffer.size() > *b.get_sidechain_vote_id(sidechain) ? _vote_tally_buffer[*b.get_sidechain_vote_id(sidechain)] : 0;
 
          if( oa_vote != ob_vote )
             return oa_vote > ob_vote;
@@ -190,7 +192,7 @@ void database::pay_sons()
    // Current requirement is that we have to pay every 24 hours, so the following check
    if( dpo.son_budget.value > 0 && ((now - dpo.last_son_payout_time) >= fc::seconds(get_global_properties().parameters.son_pay_time())))
    {
-      for(const auto& active_sidechain_type : active_sidechain_types)
+      for(const auto& active_sidechain_type : active_sidechain_types(now))
       {
          assert( _son_count_histogram_buffer.at(active_sidechain_type).size() > 0 );
          const share_type  stake_target = (_total_voting_stake-_son_count_histogram_buffer.at(active_sidechain_type)[0]) / 2;
@@ -207,7 +209,14 @@ void database::pay_sons()
             }
          }
 
-         const auto sons = sort_votable_objects<son_index>(active_sidechain_type,
+         const sidechain_type st = [&now, &active_sidechain_type]{
+            if( now < HARDFORK_SON_FOR_ETHEREUM_TIME )
+               return sidechain_type::bitcoin;
+            else
+               return active_sidechain_type;
+         }();
+
+         const auto sons = sort_votable_objects<son_index>(st,
             (std::max(son_count*2+1, (size_t)get_chain_properties().immutable_parameters.min_son_count))
          );
 
@@ -215,7 +224,8 @@ void database::pay_sons()
          uint64_t total_votes = 0;
          for( const son_object& son : sons )
          {
-            total_votes += _vote_tally_buffer[son.sidechain_vote_ids.at(active_sidechain_type)];
+            FC_ASSERT(son.get_sidechain_vote_id(st).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", st)("son", son));
+            total_votes += _vote_tally_buffer[*son.get_sidechain_vote_id(st)];
          }
          const int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
          auto get_weight = [&bits_to_drop]( uint64_t son_votes ) {
@@ -230,35 +240,37 @@ void database::pay_sons()
          };
          uint64_t weighted_total_txs_signed = 0;
          const share_type son_budget = dpo.son_budget;
-         get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &get_weight, &now, &get_weight_before_son2_hf, &active_sidechain_type](const object& o) {
+         get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &get_weight, &now, &get_weight_before_son2_hf, &active_sidechain_type, &st](const object& o) {
             const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
             const auto& idx = get_index_type<son_index>().indices().get<by_id>();
             const auto son_obj = idx.find( s.owner );
             uint16_t son_weight = 0;
+            FC_ASSERT(son_obj->get_sidechain_vote_id(st).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", st)("son", *son_obj));
             if( now >= HARDFORK_SON2_TIME ) {
-               son_weight += get_weight(_vote_tally_buffer[son_obj->sidechain_vote_ids.at(active_sidechain_type)]);
+               son_weight += get_weight(_vote_tally_buffer[*son_obj->get_sidechain_vote_id(st)]);
             }
             else {
-               son_weight += get_weight_before_son2_hf(_vote_tally_buffer[son_obj->sidechain_vote_ids.at(active_sidechain_type)]);
+               son_weight += get_weight_before_son2_hf(_vote_tally_buffer[*son_obj->get_sidechain_vote_id(st)]);
             }
             const uint64_t txs_signed = s.txs_signed.contains(active_sidechain_type) ? s.txs_signed.at(active_sidechain_type) : 0;
             weighted_total_txs_signed += (txs_signed * son_weight);
          });
 
          // Now pay off each SON proportional to the number of transactions signed.
-         get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &dpo, &son_budget, &get_weight, &get_weight_before_son2_hf, &now, &active_sidechain_type](const object& o) {
+         get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &dpo, &son_budget, &get_weight, &get_weight_before_son2_hf, &now, &active_sidechain_type, &st](const object& o) {
             const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
             const uint64_t txs_signed = s.txs_signed.contains(active_sidechain_type) ? s.txs_signed.at(active_sidechain_type) : 0;
 
-            if(txs_signed > 0){
+            if(txs_signed > 0) {
                const auto& idx = get_index_type<son_index>().indices().get<by_id>();
                auto son_obj = idx.find( s.owner );
                uint16_t son_weight = 0;
+               FC_ASSERT(son_obj->get_sidechain_vote_id(st).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", st)("son", *son_obj));
                if( now >= HARDFORK_SON2_TIME ) {
-                  son_weight += get_weight(_vote_tally_buffer[son_obj->sidechain_vote_ids.at(active_sidechain_type)]);
+                  son_weight += get_weight(_vote_tally_buffer[*son_obj->get_sidechain_vote_id(st)]);
                }
                else {
-                  son_weight += get_weight_before_son2_hf(_vote_tally_buffer[son_obj->sidechain_vote_ids.at(active_sidechain_type)]);
+                  son_weight += get_weight_before_son2_hf(_vote_tally_buffer[*son_obj->get_sidechain_vote_id(st)]);
                }
                const share_type pay = (txs_signed * son_weight * son_budget.value)/weighted_total_txs_signed;
                modify( *son_obj, [&]( son_object& _son_obj)
@@ -287,7 +299,7 @@ void database::pay_sons()
    }
 }
 
-void database::update_son_metrics(const flat_map<sidechain_type, vector<son_info> >& curr_active_sons)
+void database::update_son_metrics(const flat_map<sidechain_type, vector<son_sidechain_info> >& curr_active_sons)
 {
    for(const auto& curr_active_sidechain_sons : curr_active_sons) {
       const auto& sidechain = curr_active_sidechain_sons.first;
@@ -298,7 +310,7 @@ void database::update_son_metrics(const flat_map<sidechain_type, vector<son_info
       current_sons.reserve(_curr_active_sidechain_sons.size());
       std::transform(_curr_active_sidechain_sons.cbegin(), _curr_active_sidechain_sons.cend(),
                      std::inserter(current_sons, current_sons.end()),
-                     [](const son_info &swi) {
+                     [](const son_sidechain_info &swi) {
                         return swi.son_id;
                      });
 
@@ -321,8 +333,8 @@ void database::update_son_metrics(const flat_map<sidechain_type, vector<son_info
    }
 }
 
-void database::update_son_statuses( const flat_map<sidechain_type, vector<son_info> >& curr_active_sons,
-                                    const flat_map<sidechain_type, vector<son_info> >& new_active_sons )
+void database::update_son_statuses( const flat_map<sidechain_type, vector<son_sidechain_info> >& curr_active_sons,
+                                    const flat_map<sidechain_type, vector<son_sidechain_info> >& new_active_sons )
 {
    for(const auto& new_active_sidechain_sons : new_active_sons) {
       const auto& sidechain = new_active_sidechain_sons.first;
@@ -335,7 +347,7 @@ void database::update_son_statuses( const flat_map<sidechain_type, vector<son_in
          current_sons.reserve(curr_active_sons.at(sidechain).size());
          std::transform(curr_active_sons.at(sidechain).cbegin(), curr_active_sons.at(sidechain).cend(),
                         std::inserter(current_sons, current_sons.end()),
-                        [](const son_info &swi) {
+                        [](const son_sidechain_info &swi) {
                            return swi.son_id;
                         });
       }
@@ -343,7 +355,7 @@ void database::update_son_statuses( const flat_map<sidechain_type, vector<son_in
       new_sons.reserve(new_active_sons.at(sidechain).size());
       std::transform(new_active_sons.at(sidechain).cbegin(), new_active_sons.at(sidechain).cend(),
                      std::inserter(new_sons, new_sons.end()),
-                     [](const son_info &swi) {
+                     [](const son_sidechain_info &swi) {
                         return swi.son_id;
                      });
 
@@ -379,7 +391,7 @@ void database::update_son_statuses( const flat_map<sidechain_type, vector<son_in
 
       for (const auto &sid : sons_to_add) {
          auto son = idx.find(sid);
-         FC_ASSERT(son != idx.end(), "Invalid SON in active list, id={sonid}.", ("sonid", sid));
+         FC_ASSERT(son != idx.end(), "Invalid SON in active list, id = ${sonid}.", ("sonid", sid));
          // keep maintenance status for new nodes
          if (son->statuses.at(sidechain) == son_status::inactive) {
             modify(*son, [&](son_object &obj) {
@@ -414,7 +426,7 @@ void database::update_son_statuses( const flat_map<sidechain_type, vector<son_in
    }
 }
 
-void database::update_son_wallet(const flat_map<sidechain_type, vector<son_info> >& new_active_sons)
+void database::update_son_wallet(const flat_map<sidechain_type, vector<son_sidechain_info> >& new_active_sons)
 {
    bool should_recreate_pw = true;
 
@@ -729,39 +741,22 @@ void database::update_active_sons()
    }
 #endif
 
-   const flat_map<sidechain_type, share_type> stake_target = [this]{
-      flat_map<sidechain_type, share_type> stake_target;
-      for( const auto& son_count_histogram_buffer : _son_count_histogram_buffer ){
-         const auto sidechain = son_count_histogram_buffer.first;
-         stake_target[sidechain] = (_total_voting_stake-son_count_histogram_buffer.second[0]) / 2;
-      }
-      return stake_target;
-   }();
+   const auto supported_active_sidechain_types = active_sidechain_types(head_block_time());
+   flat_map<sidechain_type, size_t> son_count;
+   for(const auto& active_sidechain_type : supported_active_sidechain_types)
+   {
+      const share_type  stake_target = (_total_voting_stake-_son_count_histogram_buffer.at(active_sidechain_type)[0]) / 2;
 
-   /// accounts that vote for 0 or 1 son do not get to express an opinion on
-   /// the number of sons to have (they abstain and are non-voting accounts)
-   flat_map<sidechain_type, share_type> stake_tally = []{
-      flat_map<sidechain_type, share_type> stake_tally;
-      for(const auto& active_sidechain_type : active_sidechain_types){
-         stake_tally[active_sidechain_type] = 0;
-      }
-      return stake_tally;
-   }();
-   flat_map<sidechain_type, size_t> son_count = []{
-      flat_map<sidechain_type, size_t> son_count;
-      for(const auto& active_sidechain_type : active_sidechain_types){
-         son_count[active_sidechain_type] = 0;
-      }
-      return son_count;
-   }();
-   for( const auto& stake_target_sidechain : stake_target ){
-      const auto sidechain = stake_target_sidechain.first;
-      if( stake_target_sidechain.second > 0 )
+      /// accounts that vote for 0 or 1 son do not get to express an opinion on
+      /// the number of sons to have (they abstain and are non-voting accounts)
+      share_type stake_tally = 0;
+      son_count[active_sidechain_type] = 0;
+      if( stake_target > 0 )
       {
-         while( (son_count[sidechain] < _son_count_histogram_buffer.at(sidechain).size() - 1)
-                && (stake_tally[sidechain] <= stake_target_sidechain.second) )
+         while( (son_count.at(active_sidechain_type) < _son_count_histogram_buffer.at(active_sidechain_type).size() - 1)
+                && (stake_tally <= stake_target) )
          {
-            stake_tally[sidechain] += _son_count_histogram_buffer.at(sidechain)[ ++son_count[sidechain] ];
+               stake_tally += _son_count_histogram_buffer.at(active_sidechain_type)[ ++son_count[active_sidechain_type] ];
          }
       }
    }
@@ -770,18 +765,17 @@ void database::update_active_sons()
    const chain_property_object& cpo = get_chain_properties();
    const auto& all_sons = get_index_type<son_index>().indices();
    flat_map<sidechain_type, vector<std::reference_wrapper<const son_object> > > sons;
-   for(const auto& active_sidechain_type : active_sidechain_types)
+   for(const auto& active_sidechain_type : supported_active_sidechain_types)
    {
-      if(head_block_time() >= HARDFORK_SON3_TIME) {
+      if(head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME) {
          sons[active_sidechain_type] = sort_votable_objects<son_index>(active_sidechain_type,
                                                                        (std::max(son_count.at(active_sidechain_type) * 2 + 1, (size_t)cpo.immutable_parameters.min_son_count)));
       }
       else {
-         sons[active_sidechain_type] = sort_votable_objects<son_index>(active_sidechain_type, get_global_properties().parameters.maximum_son_count());
+         sons[active_sidechain_type] = sort_votable_objects<son_index>(sidechain_type::bitcoin, get_global_properties().parameters.maximum_son_count());
       }
    }
 
-   auto& local_vote_buffer_ref = _vote_tally_buffer;
    for( const son_object& son : all_sons )
    {
       for(const auto& status: son.statuses)
@@ -796,9 +790,9 @@ void database::update_active_sons()
          }
       }
 
-      modify( son, [local_vote_buffer_ref]( son_object& obj ){
+      modify( son, [this]( son_object& obj ){
          for(const auto& sidechain_vote_id : obj.sidechain_vote_ids ){
-            obj.total_votes[sidechain_vote_id.first] = local_vote_buffer_ref[sidechain_vote_id.second];
+            obj.total_votes[sidechain_vote_id.first] = _vote_tally_buffer.size() > sidechain_vote_id.second ? _vote_tally_buffer[sidechain_vote_id.second] : 0;
          }
          for(auto& status: obj.statuses)
          {
@@ -853,7 +847,7 @@ void database::update_active_sons()
 
    // Compare current and to-be lists of active sons
    const auto cur_active_sons = gpo.active_sons;
-   flat_map<sidechain_type, vector<son_info> > new_active_sons;
+   flat_map<sidechain_type, vector<son_sidechain_info> > new_active_sons;
    const auto &acc = get(gpo.parameters.son_account());
    for( const auto& sidechain_sons : sons ){
       const auto& sidechain = sidechain_sons.first;
@@ -861,11 +855,12 @@ void database::update_active_sons()
 
       new_active_sons[sidechain].reserve(sons_array.size());
       for( const son_object& son : sons_array ) {
-         son_info swi;
+         son_sidechain_info swi;
          swi.son_id = son.id;
          swi.weight = acc.active.account_auths.at(son.son_account);
          swi.signing_key = son.signing_key;
-         swi.public_key = son.sidechain_public_keys.at(sidechain);
+         if (son.sidechain_public_keys.find(sidechain) != son.sidechain_public_keys.end())
+            swi.public_key = son.sidechain_public_keys.at(sidechain);
          new_active_sons[sidechain].push_back(swi);
       }
    }
@@ -905,7 +900,7 @@ void database::update_active_sons()
       }
    });
 
-   for(const auto& active_sidechain_type : active_sidechain_types)
+   for(const auto& active_sidechain_type : supported_active_sidechain_types)
    {
       const son_schedule_object& sidechain_sso = son_schedule_id_type(get_son_schedule_id(active_sidechain_type))(*this);
       modify(sidechain_sso, [&](son_schedule_object& _sso)
@@ -914,12 +909,13 @@ void database::update_active_sons()
          active_sons.reserve(gpo.active_sons.at(active_sidechain_type).size());
          std::transform(gpo.active_sons.at(active_sidechain_type).cbegin(), gpo.active_sons.at(active_sidechain_type).cend(),
                         std::inserter(active_sons, active_sons.end()),
-                        [](const son_info& swi) {
+                        [](const son_sidechain_info& swi) {
                            return swi.son_id;
                         });
          _sso.scheduler.update(active_sons);
          // similar to witness, produce schedule for sons
-         if(cur_active_sons.at(active_sidechain_type).size() == 0 && new_active_sons.at(active_sidechain_type).size() > 0)
+         if( ((cur_active_sons.contains(active_sidechain_type) && cur_active_sons.at(active_sidechain_type).size() == 0) ||
+               !cur_active_sons.contains(active_sidechain_type)) && new_active_sons.at(active_sidechain_type).size() > 0 )
          {
             witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
             for( size_t i=0; i<new_active_sons.at(active_sidechain_type).size(); ++i )
@@ -2189,6 +2185,7 @@ void database::perform_son_tasks()
                gpo.pending_parameters->extensions.value.hive_asset = hive_asset.get_id();
       });
    }
+
    // Pay the SONs
    if (head_block_time() >= HARDFORK_SON_TIME)
    {
@@ -2197,18 +2194,57 @@ void database::perform_son_tasks()
       // and modify the global son funds accordingly, whatever is left is passed on to next budget
       pay_sons();
    }
+
+   // Split vote_ids
+   if (head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME) {
+      // Get SON 1.33.0 and check if it has HIVE vote_id
+      const son_id_type sid = son_id_type(0);
+      const auto p_son = find(sid);
+      if(p_son != nullptr) {
+         if (p_son->sidechain_vote_ids.find(sidechain_type::hive) == p_son->sidechain_vote_ids.end()) {
+            // Add vote_ids for HIVE and ETHEREUM to all existing SONs
+            const auto &all_sons = get_index_type<son_index>().indices().get<by_id>();
+            for (const son_object &son : all_sons) {
+               vote_id_type existing_vote_id_bitcoin;
+               vote_id_type new_vote_id_hive;
+               vote_id_type new_vote_id_eth;
+
+               modify(gpo, [&new_vote_id_hive, &new_vote_id_eth](global_property_object &p) {
+                  new_vote_id_hive = get_next_vote_id(p, vote_id_type::son_hive);
+                  new_vote_id_eth = get_next_vote_id(p, vote_id_type::son_ethereum);
+               });
+
+               modify(son, [new_vote_id_hive, new_vote_id_eth](son_object &obj) {
+                  obj.sidechain_vote_ids[sidechain_type::hive] = new_vote_id_hive;
+                  obj.sidechain_vote_ids[sidechain_type::ethereum] = new_vote_id_eth;
+               });
+
+               // Duplicate all votes from bitcoin to hive
+               const auto &all_accounts = get_index_type<account_index>().indices().get<by_id>();
+               for (const auto &account : all_accounts) {
+                  if (account.options.votes.count(existing_vote_id_bitcoin) != 0) {
+                     modify(account, [new_vote_id_hive](account_object &a) {
+                        a.options.votes.insert(new_vote_id_hive);
+                     });
+                  }
+               }
+            }
+         }
+      }
+   }
 }
 
 void update_son_params(database& db)
 {
-   if( (db.head_block_time() >= HARDFORK_SON2_TIME) && (db.head_block_time() < HARDFORK_SON3_TIME) )
+   if( (db.head_block_time() >= HARDFORK_SON2_TIME) && (db.head_block_time() < HARDFORK_SON_FOR_ETHEREUM_TIME) )
    {
       const auto& gpo = db.get_global_properties();
       db.modify( gpo, []( global_property_object& gpo ) {
          gpo.parameters.extensions.value.maximum_son_count = 7;
       });
    }
-   else
+
+   if( (db.head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME) )
    {
       const auto& gpo = db.get_global_properties();
       db.modify( gpo, []( global_property_object& gpo ) {
@@ -2343,20 +2379,23 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                // same rationale as for witnesses
                d._committee_count_histogram_buffer[offset] += voting_stake;
             }
-            FC_ASSERT( opinion_account.options.extensions.value.num_son.valid() , "Invalid son number" );
-            for(const auto& num_sidechain_son : *opinion_account.options.extensions.value.num_son) {
-               const auto sidechain = num_sidechain_son.first;
-               const auto& num_son = num_sidechain_son.second;
-               if (num_son <= props.parameters.maximum_son_count()) {
-                  uint16_t offset = std::min(size_t(num_son / 2),
-                                             d._son_count_histogram_buffer.at(sidechain).size() - 1);
-                  // votes for a number greater than maximum_son_count
-                  // are turned into votes for maximum_son_count.
-                  //
-                  // in particular, this takes care of the case where a
-                  // member was voting for a high number, then the
-                  // parameter was lowered.
-                  d._son_count_histogram_buffer.at(sidechain)[offset] += voting_stake;
+
+            if ( opinion_account.options.extensions.value.num_son.valid() )
+            {
+               for(const auto& num_sidechain_son : *opinion_account.options.extensions.value.num_son) {
+                  const auto sidechain = num_sidechain_son.first;
+                  const auto& num_son = num_sidechain_son.second;
+                  if (num_son <= props.parameters.maximum_son_count()) {
+                     uint16_t offset = std::min(size_t(num_son / 2),
+                                                d._son_count_histogram_buffer.at(sidechain).size() - 1);
+                     // votes for a number greater than maximum_son_count
+                     // are turned into votes for maximum_son_count.
+                     //
+                     // in particular, this takes care of the case where a
+                     // member was voting for a high number, then the
+                     // parameter was lowered.
+                     d._son_count_histogram_buffer.at(sidechain)[offset] += voting_stake;
+                  }
                }
             }
 

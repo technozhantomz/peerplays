@@ -1,6 +1,6 @@
 #pragma once
 #include <graphene/chain/protocol/types.hpp>
-#include <graphene/chain/son_info.hpp>
+#include <graphene/chain/son_sidechain_info.hpp>
 #include <graphene/chain/sidechain_defs.hpp>
 
 namespace graphene { namespace chain {
@@ -21,7 +21,7 @@ namespace graphene { namespace chain {
          time_point_sec expires;
 
          flat_map<sidechain_type, string> addresses;
-         flat_map<sidechain_type, vector<son_info> > sons;
+         flat_map<sidechain_type, vector<son_sidechain_info> > sons;
    };
 
    struct by_valid_from;

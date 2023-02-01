@@ -44,7 +44,7 @@ namespace graphene { namespace chain {
          /// Must not exceed the actual number of son members voted for in @ref votes
          optional< flat_map<sidechain_type, uint16_t> > num_son = []{
             flat_map<sidechain_type, uint16_t> num_son;
-            for(const auto& active_sidechain_type : active_sidechain_types){
+            for(const auto& active_sidechain_type : all_sidechain_types){
                num_son[active_sidechain_type] = 0;
             }
             return num_son;

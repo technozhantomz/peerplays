@@ -784,7 +784,7 @@ void database::_apply_block( const signed_block& next_block )
       update_witness_schedule();
 
       bool need_update_son_schedule = false;
-      for(const auto& active_sidechain_type : active_sidechain_types) {
+      for(const auto& active_sidechain_type : active_sidechain_types(dynamic_global_props.time)) {
          if(global_props.active_sons.at(active_sidechain_type).size() > 0) {
             need_update_son_schedule = true;
          }

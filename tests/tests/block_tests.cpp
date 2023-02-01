@@ -1038,7 +1038,7 @@ BOOST_FIXTURE_TEST_CASE( hardfork_son2_time, database_fixture )
    generate_block();   // get the maintenance skip slots out of the way*/
    BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), 7);
 
-   generate_blocks(HARDFORK_SON3_TIME);
+   generate_blocks(HARDFORK_SON_FOR_ETHEREUM_TIME);
    // after this hardfork maximum son account should not reset the value
    // on 7 after maintenance interval anymore. It must be HARDFORK_SON2_TIME
    BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), GRAPHENE_DEFAULT_MAX_SONS);

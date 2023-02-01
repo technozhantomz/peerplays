@@ -11,7 +11,7 @@ namespace graphene { namespace chain {
 void_result sidechain_transaction_create_evaluator::do_evaluate(const sidechain_transaction_create_operation &op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
-   FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
+   FC_ASSERT(op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer.");
 
    FC_ASSERT((op.object_id.is<son_wallet_id_type>() || op.object_id.is<son_wallet_deposit_id_type>() || op.object_id.is<son_wallet_withdraw_id_type>()), "Invalid object id");
 
@@ -28,15 +28,27 @@ void_result sidechain_transaction_create_evaluator::do_evaluate(const sidechain_
 object_id_type sidechain_transaction_create_evaluator::do_apply(const sidechain_transaction_create_operation &op)
 { try {
    const auto &new_sidechain_transaction_object = db().create<sidechain_transaction_object>([&](sidechain_transaction_object &sto) {
+
       sto.timestamp = db().head_block_time();
       sto.sidechain = op.sidechain;
       sto.object_id = op.object_id;
       sto.transaction = op.transaction;
-      sto.signers = op.signers;
-      std::transform(op.signers.begin(), op.signers.end(), std::inserter(sto.signatures, sto.signatures.end()), [](const son_info &si) {
+      std::vector<son_sidechain_info> signers;
+      signers.resize(op.signers.size());
+      for(const auto& signer : op.signers){
+         son_sidechain_info ssi;
+         ssi.son_id = signer.son_id;
+         ssi.weight = signer.weight;
+         ssi.signing_key = signer.signing_key;
+         ssi.public_key = signer.sidechain_public_keys.at(op.sidechain);
+         signers.emplace_back(std::move(ssi));
+      }
+      sto.signers = std::move(signers);
+
+      std::transform(sto.signers.begin(), sto.signers.end(), std::inserter(sto.signatures, sto.signatures.end()), [](const son_sidechain_info &si) {
          return std::make_pair(si.son_id, std::string());
       });
-      for (const auto &si : op.signers) {
+      for (const auto &si : sto.signers) {
          sto.total_weight = sto.total_weight + si.weight;
       }
       sto.sidechain_transaction = "";
