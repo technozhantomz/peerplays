@@ -59,6 +59,7 @@ protected:
    sidechain_type sidechain;
 
    bool debug_rpc_calls;
+   bool use_bitcoind_client;
 
    std::map<std::string, std::string> private_keys;
 

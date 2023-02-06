@@ -177,6 +177,10 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("debug-rpc-calls", bpo::value<bool>()->default_value(false), "Outputs RPC calls to console");
 
    cli.add_options()("bitcoin-sidechain-enabled", bpo::value<bool>()->default_value(false), "Bitcoin sidechain handler enabled");
+   cli.add_options()("use-bitcoind-client", bpo::value<bool>()->default_value(false), "Use bitcoind client instead of libbitcoin client");
+   cli.add_options()("libbitcoin-server-ip", bpo::value<string>()->default_value("127.0.0.1"), "Libbitcoin server IP address");
+   cli.add_options()("libbitcoin-server-block-zmq-port", bpo::value<uint32_t>()->default_value(9093), "Block ZMQ port of libbitcoin server");
+   cli.add_options()("libbitcoin-server-trx-zmq-port", bpo::value<uint32_t>()->default_value(9094), "Trx ZMQ port of libbitcoin server");
    cli.add_options()("bitcoin-node-ip", bpo::value<string>()->default_value("127.0.0.1"), "IP address of Bitcoin node");
    cli.add_options()("bitcoin-node-zmq-port", bpo::value<uint32_t>()->default_value(11111), "ZMQ port of Bitcoin node");
    cli.add_options()("bitcoin-node-rpc-port", bpo::value<uint32_t>()->default_value(8332), "RPC port of Bitcoin node");
@@ -192,7 +196,7 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("ethereum-node-rpc-user", bpo::value<string>(), "Ethereum RPC user");
    cli.add_options()("ethereum-node-rpc-password", bpo::value<string>(), "Ethereum RPC password");
    cli.add_options()("ethereum-wallet-contract-address", bpo::value<string>(), "Ethereum wallet contract address");
-   cli.add_options()("erc-20-address", bpo::value<vector<string>>()->composing()->multitoken(),
+   cli.add_options()("ethereum-erc-20-address", bpo::value<vector<string>>()->composing()->multitoken(),
                      "Tuple of [ERC-20 symbol, ERC-20 address] (may specify multiple times)");
    cli.add_options()("ethereum-private-key", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR(std::make_pair("5fbbb31be52608d2f52247e8400b7fcaa9e0bc12", "9bedac2bd8fe2a6f6528e066c67fc8ac0622e96828d40c0e820d83c5bd2b0589")),
                      "Tuple of [Ethereum public key, Ethereum private key] (may specify multiple times)");
@@ -249,12 +253,14 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
    }
 
    sidechain_enabled_bitcoin = options.at("bitcoin-sidechain-enabled").as<bool>();
-   config_ready_bitcoin = options.count("bitcoin-node-ip") &&
-                          options.count("bitcoin-node-zmq-port") && options.count("bitcoin-node-rpc-port") &&
-                          options.count("bitcoin-node-rpc-user") && options.count("bitcoin-node-rpc-password") &&
-                          options.count("bitcoin-wallet-name") && options.count("bitcoin-wallet-password") &&
-                          options.count("bitcoin-private-key");
-   if (sidechain_enabled_bitcoin && !config_ready_bitcoin) {
+
+   config_ready_bitcoin = (((options.count("libbitcoin-server-ip") && options.count("libbitcoin-server-zmq-port")) ||
+                            (options.count("bitcoin-node-ip") && options.count("bitcoin-node-zmq-port") &&
+                             options.count("bitcoin-node-rpc-port") && options.count("bitcoin-node-rpc-user") &&
+                             options.count("bitcoin-node-rpc-password") && options.count("bitcoin-wallet-name") &&
+                             options.count("bitcoin-wallet-password"))) &&
+                           options.count("bitcoin-private-key"));
+   if (!config_ready_bitcoin) {
       wlog("Haven't set up Bitcoin sidechain parameters");
    }
 

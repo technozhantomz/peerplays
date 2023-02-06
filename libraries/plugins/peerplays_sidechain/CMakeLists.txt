@@ -16,6 +16,8 @@ add_library( peerplays_sidechain
              bitcoin/segwit_addr.cpp
              bitcoin/utils.cpp
              bitcoin/sign_bitcoin_transaction.cpp
+             bitcoin/libbitcoin_client.cpp
+             bitcoin/estimate_fee_external.cpp
              common/rpc_client.cpp
              common/utils.cpp
              ethereum/encoders.cpp
@@ -42,7 +44,7 @@ endif()
 unset(ENABLE_PEERPLAYS_ASSET_DEPOSITS)
 unset(ENABLE_PEERPLAYS_ASSET_DEPOSITS CACHE)
 
-target_link_libraries( peerplays_sidechain PRIVATE graphene_plugin sha3 zmq )
+target_link_libraries( peerplays_sidechain PRIVATE curl graphene_plugin sha3 zmq bitcoin-system bitcoin-protocol bitcoin-client bitcoin-explorer )
 target_include_directories( peerplays_sidechain
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 
