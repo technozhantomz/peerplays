@@ -34,7 +34,6 @@ object_id_type sidechain_transaction_create_evaluator::do_apply(const sidechain_
       sto.object_id = op.object_id;
       sto.transaction = op.transaction;
       std::vector<son_sidechain_info> signers;
-      signers.resize(op.signers.size());
       for(const auto& signer : op.signers){
          son_sidechain_info ssi;
          ssi.son_id = signer.son_id;
