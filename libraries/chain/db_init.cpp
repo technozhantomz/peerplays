@@ -1168,6 +1168,11 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    });
    assert( ssohive.id == son_schedule_id_type(get_son_schedule_id(sidechain_type::hive)) );
 
+   // Enable fees
+   modify(get_global_properties(), [&genesis_state](global_property_object& p) {
+      p.parameters.current_fees = genesis_state.initial_parameters.current_fees;
+   });
+
    // Create FBA counters
    create<fba_accumulator_object>([&]( fba_accumulator_object& acc )
    {
