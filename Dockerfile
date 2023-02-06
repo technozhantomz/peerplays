@@ -1,5 +1,4 @@
 FROM ubuntu:20.04
-MAINTAINER Peerplays Blockchain Standards Association
 
 #===============================================================================
 # Ubuntu setup
@@ -51,68 +50,101 @@ RUN echo 'peerplays:peerplays' | chpasswd
 # SSH
 EXPOSE 22
 
+WORKDIR /home/peerplays/src
+
 #===============================================================================
 # Boost setup
 #===============================================================================
 
-WORKDIR /home/peerplays/
-
 RUN \
-     wget https://boostorg.jfrog.io/artifactory/main/release/1.72.0/source/boost_1_72_0.tar.gz && \
-    tar -xzvf boost_1_72_0.tar.gz boost_1_72_0 && \
-    cd boost_1_72_0/ && \
+    wget https://boostorg.jfrog.io/artifactory/main/release/1.72.0/source/boost_1_72_0.tar.gz && \
+    tar -xzf boost_1_72_0.tar.gz && \
+    cd boost_1_72_0 && \
     ./bootstrap.sh && \
-    ./b2 install
+    ./b2 install && \
+    ldconfig && \
+    rm -rf /home/peerplays/src/*
 
 #===============================================================================
 # cmake setup
 #===============================================================================
 
-WORKDIR /home/peerplays/
-
 RUN \
-    wget -c 'https://cmake.org/files/v3.23/cmake-3.23.1-linux-x86_64.sh' -O cmake-3.23.1-linux-x86_64.sh && \
-    chmod 755 ./cmake-3.23.1-linux-x86_64.sh && \
-    ./cmake-3.23.1-linux-x86_64.sh --prefix=/usr/ --skip-license && \
-    cmake --version
+    wget https://github.com/Kitware/CMake/releases/download/v3.24.2/cmake-3.24.2-linux-x86_64.sh && \
+    chmod 755 ./cmake-3.24.2-linux-x86_64.sh && \
+    ./cmake-3.24.2-linux-x86_64.sh --prefix=/usr --skip-license && \
+    cmake --version && \
+    rm -rf /home/peerplays/src/*
 
 #===============================================================================
 # libzmq setup
 #===============================================================================
 
-WORKDIR /home/peerplays/
-
 RUN \
-    wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.zip && \
-    unzip v4.3.4.zip && \
+    wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.tar.gz && \
+    tar -xzvf v4.3.4.tar.gz && \
     cd libzmq-4.3.4 && \
     mkdir build && \
     cd build && \
     cmake .. && \
-    make -j$(nproc) install && \
-    ldconfig
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    rm -rf /home/peerplays/src/*
 
 #===============================================================================
 # cppzmq setup
 #===============================================================================
 
-WORKDIR /home/peerplays/
-
 RUN \
-    wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.8.1.zip && \
-    unzip v4.8.1.zip && \
-    cd cppzmq-4.8.1 && \
+    wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.9.0.tar.gz && \
+    tar -xzvf v4.9.0.tar.gz && \
+    cd cppzmq-4.9.0 && \
     mkdir build && \
     cd build && \
     cmake .. && \
-    make -j$(nproc) install && \
-    ldconfig
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    rm -rf /home/peerplays/src/*
+
+#===============================================================================
+# gsl setup
+#===============================================================================
+
+RUN \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      libpcre3-dev
+
+RUN \
+    wget https://github.com/imatix/gsl/archive/refs/tags/v4.1.4.tar.gz && \
+    tar -xzvf v4.1.4.tar.gz && \
+    cd gsl-4.1.4 && \
+    make -j$(nproc) && \
+    make install && \
+    rm -rf /home/peerplays/src/*
+
+#===============================================================================
+# libbitcoin-build setup
+# libbitcoin-explorer setup
+#===============================================================================
+
+RUN \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      libsodium-dev
+
+RUN \
+    git clone https://github.com/libbitcoin/libbitcoin-build.git && \
+    cd libbitcoin-build && \
+    ./generate3.sh && \
+    cd ../libbitcoin-explorer && \
+    ./install.sh && \
+    ldconfig && \
+    rm -rf /home/peerplays/src/*
 
 #===============================================================================
 # Doxygen setup
 #===============================================================================
-
-WORKDIR /home/peerplays/
 
 RUN \
     sudo apt install -y bison flex && \
@@ -129,8 +161,6 @@ RUN \
 # Perl setup
 #===============================================================================
 
-WORKDIR /home/peerplays/
-
 RUN \
     wget https://github.com/Perl/perl5/archive/refs/tags/v5.30.0.tar.gz && \
     tar -xvf v5.30.0.tar.gz && \
@@ -142,8 +172,6 @@ RUN \
 #===============================================================================
 # Peerplays setup
 #===============================================================================
-
-WORKDIR /home/peerplays/
 
 ## Clone Peerplays
 #RUN \
@@ -176,8 +204,8 @@ WORKDIR /home/peerplays/peerplays-network
 
 # Setup Peerplays runimage
 RUN \
-    ln -s /home/peerplays/peerplays/build/programs/cli_wallet/cli_wallet ./ && \
-    ln -s /home/peerplays/peerplays/build/programs/witness_node/witness_node ./
+    ln -s /home/peerplays/src/peerplays/build/programs/cli_wallet/cli_wallet ./ && \
+    ln -s /home/peerplays/src/peerplays/build/programs/witness_node/witness_node ./
 
 RUN ./witness_node --create-genesis-json genesis.json && \
     rm genesis.json

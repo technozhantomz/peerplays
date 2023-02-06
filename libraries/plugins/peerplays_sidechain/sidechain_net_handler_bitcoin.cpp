@@ -29,11 +29,6 @@ bitcoin_rpc_client::bitcoin_rpc_client(std::string _url, std::string _user, std:
       rpc_client(_url, _user, _password, _debug_rpc_calls) {
 }
 
-std::string bitcoin_rpc_client::createwallet(const std::string &wallet_name) {
-   const std::string params = std::string("[\"") + wallet_name + std::string("\"]");
-   return send_post_request("createwallet", params, debug_rpc_calls);
-}
-
 uint64_t bitcoin_rpc_client::estimatesmartfee(uint16_t conf_target) {
    const std::string params = std::string("[") + std::to_string(conf_target) + std::string("]");
    const std::string str = send_post_request("estimatesmartfee", params, debug_rpc_calls);
@@ -58,24 +53,114 @@ uint64_t bitcoin_rpc_client::estimatesmartfee(uint16_t conf_target) {
    return 20000;
 }
 
-std::string bitcoin_rpc_client::getblock(const std::string &block_hash, int32_t verbosity) {
-   const std::string params = std::string("[\"") + block_hash + std::string("\",") + std::to_string(verbosity) + std::string("]");
-   return send_post_request("getblock", params, debug_rpc_calls);
+std::vector<info_for_vin> bitcoin_rpc_client::getblock(const block_data &block, int32_t verbosity) {
+   std::string params = std::string("[\"") + block.block_hash + std::string("\",") + std::to_string(verbosity) + std::string("]");
+   std::string str = send_post_request("getblock", params, debug_rpc_calls);
+   std::vector<info_for_vin> result;
+
+   if (str.empty()) {
+      return result;
+   }
+
+   std::stringstream ss(str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   auto json_result = json.get_child_optional("result");
+
+   for (const auto &tx_child : json_result.get().get_child("tx")) {
+      const auto &tx = tx_child.second;
+
+      for (const auto &o : tx.get_child("vout")) {
+         const auto script = o.second.get_child("scriptPubKey");
+         std::vector<std::string> address_list;
+
+         if (script.count("address")) {
+            address_list.emplace_back(script.get<std::string>("address"));
+         } else if (script.count("addresses")) {
+            for (const auto &addr : script.get_child("addresses")) {
+               address_list.emplace_back(addr.second.get_value<std::string>());
+            }
+         } else {
+            continue;
+         }
+
+         for (auto &address : address_list) {
+            const auto address_base58 = address;
+            info_for_vin vin;
+            vin.out.hash_tx = tx.get_child("txid").get_value<std::string>();
+            string amount = o.second.get_child("value").get_value<std::string>();
+            amount.erase(std::remove(amount.begin(), amount.end(), '.'), amount.end());
+            vin.out.amount = std::stoll(amount);
+            vin.out.n_vout = o.second.get_child("n").get_value<uint32_t>();
+            vin.address = address_base58;
+            result.push_back(vin);
+         }
+      }
+   }
+
+   return result;
 }
 
-std::string bitcoin_rpc_client::getnetworkinfo() {
-   static const std::string params = std::string("[]");
-   return send_post_request("getnetworkinfo", params, debug_rpc_calls);
+void bitcoin_rpc_client::getnetworkinfo() {
+   std::string params = std::string("[]");
+   std::string str = send_post_request("getnetworkinfo", params, debug_rpc_calls);
+
+   std::stringstream network_info_ss(str);
+   boost::property_tree::ptree network_info_json;
+   boost::property_tree::read_json(network_info_ss, network_info_json);
+
+   bitcoin_major_version = network_info_json.get<uint32_t>("result.version") / 10000;
+   ilog("Bitcoin major version is: '${version}'", ("version", bitcoin_major_version));
 }
 
-std::string bitcoin_rpc_client::getrawtransaction(const std::string &txid, const bool verbose) {
-   const std::string params = std::string("[\"") + txid + std::string("\",") + (verbose ? "true" : "false") + std::string("]");
-   return send_post_request("getrawtransaction", params, debug_rpc_calls);
+btc_tx bitcoin_rpc_client::getrawtransaction(const std::string &txid, const bool verbose) {
+   std::string params = std::string("[\"") + txid + std::string("\",") + (verbose ? "true" : "false") + std::string("]");
+   std::string str = send_post_request("getrawtransaction", params, debug_rpc_calls);
+
+   btc_tx tx;
+
+   std::stringstream tx_ss(str);
+   boost::property_tree::ptree tx_json;
+   boost::property_tree::read_json(tx_ss, tx_json);
+
+   if (tx_json.count("error") && tx_json.get_child("error").empty()) {
+
+      std::string tx_txid = tx_json.get<std::string>("result.txid");
+      uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
+
+      tx.tx_txid = tx_txid;
+      tx.tx_confirmations = tx_confirmations;
+
+      for (auto &input : tx_json.get_child("result.vout")) {
+         btc_txin tx_in;
+         std::string tx_vout_s = input.second.get<std::string>("n");
+         tx_in.tx_vout = std::stoll(tx_vout_s);
+         if (bitcoin_major_version > 21) {
+            std::string address = input.second.get<std::string>("scriptPubKey.address");
+            tx_in.tx_address.emplace_back(address);
+         } else {
+            for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
+               tx_in.tx_address.emplace_back(address.second.data());
+            }
+         }
+
+         std::string tx_amount_s = input.second.get<std::string>("value");
+         tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
+         tx_in.tx_amount = std::stoll(tx_amount_s);
+
+         tx.tx_in_list.emplace_back(tx_in);
+      }
+   }
+
+   return tx;
 }
 
 std::string bitcoin_rpc_client::getblockchaininfo() {
    static const std::string params = std::string("[]");
    const std::string str = send_post_request("getblockchaininfo", params, debug_rpc_calls);
+
+   std::string result;
 
    if (str.length() > 0) {
 
@@ -83,11 +168,15 @@ std::string bitcoin_rpc_client::getblockchaininfo() {
       boost::property_tree::ptree json;
       boost::property_tree::read_json(ss, json);
 
-      boost::property_tree::json_parser::write_json(ss, json.get_child("result"));
-      return ss.str();
+      if (json.find("result") != json.not_found()) {
+         auto json_result = json.get_child("result");
+         if (json_result.count("chain")) {
+            result = json_result.get<std::string>("chain");
+         }
+      }
    }
 
-   return str;
+   return result;
 }
 
 void bitcoin_rpc_client::importmulti(const std::vector<multi_params> &address_or_script_array, const bool rescan) {
@@ -106,11 +195,11 @@ void bitcoin_rpc_client::importmulti(const std::vector<multi_params> &address_or
 
       //! Note
       /* Creation time of the key expressed in UNIX epoch time,
-      or the string "now" to substitute the current synced blockchain time. The timestamp of the oldest
-      key will determine how far back blockchain rescans need to begin for missing wallet transactions.
-      "now" can be specified to bypass scanning, for keys which are known to never have been used, and
-      0 can be specified to scan the entire blockchain. Blocks up to 2 hours before the earliest key
-      creation time of all keys being imported by the importmulti call will be scanned.*/
+         or the string "now" to substitute the current synced blockchain time. The timestamp of the oldest
+         key will determine how far back blockchain rescans need to begin for missing wallet transactions.
+         "now" can be specified to bypass scanning, for keys which are known to never have been used, and
+         0 can be specified to scan the entire blockchain. Blocks up to 2 hours before the earliest key
+         creation time of all keys being imported by the importmulti call will be scanned.*/
 
       if (&param != &address_or_script_array.back()) {
          argument_1 += ", ";
@@ -243,15 +332,178 @@ bool bitcoin_rpc_client::walletpassphrase(const std::string &passphrase, uint32_
    else
       return true;
 }
+bitcoin_libbitcoin_client::bitcoin_libbitcoin_client(std::string url) :
+      libbitcoin_client(url) {
+
+   estimate_fee_ext = std::unique_ptr<estimate_fee_external>(new estimate_fee_external());
+}
+
+uint64_t bitcoin_libbitcoin_client::estimatesmartfee(uint16_t conf_target) {
+   std::vector<std::pair<std::string, uint64_t>> fees = estimate_fee_ext->get_fee_external(conf_target);
+   std::vector<uint64_t> accumulated_fees;
+   for (auto &external_fees : fees) {
+      if (external_fees.second != 0) {
+         accumulated_fees.emplace_back(external_fees.second);
+      }
+   }
+
+   // we will rather pick minimal fee from external sources than internal fee calculation
+   if (accumulated_fees.empty()) {
+      accumulated_fees.emplace_back(current_internal_fee);
+   }
+
+   return *std::min_element(accumulated_fees.begin(), accumulated_fees.end());
+}
+
+std::vector<info_for_vin> bitcoin_libbitcoin_client::getblock(const block_data &block, int32_t verbosity) {
+
+   std::unique_lock<std::mutex> lck(libbitcoin_event_mutex);
+
+   // estimate fee
+   const auto &block_trxs = block.block.transactions();
+   std::vector<libbitcoin::chain::transaction> bucket_trxs;
+   for (auto &mem_pool_trx : trx_memory_pool) {
+      for (auto &trx : block_trxs) {
+         if (mem_pool_trx.hash() == trx.hash()) {
+            bucket_trxs.emplace_back(mem_pool_trx);
+            break;
+         }
+      }
+   }
+
+   uint64_t average_fee = get_average_fee_from_trxs(bucket_trxs);
+   if (average_fee > 0 && bucket_trxs.size() >= MIN_TRXS_IN_BUCKET) {
+      current_internal_fee = average_fee;
+   }
+
+   // We could consider accumulation which could spread to multiple blocks for better metric
+   // for now we only keep tracking for not confirmed transaction until we get next block
+   trx_memory_pool.clear();
+
+   std::vector<info_for_vin> result;
+
+   const libbitcoin::chain::transaction::list trx_list = block.block.transactions();
+
+   for (const auto &tx : trx_list) {
+      uint32_t vout_seq = 0;
+      for (const auto &o : tx.outputs()) {
+         std::vector<std::string> address_list;
+
+         libbitcoin::wallet::payment_address::list addresses;
+         if (is_test_net) {
+            addresses = o.addresses(libbitcoin::wallet::payment_address::testnet_p2kh,
+                                    libbitcoin::wallet::payment_address::testnet_p2sh);
+         } else {
+            addresses = o.addresses();
+         }
+
+         for (auto &payment_address : addresses) {
+            std::stringstream ss;
+            ss << payment_address;
+            address_list.emplace_back(ss.str());
+         }
+
+         // addres list consists usual of one element
+         for (auto &address : address_list) {
+            const auto address_base58 = address;
+            info_for_vin vin;
+            vin.out.hash_tx = libbitcoin::config::hash256(tx.hash()).to_string();
+            vin.out.amount = std::floor(o.value());
+            vin.out.n_vout = vout_seq;
+            vin.address = address_base58;
+            result.push_back(vin);
+         }
+         vout_seq++;
+      }
+   }
+
+   return result;
+}
+
+btc_tx bitcoin_libbitcoin_client::getrawtransaction(const std::string &txid, const bool verbose) {
+   btc_tx tx;
+
+   std::string tx_hash;
+   uint32_t confirmitions;
+
+   libbitcoin::chain::output::list outs = get_transaction(txid, tx_hash, confirmitions);
+
+   if (tx_hash.empty()) {
+      return tx;
+   }
+
+   tx.tx_txid = tx_hash;
+   tx.tx_confirmations = confirmitions;
+
+   uint64_t tx_vout_sequence = 0;
+
+   for (auto &out : outs) {
+      btc_txin tx_in;
+      tx_in.tx_vout = tx_vout_sequence++;
+
+      libbitcoin::wallet::payment_address::list addresses;
+      if (is_test_net) {
+         addresses = out.addresses(libbitcoin::wallet::payment_address::testnet_p2kh,
+                                   libbitcoin::wallet::payment_address::testnet_p2sh);
+      } else {
+         addresses = out.addresses();
+      }
+
+      for (auto &address : addresses) {
+
+         std::stringstream ss;
+         ss << address;
+         tx_in.tx_address.emplace_back(ss.str());
+      }
+
+      tx_in.tx_amount = std::floor(out.value());
+      tx.tx_in_list.emplace_back(tx_in);
+   }
+
+   return tx;
+}
+
+void bitcoin_libbitcoin_client::getnetworkinfo() {
+   // This function is only used for bitcoind client in order of getting
+   // version of bitcoin client. Version is used for extracting addresses or address
+   // which is not important for libbitcoin client
+}
+
+std::string bitcoin_libbitcoin_client::getblockchaininfo() {
+   if (get_is_test_net()) {
+      is_test_net = true;
+      return "regtest";
+   }
+
+   return "";
+}
+
+std::vector<btc_txout> bitcoin_libbitcoin_client::listunspent_by_address_and_amount(const std::string &address, double transfer_amount, const uint32_t minconf, const uint32_t maxconf) {
+
+   std::vector<btc_txout> result;
+   std::vector<list_unspent_replay> outputs = listunspent(address, transfer_amount);
+   for (auto &output : outputs) {
+      btc_txout txo;
+      txo.txid_ = output.hash;
+      txo.out_num_ = output.index;
+      txo.amount_ = output.value;
+      result.push_back(txo);
+   }
+
+   return result;
+}
+
+std::string bitcoin_libbitcoin_client::sendrawtransaction(const std::string &tx_hex) {
+   std::string res = send_transaction(tx_hex);
+   return res;
+}
 
 // =============================================================================
 
-zmq_listener::zmq_listener(std::string _ip, uint32_t _zmq) :
-      ip(_ip),
-      zmq_port(_zmq),
+zmq_listener::zmq_listener(std::string _ip, uint32_t _zmq_block_port, uint32_t _zmq_trx_port) :
+      zmq_listener_base(_ip, _zmq_block_port, _zmq_trx_port),
       ctx(1),
-      socket(ctx, ZMQ_SUB),
-      stopped(false) {
+      socket(ctx, ZMQ_SUB) {
 }
 
 void zmq_listener::start() {
@@ -265,16 +517,16 @@ void zmq_listener::start() {
    // socket.setsockopt( ZMQ_SUBSCRIBE, "hashtx", 6 );
    // socket.setsockopt( ZMQ_SUBSCRIBE, "rawblock", 8 );
    // socket.setsockopt( ZMQ_SUBSCRIBE, "rawtx", 5 );
-   socket.connect("tcp://" + ip + ":" + std::to_string(zmq_port));
+   socket.connect("tcp://" + ip + ":" + std::to_string(block_zmq_port));
 
-   thr = std::thread(&zmq_listener::handle_zmq, this);
+   block_thr = std::thread(&zmq_listener::handle_zmq, this);
 
    ilog("zmq_listener thread started");
 }
 
 zmq_listener::~zmq_listener() {
    stopped = true;
-   thr.join();
+   block_thr.join();
 }
 
 std::vector<zmq::message_t> zmq_listener::receive_multipart() {
@@ -302,7 +554,9 @@ void zmq_listener::handle_zmq() {
             }
             const auto header = std::string(static_cast<char *>(msg[0].data()), msg[0].size());
             const auto block_hash = boost::algorithm::hex(std::string(static_cast<char *>(msg[1].data()), msg[1].size()));
-            event_received(block_hash);
+            block_data event_data;
+            event_data.block_hash = block_hash;
+            block_event_received(event_data);
          }
       } catch (zmq::error_t &e) {
          elog("handle_zmq recv_multipart exception ${str}", ("str", e.what()));
@@ -310,6 +564,92 @@ void zmq_listener::handle_zmq() {
    }
 
    ilog("zmq_listener thread finished");
+}
+
+// =============================================================================
+
+// =============================================================================
+
+zmq_listener_libbitcoin::zmq_listener_libbitcoin(std::string _ip, uint32_t _block_zmq_port, uint32_t _trx_zmq_port) :
+      zmq_listener_base(_ip, _block_zmq_port, _trx_zmq_port),
+      block_socket(block_context, libbitcoin::protocol::zmq::socket::role::subscriber),
+      trx_socket(trx_context, libbitcoin::protocol::zmq::socket::role::subscriber) {
+}
+
+zmq_listener_libbitcoin::~zmq_listener_libbitcoin() {
+   stopped.store(true);
+   block_thr.join();
+   trx_thr.join();
+}
+
+void zmq_listener_libbitcoin::start() {
+   std::string endpoint_address = "tcp://" + ip;
+
+   libbitcoin::config::endpoint block_address(endpoint_address, block_zmq_port);
+   libbitcoin::config::endpoint trx_address(endpoint_address, trx_zmq_port);
+
+   block_socket.connect(block_address);
+   trx_socket.connect(trx_address);
+
+   block_thr = std::thread(&zmq_listener_libbitcoin::handle_block, this);
+   trx_thr = std::thread(&zmq_listener_libbitcoin::handle_trx, this);
+}
+
+void zmq_listener_libbitcoin::handle_trx() {
+   trx_poller.add(trx_socket);
+
+   while (!stopped.load()) {
+      const auto identifiers = trx_poller.wait(500);
+
+      if (identifiers.contains(trx_socket.id())) {
+         libbitcoin::protocol::zmq::message message;
+
+         trx_socket.receive(message);
+
+         std::vector<uint8_t> data;
+         for (int i = 0; i < 2; i++) {
+            data.clear();
+            message.dequeue(data);
+         }
+
+         libbitcoin::chain::transaction trx;
+         trx.from_data(data, true);
+
+         trx_event_received(trx);
+      }
+   }
+
+   ilog("zmq_listener_libbitcoin trx thread finished");
+}
+
+void zmq_listener_libbitcoin::handle_block() {
+   block_poller.add(block_socket);
+
+   while (!stopped.load()) {
+      const auto identifiers = block_poller.wait(500);
+
+      if (identifiers.contains(block_socket.id())) {
+         libbitcoin::protocol::zmq::message message;
+
+         block_socket.receive(message);
+
+         std::vector<uint8_t> data;
+         for (int i = 0; i < 3; i++) {
+            data.clear();
+            message.dequeue(data);
+         }
+
+         libbitcoin::chain::block block;
+         block.from_data(data, true);
+
+         block_data event_data;
+         event_data.block_hash = libbitcoin::config::hash256(block.hash()).to_string();
+         event_data.block = std::move(block);
+         block_event_received(event_data);
+      }
+   }
+
+   ilog("zmq_listener_libbitcoin block thread finished");
 }
 
 // =============================================================================
@@ -322,8 +662,16 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
       debug_rpc_calls = options.at("debug-rpc-calls").as<bool>();
    }
 
-   ip = options.at("bitcoin-node-ip").as<std::string>();
-   zmq_port = options.at("bitcoin-node-zmq-port").as<uint32_t>();
+   if (options.count("use-bitcoind-client")) {
+      use_bitcoind_client = options.at("use-bitcoind-client").as<bool>();
+   }
+
+   libbitcoin_server_ip = options.at("libbitcoin-server-ip").as<std::string>();
+   libbitcoin_block_zmq_port = options.at("libbitcoin-server-block-zmq-port").as<uint32_t>();
+   libbitcoin_trx_zmq_port = options.at("libbitcoin-server-trx-zmq-port").as<uint32_t>();
+
+   bitcoin_node_ip = options.at("bitcoin-node-ip").as<std::string>();
+   bitcoin_node_zmq_port = options.at("bitcoin-node-zmq-port").as<uint32_t>();
    rpc_port = options.at("bitcoin-node-rpc-port").as<uint32_t>();
    rpc_user = options.at("bitcoin-node-rpc-user").as<std::string>();
    rpc_password = options.at("bitcoin-node-rpc-password").as<std::string>();
@@ -348,55 +696,44 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
       }
    }
 
-   std::string url = ip + ":" + std::to_string(rpc_port);
-   if (!wallet_name.empty()) {
-      url = url + "/wallet/" + wallet_name;
+   if (use_bitcoind_client) {
+      std::string url = bitcoin_node_ip + ":" + std::to_string(rpc_port);
+      if (!wallet_name.empty()) {
+         url = url + "/wallet/" + wallet_name;
+      }
+      bitcoin_client = std::unique_ptr<bitcoin_rpc_client>(new bitcoin_rpc_client(url, rpc_user, rpc_password, debug_rpc_calls));
+      if (!wallet_name.empty()) {
+         bitcoin_client->loadwallet(wallet_name);
+      }
+
+      listener = std::unique_ptr<zmq_listener>(new zmq_listener(bitcoin_node_ip, bitcoin_node_zmq_port));
+
+   } else {
+      bitcoin_client = std::unique_ptr<bitcoin_libbitcoin_client>(new bitcoin_libbitcoin_client(libbitcoin_server_ip));
+
+      listener = std::unique_ptr<zmq_listener_libbitcoin>(new zmq_listener_libbitcoin(libbitcoin_server_ip, libbitcoin_block_zmq_port, libbitcoin_trx_zmq_port));
    }
 
-   bitcoin_client = std::unique_ptr<bitcoin_rpc_client>(new bitcoin_rpc_client(url, rpc_user, rpc_password, debug_rpc_calls));
-   if (!wallet_name.empty()) {
-      bitcoin_client->loadwallet(wallet_name);
-   }
-
-   std::string blockchain_info = bitcoin_client->getblockchaininfo();
-   if (blockchain_info.empty()) {
-      elog("No Bitcoin node running at ${url}", ("url", url));
-      FC_ASSERT(false);
-   }
-   std::stringstream bci_ss(std::string(blockchain_info.begin(), blockchain_info.end()));
-   boost::property_tree::ptree bci_json;
-   boost::property_tree::read_json(bci_ss, bci_json);
+   std::string chain_info = bitcoin_client->getblockchaininfo();
 
    using namespace bitcoin;
    network_type = bitcoin_address::network::mainnet;
 
-   if (bci_json.count("chain")) {
-      std::string chain = bci_json.get<std::string>("chain");
-      if (chain.length() > 0) {
-         if (chain == "test") {
-            network_type = bitcoin_address::network::testnet;
-         } else if (chain == "regtest") {
-            network_type = bitcoin_address::network::regtest;
-         }
-      }
+   if (chain_info == "test") {
+      network_type = bitcoin_address::network::testnet;
+   } else if (chain_info == "regtest") {
+      network_type = bitcoin_address::network::regtest;
    }
 
-   std::string network_info_str = bitcoin_client->getnetworkinfo();
-   if (network_info_str.empty()) {
-      elog("No Bitcoin node running at ${url}", ("url", url));
-      FC_ASSERT(false);
-   }
-   std::stringstream network_info_ss(network_info_str);
-   boost::property_tree::ptree network_info_json;
-   boost::property_tree::read_json(network_info_ss, network_info_json);
+   bitcoin_client->getnetworkinfo();
 
-   bitcoin_major_version = network_info_json.get<uint32_t>("result.version") / 10000;
-   ilog("Bitcoin major version is: '${version}'", ("version", bitcoin_major_version));
-
-   listener = std::unique_ptr<zmq_listener>(new zmq_listener(ip, zmq_port));
    listener->start();
-   listener->event_received.connect([this](const std::string &event_data) {
-      std::thread(&sidechain_net_handler_bitcoin::handle_event, this, event_data).detach();
+   listener->block_event_received.connect([this](const block_data &block_event_data) {
+      std::thread(&sidechain_net_handler_bitcoin::block_handle_event, this, block_event_data).detach();
+   });
+
+   listener->trx_event_received.connect([this](const libbitcoin::chain::transaction &trx_event_data) {
+      std::thread(&sidechain_net_handler_bitcoin::trx_handle_event, this, trx_event_data).detach();
    });
 
    database.changed_objects.connect([this](const vector<object_id_type> &ids, const flat_set<account_id_type> &accounts) {
@@ -418,7 +755,7 @@ sidechain_net_handler_bitcoin::~sidechain_net_handler_bitcoin() {
 
 bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) {
 
-   //ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
+   // ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
 
    bool should_approve = false;
 
@@ -450,7 +787,7 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
       son_wallet_id_type swo_id = op_obj_idx_0.get<son_wallet_update_operation>().son_wallet_id;
       const auto ast = active_sidechain_types(database.head_block_time());
       const auto id = (swo_id.instance.value - std::distance(ast.begin(), ast.find(sidechain))) / ast.size();
-      const son_wallet_id_type op_id{ id };
+      const son_wallet_id_type op_id{id};
       const auto &idx = database.get_index_type<son_wallet_index>().indices().get<by_id>();
       const auto swo = idx.find(op_id);
       if (swo != idx.end()) {
@@ -491,7 +828,7 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
             const object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
             const auto ast = active_sidechain_types(database.head_block_time());
             const auto id = (object_id.instance() - std::distance(ast.begin(), ast.find(sidechain))) / ast.size();
-            const object_id_type obj_id{ object_id.space(), object_id.type(), id };
+            const object_id_type obj_id{object_id.space(), object_id.type(), id};
             std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
             const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
@@ -533,50 +870,35 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
          uint64_t swdo_amount = swdo->sidechain_amount.value;
          uint64_t swdo_vout = std::stoll(swdo->sidechain_uid.substr(swdo->sidechain_uid.find_last_of("-") + 1));
 
-         const std::string tx_str = bitcoin_client->getrawtransaction(swdo_txid, true);
-         if (tx_str != "") {
-            std::stringstream tx_ss(tx_str);
-            boost::property_tree::ptree tx_json;
-            boost::property_tree::read_json(tx_ss, tx_json);
+         btc_tx tx = bitcoin_client->getrawtransaction(swdo_txid, true);
 
-            if (tx_json.count("error") && tx_json.get_child("error").empty()) {
+         if (!tx.tx_in_list.empty()) {
 
-               std::string tx_txid = tx_json.get<std::string>("result.txid");
-               uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
-               std::string tx_address = "";
-               uint64_t tx_amount = -1;
-               uint64_t tx_vout = -1;
+            std::string tx_txid = tx.tx_txid;
+            uint32_t tx_confirmations = tx.tx_confirmations;
+            std::string tx_address = "";
+            uint64_t tx_amount = -1;
+            uint64_t tx_vout = -1;
 
-               for (auto &input : tx_json.get_child("result.vout")) {
-                  std::string tx_vout_s = input.second.get<std::string>("n");
-                  tx_vout = std::stoll(tx_vout_s);
-                  if (tx_vout == swdo_vout) {
-                     if (bitcoin_major_version > 21) {
-                        std::string address = input.second.get<std::string>("scriptPubKey.address");
-                        if (address == swdo_address) {
-                           tx_address = address;
-                        }
-                     } else {
-                        for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
-                           if (address.second.data() == swdo_address) {
-                              tx_address = address.second.data();
-                              break;
-                           }
-                        }
+            for (auto &input : tx.tx_in_list) {
+               tx_vout = input.tx_vout;
+               if (tx_vout == swdo_vout) {
+                  for (auto &address : input.tx_address) {
+                     if (address == swdo_address) {
+                        tx_address = address;
+                        break;
                      }
-                     std::string tx_amount_s = input.second.get<std::string>("value");
-                     tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
-                     tx_amount = std::stoll(tx_amount_s);
-                     break;
                   }
+                  tx_amount = input.tx_amount;
+                  break;
                }
-
-               process_ok = (swdo_txid == tx_txid) &&
-                            (swdo_address == tx_address) &&
-                            (swdo_amount == tx_amount) &&
-                            (swdo_vout == tx_vout) &&
-                            (gpo.parameters.son_bitcoin_min_tx_confirmations() <= tx_confirmations);
             }
+
+            process_ok = (swdo_txid == tx_txid) &&
+                         (swdo_address == tx_address) &&
+                         (swdo_amount == tx_amount) &&
+                         (swdo_vout == tx_vout) &&
+                         (gpo.parameters.son_bitcoin_min_tx_confirmations() <= tx_confirmations);
          }
 
          object_id_type object_id = op_obj_idx_1.get<sidechain_transaction_create_operation>().object_id;
@@ -724,7 +1046,7 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
 
          const auto ast = active_sidechain_types(database.head_block_time());
          const auto id = active_sw->id.instance() * ast.size() + std::distance(ast.begin(), ast.find(sidechain));
-         const object_id_type op_id{ active_sw->id.space(), active_sw->id.type(), id };
+         const object_id_type op_id{active_sw->id.space(), active_sw->id.type(), id};
 
          if (proposal_exists(chain::operation::tag<chain::son_wallet_update_operation>::value, op_id)) {
             return;
@@ -765,7 +1087,7 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
                if (!tx_str.empty()) {
                   const auto ast = active_sidechain_types(database.head_block_time());
                   const auto prev_id = prev_sw->id.instance() * ast.size() + std::distance(ast.begin(), ast.find(sidechain));
-                  const object_id_type prev_op_id{ prev_sw->id.space(), prev_sw->id.type(), prev_id };
+                  const object_id_type prev_op_id{prev_sw->id.space(), prev_sw->id.type(), prev_id};
 
                   sidechain_transaction_create_operation stc_op;
                   stc_op.payer = gpo.parameters.son_account();
@@ -820,7 +1142,12 @@ void sidechain_net_handler_bitcoin::process_sidechain_addresses() {
                        if (sao.expires == time_point_sec::maximum()) {
                           auto usr_pubkey = fc::ecc::public_key(create_public_key_data(parse_hex(sao.deposit_public_key)));
 
-                          btc_one_or_weighted_multisig_address addr(usr_pubkey, pubkeys, network_type);
+                          payment_type payment_type_address = payment_type::P2SH_WSH;
+                          if (use_bitcoind_client) {
+                             payment_type_address = payment_type::P2WSH;
+                          }
+
+                          btc_one_or_weighted_multisig_address addr(usr_pubkey, pubkeys, network_type, payment_type_address);
                           std::string address_data = "{ \"redeemScript\": \"" + fc::to_hex(addr.get_redeem_script()) +
                                                      "\", \"witnessScript\": \"" + fc::to_hex(addr.get_witness_script()) + "\" }";
 
@@ -977,61 +1304,53 @@ bool sidechain_net_handler_bitcoin::settle_sidechain_transaction(const sidechain
       return false;
    }
 
-   const std::string tx_str = bitcoin_client->getrawtransaction(sto.sidechain_transaction, true);
-   if (tx_str != "") {
-      std::stringstream tx_ss(tx_str);
-      boost::property_tree::ptree tx_json;
-      boost::property_tree::read_json(tx_ss, tx_json);
+   btc_tx tx = bitcoin_client->getrawtransaction(sto.sidechain_transaction, true);
 
-      if ((tx_json.count("error")) && (!tx_json.get_child("error").empty())) {
-         return false;
-      }
+   if (tx.tx_in_list.empty()) {
+      // This case will result with segmentation fault.
+      // FIXME check if that happened before introducing libbitcoin
+      return false;
+   }
 
-      const chain::global_property_object &gpo = database.get_global_properties();
+   const chain::global_property_object &gpo = database.get_global_properties();
 
-      using namespace bitcoin;
-      std::vector<std::pair<fc::ecc::public_key, uint16_t>> pubkey_weights;
-      for (auto si : sto.signers) {
-         auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(si.public_key)));
-         pubkey_weights.push_back(std::make_pair(pub_key, si.weight));
-      }
-      btc_weighted_multisig_address addr(pubkey_weights, network_type);
+   using namespace bitcoin;
+   std::vector<std::pair<fc::ecc::public_key, uint16_t>> pubkey_weights;
+   for (auto si : sto.signers) {
+      auto pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(si.public_key)));
+      pubkey_weights.push_back(std::make_pair(pub_key, si.weight));
+   }
 
-      std::string tx_txid = tx_json.get<std::string>("result.txid");
-      uint32_t tx_confirmations = tx_json.get<uint32_t>("result.confirmations");
-      std::string tx_address = addr.get_address();
-      int64_t tx_amount = -1;
+   payment_type payment_type_address = payment_type::P2SH_WSH;
+   if (use_bitcoind_client) {
+      payment_type_address = payment_type::P2WSH;
+   }
 
-      if (tx_confirmations >= gpo.parameters.son_bitcoin_min_tx_confirmations()) {
-         if (sto.object_id.is<son_wallet_deposit_id_type>()) {
-            for (auto &input : tx_json.get_child("result.vout")) {
-               if (bitcoin_major_version > 21) {
-                  std::string address = input.second.get<std::string>("scriptPubKey.address");
-                  if (address == tx_address) {
-                     std::string tx_amount_s = input.second.get<std::string>("value");
-                     tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
-                     tx_amount = std::stoll(tx_amount_s);
-                  }
-               } else {
-                  for (auto &address : input.second.get_child("scriptPubKey.addresses")) {
-                     if (address.second.data() == tx_address) {
-                        std::string tx_amount_s = input.second.get<std::string>("value");
-                        tx_amount_s.erase(std::remove(tx_amount_s.begin(), tx_amount_s.end(), '.'), tx_amount_s.end());
-                        tx_amount = std::stoll(tx_amount_s);
-                        break;
-                     }
-                  }
+   btc_weighted_multisig_address addr(pubkey_weights, network_type, payment_type_address);
+
+   std::string tx_txid = tx.tx_txid;
+   uint32_t tx_confirmations = tx.tx_confirmations;
+   std::string tx_address = addr.get_address();
+   int64_t tx_amount = -1;
+
+   if (tx_confirmations >= gpo.parameters.son_bitcoin_min_tx_confirmations()) {
+      if (sto.object_id.is<son_wallet_deposit_id_type>()) {
+         for (auto &input : tx.tx_in_list) {
+            for (auto &address : input.tx_address) {
+               if (address == tx_address) {
+                  tx_amount = input.tx_amount;
+                  break;
                }
             }
             settle_amount = asset(tx_amount, database.get_global_properties().parameters.btc_asset());
             return true;
          }
+      }
 
-         if (sto.object_id.is<son_wallet_withdraw_id_type>()) {
-            auto swwo = database.get<son_wallet_withdraw_object>(sto.object_id);
-            settle_amount = asset(swwo.withdraw_amount, database.get_global_properties().parameters.btc_asset());
-            return true;
-         }
+      if (sto.object_id.is<son_wallet_withdraw_id_type>()) {
+         auto swwo = database.get<son_wallet_withdraw_object>(sto.object_id);
+         settle_amount = asset(swwo.withdraw_amount, database.get_global_properties().parameters.btc_asset());
+         return true;
       }
    }
    return false;
@@ -1051,7 +1370,11 @@ std::string sidechain_net_handler_bitcoin::create_primary_wallet_address(const s
       pubkey_weights.push_back(std::make_pair(pub_key, son.weight));
    }
 
-   btc_weighted_multisig_address addr(pubkey_weights, network_type);
+   payment_type payment_type_address = payment_type::P2SH_WSH;
+   if (use_bitcoind_client) {
+      payment_type_address = payment_type::P2WSH;
+   }
+   btc_weighted_multisig_address addr(pubkey_weights, network_type, payment_type_address);
 
    std::stringstream ss;
 
@@ -1287,18 +1610,34 @@ std::string sidechain_net_handler_bitcoin::send_transaction(const sidechain_tran
    }
    // Add redeemscripts to vins and make tx ready for sending
    sign_witness_transaction_finalize(tx, redeem_scripts, false);
+
+   if (!use_bitcoind_client) {
+      // get witness script from redeem script
+      bitcoin::bytes redeem_bytes = parse_hex(redeem_script);
+      fc::sha256 sha = fc::sha256::hash(&redeem_bytes[0], redeem_bytes.size());
+      std::string witness_script(sha.str());
+      witness_script.insert(0, std::string("220020"));
+      for (size_t i = 0; i < tx.vin.size(); i++) {
+         tx.vin[i].scriptSig = parse_hex(witness_script);
+      }
+   }
+
    std::string final_tx_hex = fc::to_hex(pack(tx));
-   return bitcoin_client->sendrawtransaction(final_tx_hex);
+   std::string res = bitcoin_client->sendrawtransaction(final_tx_hex);
+
+   if (res.empty()) {
+      return res;
+   }
+
+   return tx.get_txid().str();
 }
 
-void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) {
-   const std::string block = bitcoin_client->getblock(event_data);
-   if (block.empty())
-      return;
+void sidechain_net_handler_bitcoin::block_handle_event(const block_data &event_data) {
 
-   add_to_son_listener_log("BLOCK   : " + event_data);
+   auto vins = bitcoin_client->getblock(event_data);
 
-   auto vins = extract_info_from_block(block);
+   add_to_son_listener_log("BLOCK   : " + event_data.block_hash);
+
    scoped_lock interlock(event_handler_mutex);
    const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address_and_expires>();
 
@@ -1335,6 +1674,10 @@ void sidechain_net_handler_bitcoin::handle_event(const std::string &event_data) 
    }
 }
 
+void sidechain_net_handler_bitcoin::trx_handle_event(const libbitcoin::chain::transaction &trx_data) {
+   bitcoin_client->import_trx_to_memory_pool(trx_data);
+}
+
 std::string sidechain_net_handler_bitcoin::get_redeemscript_for_userdeposit(const std::string &user_address) {
    using namespace bitcoin;
    const auto &sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_deposit_address_and_expires>();
@@ -1355,56 +1698,14 @@ std::string sidechain_net_handler_bitcoin::get_redeemscript_for_userdeposit(cons
       pubkey_weights.push_back(std::make_pair(pub_key, son.weight));
    }
    auto user_pub_key = fc::ecc::public_key(create_public_key_data(parse_hex(addr_itr->deposit_public_key)));
-   btc_one_or_weighted_multisig_address deposit_addr(user_pub_key, pubkey_weights, network_type);
-   return fc::to_hex(deposit_addr.get_redeem_script());
-}
 
-std::vector<info_for_vin> sidechain_net_handler_bitcoin::extract_info_from_block(const std::string &_block) {
-   std::stringstream ss(_block);
-   boost::property_tree::ptree json;
-   boost::property_tree::read_json(ss, json);
-
-   auto json_result = json.get_child_optional("result");
-
-   std::vector<info_for_vin> result;
-
-   for (const auto &tx_child : json_result.get().get_child("tx")) {
-      const auto &tx = tx_child.second;
-
-      for (const auto &o : tx.get_child("vout")) {
-         const auto script = o.second.get_child("scriptPubKey");
-
-         if (bitcoin_major_version > 21) {
-            if (!script.count("address"))
-               continue;
-         } else {
-            if (!script.count("addresses"))
-               continue;
-         }
-
-         auto sort_out_vin = [&](std::string address) {
-            const auto address_base58 = address;
-            info_for_vin vin;
-            vin.out.hash_tx = tx.get_child("txid").get_value<std::string>();
-            string amount = o.second.get_child("value").get_value<std::string>();
-            amount.erase(std::remove(amount.begin(), amount.end(), '.'), amount.end());
-            vin.out.amount = std::stoll(amount);
-            vin.out.n_vout = o.second.get_child("n").get_value<uint32_t>();
-            vin.address = address_base58;
-            result.push_back(vin);
-         };
-
-         if (bitcoin_major_version > 21) {
-            std::string address = script.get<std::string>("address");
-            sort_out_vin(address);
-         } else {
-            for (const auto &addr : script.get_child("addresses")) // in which cases there can be more addresses?
-               sort_out_vin(addr.second.get_value<std::string>());
-         }
-      }
+   payment_type payment_type_address = payment_type::P2SH_WSH;
+   if (use_bitcoind_client) {
+      payment_type_address = payment_type::P2WSH;
    }
+   btc_one_or_weighted_multisig_address deposit_addr(user_pub_key, pubkey_weights, network_type, payment_type_address);
 
-   return result;
+   return fc::to_hex(deposit_addr.get_redeem_script());
 }
 
 void sidechain_net_handler_bitcoin::on_changed_objects(const vector<object_id_type> &ids, const flat_set<account_id_type> &accounts) {

@@ -1,4 +1,5 @@
 #pragma once
+
 #include <fc/crypto/elliptic.hpp>
 #include <fc/crypto/hex.hpp>
 #include <graphene/peerplays_sidechain/bitcoin/types.hpp>

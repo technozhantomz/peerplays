@@ -2340,7 +2340,7 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
          votes_for_sons[sidechain].reserve(sidechain_ids.size());
          for (const auto &son : sidechain_ids) {
             const auto &son_obj = son.as<son_object>(6);
-            if(son_obj.get_sidechain_vote_id(sidechain).valid()) {
+            if (son_obj.get_sidechain_vote_id(sidechain).valid()) {
                votes_for_sons[sidechain].emplace_back(votes_info_object{*son_obj.get_sidechain_vote_id(sidechain), son_obj.id});
             }
          }
