@@ -785,7 +785,7 @@ optional<asset> sidechain_net_handler_ethereum::estimate_withdrawal_transaction_
    }
 
    const auto &public_key = son->sidechain_public_keys.at(sidechain);
-   const auto data = ethereum::withdrawal_encoder::encode(public_key, 1 * 10000000000, son_wallet_withdraw_id_type{0}.operator object_id_type().operator std::string());
+   const auto data = ethereum::withdrawal_encoder::encode(public_key, boost::multiprecision::uint256_t{1} * boost::multiprecision::uint256_t{10000000000}, son_wallet_withdraw_id_type{0}.operator object_id_type().operator std::string());
    const std::string params = "[{\"from\":\"" + ethereum::add_0x(public_key) + "\", \"to\":\"" + wallet_contract_address + "\", \"data\":\"" + data + "\"}]";
 
    const auto estimate_gas = ethereum::from_hex<int64_t>(rpc_client->get_estimate_gas(params));
@@ -808,14 +808,14 @@ std::string sidechain_net_handler_ethereum::create_primary_wallet_transaction(co
 
 std::string sidechain_net_handler_ethereum::create_withdrawal_transaction(const son_wallet_withdraw_object &swwo) {
    if (swwo.withdraw_currency == "ETH") {
-      return ethereum::withdrawal_encoder::encode(ethereum::remove_0x(swwo.withdraw_address), swwo.withdraw_amount.value * 10000000000, swwo.id.operator std::string());
+      return ethereum::withdrawal_encoder::encode(ethereum::remove_0x(swwo.withdraw_address), boost::multiprecision::uint256_t{swwo.withdraw_amount.value} * boost::multiprecision::uint256_t{10000000000}, swwo.id.operator std::string());
    } else {
       const auto it = erc20_addresses.left.find(swwo.withdraw_currency);
       if (it == erc20_addresses.left.end()) {
          elog("No erc-20 token: ${symbol}", ("symbol", swwo.withdraw_currency));
          return "";
       }
-      return ethereum::withdrawal_erc20_encoder::encode(ethereum::remove_0x(it->second), ethereum::remove_0x(swwo.withdraw_address), swwo.withdraw_amount.value, swwo.id.operator std::string());
+      return ethereum::withdrawal_erc20_encoder::encode(ethereum::remove_0x(it->second), ethereum::remove_0x(swwo.withdraw_address), boost::multiprecision::uint256_t{swwo.withdraw_amount.value}, swwo.id.operator std::string());
    }
 
    return "";
