@@ -18,7 +18,7 @@ namespace graphene
             // Buyer purchasing lottery tickets
             account_id_type buyer;
             // count of tickets to buy
-            uint64_t tickets_to_buy;
+            share_type tickets_to_buy;
             // amount that can spent
             asset amount;
 
