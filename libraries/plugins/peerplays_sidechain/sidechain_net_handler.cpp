@@ -679,7 +679,8 @@ void sidechain_net_handler::on_applied_block(const signed_block &b) {
             const bool is_tracked_asset =
                   ((sidechain == sidechain_type::bitcoin) && (transfer_op.amount.asset_id == gpo.parameters.btc_asset())) ||
                   ((sidechain == sidechain_type::ethereum) && (transfer_op.amount.asset_id == gpo.parameters.eth_asset())) ||
-                  (sidechain == sidechain_type::ethereum) ||
+                  ((sidechain == sidechain_type::ethereum) && (transfer_op.amount.asset_id != gpo.parameters.btc_asset())
+                   && (transfer_op.amount.asset_id != gpo.parameters.hbd_asset()) && (transfer_op.amount.asset_id != gpo.parameters.hive_asset())) ||
                   ((sidechain == sidechain_type::hive) && (transfer_op.amount.asset_id == gpo.parameters.hbd_asset())) ||
                   ((sidechain == sidechain_type::hive) && (transfer_op.amount.asset_id == gpo.parameters.hive_asset()));
 
