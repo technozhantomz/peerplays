@@ -136,6 +136,7 @@ RUN \
 RUN \
     git clone https://github.com/libbitcoin/libbitcoin-build.git && \
     cd libbitcoin-build && \
+    git reset --hard 92c215fc1ffa272bab4d485d369d0306db52d69d && \
     ./generate3.sh && \
     cd ../libbitcoin-explorer && \
     ./install.sh && \
