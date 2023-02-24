@@ -205,6 +205,7 @@ sidechain_net_handler_ethereum::~sidechain_net_handler_ethereum() {
 }
 
 bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po) {
+
    ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
 
    bool should_approve = false;
@@ -263,7 +264,7 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
             const std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
             const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
-            const auto st = st_idx.find(obj_id);
+            const auto st = st_idx.find(object_id);
             if (st == st_idx.end()) {
 
                std::string tx_str = "";
