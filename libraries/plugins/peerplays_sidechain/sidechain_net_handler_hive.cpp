@@ -180,7 +180,8 @@ sidechain_net_handler_hive::~sidechain_net_handler_hive() {
 }
 
 bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
-   //ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
+
+   ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
 
    bool should_approve = false;
 
@@ -238,7 +239,7 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
             std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
             const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
-            const auto st = st_idx.find(obj_id);
+            const auto st = st_idx.find(object_id);
             if (st == st_idx.end()) {
 
                std::string tx_str = "";
@@ -499,6 +500,10 @@ void sidechain_net_handler_hive::process_primary_wallet() {
             return;
          }
 
+         if (!plugin.can_son_participate(sidechain, chain::operation::tag<chain::son_wallet_update_operation>::value, op_id)) {
+            return;
+         }
+
          const chain::global_property_object &gpo = database.get_global_properties();
 
          const auto &active_sons = gpo.active_sons.at(sidechain);
@@ -577,7 +582,7 @@ void sidechain_net_handler_hive::process_primary_wallet() {
          stc_op.object_id = op_id;
          stc_op.sidechain = sidechain;
          stc_op.transaction = tx_str;
-         for (const auto &signer : gpo.active_sons.at(sidechain)) {
+         for (const auto &signer : signers) {
             son_info si;
             si.son_id = signer.son_id;
             si.weight = signer.weight;
@@ -639,6 +644,11 @@ void sidechain_net_handler_hive::process_sidechain_addresses() {
 }
 
 bool sidechain_net_handler_hive::process_deposit(const son_wallet_deposit_object &swdo) {
+
+   if (proposal_exists(chain::operation::tag<chain::son_wallet_deposit_process_operation>::value, swdo.id)) {
+      return false;
+   }
+
    const chain::global_property_object &gpo = database.get_global_properties();
 
    price asset_price;
@@ -685,6 +695,11 @@ bool sidechain_net_handler_hive::process_deposit(const son_wallet_deposit_object
 }
 
 bool sidechain_net_handler_hive::process_withdrawal(const son_wallet_withdraw_object &swwo) {
+
+   if (proposal_exists(chain::operation::tag<chain::son_wallet_withdraw_process_operation>::value, swwo.id)) {
+      return false;
+   }
+
    const chain::global_property_object &gpo = database.get_global_properties();
 
    //=====

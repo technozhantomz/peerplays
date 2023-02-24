@@ -755,7 +755,7 @@ sidechain_net_handler_bitcoin::~sidechain_net_handler_bitcoin() {
 
 bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) {
 
-   // ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
+   ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
 
    bool should_approve = false;
 
@@ -832,7 +832,7 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
             std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
             const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
-            const auto st = st_idx.find(obj_id);
+            const auto st = st_idx.find(object_id);
             if (st == st_idx.end()) {
 
                std::string tx_str = "";
@@ -1049,6 +1049,10 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
          const object_id_type op_id{active_sw->id.space(), active_sw->id.type(), id};
 
          if (proposal_exists(chain::operation::tag<chain::son_wallet_update_operation>::value, op_id)) {
+            return;
+         }
+
+         if (!plugin.can_son_participate(sidechain, chain::operation::tag<chain::son_wallet_update_operation>::value, op_id)) {
             return;
          }
 
