@@ -175,13 +175,14 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
    cli.add_options()("sidechain-retry-threshold", bpo::value<uint16_t>()->default_value(150), "Sidechain retry throttling threshold");
 
    cli.add_options()("debug-rpc-calls", bpo::value<bool>()->default_value(false), "Outputs RPC calls to console");
+   cli.add_options()("simulate-rpc-connection-reselection", bpo::value<bool>()->default_value(false), "Simulate RPC connection reselection by altering their response times by a random value");
 
    cli.add_options()("bitcoin-sidechain-enabled", bpo::value<bool>()->default_value(false), "Bitcoin sidechain handler enabled");
+   cli.add_options()("bitcoin-node-ip", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR("127.0.0.1"), "IP address of Bitcoin node");
    cli.add_options()("use-bitcoind-client", bpo::value<bool>()->default_value(false), "Use bitcoind client instead of libbitcoin client");
    cli.add_options()("libbitcoin-server-ip", bpo::value<string>()->default_value("127.0.0.1"), "Libbitcoin server IP address");
    cli.add_options()("libbitcoin-server-block-zmq-port", bpo::value<uint32_t>()->default_value(9093), "Block ZMQ port of libbitcoin server");
    cli.add_options()("libbitcoin-server-trx-zmq-port", bpo::value<uint32_t>()->default_value(9094), "Trx ZMQ port of libbitcoin server");
-   cli.add_options()("bitcoin-node-ip", bpo::value<string>()->default_value("127.0.0.1"), "IP address of Bitcoin node");
    cli.add_options()("bitcoin-node-zmq-port", bpo::value<uint32_t>()->default_value(11111), "ZMQ port of Bitcoin node");
    cli.add_options()("bitcoin-node-rpc-port", bpo::value<uint32_t>()->default_value(8332), "RPC port of Bitcoin node");
    cli.add_options()("bitcoin-node-rpc-user", bpo::value<string>()->default_value("1"), "Bitcoin RPC user");
@@ -192,7 +193,7 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
                      "Tuple of [Bitcoin public key, Bitcoin private key] (may specify multiple times)");
 
    cli.add_options()("ethereum-sidechain-enabled", bpo::value<bool>()->default_value(false), "Ethereum sidechain handler enabled");
-   cli.add_options()("ethereum-node-rpc-url", bpo::value<string>()->default_value("127.0.0.1:8545"), "Ethereum node RPC URL [http[s]://]host[:port]");
+   cli.add_options()("ethereum-node-rpc-url", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR("127.0.0.1:8545"), "Ethereum node RPC URL [http[s]://]host[:port]");
    cli.add_options()("ethereum-node-rpc-user", bpo::value<string>(), "Ethereum RPC user");
    cli.add_options()("ethereum-node-rpc-password", bpo::value<string>(), "Ethereum RPC password");
    cli.add_options()("ethereum-wallet-contract-address", bpo::value<string>(), "Ethereum wallet contract address");
@@ -202,7 +203,7 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
                      "Tuple of [Ethereum public key, Ethereum private key] (may specify multiple times)");
 
    cli.add_options()("hive-sidechain-enabled", bpo::value<bool>()->default_value(false), "Hive sidechain handler enabled");
-   cli.add_options()("hive-node-rpc-url", bpo::value<string>()->default_value("127.0.0.1:28090"), "Hive node RPC URL [http[s]://]host[:port]");
+   cli.add_options()("hive-node-rpc-url", bpo::value<vector<string>>()->composing()->multitoken()->DEFAULT_VALUE_VECTOR("127.0.0.1:28090"), "Hive node RPC URL [http[s]://]host[:port]");
    cli.add_options()("hive-node-rpc-user", bpo::value<string>(), "Hive node RPC user");
    cli.add_options()("hive-node-rpc-password", bpo::value<string>(), "Hive node RPC password");
    cli.add_options()("hive-wallet-account-name", bpo::value<string>(), "Hive wallet account name");
@@ -291,6 +292,9 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
    if (sidechain_enabled_peerplays && !config_ready_peerplays) {
       wlog("Haven't set up Peerplays sidechain parameters");
    }
+
+   if (options.at("simulate-rpc-connection-reselection").as<bool>())
+      ilog("### RPC connection reselection will be simulated");
 }
 
 void peerplays_sidechain_plugin_impl::plugin_startup() {

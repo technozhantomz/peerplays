@@ -30,8 +30,8 @@
 
 namespace graphene { namespace peerplays_sidechain {
 
-hive_rpc_client::hive_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls) :
-      rpc_client(url, user_name, password, debug_rpc_calls) {
+hive_rpc_client::hive_rpc_client(const std::vector<rpc_credentials> &credentials, bool debug_rpc_calls, bool simulate_connection_reselection) :
+      rpc_client(sidechain_type::hive, credentials, debug_rpc_calls, simulate_connection_reselection) {
 }
 
 std::string hive_rpc_client::account_history_api_get_transaction(std::string transaction_id) {
@@ -112,20 +112,34 @@ std::string hive_rpc_client::get_last_irreversible_block_num() {
    return retrieve_value_from_reply(reply_str, "last_irreversible_block_num");
 }
 
+uint64_t hive_rpc_client::ping(rpc_connection &conn) const {
+   const std::string reply = send_post_request(conn, "database_api.get_dynamic_global_properties", "", debug_rpc_calls);
+   if (!reply.empty()) {
+      std::stringstream ss(reply);
+      boost::property_tree::ptree json;
+      boost::property_tree::read_json(ss, json);
+      if (json.count("result"))
+         return json.get<uint64_t>("result.head_block_number");
+   }
+   return std::numeric_limits<uint64_t>::max();
+}
+
 sidechain_net_handler_hive::sidechain_net_handler_hive(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
-      sidechain_net_handler(_plugin, options) {
-   sidechain = sidechain_type::hive;
+      sidechain_net_handler(sidechain_type::hive, _plugin, options) {
 
    if (options.count("debug-rpc-calls")) {
       debug_rpc_calls = options.at("debug-rpc-calls").as<bool>();
    }
+   bool simulate_connection_reselection = options.at("simulate-rpc-connection-reselection").as<bool>();
 
-   rpc_url = options.at("hive-node-rpc-url").as<std::string>();
+   std::vector<std::string> rpc_urls = options.at("hive-node-rpc-url").as<std::vector<std::string>>();
+   std::string rpc_user;
    if (options.count("hive-rpc-user")) {
       rpc_user = options.at("hive-rpc-user").as<std::string>();
    } else {
       rpc_user = "";
    }
+   std::string rpc_password;
    if (options.count("hive-rpc-password")) {
       rpc_password = options.at("hive-rpc-password").as<std::string>();
    } else {
@@ -146,11 +160,20 @@ sidechain_net_handler_hive::sidechain_net_handler_hive(peerplays_sidechain_plugi
       }
    }
 
-   rpc_client = new hive_rpc_client(rpc_url, rpc_user, rpc_password, debug_rpc_calls);
+   for (size_t i = 0; i < rpc_urls.size(); i++) {
+      rpc_credentials creds;
+      creds.url = rpc_urls[i];
+      creds.user = rpc_user;
+      creds.password = rpc_password;
+      _rpc_credentials.push_back(creds);
+   }
+   FC_ASSERT(!_rpc_credentials.empty());
+
+   rpc_client = new hive_rpc_client(_rpc_credentials, debug_rpc_calls, simulate_connection_reselection);
 
    const std::string chain_id_str = rpc_client->get_chain_id();
    if (chain_id_str.empty()) {
-      elog("No Hive node running at ${url}", ("url", rpc_url));
+      elog("No Hive node running at ${url}", ("url", _rpc_credentials[0].url));
       FC_ASSERT(false);
    }
    chain_id = chain_id_type(chain_id_str);

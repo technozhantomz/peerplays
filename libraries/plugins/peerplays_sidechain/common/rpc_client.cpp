@@ -18,10 +18,40 @@
 
 namespace graphene { namespace peerplays_sidechain {
 
-rpc_client::rpc_client(std::string _url, std::string _user, std::string _password, bool _debug_rpc_calls) :
-      url(_url),
-      user(_user),
-      password(_password),
+struct rpc_reply {
+   uint16_t status;
+   std::string body;
+};
+
+class rpc_connection {
+public:
+   rpc_connection(const rpc_credentials &_credentials, bool _debug_rpc_calls);
+
+   std::string send_post_request(std::string method, std::string params, bool show_log);
+   std::string get_url() const;
+
+protected:
+   rpc_credentials credentials;
+   bool debug_rpc_calls;
+
+   std::string protocol;
+   std::string host;
+   std::string port;
+   std::string target;
+   std::string authorization;
+
+   uint32_t request_id;
+
+private:
+   rpc_reply send_post_request(std::string body, bool show_log);
+
+   boost::beast::net::io_context ioc;
+   boost::beast::net::ip::tcp::resolver resolver;
+   boost::asio::ip::basic_resolver_results<boost::asio::ip::tcp> results;
+};
+
+rpc_connection::rpc_connection(const rpc_credentials &_credentials, bool _debug_rpc_calls) :
+      credentials(_credentials),
       debug_rpc_calls(_debug_rpc_calls),
       request_id(0),
       resolver(ioc) {
@@ -31,7 +61,7 @@ rpc_client::rpc_client(std::string _url, std::string _user, std::string _passwor
 
    boost::xpressive::smatch sm;
 
-   if (boost::xpressive::regex_search(url, sm, sr)) {
+   if (boost::xpressive::regex_search(credentials.url, sm, sr)) {
       protocol = sm["Protocol"];
       if (protocol.empty()) {
          protocol = "http";
@@ -52,13 +82,17 @@ rpc_client::rpc_client(std::string _url, std::string _user, std::string _passwor
          target = "/";
       }
 
-      authorization = "Basic " + base64_encode(user + ":" + password);
+      authorization = "Basic " + base64_encode(credentials.user + ":" + credentials.password);
 
       results = resolver.resolve(host, port);
 
    } else {
-      elog("Invalid URL: ${url}", ("url", url));
+      elog("Invalid URL: ${url}", ("url", credentials.url));
    }
+}
+
+std::string rpc_connection::get_url() const {
+   return credentials.url;
 }
 
 std::string rpc_client::retrieve_array_value_from_reply(std::string reply_str, std::string array_path, uint32_t idx) {
@@ -125,7 +159,7 @@ std::string rpc_client::retrieve_value_from_reply(std::string reply_str, std::st
    return "";
 }
 
-std::string rpc_client::send_post_request(std::string method, std::string params, bool show_log) {
+std::string rpc_connection::send_post_request(std::string method, std::string params, bool show_log) {
    std::stringstream body;
 
    request_id = request_id + 1;
@@ -164,7 +198,7 @@ std::string rpc_client::send_post_request(std::string method, std::string params
    return "";
 }
 
-rpc_reply rpc_client::send_post_request(std::string body, bool show_log) {
+rpc_reply rpc_connection::send_post_request(std::string body, bool show_log) {
 
    // These object is used as a context for ssl connection
    boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
@@ -239,12 +273,121 @@ rpc_reply rpc_client::send_post_request(std::string body, bool show_log) {
    reply.body = rbody;
 
    if (show_log) {
-      ilog("### Request URL:    ${url}", ("url", url));
+      ilog("### Request URL:    ${url}", ("url", credentials.url));
       ilog("### Request:        ${body}", ("body", body));
       ilog("### Response:       ${rbody}", ("rbody", rbody));
    }
 
    return reply;
+}
+
+rpc_client::rpc_client(sidechain_type _sidechain, const std::vector<rpc_credentials> &_credentials, bool _debug_rpc_calls, bool _simulate_connection_reselection) :
+      sidechain(_sidechain),
+      debug_rpc_calls(_debug_rpc_calls),
+      simulate_connection_reselection(_simulate_connection_reselection) {
+   FC_ASSERT(_credentials.size());
+   for (size_t i = 0; i < _credentials.size(); i++)
+      connections.push_back(new rpc_connection(_credentials[i], _debug_rpc_calls));
+   n_active_conn = 0;
+   if (connections.size() > 1)
+      schedule_connection_selection();
+}
+
+void rpc_client::schedule_connection_selection() {
+   fc::time_point now = fc::time_point::now();
+   static const int64_t time_to_next_conn_selection = 10 * 1000 * 1000; // 10 sec
+   fc::time_point next_wakeup = now + fc::microseconds(time_to_next_conn_selection);
+   connection_selection_task = fc::schedule([this] {
+      select_connection();
+   },
+                                            next_wakeup, "SON RPC connection selection");
+}
+
+void rpc_client::select_connection() {
+   FC_ASSERT(connections.size() > 1);
+
+   const std::lock_guard<std::mutex> lock(conn_mutex);
+
+   static const int t_limit = 5 * 1000 * 1000, // 5 sec
+         quality_diff_threshold = 10 * 1000;   // 10 ms
+
+   int best_n = -1;
+   int best_quality = -1;
+
+   std::vector<uint64_t> head_block_numbers;
+   head_block_numbers.resize(connections.size());
+
+   std::vector<int> qualities;
+   qualities.resize(connections.size());
+
+   for (size_t n = 0; n < connections.size(); n++) {
+      rpc_connection &conn = *connections[n];
+      int quality = 0;
+      head_block_numbers[n] = std::numeric_limits<uint64_t>::max();
+
+      // ping n'th node
+      if (debug_rpc_calls)
+         ilog("### Ping ${sidechain} node #${n}, ${url}", ("sidechain", fc::reflector<sidechain_type>::to_string(sidechain))("n", n)("url", conn.get_url()));
+      fc::time_point t_sent = fc::time_point::now();
+      uint64_t head_block_number = ping(conn);
+      fc::time_point t_received = fc::time_point::now();
+      int t = (t_received - t_sent).count();
+
+      // evaluate n'th node reply quality and switch to it if it's better
+      if (head_block_number != std::numeric_limits<uint64_t>::max()) {
+         if (simulate_connection_reselection)
+            t += rand() % 10;
+         FC_ASSERT(t != -1);
+         head_block_numbers[n] = head_block_number;
+         if (t < t_limit)
+            quality = t_limit - t; // the less time, the higher quality
+
+         // look for the best quality
+         if (quality > best_quality) {
+            best_n = n;
+            best_quality = quality;
+         }
+      }
+      qualities[n] = quality;
+   }
+
+   FC_ASSERT(best_n != -1 && best_quality != -1);
+   if (best_n != n_active_conn) { // if the best client is not the current one, ...
+      uint64_t active_head_block_number = head_block_numbers[n_active_conn];
+      if ((active_head_block_number == std::numeric_limits<uint64_t>::max()      // ...and the current one has no known head block...
+           || head_block_numbers[best_n] >= active_head_block_number)            // ...or the best client's head is more recent than the current, ...
+          && best_quality > qualities[n_active_conn] + quality_diff_threshold) { // ...and the new client's quality exceeds current more than by threshold
+         n_active_conn = best_n;                                                 // ...then select new one
+         if (debug_rpc_calls)
+            ilog("### Reselected ${sidechain} node to #${n}, ${url}", ("sidechain", fc::reflector<sidechain_type>::to_string(sidechain))("n", n_active_conn)("url", connections[n_active_conn]->get_url()));
+      }
+   }
+
+   schedule_connection_selection();
+}
+
+rpc_connection &rpc_client::get_active_connection() const {
+   return *connections[n_active_conn];
+}
+
+std::string rpc_client::send_post_request(std::string method, std::string params, bool show_log) {
+   const std::lock_guard<std::mutex> lock(conn_mutex);
+   return send_post_request(get_active_connection(), method, params, show_log);
+}
+
+std::string rpc_client::send_post_request(rpc_connection &conn, std::string method, std::string params, bool show_log) {
+   return conn.send_post_request(method, params, show_log);
+}
+
+rpc_client::~rpc_client() {
+   try {
+      if (connection_selection_task.valid())
+         connection_selection_task.cancel_and_wait(__FUNCTION__);
+   } catch (fc::canceled_exception &) {
+      //Expected exception. Move along.
+   } catch (fc::exception &e) {
+      edump((e.to_detail_string()));
+   }
 }
 
 }} // namespace graphene::peerplays_sidechain

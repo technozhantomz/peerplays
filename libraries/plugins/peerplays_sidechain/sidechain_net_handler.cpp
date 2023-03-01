@@ -9,7 +9,8 @@
 
 namespace graphene { namespace peerplays_sidechain {
 
-sidechain_net_handler::sidechain_net_handler(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
+sidechain_net_handler::sidechain_net_handler(sidechain_type _sidechain, peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
+      sidechain(_sidechain),
       plugin(_plugin),
       database(_plugin.database()) {
 

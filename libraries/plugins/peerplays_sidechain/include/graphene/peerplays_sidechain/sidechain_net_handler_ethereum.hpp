@@ -14,7 +14,7 @@ namespace graphene { namespace peerplays_sidechain {
 
 class ethereum_rpc_client : public rpc_client {
 public:
-   ethereum_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls);
+   ethereum_rpc_client(const std::vector<rpc_credentials> &credentials, bool debug_rpc_calls, bool simulate_connection_reselection);
 
    std::string eth_blockNumber();
    std::string eth_get_block_by_number(std::string block_number, bool full_block);
@@ -36,6 +36,8 @@ public:
    std::string eth_send_raw_transaction(const std::string &params);
    std::string eth_get_transaction_receipt(const std::string &params);
    std::string eth_get_transaction_by_hash(const std::string &params);
+
+   virtual uint64_t ping(rpc_connection &conn) const override;
 };
 
 class sidechain_net_handler_ethereum : public sidechain_net_handler {
@@ -54,13 +56,9 @@ public:
    virtual optional<asset> estimate_withdrawal_transaction_fee() const override;
 
 private:
-   using bimap_type = boost::bimap<std::string, std::string>;
-
-private:
-   std::string rpc_url;
-   std::string rpc_user;
-   std::string rpc_password;
+   std::vector<rpc_credentials> _rpc_credentials;
    std::string wallet_contract_address;
+   using bimap_type = boost::bimap<std::string, std::string>;
    bimap_type erc20_addresses;
 
    ethereum_rpc_client *rpc_client;
