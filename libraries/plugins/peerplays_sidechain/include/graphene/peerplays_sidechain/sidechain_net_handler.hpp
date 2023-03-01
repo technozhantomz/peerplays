@@ -16,8 +16,10 @@
 namespace graphene { namespace peerplays_sidechain {
 
 class sidechain_net_handler {
+protected:
+   sidechain_net_handler(sidechain_type _sidechain, peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options);
+
 public:
-   sidechain_net_handler(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options);
    virtual ~sidechain_net_handler();
 
    sidechain_type get_sidechain() const;
@@ -54,9 +56,9 @@ public:
    virtual optional<asset> estimate_withdrawal_transaction_fee() const = 0;
 
 protected:
+   const sidechain_type sidechain;
    peerplays_sidechain_plugin &plugin;
    graphene::chain::database &database;
-   sidechain_type sidechain;
 
    bool debug_rpc_calls;
    bool use_bitcoind_client;

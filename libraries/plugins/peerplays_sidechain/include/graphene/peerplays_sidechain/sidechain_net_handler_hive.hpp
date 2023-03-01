@@ -13,7 +13,7 @@ namespace graphene { namespace peerplays_sidechain {
 
 class hive_rpc_client : public rpc_client {
 public:
-   hive_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls);
+   hive_rpc_client(const std::vector<rpc_credentials> &credentials, bool debug_rpc_calls, bool simulate_connection_reselection);
 
    std::string account_history_api_get_transaction(std::string transaction_id);
    std::string block_api_get_block(uint32_t block_number);
@@ -30,6 +30,8 @@ public:
    std::string get_head_block_time();
    std::string get_is_test_net();
    std::string get_last_irreversible_block_num();
+
+   virtual uint64_t ping(rpc_connection &conn) const override;
 };
 
 class sidechain_net_handler_hive : public sidechain_net_handler {
@@ -48,9 +50,8 @@ public:
    virtual optional<asset> estimate_withdrawal_transaction_fee() const override;
 
 private:
-   std::string rpc_url;
-   std::string rpc_user;
-   std::string rpc_password;
+   std::vector<rpc_credentials> _rpc_credentials;
+
    std::string wallet_account_name;
 
    hive_rpc_client *rpc_client;

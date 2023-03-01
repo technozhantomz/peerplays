@@ -25,8 +25,8 @@
 
 namespace graphene { namespace peerplays_sidechain {
 
-ethereum_rpc_client::ethereum_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls) :
-      rpc_client(url, user_name, password, debug_rpc_calls) {
+ethereum_rpc_client::ethereum_rpc_client(const std::vector<rpc_credentials> &credentials, bool debug_rpc_calls, bool simulate_connection_reselection) :
+      rpc_client(sidechain_type::ethereum, credentials, debug_rpc_calls, simulate_connection_reselection) {
 }
 
 std::string ethereum_rpc_client::eth_blockNumber() {
@@ -126,20 +126,29 @@ std::string ethereum_rpc_client::eth_get_transaction_by_hash(const std::string &
    return send_post_request("eth_getTransactionByHash", "[\"" + params + "\"]", debug_rpc_calls);
 }
 
+uint64_t ethereum_rpc_client::ping(rpc_connection &conn) const {
+   std::string reply = send_post_request(conn, "eth_blockNumber", "", debug_rpc_calls);
+   if (!reply.empty())
+      return ethereum::from_hex<uint64_t>(retrieve_value_from_reply(reply, ""));
+   return std::numeric_limits<uint64_t>::max();
+}
+
 sidechain_net_handler_ethereum::sidechain_net_handler_ethereum(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
-      sidechain_net_handler(_plugin, options) {
-   sidechain = sidechain_type::ethereum;
+      sidechain_net_handler(sidechain_type::ethereum, _plugin, options) {
 
    if (options.count("debug-rpc-calls")) {
       debug_rpc_calls = options.at("debug-rpc-calls").as<bool>();
    }
+   bool simulate_connection_reselection = options.at("simulate-rpc-connection-reselection").as<bool>();
 
-   rpc_url = options.at("ethereum-node-rpc-url").as<std::string>();
+   std::vector<std::string> rpc_urls = options.at("ethereum-node-rpc-url").as<std::vector<std::string>>();
+   std::string rpc_user;
    if (options.count("ethereum-node-rpc-user")) {
       rpc_user = options.at("ethereum-node-rpc-user").as<std::string>();
    } else {
       rpc_user = "";
    }
+   std::string rpc_password;
    if (options.count("ethereum-node-rpc-password")) {
       rpc_password = options.at("ethereum-node-rpc-password").as<std::string>();
    } else {
@@ -175,18 +184,27 @@ sidechain_net_handler_ethereum::sidechain_net_handler_ethereum(peerplays_sidecha
       }
    }
 
-   rpc_client = new ethereum_rpc_client(rpc_url, rpc_user, rpc_password, debug_rpc_calls);
+   for (size_t i = 0; i < rpc_urls.size(); i++) {
+      rpc_credentials creds;
+      creds.url = rpc_urls[i];
+      creds.user = rpc_user;
+      creds.password = rpc_password;
+      _rpc_credentials.push_back(creds);
+   }
+   FC_ASSERT(!_rpc_credentials.empty());
+
+   rpc_client = new ethereum_rpc_client(_rpc_credentials, debug_rpc_calls, simulate_connection_reselection);
 
    const std::string chain_id_str = rpc_client->get_chain_id();
    if (chain_id_str.empty()) {
-      elog("No Ethereum node running at ${url}", ("url", rpc_url));
+      elog("No Ethereum node running at ${url}", ("url", _rpc_credentials[0].url));
       FC_ASSERT(false);
    }
    chain_id = std::stoll(chain_id_str);
 
    const std::string network_id_str = rpc_client->get_network_id();
    if (network_id_str.empty()) {
-      elog("No Ethereum node running at ${url}", ("url", rpc_url));
+      elog("No Ethereum node running at ${url}", ("url", _rpc_credentials[0].url));
       FC_ASSERT(false);
    }
    network_id = std::stoll(network_id_str);
