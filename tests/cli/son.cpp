@@ -740,6 +740,19 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
                                                              sidechain_type::ethereum, 0, true);
       BOOST_CHECK(generate_maintenance_block());
 
+      // Vote for less SONs than num_son (2 votes, but num_son is 3)
+      accepted.clear();
+      rejected.clear();
+      accepted.push_back("son1account");
+      accepted.push_back("son2account");
+      BOOST_CHECK_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                                               sidechain_type::bitcoin, 3, true), fc::exception);
+      BOOST_CHECK_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                                               sidechain_type::hive, 3, true), fc::exception);
+      BOOST_CHECK_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted, rejected,
+                                                                               sidechain_type::ethereum, 3, true), fc::exception);
+      generate_block();
+
       // Verify the votes
       son1_obj = con.wallet_api_ptr->get_son("son1account");
       son1_end_votes = son1_obj.total_votes;
