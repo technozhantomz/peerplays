@@ -137,8 +137,9 @@ std::string rlp_encoder::encode_length(int len, int offset) {
 
 std::string rlp_encoder::hex2bytes(const std::string &s) {
    std::string dest;
-   dest.resize(s.size() / 2);
-   hex2bin(s.c_str(), &dest[0]);
+   const auto s_final = s.size() % 2 == 0 ? s : "0" + s;
+   dest.resize(s_final.size() / 2);
+   hex2bin(s_final.c_str(), &dest[0]);
    return dest;
 }
 
