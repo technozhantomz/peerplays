@@ -684,13 +684,18 @@ std::string sidechain_net_handler_ethereum::send_sidechain_transaction(const sid
 
    const ethereum::signature_encoder encoder{function_signature};
 #ifdef SEND_RAW_TRANSACTION
+   const auto data = encoder.encode(transactions);
+   const std::string params = "[{\"from\":\"" + ethereum::add_0x(public_key) + "\", \"to\":\"" + wallet_contract_address + "\", \"data\":\"" + data + "\"}]";
+
    ethereum::raw_transaction raw_tr;
    raw_tr.nonce = rpc_client->get_nonce(ethereum::add_0x(public_key));
    raw_tr.gas_price = rpc_client->get_gas_price();
-   raw_tr.gas_limit = rpc_client->get_gas_limit();
+   raw_tr.gas_limit = rpc_client->get_estimate_gas(params);
+   if (raw_tr.gas_limit.empty())
+      raw_tr.gas_limit = rpc_client->get_gas_limit();
    raw_tr.to = wallet_contract_address;
    raw_tr.value = "";
-   raw_tr.data = encoder.encode(transactions);
+   raw_tr.data = data;
    raw_tr.chain_id = ethereum::add_0x(ethereum::to_hex(chain_id));
 
    const auto sign_tr = raw_tr.sign(get_private_key(public_key));
@@ -804,7 +809,7 @@ optional<asset> sidechain_net_handler_ethereum::estimate_withdrawal_transaction_
    }
 
    const auto &public_key = son->sidechain_public_keys.at(sidechain);
-   const auto data = ethereum::withdrawal_encoder::encode(public_key, boost::multiprecision::uint256_t{1} * boost::multiprecision::uint256_t{10000000000}, son_wallet_withdraw_id_type{0}.operator object_id_type().operator std::string());
+   const auto data = ethereum::withdrawal_encoder::encode(public_key, boost::multiprecision::uint256_t{1} * boost::multiprecision::uint256_t{10000000000}, "0");
    const std::string params = "[{\"from\":\"" + ethereum::add_0x(public_key) + "\", \"to\":\"" + wallet_contract_address + "\", \"data\":\"" + data + "\"}]";
 
    const auto estimate_gas = ethereum::from_hex<int64_t>(rpc_client->get_estimate_gas(params));
