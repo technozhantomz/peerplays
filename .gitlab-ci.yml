@@ -123,6 +123,9 @@ test-e2e:
   stage: python-test
   variables:
     IMAGE: registry.gitlab.com/pbsa/peerplays/mainnet/feature-python-e2e-tests:943e02cdcd9fb8a90137851635b998cf1b4f622c
+  before_script:
+    - docker info
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - git clone https://gitlab.com/PBSA/tools-libs/peerplays-utils.git
     - cd peerplays-utils/peerplays-qa-environment
