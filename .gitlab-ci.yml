@@ -138,7 +138,8 @@ test-e2e:
     - docker ps -a
     - docker pull $IMAGE
     - export COMPOSE_SERVICE_PEERPLAYS_BASE_IMAGE=$IMAGE
-    - python3 main.py --start all
+    - python3 main.py --start btc hive eth
+    - python3 main.py --start pp
     - docker ps -a
     - python3 main.py --stop
     - deactivate
