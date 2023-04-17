@@ -57,8 +57,6 @@ dockerize-mainnet:
     - docker rmi $IMAGE
   tags:
     - builder
-  when:
-    manual
   timeout:
     3h
 
@@ -136,12 +134,13 @@ test-e2e:
     - python3 -m venv venv
     - source venv/bin/activate
     - pip3 install -r requirements.txt
-    - python3 start.py --stop
+    - python3 main.py --stop
     - docker ps -a
+    - docker pull $IMAGE
     - export COMPOSE_SERVICE_PEERPLAYS_BASE_IMAGE=$IMAGE
-    - python3 start.py --start all
+    - python3 main.py --start all
     - docker ps -a
-    - python3 start.py --stop
+    - python3 main.py --stop
     - deactivate
     - docker ps -a
   tags:
