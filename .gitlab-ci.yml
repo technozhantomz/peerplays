@@ -6,9 +6,9 @@ include:
   - template: Secret-Detection.gitlab-ci.yml
 
 stages:
-  - python-test
   - build
   - dockerize
+  - python-test
   - test
 
 build-mainnet:
@@ -122,7 +122,7 @@ dockerize-testnet:
 test-e2e:
   stage: python-test
   variables:
-    IMAGE: registry.gitlab.com/pbsa/peerplays/mainnet/feature-python-e2e-tests:943e02cdcd9fb8a90137851635b998cf1b4f622c
+    IMAGE: $CI_REGISTRY_IMAGE/testnet/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
   before_script:
     - docker info
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
