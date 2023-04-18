@@ -123,7 +123,7 @@ dockerize-testnet:
 test-e2e:
   stage: python-test
   variables:
-    IMAGE: $CI_REGISTRY_IMAGE/testnet/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+    IMAGE: $CI_REGISTRY_IMAGE/mainnet/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
   before_script:
     - docker info
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
