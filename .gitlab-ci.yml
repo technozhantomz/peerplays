@@ -141,6 +141,7 @@ test-e2e:
     - docker image ls -a
     - python3 main.py --start all
     - docker ps -a
+    - python3 -m pytest test_btc_init_state.py test_hive_inital_state.py test_pp_inital_state.py
     - python3 main.py --stop
     - deactivate
     - docker ps -a
