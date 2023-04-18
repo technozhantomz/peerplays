@@ -139,8 +139,7 @@ test-e2e:
     - docker pull $IMAGE
     - docker tag $IMAGE peerplays-base:latest
     - docker image ls -a
-    - python3 main.py --start btc hive eth
-    - docker-compose up peerplays01 peerplays02 peerplays03 peerplays04 peerplays05 peerplays06 peerplays07 peerplays08 peerplays09 peerplays10 peerplays11 peerplays12 peerplays13 peerplays14 peerplays15 peerplays16
+    - python3 main.py --start all
     - docker ps -a
     - python3 main.py --stop
     - deactivate
