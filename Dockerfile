@@ -190,7 +190,6 @@ ADD . peerplays
 RUN \
     cd peerplays && \
     git submodule update --init --recursive && \
-    git symbolic-ref --short HEAD && \
     git log --oneline -n 5 && \
     mkdir build && \
     cd build && \
