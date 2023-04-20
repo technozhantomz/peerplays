@@ -190,6 +190,8 @@ ADD . peerplays
 RUN \
     cd peerplays && \
     git submodule update --init --recursive && \
+    git symbolic-ref --short HEAD && \
+    git log --oneline -n 5 && \
     mkdir build && \
     cd build && \
     cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -215,3 +217,6 @@ RUN chown peerplays:root -R /home/peerplays/peerplays-network
 EXPOSE 8090
 # Peerplays P2P:
 EXPOSE 9777
+
+# Peerplays
+CMD ["./witness_node", "-d", "./witness_node_data_dir"]
