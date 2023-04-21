@@ -914,8 +914,9 @@ void sidechain_net_handler_ethereum::handle_event(const std::string &block_numbe
          const boost::property_tree::ptree tx = tx_child.second;
          tx_idx = tx_idx + 1;
 
-         const std::string from = tx.get<std::string>("from");
          const std::string to = tx.get<std::string>("to");
+         std::string from = tx.get<std::string>("from");
+         std::transform(from.begin(), from.end(), from.begin(), ::tolower);
 
          std::string cmp_to = to;
          std::transform(cmp_to.begin(), cmp_to.end(), cmp_to.begin(), ::toupper);
