@@ -7,9 +7,9 @@ include:
 
 stages:
   - build
+  - test
   - dockerize
   - python-test
-  - test
 
 build-mainnet:
   stage: build
