@@ -57,10 +57,16 @@ struct info_for_vin {
    bool resend = false;
 };
 
+enum class sidechain_event_type {
+   deposit,
+   withdrawal
+};
+
 struct sidechain_event_data {
    fc::time_point_sec timestamp;
    uint32_t block_num;
    sidechain_type sidechain;
+   sidechain_event_type type;
    std::string sidechain_uid;
    std::string sidechain_transaction_id;
    std::string sidechain_from;

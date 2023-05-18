@@ -97,7 +97,7 @@ namespace graphene { namespace net {
   {
   public:
     peer_database();
-    ~peer_database();
+    virtual ~peer_database();
 
     void open(const fc::path& databaseFilename);
     void close();

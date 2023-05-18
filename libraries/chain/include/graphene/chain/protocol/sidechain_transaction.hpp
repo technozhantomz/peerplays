@@ -71,7 +71,7 @@ FC_REFLECT( graphene::chain::sidechain_transaction_create_operation, (fee)(payer
         (sidechain)
         (object_id)
         (transaction)
-        (signers) )
+        (signers))
 
 FC_REFLECT( graphene::chain::sidechain_transaction_sign_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::sidechain_transaction_sign_operation, (fee)(signer)(payer)

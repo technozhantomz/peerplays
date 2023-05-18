@@ -6,15 +6,14 @@
 
 #include <boost/signals2.hpp>
 
-#include <fc/network/http/connection.hpp>
 #include <graphene/peerplays_sidechain/common/rpc_client.hpp>
 #include <graphene/peerplays_sidechain/hive/types.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
-class hive_node_rpc_client : public rpc_client {
+class hive_rpc_client : public rpc_client {
 public:
-   hive_node_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls);
+   hive_rpc_client(const std::vector<rpc_credentials> &credentials, bool debug_rpc_calls, bool simulate_connection_reselection);
 
    std::string account_history_api_get_transaction(std::string transaction_id);
    std::string block_api_get_block(uint32_t block_number);
@@ -31,6 +30,8 @@ public:
    std::string get_head_block_time();
    std::string get_is_test_net();
    std::string get_last_irreversible_block_num();
+
+   virtual uint64_t ping(rpc_connection &conn) const override;
 };
 
 class sidechain_net_handler_hive : public sidechain_net_handler {
@@ -46,12 +47,14 @@ public:
    std::string process_sidechain_transaction(const sidechain_transaction_object &sto);
    std::string send_sidechain_transaction(const sidechain_transaction_object &sto);
    bool settle_sidechain_transaction(const sidechain_transaction_object &sto, asset &settle_amount);
+   virtual optional<asset> estimate_withdrawal_transaction_fee() const override;
 
 private:
-   std::string node_rpc_url;
-   std::string node_rpc_user;
-   std::string node_rpc_password;
-   hive_node_rpc_client *node_rpc_client;
+   std::vector<rpc_credentials> _rpc_credentials;
+
+   std::string wallet_account_name;
+
+   hive_rpc_client *rpc_client;
 
    hive::chain_id_type chain_id;
    hive::network network_type;

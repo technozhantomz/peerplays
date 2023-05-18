@@ -82,6 +82,15 @@ using namespace std;
 
 class database_api_impl;
 
+struct signed_block_with_info : public signed_block {
+   signed_block_with_info();
+   signed_block_with_info(const signed_block &block);
+   signed_block_with_info(const signed_block_with_info &block) = default;
+   block_id_type block_id;
+   public_key_type signing_key;
+   vector<transaction_id_type> transaction_ids;
+};
+
 struct order {
    double price;
    double quote;
@@ -201,6 +210,13 @@ public:
     * @return the referenced block, or null if no matching block was found
     */
    optional<signed_block> get_block(uint32_t block_num) const;
+
+   /**
+    * @brief Retrieve a full, signed block, with some extra info
+    * @param block_num Height of the block to be returned
+    * @return the referenced block, or null if no matching block was found
+    */
+   optional<signed_block_with_info> get_block2(uint32_t block_num) const;
 
    /**
     * @brief Retrieve a list of signed blocks
@@ -675,6 +691,32 @@ public:
     */
    uint64_t get_son_count() const;
 
+   /**
+    * @brief Get list of active sons
+    * @return List of active SONs
+    */
+   flat_map<sidechain_type, vector<son_sidechain_info>> get_active_sons();
+
+   /**
+    * @brief Get list of active sons
+    * @param sidechain Sidechain type [bitcoin|ethereum|hive]
+    * @return List of active SONs
+    */
+   vector<son_sidechain_info> get_active_sons_by_sidechain(sidechain_type sidechain);
+
+   /**
+    * @brief Get SON network status
+    * @return SON network status description for a given sidechain type
+    */
+   map<sidechain_type, map<son_id_type, string>> get_son_network_status();
+
+   /**
+    * @brief Get SON network status
+    * @param sidechain Sidechain type [bitcoin|ethereum|hive]
+    * @return SON network status description for a given sidechain type
+    */
+   map<son_id_type, string> get_son_network_status_by_sidechain(sidechain_type sidechain);
+
    /////////////////////////
    // SON Wallets      //
    /////////////////////////
@@ -877,15 +919,6 @@ public:
     */
    vector<proposal_object> get_proposed_transactions(const std::string account_id_or_name) const;
 
-   //////////////////////
-   // Blinded balances //
-   //////////////////////
-
-   /**
-    *  @return the set of blinded balance objects by commitment ID
-    */
-   vector<blinded_balance_object> get_blinded_balances(const flat_set<commitment_type> &commitments) const;
-
    /////////////////
    // Tournaments //
    /////////////////
@@ -1010,14 +1043,25 @@ public:
     * @brief Returns list of all available NTF's
     * @return List of all available NFT's
     */
-   vector<nft_object> nft_get_all_tokens() const;
+   vector<nft_object> nft_get_all_tokens(const nft_id_type lower_id, uint32_t limit) const;
 
    /**
     * @brief Returns NFT's owned by owner
     * @param owner NFT owner
+    * @param lower_id ID of the first NFT to return
+    * @param limit Maximum number of results to return
     * @return List of NFT owned by owner
     */
-   vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner) const;
+   vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner, const nft_id_type lower_id, uint32_t limit) const;
+
+   /**
+    * @brief Returns NFT metadata owned by owner
+    * @param owner NFT owner
+    * @param lower_id ID of the first NFT metadata to return
+    * @param limit Maximum number of results to return
+    * @return List of NFT owned by owner
+    */
+   vector<nft_metadata_object> nft_get_metadata_by_owner(const account_id_type owner, const nft_metadata_id_type lower_id, uint32_t limit) const;
 
    //////////////////
    // MARKET PLACE //
@@ -1047,6 +1091,8 @@ extern template class fc::api<graphene::app::database_api>;
 
 // clang-format off
 
+FC_REFLECT_DERIVED(graphene::app::signed_block_with_info, (graphene::chain::signed_block), (block_id)(signing_key)(transaction_ids));
+
 FC_REFLECT(graphene::app::order, (price)(quote)(base));
 FC_REFLECT(graphene::app::order_book, (base)(quote)(bids)(asks));
 FC_REFLECT(graphene::app::market_ticker, (base)(quote)(latest)(lowest_ask)(highest_bid)(percent_change)(base_volume)(quote_volume));
@@ -1069,6 +1115,7 @@ FC_API(graphene::app::database_api,
    (get_block_header)
    (get_block_header_batch)
    (get_block)
+   (get_block2)
    (get_blocks)
    (get_transaction)
    (get_recent_transaction_by_id)
@@ -1158,6 +1205,10 @@ FC_API(graphene::app::database_api,
    (get_son_by_account)
    (lookup_son_accounts)
    (get_son_count)
+   (get_active_sons)
+   (get_active_sons_by_sidechain)
+   (get_son_network_status)
+   (get_son_network_status_by_sidechain)
 
    // SON wallets
    (get_active_son_wallet)
@@ -1198,9 +1249,6 @@ FC_API(graphene::app::database_api,
    // Proposed transactions
    (get_proposed_transactions)
 
-   // Blinded balances
-   (get_blinded_balances)
-
    // Tournaments
    (get_tournaments_in_state)
    (get_tournaments_by_state)
@@ -1231,6 +1279,7 @@ FC_API(graphene::app::database_api,
    (nft_token_of_owner_by_index)
    (nft_get_all_tokens)
    (nft_get_tokens_by_owner)
+   (nft_get_metadata_by_owner)
 
    // Marketplace
    (list_offers)

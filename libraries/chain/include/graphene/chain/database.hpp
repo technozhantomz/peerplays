@@ -66,6 +66,8 @@ namespace graphene { namespace chain {
          database();
          ~database();
 
+         std::vector<fc::time_point_sec> _hardfork_times;
+
          enum validation_steps
          {
             skip_nothing                = 0,
@@ -243,7 +245,16 @@ namespace graphene { namespace chain {
          witness_id_type get_scheduled_witness(uint32_t slot_num)const;
 
          /**
-          * @brief Get the son scheduled for block production in a slot.
+          * @brief Get son schedule id for the given sidechain_type.
+          *
+          * type sidechain_type we getting schedule.
+          *
+          * returns Id of the schedule object.
+          */
+         unsigned_int get_son_schedule_id(sidechain_type type)const;
+
+         /**
+          * @brief Get the bitcoin or hive son scheduled for block production in a slot.
           *
           * slot_num always corresponds to a time in the future.
           *
@@ -256,7 +267,7 @@ namespace graphene { namespace chain {
           *
           * Passing slot_num == 0 returns GRAPHENE_NULL_WITNESS
           */
-         son_id_type get_scheduled_son(uint32_t slot_num)const;
+         son_id_type get_scheduled_son(sidechain_type type, uint32_t slot_num)const;
 
          /**
           * Get the time at which the given slot occurs.
@@ -311,7 +322,7 @@ namespace graphene { namespace chain {
          fc::optional<operation>                create_son_deregister_proposal( son_id_type son_id, account_id_type paying_son );
          signed_transaction                     create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op );
          bool                                   is_son_dereg_valid( son_id_type son_id );
-         bool                                   is_son_active( son_id_type son_id );
+         bool                                   is_son_active( sidechain_type type, son_id_type son_id );
          bool                                   is_asset_creation_allowed(const string& symbol);
 
          time_point_sec   head_block_time()const;
@@ -332,6 +343,8 @@ namespace graphene { namespace chain {
          void initialize_evaluators();
          /// Reset the object graph in-memory
          void initialize_indexes();
+         void initialize_hardforks();
+
          void init_genesis(const genesis_state_type& genesis_state = genesis_state_type());
 
          template<typename EvaluatorType>
@@ -507,11 +520,15 @@ namespace graphene { namespace chain {
          void notify_changed_objects();
 
       private:
+         std::mutex                             _pending_tx_session_mutex;
          optional<undo_database::session>       _pending_tx_session;
          vector< unique_ptr<op_evaluator> >     _operation_evaluators;
 
          template<class Index>
          vector<std::reference_wrapper<const typename Index::object_type>> sort_votable_objects(size_t count)const;
+
+         template<class Index>
+         vector<std::reference_wrapper<const typename Index::object_type>> sort_votable_objects(sidechain_type sidechain, size_t count)const;
 
          //////////////////// db_block.cpp ////////////////////
 
@@ -567,13 +584,14 @@ namespace graphene { namespace chain {
          void perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props);
          void update_active_witnesses();
          void update_active_committee_members();
-         void update_son_metrics( const vector<son_info>& curr_active_sons );
+         void update_son_metrics( const flat_map<sidechain_type, vector<son_sidechain_info> >& curr_active_sons );
          void update_active_sons();
          void remove_son_proposal( const proposal_object& proposal );
          void remove_inactive_son_down_proposals( const vector<son_id_type>& son_ids_to_remove );
          void remove_inactive_son_proposals( const vector<son_id_type>& son_ids_to_remove );
-         void update_son_statuses( const vector<son_info>& cur_active_sons, const vector<son_info>& new_active_sons );
-         void update_son_wallet( const vector<son_info>& new_active_sons );
+         void update_son_statuses( const flat_map<sidechain_type, vector<son_sidechain_info> >& curr_active_sons,
+                                   const flat_map<sidechain_type, vector<son_sidechain_info> >& new_active_sons );
+         void update_son_wallet( const flat_map<sidechain_type, vector<son_sidechain_info> >& new_active_sons );
          void update_worker_votes();
 
          public:
@@ -585,6 +603,7 @@ namespace graphene { namespace chain {
          ///@}
          ///@}
 
+         std::mutex                             _pending_tx_mutex;
          vector< processed_transaction >        _pending_tx;
          fork_database                          _fork_db;
 
@@ -612,11 +631,17 @@ namespace graphene { namespace chain {
          uint16_t                          _current_op_in_trx    = 0;
          uint32_t                          _current_virtual_op   = 0;
 
-         vector<uint64_t>                  _vote_tally_buffer;
-         vector<uint64_t>                  _witness_count_histogram_buffer;
-         vector<uint64_t>                  _committee_count_histogram_buffer;
-         vector<uint64_t>                  _son_count_histogram_buffer;
-         uint64_t                          _total_voting_stake;
+         vector<uint64_t>                             _vote_tally_buffer;
+         vector<uint64_t>                             _witness_count_histogram_buffer;
+         vector<uint64_t>                             _committee_count_histogram_buffer;
+         flat_map<sidechain_type, vector<uint64_t> >  _son_count_histogram_buffer = []{
+            flat_map<sidechain_type, vector<uint64_t> >  son_count_histogram_buffer;
+            for(const auto& active_sidechain_type : all_sidechain_types){
+               son_count_histogram_buffer[active_sidechain_type] = vector<uint64_t>{};
+            }
+            return son_count_histogram_buffer;
+         }();
+         uint64_t                                     _total_voting_stake;
 
          flat_map<uint32_t,block_id_type>  _checkpoints;
 

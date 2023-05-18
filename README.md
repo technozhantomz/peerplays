@@ -8,100 +8,41 @@ This is a quick introduction to get new developers and witnesses up to speed on 
 
 Officially supported OS are Ubuntu 20.04 and Ubuntu 18.04.
 
-## Ubuntu 20.04
+## Ubuntu 20.04 and 18.04
 
-Following dependencies are needed for a clean install of Ubuntu 20.04:
+Following dependencies are needed for a clean install of Ubuntu 20.04 and Ubuntu 18.04:
 ```
 sudo apt-get install \
-    apt-utils autoconf bash build-essential ca-certificates clang-format cmake \
-    dnsutils doxygen expect git graphviz libboost-all-dev libbz2-dev \
-    libcurl4-openssl-dev libncurses-dev libsnappy-dev \
-    libssl-dev libtool libzip-dev locales lsb-release mc nano net-tools ntp \
-    openssh-server pkg-config perl python3 python3-jinja2 sudo \
+    autoconf bash bison build-essential ca-certificates dnsutils expect flex git \
+    graphviz libbz2-dev libcurl4-openssl-dev libncurses-dev libpcre3-dev \
+    libsnappy-dev libsodium-dev libssl-dev libtool libzip-dev locales lsb-release \
+    mc nano net-tools ntp openssh-server pkg-config python3 python3-jinja2 sudo \
     systemd-coredump wget
 ```
 
-Install libzmq from source:
+Boost libraries setup:
 ```
-wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.zip
-unzip v4.3.4.zip
-cd libzmq-4.3.4
-mkdir build
-cd build
-cmake ..
-make -j$(nproc)
-sudo make install
-sudo ldconfig
-```
-
-Install cppzmq from source:
-```
-wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.8.1.zip
-unzip v4.8.1.zip
-cd cppzmq-4.8.1
-mkdir build
-cd build
-cmake ..
-make -j$(nproc)
-sudo make install
-sudo ldconfig
-```
-
-Building Peerplays
-```
-git clone https://gitlab.com/PBSA/peerplays.git
-cd peerplays
-git submodule update --init --recursive
-
-# If you want to build Mainnet node
-cmake -DCMAKE_BUILD_TYPE=Release
-
-# If you want to build Testnet node
-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_PEERPLAYS_TESTNET=1
-
-# Update -j flag depending on your current system specs;
-# Recommended 4GB of RAM per 1 CPU core
-# make -j2 for 8GB RAM
-# make -j4 for 16GB RAM
-# make -j8 for 32GB RAM
-make -j$(nproc)
-
-sudo make install # this can install the executable files under /usr/local
-```
-
-## Ubuntu 18.04
-
-Following dependencies are needed for a clean install of Ubuntu 18.04:
-```
-sudo apt-get install \
-    apt-utils autoconf bash build-essential ca-certificates clang-format \
-    dnsutils doxygen expect git graphviz libbz2-dev \
-    libcurl4-openssl-dev libncurses-dev libsnappy-dev \
-    libssl-dev libtool libzip-dev locales lsb-release mc nano net-tools ntp \
-    openssh-server pkg-config perl python3 python3-jinja2 sudo \
-    systemd-coredump wget
-```
-
-Install Boost libraries from source
-```
-wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.bz2/download' -O boost_1_67_0.tar.bz2
-tar xjf boost_1_67_0.tar.bz2
-cd boost_1_67_0/
+wget https://boostorg.jfrog.io/artifactory/main/release/1.72.0/source/boost_1_72_0.tar.gz
+tar -xzf boost_1_72_0.tar.gz boost_1_72_0
+cd boost_1_72_0
 ./bootstrap.sh
+./b2
 sudo ./b2 install
+sudo ldconfig
 ```
 
-Install cmake
+cmake setup:
 ```
-wget -c 'https://cmake.org/files/v3.23/cmake-3.23.1-linux-x86_64.sh' -O cmake-3.23.1-linux-x86_64.sh
-chmod 755 ./cmake-3.23.1-linux-x86_64.sh
-sudo ./cmake-3.23.1-linux-x86_64.sh --prefix=/usr/ --skip-license
+wget https://github.com/Kitware/CMake/releases/download/v3.24.2/cmake-3.24.2-linux-x86_64.sh
+chmod 755 ./cmake-3.24.2-linux-x86_64.sh
+sudo ./cmake-3.24.2-linux-x86_64.sh --prefix=/usr --skip-license
+cmake --version
 ```
 
-Install libzmq from source:
+libzmq setup:
 ```
-wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.zip
-unzip v4.3.4.zip
+wget https://github.com/zeromq/libzmq/archive/refs/tags/v4.3.4.tar.gz
+tar -xzvf v4.3.4.tar.gz
 cd libzmq-4.3.4
 mkdir build
 cd build
@@ -111,14 +52,59 @@ sudo make install
 sudo ldconfig
 ```
 
-Install cppzmq from source:
+cppzmq setup:
 ```
-wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.8.1.zip
-unzip v4.8.1.zip
-cd cppzmq-4.8.1
+wget https://github.com/zeromq/cppzmq/archive/refs/tags/v4.9.0.tar.gz
+tar -xzvf v4.9.0.tar.gz
+cd cppzmq-4.9.0
 mkdir build
 cd build
 cmake ..
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+gsl setup:
+```
+wget https://github.com/imatix/gsl/archive/refs/tags/v4.1.4.tar.gz
+tar -xzvf v4.1.4.tar.gz
+cd gsl-4.1.4
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+libbitcoin-explorer setup:
+```
+git clone https://github.com/libbitcoin/libbitcoin-build.git
+cd libbitcoin-build
+git reset --hard 92c215fc1ffa272bab4d485d369d0306db52d69d
+./generate3.sh
+cd ../libbitcoin-explorer
+sudo ./install.sh
+sudo ldconfig
+```
+
+Doxygen setup:
+```
+wget https://github.com/doxygen/doxygen/archive/refs/tags/Release_1_8_17.tar.gz
+tar -xvf Release_1_8_17.tar.gz
+cd doxygen-Release_1_8_17
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+Perl setup:
+```
+wget https://github.com/Perl/perl5/archive/refs/tags/v5.30.0.tar.gz
+tar -xvf v5.30.0.tar.gz
+cd perl5-5.30.0
+./Configure -des
 make -j$(nproc)
 sudo make install
 sudo ldconfig
@@ -145,7 +131,6 @@ make -j$(nproc)
 
 sudo make install # this can install the executable files under /usr/local
 ```
-
 
 ## Docker images
 

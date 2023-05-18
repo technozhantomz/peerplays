@@ -1038,18 +1038,10 @@ BOOST_FIXTURE_TEST_CASE( hardfork_son2_time, database_fixture )
    generate_block();   // get the maintenance skip slots out of the way*/
    BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), 7);
 
-   generate_blocks(HARDFORK_SON3_TIME);
+   generate_blocks(HARDFORK_SON_FOR_ETHEREUM_TIME);
    // after this hardfork maximum son account should not reset the value
-   // on 7 after maintenance interval anymore. So change the global parameters
-   // and check the value after maintenance interval
-   db.modify(db.get_global_properties(), [](global_property_object& p) {
-      p.parameters.extensions.value.maximum_son_count = 13;
-   });
-
-   generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-   generate_block();
-
-   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), 13);
+   // on 7 after maintenance interval anymore. It must be HARDFORK_SON2_TIME
+   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.maximum_son_count(), GRAPHENE_DEFAULT_MAX_SONS);
 
 } FC_LOG_AND_RETHROW() }
 

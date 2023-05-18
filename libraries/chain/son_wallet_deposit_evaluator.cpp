@@ -23,9 +23,9 @@ void_result create_son_wallet_deposit_evaluator::do_evaluate(const son_wallet_de
    const auto &swdo_idx = db().get_index_type<son_wallet_deposit_index>().indices().get<by_sidechain_uid>();
    const auto swdo = swdo_idx.find(op.sidechain_uid);
    if (swdo == swdo_idx.end()) {
-      auto &gpo = db().get_global_properties();
+      const auto &gpo = db().get_global_properties();
       bool expected = false;
-      for (auto &si : gpo.active_sons) {
+      for (auto &si : gpo.active_sons.at(op.sidechain)) {
          if (op.son_id == si.son_id) {
             expected = true;
             break;
@@ -78,8 +78,8 @@ object_id_type create_son_wallet_deposit_evaluator::do_apply(const son_wallet_de
          swdo.peerplays_to = op.peerplays_to;
          swdo.peerplays_asset = op.peerplays_asset;
 
-         auto &gpo = db().get_global_properties();
-         for (auto &si : gpo.active_sons) {
+         const auto &gpo = db().get_global_properties();
+         for (auto &si : gpo.active_sons.at(op.sidechain)) {
             swdo.expected_reports.insert(std::make_pair(si.son_id, si.weight));
 
             auto stats_itr = db().get_index_type<son_stats_index>().indices().get<by_owner>().find(si.son_id);
@@ -142,11 +142,11 @@ void_result process_son_wallet_deposit_evaluator::do_evaluate(const son_wallet_d
 { try{
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
    FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
-   FC_ASSERT(db().get_global_properties().active_sons.size() >= db().get_chain_properties().immutable_parameters.min_son_count, "Min required voted SONs not present");
 
    const auto& idx = db().get_index_type<son_wallet_deposit_index>().indices().get<by_id>();
    const auto& itr = idx.find(op.son_wallet_deposit_id);
    FC_ASSERT(itr != idx.end(), "Son wallet deposit not found");
+   FC_ASSERT(db().get_global_properties().active_sons.at(itr->sidechain).size() >= db().get_chain_properties().immutable_parameters.min_son_count, "Min required voted SONs not present");
    FC_ASSERT(!itr->processed, "Son wallet deposit is already processed");
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

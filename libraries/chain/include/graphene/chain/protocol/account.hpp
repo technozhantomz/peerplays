@@ -28,6 +28,7 @@
 #include <graphene/chain/protocol/special_authority.hpp>
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/vote.hpp>
+#include <graphene/chain/sidechain_defs.hpp>
 
 namespace graphene { namespace chain {
 
@@ -35,8 +36,28 @@ namespace graphene { namespace chain {
    bool is_cheap_name( const string& n );
 
    /// These are the fields which can be updated by the active authority.
-   struct account_options
+   struct   account_options
    {
+      struct ext
+      {
+         /// The number of active son members this account votes the blockchain should appoint
+         /// Must not exceed the actual number of son members voted for in @ref votes
+         optional< flat_map<sidechain_type, uint16_t> > num_son;
+
+         /// Returns and empty num_son map with all sidechains
+         static flat_map<sidechain_type, uint16_t> empty_num_son()
+         {
+            flat_map<sidechain_type, uint16_t> num_son;
+            for(const auto& active_sidechain_type : all_sidechain_types)
+            {
+               num_son[active_sidechain_type] = 0;
+            }
+
+            return num_son;
+         }
+      };
+
+
       /// The memo key is the key this account will typically use to encrypt/sign transaction memos and other non-
       /// validated account activities. This field is here to prevent confusion if the active authority has zero or
       /// multiple keys in it.
@@ -52,14 +73,11 @@ namespace graphene { namespace chain {
       /// The number of active committee members this account votes the blockchain should appoint
       /// Must not exceed the actual number of committee members voted for in @ref votes
       uint16_t num_committee = 0;
-      /// The number of active son members this account votes the blockchain should appoint
-      /// Must not exceed the actual number of son members voted for in @ref votes
-      uint16_t num_son = 0;
       /// This is the list of vote IDs this account votes for. The weight of these votes is determined by this
       /// account's balance of core asset.
       flat_set<vote_id_type> votes;
-      extensions_type        extensions;
-      
+      extension< ext > extensions;
+
       /// Whether this account is voting
       inline bool is_voting() const
       {
@@ -244,7 +262,7 @@ namespace graphene { namespace chain {
     */
    struct account_upgrade_operation : public base_operation
    {
-      struct fee_parameters_type { 
+      struct fee_parameters_type {
          uint64_t membership_annual_fee   =  2000 * GRAPHENE_BLOCKCHAIN_PRECISION;
          uint64_t membership_lifetime_fee = 10000 * GRAPHENE_BLOCKCHAIN_PRECISION; ///< the cost to upgrade to a lifetime member
       };
@@ -289,6 +307,7 @@ namespace graphene { namespace chain {
 
 } } // graphene::chain
 
+FC_REFLECT(graphene::chain::account_options::ext, (num_son))
 FC_REFLECT(graphene::chain::account_options, (memo_key)(voting_account)(num_witness)(num_committee)(votes)(extensions))
 // FC_REFLECT_TYPENAME( graphene::chain::account_whitelist_operation::account_listing)
 FC_REFLECT_ENUM( graphene::chain::account_whitelist_operation::account_listing,

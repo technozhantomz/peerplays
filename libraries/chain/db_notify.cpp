@@ -203,27 +203,10 @@ struct get_impacted_account_visitor
       _impacted.insert( op.issuer );
    }
 
-   void operator()( const transfer_to_blind_operation& op )
-   {
-      _impacted.insert( op.from );
-      for( const auto& out : op.outputs )
-         add_authority_accounts( _impacted, out.owner );
-   }
-
-   void operator()( const blind_transfer_operation& op )
-   {
-      for( const auto& in : op.inputs )
-         add_authority_accounts( _impacted, in.owner );
-      for( const auto& out : op.outputs )
-         add_authority_accounts( _impacted, out.owner );
-   }
-
-   void operator()( const transfer_from_blind_operation& op )
-   {
-      _impacted.insert( op.to );
-      for( const auto& in : op.inputs )
-         add_authority_accounts( _impacted, in.owner );
-   }
+   //! We don't use this operations
+   void operator()( const transfer_to_blind_operation& op ){}
+   void operator()( const blind_transfer_operation& op ){}
+   void operator()( const transfer_from_blind_operation& op ){}
 
    void operator()( const asset_settle_cancel_operation& op )
    {
