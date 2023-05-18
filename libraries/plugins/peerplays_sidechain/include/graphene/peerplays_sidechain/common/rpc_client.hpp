@@ -3,44 +3,52 @@
 #include <cstdint>
 #include <string>
 
+#include <fc/thread/future.hpp>
+#include <fc/thread/thread.hpp>
+
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core.hpp>
 
+#include <graphene/peerplays_sidechain/defs.hpp>
+
 namespace graphene { namespace peerplays_sidechain {
 
-struct rpc_reply {
-   uint16_t status;
-   std::string body;
+class rpc_connection;
+
+struct rpc_credentials {
+   std::string url;
+   std::string user;
+   std::string password;
 };
 
 class rpc_client {
 public:
-   rpc_client(std::string _url, std::string _user, std::string _password, bool _debug_rpc_calls);
+   const sidechain_type sidechain;
+
+   rpc_client(sidechain_type _sidechain, const std::vector<rpc_credentials> &_credentials, bool _debug_rpc_calls, bool _simulate_connection_reselection);
+   ~rpc_client();
 
 protected:
-   std::string retrieve_array_value_from_reply(std::string reply_str, std::string array_path, uint32_t idx);
-   std::string retrieve_value_from_reply(std::string reply_str, std::string value_path);
+   bool debug_rpc_calls;
+   bool simulate_connection_reselection;
    std::string send_post_request(std::string method, std::string params, bool show_log);
 
-   std::string url;
-   std::string user;
-   std::string password;
-   bool debug_rpc_calls;
+   static std::string send_post_request(rpc_connection &conn, std::string method, std::string params, bool show_log);
 
-   std::string protocol;
-   std::string host;
-   std::string port;
-   std::string target;
-   std::string authorization;
-
-   uint32_t request_id;
+   static std::string retrieve_array_value_from_reply(std::string reply_str, std::string array_path, uint32_t idx);
+   static std::string retrieve_value_from_reply(std::string reply_str, std::string value_path);
 
 private:
-   rpc_reply send_post_request(std::string body, bool show_log);
+   std::vector<rpc_connection *> connections;
+   int n_active_conn;
+   fc::future<void> connection_selection_task;
+   std::mutex conn_mutex;
 
-   boost::beast::net::io_context ioc;
-   boost::beast::net::ip::tcp::resolver resolver;
-   boost::asio::ip::basic_resolver_results<boost::asio::ip::tcp> results;
+   rpc_connection &get_active_connection() const;
+
+   void select_connection();
+   void schedule_connection_selection();
+   virtual uint64_t ping(rpc_connection &conn) const = 0;
 };
 
 }} // namespace graphene::peerplays_sidechain

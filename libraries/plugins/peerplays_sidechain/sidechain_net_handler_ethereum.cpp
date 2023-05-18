@@ -25,8 +25,8 @@
 
 namespace graphene { namespace peerplays_sidechain {
 
-ethereum_rpc_client::ethereum_rpc_client(const std::string &url, const std::string &user_name, const std::string &password, bool debug_rpc_calls) :
-      rpc_client(url, user_name, password, debug_rpc_calls) {
+ethereum_rpc_client::ethereum_rpc_client(const std::vector<rpc_credentials> &credentials, bool debug_rpc_calls, bool simulate_connection_reselection) :
+      rpc_client(sidechain_type::ethereum, credentials, debug_rpc_calls, simulate_connection_reselection) {
 }
 
 std::string ethereum_rpc_client::eth_blockNumber() {
@@ -126,20 +126,29 @@ std::string ethereum_rpc_client::eth_get_transaction_by_hash(const std::string &
    return send_post_request("eth_getTransactionByHash", "[\"" + params + "\"]", debug_rpc_calls);
 }
 
+uint64_t ethereum_rpc_client::ping(rpc_connection &conn) const {
+   std::string reply = send_post_request(conn, "eth_blockNumber", "", debug_rpc_calls);
+   if (!reply.empty())
+      return ethereum::from_hex<uint64_t>(retrieve_value_from_reply(reply, ""));
+   return std::numeric_limits<uint64_t>::max();
+}
+
 sidechain_net_handler_ethereum::sidechain_net_handler_ethereum(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
-      sidechain_net_handler(_plugin, options) {
-   sidechain = sidechain_type::ethereum;
+      sidechain_net_handler(sidechain_type::ethereum, _plugin, options) {
 
    if (options.count("debug-rpc-calls")) {
       debug_rpc_calls = options.at("debug-rpc-calls").as<bool>();
    }
+   bool simulate_connection_reselection = options.at("simulate-rpc-connection-reselection").as<bool>();
 
-   rpc_url = options.at("ethereum-node-rpc-url").as<std::string>();
+   std::vector<std::string> rpc_urls = options.at("ethereum-node-rpc-url").as<std::vector<std::string>>();
+   std::string rpc_user;
    if (options.count("ethereum-node-rpc-user")) {
       rpc_user = options.at("ethereum-node-rpc-user").as<std::string>();
    } else {
       rpc_user = "";
    }
+   std::string rpc_password;
    if (options.count("ethereum-node-rpc-password")) {
       rpc_password = options.at("ethereum-node-rpc-password").as<std::string>();
    } else {
@@ -175,18 +184,27 @@ sidechain_net_handler_ethereum::sidechain_net_handler_ethereum(peerplays_sidecha
       }
    }
 
-   rpc_client = new ethereum_rpc_client(rpc_url, rpc_user, rpc_password, debug_rpc_calls);
+   for (size_t i = 0; i < rpc_urls.size(); i++) {
+      rpc_credentials creds;
+      creds.url = rpc_urls[i];
+      creds.user = rpc_user;
+      creds.password = rpc_password;
+      _rpc_credentials.push_back(creds);
+   }
+   FC_ASSERT(!_rpc_credentials.empty());
+
+   rpc_client = new ethereum_rpc_client(_rpc_credentials, debug_rpc_calls, simulate_connection_reselection);
 
    const std::string chain_id_str = rpc_client->get_chain_id();
    if (chain_id_str.empty()) {
-      elog("No Ethereum node running at ${url}", ("url", rpc_url));
+      elog("No Ethereum node running at ${url}", ("url", _rpc_credentials[0].url));
       FC_ASSERT(false);
    }
    chain_id = std::stoll(chain_id_str);
 
    const std::string network_id_str = rpc_client->get_network_id();
    if (network_id_str.empty()) {
-      elog("No Ethereum node running at ${url}", ("url", rpc_url));
+      elog("No Ethereum node running at ${url}", ("url", _rpc_credentials[0].url));
       FC_ASSERT(false);
    }
    network_id = std::stoll(network_id_str);
@@ -205,6 +223,7 @@ sidechain_net_handler_ethereum::~sidechain_net_handler_ethereum() {
 }
 
 bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po) {
+
    ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
 
    bool should_approve = false;
@@ -263,7 +282,7 @@ bool sidechain_net_handler_ethereum::process_proposal(const proposal_object &po)
             const std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
             const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
-            const auto st = st_idx.find(obj_id);
+            const auto st = st_idx.find(object_id);
             if (st == st_idx.end()) {
 
                std::string tx_str = "";
@@ -665,13 +684,18 @@ std::string sidechain_net_handler_ethereum::send_sidechain_transaction(const sid
 
    const ethereum::signature_encoder encoder{function_signature};
 #ifdef SEND_RAW_TRANSACTION
+   const auto data = encoder.encode(transactions);
+   const std::string params = "[{\"from\":\"" + ethereum::add_0x(public_key) + "\", \"to\":\"" + wallet_contract_address + "\", \"data\":\"" + data + "\"}]";
+
    ethereum::raw_transaction raw_tr;
    raw_tr.nonce = rpc_client->get_nonce(ethereum::add_0x(public_key));
    raw_tr.gas_price = rpc_client->get_gas_price();
-   raw_tr.gas_limit = rpc_client->get_gas_limit();
+   raw_tr.gas_limit = rpc_client->get_estimate_gas(params);
+   if (raw_tr.gas_limit.empty())
+      raw_tr.gas_limit = rpc_client->get_gas_limit();
    raw_tr.to = wallet_contract_address;
    raw_tr.value = "";
-   raw_tr.data = encoder.encode(transactions);
+   raw_tr.data = data;
    raw_tr.chain_id = ethereum::add_0x(ethereum::to_hex(chain_id));
 
    const auto sign_tr = raw_tr.sign(get_private_key(public_key));
@@ -785,7 +809,7 @@ optional<asset> sidechain_net_handler_ethereum::estimate_withdrawal_transaction_
    }
 
    const auto &public_key = son->sidechain_public_keys.at(sidechain);
-   const auto data = ethereum::withdrawal_encoder::encode(public_key, 1 * 10000000000, son_wallet_withdraw_id_type{0}.operator object_id_type().operator std::string());
+   const auto data = ethereum::withdrawal_encoder::encode(public_key, boost::multiprecision::uint256_t{1} * boost::multiprecision::uint256_t{10000000000}, "0");
    const std::string params = "[{\"from\":\"" + ethereum::add_0x(public_key) + "\", \"to\":\"" + wallet_contract_address + "\", \"data\":\"" + data + "\"}]";
 
    const auto estimate_gas = ethereum::from_hex<int64_t>(rpc_client->get_estimate_gas(params));
@@ -808,14 +832,14 @@ std::string sidechain_net_handler_ethereum::create_primary_wallet_transaction(co
 
 std::string sidechain_net_handler_ethereum::create_withdrawal_transaction(const son_wallet_withdraw_object &swwo) {
    if (swwo.withdraw_currency == "ETH") {
-      return ethereum::withdrawal_encoder::encode(ethereum::remove_0x(swwo.withdraw_address), swwo.withdraw_amount.value * 10000000000, swwo.id.operator std::string());
+      return ethereum::withdrawal_encoder::encode(ethereum::remove_0x(swwo.withdraw_address), boost::multiprecision::uint256_t{swwo.withdraw_amount.value} * boost::multiprecision::uint256_t{10000000000}, swwo.id.operator std::string());
    } else {
       const auto it = erc20_addresses.left.find(swwo.withdraw_currency);
       if (it == erc20_addresses.left.end()) {
          elog("No erc-20 token: ${symbol}", ("symbol", swwo.withdraw_currency));
          return "";
       }
-      return ethereum::withdrawal_erc20_encoder::encode(ethereum::remove_0x(it->second), ethereum::remove_0x(swwo.withdraw_address), swwo.withdraw_amount.value, swwo.id.operator std::string());
+      return ethereum::withdrawal_erc20_encoder::encode(ethereum::remove_0x(it->second), ethereum::remove_0x(swwo.withdraw_address), boost::multiprecision::uint256_t{swwo.withdraw_amount.value}, swwo.id.operator std::string());
    }
 
    return "";
@@ -890,8 +914,9 @@ void sidechain_net_handler_ethereum::handle_event(const std::string &block_numbe
          const boost::property_tree::ptree tx = tx_child.second;
          tx_idx = tx_idx + 1;
 
-         const std::string from = tx.get<std::string>("from");
          const std::string to = tx.get<std::string>("to");
+         std::string from = tx.get<std::string>("from");
+         std::transform(from.begin(), from.end(), from.begin(), ::tolower);
 
          std::string cmp_to = to;
          std::transform(cmp_to.begin(), cmp_to.end(), cmp_to.begin(), ::toupper);

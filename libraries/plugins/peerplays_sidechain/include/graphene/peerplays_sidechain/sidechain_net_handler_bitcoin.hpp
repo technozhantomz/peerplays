@@ -98,7 +98,7 @@ protected:
 class bitcoin_rpc_client : public bitcoin_client_base, public rpc_client {
 public:
 public:
-   bitcoin_rpc_client(std::string _url, std::string _user, std::string _password, bool _debug_rpc_calls);
+   bitcoin_rpc_client(const std::vector<rpc_credentials> &_credentials, bool _debug_rpc_calls, bool _simulate_connection_reselection);
 
    uint64_t estimatesmartfee(uint16_t conf_target = 1);
    std::vector<info_for_vin> getblock(const block_data &block, int32_t verbosity = 2);
@@ -112,6 +112,8 @@ public:
    std::string sendrawtransaction(const std::string &tx_hex);
    std::string walletlock();
    bool walletpassphrase(const std::string &passphrase, uint32_t timeout = 60);
+
+   virtual uint64_t ping(rpc_connection &conn) const override;
 
 private:
    std::string ip;
@@ -214,14 +216,11 @@ public:
    virtual optional<asset> estimate_withdrawal_transaction_fee() const override;
 
 private:
-   std::string bitcoin_node_ip;
+   std::vector<rpc_credentials> _rpc_credentials;
    std::string libbitcoin_server_ip;
    uint32_t libbitcoin_block_zmq_port;
    uint32_t libbitcoin_trx_zmq_port;
    uint32_t bitcoin_node_zmq_port;
-   uint32_t rpc_port;
-   std::string rpc_user;
-   std::string rpc_password;
    std::string wallet_name;
    std::string wallet_password;
 

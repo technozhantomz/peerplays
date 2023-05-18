@@ -9,6 +9,7 @@ stages:
   - build
   - test
   - dockerize
+  - python-test
 
 build-mainnet:
   stage: build
@@ -48,6 +49,7 @@ dockerize-mainnet:
     IMAGE: $CI_REGISTRY_IMAGE/mainnet/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
   before_script:
     - docker info
+    - docker builder prune -a -f
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - docker build --no-cache -t $IMAGE .
@@ -56,8 +58,6 @@ dockerize-mainnet:
     - docker rmi $IMAGE
   tags:
     - builder
-  when:
-    manual
   timeout:
     3h
 
@@ -119,3 +119,32 @@ dockerize-testnet:
     manual
   timeout:
     3h
+
+test-e2e:
+  stage: python-test
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/mainnet/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+  before_script:
+    - docker info
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - git clone https://gitlab.com/PBSA/tools-libs/peerplays-utils.git
+    - cd peerplays-utils/peerplays-qa-environment
+    - git checkout origin/feature/python-e2e-tests-for-CI
+    - cd e2e-tests/
+    - python3 -m venv venv
+    - source venv/bin/activate
+    - pip3 install -r requirements.txt
+    - python3 main.py --stop
+    - docker ps -a
+    - docker pull $IMAGE
+    - docker tag $IMAGE peerplays-base:latest
+    - docker image ls -a
+    - python3 main.py --start all
+    - docker ps -a
+    - python3 -m pytest test_btc_init_state.py test_hive_inital_state.py test_pp_inital_state.py
+    - python3 main.py --stop
+    - deactivate
+    - docker ps -a
+  tags:
+    - python-tests

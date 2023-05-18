@@ -36,20 +36,27 @@ namespace graphene { namespace chain {
    bool is_cheap_name( const string& n );
 
    /// These are the fields which can be updated by the active authority.
-   struct account_options
+   struct   account_options
    {
       struct ext
       {
          /// The number of active son members this account votes the blockchain should appoint
          /// Must not exceed the actual number of son members voted for in @ref votes
-         optional< flat_map<sidechain_type, uint16_t> > num_son = []{
+         optional< flat_map<sidechain_type, uint16_t> > num_son;
+
+         /// Returns and empty num_son map with all sidechains
+         static flat_map<sidechain_type, uint16_t> empty_num_son()
+         {
             flat_map<sidechain_type, uint16_t> num_son;
-            for(const auto& active_sidechain_type : all_sidechain_types){
+            for(const auto& active_sidechain_type : all_sidechain_types)
+            {
                num_son[active_sidechain_type] = 0;
             }
+
             return num_son;
-         }();
+         }
       };
+
 
       /// The memo key is the key this account will typically use to encrypt/sign transaction memos and other non-
       /// validated account activities. This field is here to prevent confusion if the active authority has zero or

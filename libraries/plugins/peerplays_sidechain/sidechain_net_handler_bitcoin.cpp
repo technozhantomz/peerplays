@@ -25,8 +25,8 @@ namespace graphene { namespace peerplays_sidechain {
 
 // =============================================================================
 
-bitcoin_rpc_client::bitcoin_rpc_client(std::string _url, std::string _user, std::string _password, bool _debug_rpc_calls) :
-      rpc_client(_url, _user, _password, _debug_rpc_calls) {
+bitcoin_rpc_client::bitcoin_rpc_client(const std::vector<rpc_credentials> &_credentials, bool _debug_rpc_calls, bool _simulate_connection_reselection) :
+      rpc_client(sidechain_type::bitcoin, _credentials, _debug_rpc_calls, _simulate_connection_reselection) {
 }
 
 uint64_t bitcoin_rpc_client::estimatesmartfee(uint16_t conf_target) {
@@ -500,6 +500,13 @@ std::string bitcoin_libbitcoin_client::sendrawtransaction(const std::string &tx_
    return res;
 }
 
+uint64_t bitcoin_rpc_client::ping(rpc_connection &conn) const {
+   std::string str = send_post_request(conn, "getblockcount", "[]", debug_rpc_calls);
+   if (str.length() > 0)
+      return std::stoll(str);
+   return std::numeric_limits<uint64_t>::max();
+}
+
 // =============================================================================
 
 zmq_listener::zmq_listener(std::string _ip, uint32_t _zmq_block_port, uint32_t _zmq_trx_port) :
@@ -678,13 +685,19 @@ void zmq_listener_libbitcoin::handle_block() {
 // =============================================================================
 
 sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
-      sidechain_net_handler(_plugin, options) {
-   sidechain = sidechain_type::bitcoin;
+      sidechain_net_handler(sidechain_type::bitcoin, _plugin, options) {
 
    if (options.count("debug-rpc-calls")) {
       debug_rpc_calls = options.at("debug-rpc-calls").as<bool>();
    }
+   bool simulate_connection_reselection = options.at("simulate-rpc-connection-reselection").as<bool>();
 
+   std::vector<std::string> ips = options.at("bitcoin-node-ip").as<std::vector<std::string>>();
+   bitcoin_node_zmq_port = options.at("bitcoin-node-zmq-port").as<uint32_t>();
+   uint32_t rpc_port = options.at("bitcoin-node-rpc-port").as<uint32_t>();
+   std::string rpc_user = options.at("bitcoin-node-rpc-user").as<std::string>();
+   std::string rpc_password = options.at("bitcoin-node-rpc-password").as<std::string>();
+   
    if (options.count("use-bitcoind-client")) {
       use_bitcoind_client = options.at("use-bitcoind-client").as<bool>();
    }
@@ -693,11 +706,6 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    libbitcoin_block_zmq_port = options.at("libbitcoin-server-block-zmq-port").as<uint32_t>();
    libbitcoin_trx_zmq_port = options.at("libbitcoin-server-trx-zmq-port").as<uint32_t>();
 
-   bitcoin_node_ip = options.at("bitcoin-node-ip").as<std::string>();
-   bitcoin_node_zmq_port = options.at("bitcoin-node-zmq-port").as<uint32_t>();
-   rpc_port = options.at("bitcoin-node-rpc-port").as<uint32_t>();
-   rpc_user = options.at("bitcoin-node-rpc-user").as<std::string>();
-   rpc_password = options.at("bitcoin-node-rpc-password").as<std::string>();
    wallet_name = "";
    if (options.count("bitcoin-wallet-name")) {
       wallet_name = options.at("bitcoin-wallet-name").as<std::string>();
@@ -720,17 +728,27 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    }
 
    if (use_bitcoind_client) {
-      std::string url = bitcoin_node_ip + ":" + std::to_string(rpc_port);
-      if (!wallet_name.empty()) {
-         url = url + "/wallet/" + wallet_name;
+
+      for (size_t i = 0; i < ips.size(); i++) {
+         std::string ip = ips[i];
+         std::string url = ip + ":" + std::to_string(rpc_port);
+         if (!wallet_name.empty()) {
+            url = url + "/wallet/" + wallet_name;
+         }
+         rpc_credentials creds;
+         creds.url = url;
+         creds.user = rpc_user;
+         creds.password = rpc_password;
+         _rpc_credentials.push_back(creds);
       }
-      bitcoin_client = std::unique_ptr<bitcoin_rpc_client>(new bitcoin_rpc_client(url, rpc_user, rpc_password, debug_rpc_calls));
+      FC_ASSERT(!_rpc_credentials.empty());
+
+      bitcoin_client = std::unique_ptr<bitcoin_rpc_client>(new bitcoin_rpc_client(_rpc_credentials, debug_rpc_calls, simulate_connection_reselection));
       if (!wallet_name.empty()) {
          bitcoin_client->loadwallet(wallet_name);
       }
 
-      listener = std::unique_ptr<zmq_listener>(new zmq_listener(bitcoin_node_ip, bitcoin_node_zmq_port));
-
+      listener = std::unique_ptr<zmq_listener>(new zmq_listener(ips[0], bitcoin_node_zmq_port));
    } else {
       bitcoin_client = std::unique_ptr<bitcoin_libbitcoin_client>(new bitcoin_libbitcoin_client(libbitcoin_server_ip));
 
@@ -750,7 +768,6 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
 
    bitcoin_client->getnetworkinfo();
 
-   listener->start();
    listener->block_event_received.connect([this](const block_data &block_event_data) {
       std::thread(&sidechain_net_handler_bitcoin::block_handle_event, this, block_event_data).detach();
    });
@@ -758,6 +775,8 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain
    listener->trx_event_received.connect([this](const libbitcoin::chain::transaction &trx_event_data) {
       std::thread(&sidechain_net_handler_bitcoin::trx_handle_event, this, trx_event_data).detach();
    });
+
+   listener->start();
 
    database.changed_objects.connect([this](const vector<object_id_type> &ids, const flat_set<account_id_type> &accounts) {
       on_changed_objects(ids, accounts);
@@ -778,7 +797,7 @@ sidechain_net_handler_bitcoin::~sidechain_net_handler_bitcoin() {
 
 bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) {
 
-   // ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
+   ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
 
    bool should_approve = false;
 
@@ -855,7 +874,7 @@ bool sidechain_net_handler_bitcoin::process_proposal(const proposal_object &po) 
             std::string op_tx_str = op_obj_idx_1.get<sidechain_transaction_create_operation>().transaction;
 
             const auto &st_idx = database.get_index_type<sidechain_transaction_index>().indices().get<by_object_id>();
-            const auto st = st_idx.find(obj_id);
+            const auto st = st_idx.find(object_id);
             if (st == st_idx.end()) {
 
                std::string tx_str = "";
@@ -1072,6 +1091,10 @@ void sidechain_net_handler_bitcoin::process_primary_wallet() {
          const object_id_type op_id{active_sw->id.space(), active_sw->id.type(), id};
 
          if (proposal_exists(chain::operation::tag<chain::son_wallet_update_operation>::value, op_id)) {
+            return;
+         }
+
+         if (!plugin.can_son_participate(sidechain, chain::operation::tag<chain::son_wallet_update_operation>::value, op_id)) {
             return;
          }
 

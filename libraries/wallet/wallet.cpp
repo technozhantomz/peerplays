@@ -2773,12 +2773,21 @@ public:
       FC_ASSERT(son_obj, "Account ${son} is not registered as a son", ("son", son));
       FC_ASSERT(sidechain == sidechain_type::bitcoin || sidechain == sidechain_type::hive || sidechain == sidechain_type::ethereum, "Unexpected sidechain type");
 
+      bool update_vote_time = false;
       if (approve)
       {
          FC_ASSERT(son_obj->get_sidechain_vote_id(sidechain).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", sidechain)("son", *son_obj));
+         account_id_type stake_account = get_account_id(voting_account);
+         const auto gpos_info = _remote_db->get_gpos_info(stake_account);
+         const auto vesting_subperiod = _remote_db->get_global_properties().parameters.gpos_subperiod();
+         const auto gpos_start_time = fc::time_point_sec(_remote_db->get_global_properties().parameters.gpos_period_start());
+         const auto subperiod_start_time = gpos_start_time.sec_since_epoch() + (gpos_info.current_subperiod - 1) * vesting_subperiod;
+
          auto insert_result = voting_account_object.options.votes.insert(*son_obj->get_sidechain_vote_id(sidechain));
-         if (!insert_result.second)
-            FC_THROW("Account ${account} has already voted for son ${son} for sidechain ${sidechain}", ("account", voting_account)("son", son)("sidechain", sidechain));
+         if (!insert_result.second && (gpos_info.last_voted_time.sec_since_epoch() >= subperiod_start_time))
+            FC_THROW("Account ${account} was already voting for son ${son} in the current GPOS sub-period", ("account", voting_account)("son", son));
+         else
+            update_vote_time = true;   //Allow user to vote in each sub-period(Update voting time, which is reference in calculating VF)
       }
       else
       {
@@ -2787,9 +2796,11 @@ public:
          if (!votes_removed)
             FC_THROW("Account ${account} has already unvoted for son ${son} for sidechain ${sidechain}", ("account", voting_account)("son", son)("sidechain", sidechain));
       }
+      
       account_update_operation account_update_op;
       account_update_op.account = voting_account_object.id;
       account_update_op.new_options = voting_account_object.options;
+      account_update_op.extensions.value.update_last_voting_time = update_vote_time;
 
       signed_transaction tx;
       tx.operations.push_back( account_update_op );

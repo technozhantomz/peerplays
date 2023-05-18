@@ -23,8 +23,7 @@
 namespace graphene { namespace peerplays_sidechain {
 
 sidechain_net_handler_peerplays::sidechain_net_handler_peerplays(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
-      sidechain_net_handler(_plugin, options) {
-   sidechain = sidechain_type::peerplays;
+      sidechain_net_handler(sidechain_type::peerplays, _plugin, options) {
    //const auto &assets_by_symbol = database.get_index_type<asset_index>().indices().get<by_symbol>();
    //const auto get_asset_id = [&assets_by_symbol](const string &symbol) {
    //   auto asset_itr = assets_by_symbol.find(symbol);

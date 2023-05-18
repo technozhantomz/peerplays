@@ -2,8 +2,10 @@
 
 #include <curl/curl.h>
 
+#include <cstdint>
 #include <functional>
 #include <map>
+#include <string>
 #include <vector>
 
 typedef std::function<uint64_t()> get_fee_func_type;
