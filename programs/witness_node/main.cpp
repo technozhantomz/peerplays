@@ -36,6 +36,7 @@
 #include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/peerplays_sidechain/peerplays_sidechain_plugin.hpp>
+#include <graphene/delayed_node/delayed_node_plugin.hpp>
 #include <graphene/utilities/git_revision.hpp>
 #include <graphene/snapshot/snapshot.hpp>
 
@@ -90,6 +91,7 @@ int main(int argc, char** argv) {
       auto bookie_plug = node->register_plugin<bookie::bookie_plugin>();
       auto peerplays_sidechain = node->register_plugin<peerplays_sidechain::peerplays_sidechain_plugin>();
       auto snapshot_plug = node->register_plugin<snapshot_plugin::snapshot_plugin>();
+      auto delayed_plug = node->register_plugin<delayed_node::delayed_node_plugin>();
 
       // add plugin options to config
       try
@@ -176,6 +178,7 @@ int main(int argc, char** argv) {
       node->shutdown_plugins();
       node->shutdown();
       delete node;
+      ilog("Witness node is closed and turned off");
       return EXIT_SUCCESS;
    } catch( const fc::exception& e ) {
       // deleting the node can yield, so do this outside the exception handler

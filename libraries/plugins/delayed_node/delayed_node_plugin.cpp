@@ -63,8 +63,24 @@ void delayed_node_plugin::plugin_set_program_options(bpo::options_description& c
 
 void delayed_node_plugin::connect()
 {
-   my->client_connection = std::make_shared<fc::rpc::websocket_api_connection>(my->client.connect(my->remote_endpoint), GRAPHENE_MAX_NESTED_OBJECTS);
+   fc::http::websocket_connection_ptr con;
+   try
+   {
+      con = my->client.connect(my->remote_endpoint);
+   }
+   catch( const fc::exception& e )
+   {
+      wlog("Error while connecting: ${e}", ("e", e.to_detail_string()));
+      connection_failed();
+      return;
+   }
+   my->client_connection = std::make_shared<fc::rpc::websocket_api_connection>(
+           con, GRAPHENE_NET_MAX_NESTED_OBJECTS );
    my->database_api = my->client_connection->get_remote_api<graphene::app::database_api>(0);
+   my->database_api->set_block_applied_callback([this]( const fc::variant& block_id )
+   {
+      fc::from_variant( block_id, my->last_received_remote_head, GRAPHENE_MAX_NESTED_OBJECTS );
+   } );
    my->client_connection_closed = my->client_connection->closed.connect([this] {
       connection_failed();
    });
@@ -73,7 +89,9 @@ void delayed_node_plugin::connect()
 void delayed_node_plugin::plugin_initialize(const boost::program_options::variables_map& options)
 {
    FC_ASSERT(options.count("trusted-node") > 0);
+   ilog("delayed_node_plugin:  plugin_initialize() begin");
    my->remote_endpoint = "ws://" + options.at("trusted-node").as<std::string>();
+   ilog("delayed_node_plugin:  plugin_initialize() end");
 }
 
 void delayed_node_plugin::sync_with_trusted_node()
@@ -100,8 +118,11 @@ void delayed_node_plugin::sync_with_trusted_node()
       while( remote_dpo.last_irreversible_block_num > db.head_block_num() )
       {
          fc::optional<graphene::chain::signed_block> block = my->database_api->get_block( db.head_block_num()+1 );
+         // TODO: during sync, decouple requesting blocks from preprocessing + applying them
          FC_ASSERT(block, "Trusted node claims it has blocks it doesn't actually have.");
          ilog("Pushing block #${n}", ("n", block->block_num()));
+         // timur: failed to merge from bitshares, API n/a in peerplays
+         // db.precompute_parallel( *block, graphene::chain::database::skip_nothing ).wait();
          db.push_block(*block);
          synced_blocks++;
       }
@@ -136,24 +157,12 @@ void delayed_node_plugin::plugin_startup()
       mainloop();
    });
 
-   try
-   {
-      connect();
-      my->database_api->set_block_applied_callback([this]( const fc::variant& block_id )
-      {
-         fc::from_variant( block_id, my->last_received_remote_head, GRAPHENE_MAX_NESTED_OBJECTS );
-      } );
-      return;
-   }
-   catch (const fc::exception& e)
-   {
-      elog("Error during connection: ${e}", ("e", e.to_detail_string()));
-   }
-   fc::async([this]{connection_failed();});
+   connect();
 }
 
 void delayed_node_plugin::connection_failed()
 {
+   my->last_received_remote_head = my->last_processed_remote_head;
    elog("Connection to trusted node failed; retrying in 5 seconds...");
    fc::schedule([this]{connect();}, fc::time_point::now() + fc::seconds(5));
 }

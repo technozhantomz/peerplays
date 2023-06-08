@@ -39,13 +39,28 @@ void_result create_son_evaluator::do_evaluate(const son_create_operation& op)
 object_id_type create_son_evaluator::do_apply(const son_create_operation& op)
 { try {
     vote_id_type vote_id;
-    db().modify(db().get_global_properties(), [&vote_id](global_property_object& p) {
-        vote_id = get_next_vote_id(p, vote_id_type::son);
-    });
+    flat_map<sidechain_type, vote_id_type> vote_ids;
 
-    const auto& new_son_object = db().create<son_object>( [&]( son_object& obj ){
+    const auto now = db().head_block_time();
+    if( now < HARDFORK_SON_FOR_ETHEREUM_TIME ) {
+      db().modify(db().get_global_properties(), [&vote_id](global_property_object &p) {
+         vote_id = get_next_vote_id(p, vote_id_type::son_bitcoin);
+      });
+    }
+    else {
+      db().modify(db().get_global_properties(), [&vote_ids](global_property_object &p) {
+         vote_ids[sidechain_type::bitcoin] = get_next_vote_id(p, vote_id_type::son_bitcoin);
+         vote_ids[sidechain_type::hive] = get_next_vote_id(p, vote_id_type::son_hive);
+         vote_ids[sidechain_type::ethereum] = get_next_vote_id(p, vote_id_type::son_ethereum);
+      });
+    }
+
+    const auto& new_son_object = db().create<son_object>( [&]( son_object& obj ) {
         obj.son_account = op.owner_account;
-        obj.vote_id = vote_id;
+        if( now < HARDFORK_SON_FOR_ETHEREUM_TIME )
+           obj.sidechain_vote_ids[sidechain_type::bitcoin] = vote_id;
+        else
+           obj.sidechain_vote_ids = vote_ids;
         obj.url = op.url;
         obj.deposit = op.deposit;
         obj.signing_key = op.signing_key;
@@ -94,7 +109,8 @@ object_id_type update_son_evaluator::do_apply(const son_update_operation& op)
            if(op.new_signing_key.valid()) so.signing_key = *op.new_signing_key;
            if(op.new_sidechain_public_keys.valid()) so.sidechain_public_keys = *op.new_sidechain_public_keys;
            if(op.new_pay_vb.valid()) so.pay_vb = *op.new_pay_vb;
-           if(so.status == son_status::deregistered) so.status = son_status::inactive;
+           for(auto& status : so.statuses)
+            if(status.second == son_status::deregistered) status.second = son_status::inactive;
        });
    }
    return op.son_id;
@@ -127,7 +143,8 @@ void_result deregister_son_evaluator::do_apply(const son_deregister_operation& o
        });
 
        db().modify(*son, [&op](son_object &so) {
-          so.status = son_status::deregistered;
+          for(auto& status : so.statuses)
+            status.second = son_status::deregistered;
        });
 
        auto stats_obj = ss_idx.find(son->statistics);
@@ -144,18 +161,28 @@ void_result son_heartbeat_evaluator::do_evaluate(const son_heartbeat_operation& 
 { try {
     FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK"); // can be removed after HF date pass
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
-    auto itr = idx.find(op.son_id);
+    const auto itr = idx.find(op.son_id);
     FC_ASSERT( itr != idx.end() );
     FC_ASSERT(itr->son_account == op.owner_account);
     auto stats = itr->statistics( db() );
     // Inactive SONs need not send heartbeats
-    FC_ASSERT((itr->status == son_status::active) || (itr->status == son_status::in_maintenance) || (itr->status == son_status::request_maintenance), "Inactive SONs need not send heartbeats");
+    bool status_need_to_send_heartbeats = false;
+    for(const auto& status : itr->statuses)
+    {
+       if( (status.second == son_status::active) || (status.second == son_status::in_maintenance) || (status.second == son_status::request_maintenance) )
+          status_need_to_send_heartbeats = true;
+    }
+    FC_ASSERT(status_need_to_send_heartbeats, "Inactive SONs need not send heartbeats");
     // Account for network delays
     fc::time_point_sec min_ts = db().head_block_time() - fc::seconds(5 * db().block_interval());
     // Account for server ntp sync difference
     fc::time_point_sec max_ts = db().head_block_time() + fc::seconds(5 * db().block_interval());
-    FC_ASSERT(op.ts > stats.last_active_timestamp, "Heartbeat sent without waiting minimum time");
-    FC_ASSERT(op.ts > stats.last_down_timestamp, "Heartbeat sent is invalid can't be <= last down timestamp");
+    for(const auto& active_sidechain_type : active_sidechain_types(db().head_block_time())) {
+      if(stats.last_active_timestamp.contains(active_sidechain_type))
+         FC_ASSERT(op.ts > stats.last_active_timestamp.at(active_sidechain_type), "Heartbeat sent for sidechain = ${sidechain} without waiting minimum time", ("sidechain", active_sidechain_type));
+      if(stats.last_down_timestamp.contains(active_sidechain_type))
+         FC_ASSERT(op.ts > stats.last_down_timestamp.at(active_sidechain_type), "Heartbeat sent for sidechain = ${sidechain} is invalid can't be <= last down timestamp", ("sidechain", active_sidechain_type));
+    }
     FC_ASSERT(op.ts >= min_ts, "Heartbeat ts is behind the min threshold");
     FC_ASSERT(op.ts <= max_ts, "Heartbeat ts is above the max threshold");
     return void_result();
@@ -164,44 +191,48 @@ void_result son_heartbeat_evaluator::do_evaluate(const son_heartbeat_operation& 
 object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& op)
 { try {
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
-    auto itr = idx.find(op.son_id);
+    const auto itr = idx.find(op.son_id);
     if(itr != idx.end())
     {
         const global_property_object& gpo = db().get_global_properties();
-        vector<son_id_type> active_son_ids;
-        active_son_ids.reserve(gpo.active_sons.size());
-        std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
-                        std::inserter(active_son_ids, active_son_ids.end()),
-                        [](const son_info& swi) {
-            return swi.son_id;
-        });
 
-        auto it_son = std::find(active_son_ids.begin(), active_son_ids.end(), op.son_id);
-        bool is_son_active = true;
+        for(const auto& active_sidechain_sons : gpo.active_sons) {
+           const auto& sidechain = active_sidechain_sons.first;
+           const auto& active_sons = active_sidechain_sons.second;
 
-        if(it_son == active_son_ids.end()) {
-            is_son_active = false;
-        }
+           vector<son_id_type> active_son_ids;
+           active_son_ids.reserve(active_sons.size());
+           std::transform(active_sons.cbegin(), active_sons.cend(),
+                          std::inserter(active_son_ids, active_son_ids.end()),
+                          [](const son_sidechain_info &swi) {
+                             return swi.son_id;
+                          });
 
-        if(itr->status == son_status::in_maintenance) {
-            db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
-            {
-                sso.current_interval_downtime += op.ts.sec_since_epoch() - sso.last_down_timestamp.sec_since_epoch();
-                sso.last_active_timestamp = op.ts;
-            } );
+           const auto it_son = std::find(active_son_ids.begin(), active_son_ids.end(), op.son_id);
+           bool is_son_active = true;
 
-            db().modify(*itr, [&is_son_active](son_object &so) {
-                if(is_son_active) {
-                    so.status = son_status::active;
-                } else {
-                    so.status = son_status::inactive;
-                }
-            });
-        } else if ((itr->status == son_status::active) || (itr->status == son_status::request_maintenance)) {
-            db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
-            {
-                sso.last_active_timestamp = op.ts;
-            } );
+           if (it_son == active_son_ids.end()) {
+              is_son_active = false;
+           }
+
+           if (itr->statuses.at(sidechain) == son_status::in_maintenance) {
+              db().modify(itr->statistics(db()), [&](son_statistics_object &sso) {
+                 sso.current_interval_downtime[sidechain] += op.ts.sec_since_epoch() - (sso.last_down_timestamp.contains(sidechain) ? sso.last_down_timestamp.at(sidechain).sec_since_epoch() : op.ts.sec_since_epoch());
+                 sso.last_active_timestamp[sidechain] = op.ts;
+              });
+
+              db().modify(*itr, [&is_son_active, &sidechain](son_object &so) {
+                 if (is_son_active) {
+                    so.statuses[sidechain] = son_status::active;
+                 } else {
+                    so.statuses[sidechain] = son_status::inactive;
+                 }
+              });
+           } else if ((itr->statuses.at(sidechain) == son_status::active) || (itr->statuses.at(sidechain) == son_status::request_maintenance)) {
+              db().modify(itr->statistics(db()), [&](son_statistics_object &sso) {
+                 sso.last_active_timestamp[sidechain] = op.ts;
+              });
+           }
         }
     }
     return op.son_id;
@@ -213,29 +244,41 @@ void_result son_report_down_evaluator::do_evaluate(const son_report_down_operati
     FC_ASSERT(op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer.");
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
     FC_ASSERT( idx.find(op.son_id) != idx.end() );
-    auto itr = idx.find(op.son_id);
-    auto stats = itr->statistics( db() );
-    FC_ASSERT(itr->status == son_status::active || itr->status == son_status::request_maintenance, "Inactive/Deregistered/in_maintenance SONs cannot be reported on as down");
-    FC_ASSERT(op.down_ts >= stats.last_active_timestamp, "down_ts should be greater than last_active_timestamp");
+    const auto itr = idx.find(op.son_id);
+    const auto stats = itr->statistics( db() );
+    bool status_need_to_report_down = false;
+    for(const auto& status : itr->statuses)
+    {
+       if( (status.second == son_status::active) || (status.second == son_status::request_maintenance) )
+          status_need_to_report_down = true;
+    }
+    FC_ASSERT(status_need_to_report_down, "Inactive/Deregistered/in_maintenance SONs cannot be reported on as down");
+    for(const auto& active_sidechain_type : active_sidechain_types(db().head_block_time())) {
+      if(stats.last_active_timestamp.contains(active_sidechain_type))
+         FC_ASSERT(op.down_ts >= stats.last_active_timestamp.at(active_sidechain_type), "sidechain = ${sidechain} down_ts should be greater than last_active_timestamp", ("sidechain", active_sidechain_type));
+    }
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 object_id_type son_report_down_evaluator::do_apply(const son_report_down_operation& op)
 { try {
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
-    auto itr = idx.find(op.son_id);
+    const auto itr = idx.find(op.son_id);
     if(itr != idx.end())
     {
-        if ((itr->status == son_status::active) || (itr->status == son_status::request_maintenance)) {
-            db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
-            {
-                sso.last_down_timestamp = op.down_ts;
-            });
+       for( const auto& status : itr->statuses ) {
+          const auto& sidechain = status.first;
 
-            db().modify(*itr, [&op](son_object &so) {
-                so.status = son_status::in_maintenance;
-            });
-        }
+          if ((status.second == son_status::active) || (status.second == son_status::request_maintenance)) {
+             db().modify(*itr, [&sidechain](son_object &so) {
+                so.statuses[sidechain] = son_status::in_maintenance;
+             });
+
+             db().modify(itr->statistics(db()), [&](son_statistics_object &sso) {
+                sso.last_down_timestamp[sidechain] = op.down_ts;
+             });
+          }
+       }
     }
     return op.son_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -249,9 +292,19 @@ void_result son_maintenance_evaluator::do_evaluate(const son_maintenance_operati
     FC_ASSERT( itr != idx.end() );
     // Inactive SONs can't go to maintenance, toggle between active and request_maintenance states
     if(op.request_type == son_maintenance_request_type::request_maintenance) {
-        FC_ASSERT(itr->status == son_status::active, "Inactive SONs can't request for maintenance");
-    } else if(op.request_type == son_maintenance_request_type::cancel_request_maintenance) {
-        FC_ASSERT(itr->status == son_status::request_maintenance, "Only maintenance requested SONs can cancel the request");
+       bool status_active = false;
+       for(const auto& status : itr->statuses) {
+          if( (status.second == son_status::active) )
+             status_active = true;
+       }
+       FC_ASSERT(status_active, "Inactive SONs can't request for maintenance");
+    } else if(op.request_type == son_maintenance_request_type::cancel_request_maintenance) { 
+          bool status_request_maintenance = false;
+          for(const auto& status : itr->statuses) {
+             if( (status.second == son_status::request_maintenance) )
+                status_request_maintenance = true;
+          }
+          FC_ASSERT(status_request_maintenance, "Only maintenance requested SONs can cancel the request");
     } else {
         FC_ASSERT(false, "Invalid maintenance operation");
     }
@@ -264,15 +317,33 @@ object_id_type son_maintenance_evaluator::do_apply(const son_maintenance_operati
     auto itr = idx.find(op.son_id);
     if(itr != idx.end())
     {
-        if(itr->status == son_status::active && op.request_type == son_maintenance_request_type::request_maintenance) {
-            db().modify(*itr, [](son_object &so) {
-                so.status = son_status::request_maintenance;
-            });
-        } else if(itr->status == son_status::request_maintenance && op.request_type == son_maintenance_request_type::cancel_request_maintenance) {
-            db().modify(*itr, [](son_object &so) {
-                so.status = son_status::active;
-            });
-        }
+       bool status_active = false;
+       for(const auto& status : itr->statuses) {
+          if( (status.second == son_status::active) )
+             status_active = true;
+       }
+       if(status_active && op.request_type == son_maintenance_request_type::request_maintenance) {
+          db().modify(*itr, [](son_object &so) {
+             for(auto& status : so.statuses) {
+                status.second = son_status::request_maintenance;
+             }
+          });
+       }
+       else
+       {
+          bool status_request_maintenance = false;
+          for(const auto& status : itr->statuses) {
+             if( (status.second == son_status::request_maintenance) )
+                status_request_maintenance = true;
+          }
+          if(status_request_maintenance && op.request_type == son_maintenance_request_type::cancel_request_maintenance) {
+             db().modify(*itr, [](son_object &so) {
+               for(auto& status : so.statuses) {
+                  status.second = son_status::active;
+               }
+             });
+          }
+       }
     }
     return op.son_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }

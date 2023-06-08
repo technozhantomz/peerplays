@@ -85,6 +85,7 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
       vector<optional< operation_history_object > >& hist = db.get_applied_operations();
       bool is_first = true;
       auto skip_oho_id = [&is_first,&db,this]() {
+         const std::lock_guard<std::mutex> undo_db_lock{db._undo_db_mutex};
          if( is_first && db._undo_db.enabled() ) // this ensures that the current id is rolled back on undo
          {
             db.remove( db.create<operation_history_object>( []( operation_history_object& obj) {} ) );

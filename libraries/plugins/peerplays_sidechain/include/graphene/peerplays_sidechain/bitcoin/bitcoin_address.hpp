@@ -8,6 +8,14 @@ using namespace graphene::chain;
 namespace graphene { namespace peerplays_sidechain { namespace bitcoin {
 
 const bytes op_num = {0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f}; // OP_1 - OP_15
+enum address_types { MAINNET_SCRIPT = 5,
+                     TESTNET_SCRIPT = 196 };
+
+enum script_op {
+   OP_0 = 0x00,
+   OP_PUSH = 0x20,
+   OP_SIZE_34 = 0x22
+};
 
 class bitcoin_address {
 
@@ -96,9 +104,6 @@ private:
    void create_address();
 
 public:
-   enum address_types { MAINNET_SCRIPT = 5,
-                        TESTNET_SCRIPT = 196 };
-
    enum { OP_0 = 0x00,
           OP_EQUAL = 0x87,
           OP_HASH160 = 0xa9,
@@ -145,7 +150,7 @@ public:
    btc_weighted_multisig_address() = default;
 
    btc_weighted_multisig_address(const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data,
-                                 network network_type = network::regtest);
+                                 network network_type = network::regtest, payment_type type = payment_type::P2SH_WSH);
 
    bytes get_redeem_script() const {
       return redeem_script_;
@@ -190,7 +195,7 @@ class btc_one_or_weighted_multisig_address : public bitcoin_address {
 public:
    btc_one_or_weighted_multisig_address() = default;
    btc_one_or_weighted_multisig_address(const fc::ecc::public_key &user_key_data, const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data,
-                                        network network_type = network::regtest);
+                                        network network_type = network::regtest, payment_type type = payment_type::P2SH_WSH);
    bytes get_redeem_script() const {
       return redeem_script_;
    }

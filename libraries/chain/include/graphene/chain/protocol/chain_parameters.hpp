@@ -70,6 +70,7 @@ namespace graphene { namespace chain {
       optional < uint16_t >           maximum_son_count                 = GRAPHENE_DEFAULT_MAX_SONS; ///< maximum number of active SONS
       optional < asset_id_type >      hbd_asset                         = asset_id_type();
       optional < asset_id_type >      hive_asset                        = asset_id_type();
+      optional < asset_id_type >      eth_asset                         = asset_id_type();
    };
 
    struct chain_parameters
@@ -220,6 +221,9 @@ namespace graphene { namespace chain {
       inline asset_id_type hive_asset() const {
          return extensions.value.hive_asset.valid() ? *extensions.value.hive_asset : asset_id_type();
       }
+      inline asset_id_type eth_asset() const {
+         return extensions.value.eth_asset.valid() ? *extensions.value.eth_asset : asset_id_type();
+      }
       private:
       static void safe_copy(chain_parameters& to, const chain_parameters& from);
    };
@@ -257,6 +261,7 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (maximum_son_count)
    (hbd_asset)
    (hive_asset)
+   (eth_asset)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,
