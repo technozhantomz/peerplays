@@ -837,8 +837,7 @@ void application::set_program_options(boost::program_options::options_descriptio
    std::vector<string> seed_nodes = {
 #ifdef BUILD_PEERPLAYS_TESTNET
 #else
-        
-        "wss.homepesa.org"
+         "wss.homepesa.org"
 #endif
    };
    std::string seed_nodes_str = fc::json::to_string(seed_nodes);
