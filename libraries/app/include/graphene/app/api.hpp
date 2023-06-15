@@ -289,6 +289,33 @@ private:
    std::function<void(const variant &)> _on_pending_transaction;
 };
 
+class crypto_api {
+public:
+   crypto_api();
+
+   fc::ecc::commitment_type blind(const fc::ecc::blind_factor_type &blind, uint64_t value);
+
+   fc::ecc::blind_factor_type blind_sum(const std::vector<blind_factor_type> &blinds_in, uint32_t non_neg);
+
+   bool verify_sum(const std::vector<commitment_type> &commits_in, const std::vector<commitment_type> &neg_commits_in, int64_t excess);
+
+   verify_range_result verify_range(const fc::ecc::commitment_type &commit, const std::vector<char> &proof);
+
+   std::vector<char> range_proof_sign(uint64_t min_value,
+                                      const commitment_type &commit,
+                                      const blind_factor_type &commit_blind,
+                                      const blind_factor_type &nonce,
+                                      int8_t base10_exp,
+                                      uint8_t min_bits,
+                                      uint64_t actual_value);
+
+   verify_range_proof_rewind_result verify_range_proof_rewind(const blind_factor_type &nonce,
+                                                              const fc::ecc::commitment_type &commit,
+                                                              const std::vector<char> &proof);
+
+   range_proof_info range_get_info(const std::vector<char> &proof);
+};
+
 /**
     * @brief
     */
@@ -332,6 +359,7 @@ extern template class fc::api<graphene::app::block_api>;
 extern template class fc::api<graphene::app::network_broadcast_api>;
 extern template class fc::api<graphene::app::network_node_api>;
 extern template class fc::api<graphene::app::history_api>;
+extern template class fc::api<graphene::app::crypto_api>;
 extern template class fc::api<graphene::app::asset_api>;
 extern template class fc::api<graphene::debug_witness::debug_api>;
 
@@ -366,6 +394,8 @@ public:
    fc::api<history_api> history() const;
    /// @brief Retrieve the network node API
    fc::api<network_node_api> network_node() const;
+   /// @brief Retrieve the cryptography API
+   fc::api<crypto_api> crypto() const;
    /// @brief Retrieve the asset API
    fc::api<asset_api> asset() const;
    /// @brief Retrieve the debug API (if available)
@@ -387,6 +417,7 @@ private:
    optional<fc::api<network_broadcast_api>> _network_broadcast_api;
    optional<fc::api<network_node_api>> _network_node_api;
    optional<fc::api<history_api>> _history_api;
+   optional<fc::api<crypto_api>> _crypto_api;
    optional<fc::api<asset_api>> _asset_api;
    optional<fc::api<graphene::debug_witness::debug_api>> _debug_api;
    optional<fc::api<graphene::bookie::bookie_api>> _bookie_api;
@@ -444,6 +475,15 @@ FC_API(graphene::app::network_node_api,
       (subscribe_to_pending_transactions)
       (unsubscribe_from_pending_transactions))
 
+FC_API(graphene::app::crypto_api,
+      (blind)
+      (blind_sum)
+      (verify_sum)
+      (verify_range)
+      (range_proof_sign)
+      (verify_range_proof_rewind)
+      (range_get_info))
+
 FC_API(graphene::app::asset_api,
       (get_asset_holders)
       (get_asset_holders_count)
@@ -456,6 +496,7 @@ FC_API(graphene::app::login_api,
       (database)
       (history)
       (network_node)
+      (crypto)
       (asset)
       (debug)
       (bookie)

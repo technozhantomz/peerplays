@@ -19,11 +19,11 @@ namespace graphene { namespace chain {
        * @ingroup object
     */
    struct voters_info {
-      optional<voters_info_object>                             voters_for_committee_member;
-      optional<voters_info_object>                             voters_for_witness;
-      optional<vector<voters_info_object> >                    voters_for_workers;
-      optional<vector<voters_info_object> >                    voters_against_workers;
-      optional<flat_map<sidechain_type, voters_info_object> >  voters_for_son;
+      optional<voters_info_object>           voters_for_committee_member;
+      optional<voters_info_object>           voters_for_witness;
+      optional<vector<voters_info_object> >  voters_for_workers;
+      optional<vector<voters_info_object> >  voters_against_workers;
+      optional<voters_info_object>           voters_for_son;
    };
 
 } } // graphene::chain
@@ -37,4 +37,4 @@ FC_REFLECT( graphene::chain::voters_info,
    (voters_for_witness)
    (voters_for_workers)
    (voters_against_workers)
-   (voters_for_son))
+   (voters_for_son) )

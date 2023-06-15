@@ -30,7 +30,7 @@ namespace graphene
 
                 auto lottery_options = lottery_md_obj.lottery_data->lottery_options;
                 FC_ASSERT(lottery_options.ticket_price.asset_id == op.amount.asset_id);
-                FC_ASSERT(op.tickets_to_buy * lottery_options.ticket_price.amount.value == op.amount.amount.value);
+                FC_ASSERT((double)op.amount.amount.value / lottery_options.ticket_price.amount.value == (double)op.tickets_to_buy);
                 return void_result();
             }
             FC_CAPTURE_AND_RETHROW((op))

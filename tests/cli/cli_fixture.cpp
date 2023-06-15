@@ -231,12 +231,6 @@ signed_block cli_fixture::generate_block(uint32_t skip, const fc::ecc::private_k
    return block;
 }
 
-void cli_fixture::generate_blocks( uint32_t block_count )
-{
-   for( uint32_t i = 0; i < block_count; ++i )
-      generate_block();
-}
-
 bool cli_fixture::generate_maintenance_block() {
    try {
       fc::ecc::private_key committee_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")));

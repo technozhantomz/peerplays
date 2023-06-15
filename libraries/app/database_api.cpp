@@ -71,17 +71,6 @@ std::string object_id_to_string(object_id_type id) {
    return object_id;
 }
 
-signed_block_with_info::signed_block_with_info(){};
-
-signed_block_with_info::signed_block_with_info(const signed_block &block) :
-      signed_block(block) {
-   block_id = id();
-   signing_key = signee();
-   transaction_ids.reserve(transactions.size());
-   for (const processed_transaction &tx : transactions)
-      transaction_ids.push_back(tx.id());
-}
-
 class database_api_impl : public std::enable_shared_from_this<database_api_impl> {
 public:
    database_api_impl(graphene::chain::database &db);
@@ -100,7 +89,6 @@ public:
    optional<block_header> get_block_header(uint32_t block_num) const;
    map<uint32_t, optional<block_header>> get_block_header_batch(const vector<uint32_t> block_nums) const;
    optional<signed_block> get_block(uint32_t block_num) const;
-   optional<signed_block_with_info> get_block2(uint32_t block_num) const;
    vector<optional<signed_block>> get_blocks(uint32_t block_num_from, uint32_t block_num_to) const;
    processed_transaction get_transaction(uint32_t block_num, uint32_t trx_in_block) const;
 
@@ -196,10 +184,6 @@ public:
    fc::optional<son_object> get_son_by_account(const std::string account_id_or_name) const;
    map<string, son_id_type> lookup_son_accounts(const string &lower_bound_name, uint32_t limit) const;
    uint64_t get_son_count() const;
-   flat_map<sidechain_type, vector<son_sidechain_info>> get_active_sons();
-   vector<son_sidechain_info> get_active_sons_by_sidechain(sidechain_type sidechain);
-   map<sidechain_type, map<son_id_type, string>> get_son_network_status();
-   map<son_id_type, string> get_son_network_status_by_sidechain(sidechain_type sidechain);
 
    // SON wallets
    optional<son_wallet_object> get_active_son_wallet();
@@ -253,6 +237,9 @@ public:
    // Proposed transactions
    vector<proposal_object> get_proposed_transactions(const std::string account_id_or_name) const;
 
+   // Blinded balances
+   vector<blinded_balance_object> get_blinded_balances(const flat_set<commitment_type> &commitments) const;
+
    // Tournaments
    vector<tournament_object> get_tournaments_in_state(tournament_state state, uint32_t limit) const;
    vector<tournament_object> get_tournaments(tournament_id_type stop, unsigned limit, tournament_id_type start);
@@ -281,9 +268,8 @@ public:
    uint64_t nft_get_total_supply(const nft_metadata_id_type nft_metadata_id) const;
    nft_object nft_token_by_index(const nft_metadata_id_type nft_metadata_id, const uint64_t token_idx) const;
    nft_object nft_token_of_owner_by_index(const nft_metadata_id_type nft_metadata_id, const account_id_type owner, const uint64_t token_idx) const;
-   vector<nft_object> nft_get_all_tokens(const nft_id_type lower_id, uint32_t limit) const;
-   vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner, const nft_id_type lower_id, uint32_t limit) const;
-   vector<nft_metadata_object> nft_get_metadata_by_owner(const account_id_type owner, const nft_metadata_id_type lower_id, uint32_t limit) const;
+   vector<nft_object> nft_get_all_tokens() const;
+   vector<nft_object> nft_get_tokens_by_owner(const account_id_type owner) const;
 
    // Marketplace
    vector<offer_object> list_offers(const offer_id_type lower_id, uint32_t limit) const;
@@ -304,7 +290,6 @@ public:
    uint32_t api_limit_get_limit_orders_by_account = 101;
    uint32_t api_limit_get_order_book = 50;
    uint32_t api_limit_all_offers_count = 100;
-   uint32_t api_limit_nft_tokens = 100;
    uint32_t api_limit_lookup_accounts = 1000;
    uint32_t api_limit_lookup_witness_accounts = 1000;
    uint32_t api_limit_lookup_committee_member_accounts = 1000;
@@ -542,17 +527,6 @@ optional<signed_block> database_api::get_block(uint32_t block_num) const {
 
 optional<signed_block> database_api_impl::get_block(uint32_t block_num) const {
    return _db.fetch_block_by_number(block_num);
-}
-
-optional<signed_block_with_info> database_api::get_block2(uint32_t block_num) const {
-   return my->get_block2(block_num);
-}
-
-optional<signed_block_with_info> database_api_impl::get_block2(uint32_t block_num) const {
-   auto result = _db.fetch_block_by_number(block_num);
-   if (result)
-      return signed_block_with_info(*result);
-   return {};
 }
 
 vector<optional<signed_block>> database_api::get_blocks(uint32_t block_num_from, uint32_t block_num_to) const {
@@ -1877,80 +1851,6 @@ uint64_t database_api_impl::get_son_count() const {
    return _db.get_index_type<son_index>().indices().size();
 }
 
-flat_map<sidechain_type, vector<son_sidechain_info>> database_api::get_active_sons() {
-   return my->get_active_sons();
-}
-
-flat_map<sidechain_type, vector<son_sidechain_info>> database_api_impl::get_active_sons() {
-   return get_global_properties().active_sons;
-}
-
-vector<son_sidechain_info> database_api::get_active_sons_by_sidechain(sidechain_type sidechain) {
-   return my->get_active_sons_by_sidechain(sidechain);
-}
-
-vector<son_sidechain_info> database_api_impl::get_active_sons_by_sidechain(sidechain_type sidechain) {
-   const global_property_object &gpo = get_global_properties();
-
-   vector<son_sidechain_info> result;
-
-   if (gpo.active_sons.find(sidechain) != gpo.active_sons.end()) {
-      result = gpo.active_sons.at(sidechain);
-   }
-
-   return result;
-}
-
-map<sidechain_type, map<son_id_type, string>> database_api::get_son_network_status() {
-   return my->get_son_network_status();
-}
-
-map<sidechain_type, map<son_id_type, string>> database_api_impl::get_son_network_status() {
-   map<sidechain_type, map<son_id_type, string>> result;
-
-   for (auto active_sidechain_type : active_sidechain_types(_db.head_block_time())) {
-      result[active_sidechain_type] = get_son_network_status_by_sidechain(active_sidechain_type);
-   }
-
-   return result;
-}
-
-map<son_id_type, string> database_api::get_son_network_status_by_sidechain(sidechain_type sidechain) {
-   return my->get_son_network_status_by_sidechain(sidechain);
-}
-
-map<son_id_type, string> database_api_impl::get_son_network_status_by_sidechain(sidechain_type sidechain) {
-   const global_property_object &gpo = get_global_properties();
-
-   map<son_id_type, string> result;
-
-   if (gpo.active_sons.find(sidechain) != gpo.active_sons.end()) {
-      for (const auto si : gpo.active_sons.at(sidechain)) {
-         const auto son_obj = si.son_id(_db);
-         const auto sso = son_obj.statistics(_db);
-         string status;
-
-         if (sso.last_active_timestamp.find(sidechain) != sso.last_active_timestamp.end()) {
-            if (time_point_sec(sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_heartbeat_frequency())) > _db.head_block_time()) {
-               status = "OK, regular SON heartbeat";
-            } else {
-               if (time_point_sec(sso.last_active_timestamp.at(sidechain) + fc::seconds(gpo.parameters.son_down_time())) > _db.head_block_time()) {
-                  status = "OK, irregular SON heartbeat, but not triggering SON down proposal";
-               } else {
-                  status = "NOT OK, irregular SON heartbeat, triggering SON down proposal";
-               }
-            }
-         } else {
-            status = "No heartbeats sent";
-         }
-
-         result[si.son_id] = status;
-      }
-   }
-
-   return result;
-}
-
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
 // SON Wallets                                                      //
@@ -2186,9 +2086,7 @@ vector<variant> database_api_impl::lookup_vote_ids(const vector<vote_id_type> &v
    const auto &committee_idx = _db.get_index_type<committee_member_index>().indices().get<by_vote_id>();
    const auto &for_worker_idx = _db.get_index_type<worker_index>().indices().get<by_vote_for>();
    const auto &against_worker_idx = _db.get_index_type<worker_index>().indices().get<by_vote_against>();
-   const auto &son_bictoin_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_bitcoin>();
-   const auto &son_hive_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_hive>();
-   const auto &son_ethereum_idx = _db.get_index_type<son_index>().indices().get<by_vote_id_ethereum>();
+   const auto &son_idx = _db.get_index_type<son_index>().indices().get<by_vote_id>();
 
    vector<variant> result;
    result.reserve(votes.size());
@@ -2224,30 +2122,15 @@ vector<variant> database_api_impl::lookup_vote_ids(const vector<vote_id_type> &v
          }
          break;
       }
-      case vote_id_type::son_bitcoin: {
-         auto itr = son_bictoin_idx.find(id);
-         if (itr != son_bictoin_idx.end())
+      case vote_id_type::son: {
+         auto itr = son_idx.find(id);
+         if (itr != son_idx.end())
             result.emplace_back(variant(*itr, 5));
          else
             result.emplace_back(variant());
          break;
       }
-      case vote_id_type::son_hive: {
-         auto itr = son_hive_idx.find(id);
-         if (itr != son_hive_idx.end())
-            result.emplace_back(variant(*itr, 5));
-         else
-            result.emplace_back(variant());
-         break;
-      }
-      case vote_id_type::son_ethereum: {
-         auto itr = son_ethereum_idx.find(id);
-         if (itr != son_ethereum_idx.end())
-            result.emplace_back(variant(*itr, 5));
-         else
-            result.emplace_back(variant());
-         break;
-      }
+
       case vote_id_type::VOTE_TYPE_COUNT:
          break; // supress unused enum value warnings
       default:
@@ -2272,24 +2155,12 @@ vector<vote_id_type> database_api_impl::get_votes_ids(const string &account_name
 votes_info database_api_impl::get_votes(const string &account_name_or_id) const {
    votes_info result;
 
-   const auto votes_ids = get_votes_ids(account_name_or_id);
-   const auto committee_ids = get_votes_objects<committee_member_index, by_vote_id>(votes_ids);
-   const auto witness_ids = get_votes_objects<witness_index, by_vote_id>(votes_ids);
-   const auto for_worker_ids = get_votes_objects<worker_index, by_vote_for>(votes_ids);
-   const auto against_worker_ids = get_votes_objects<worker_index, by_vote_against>(votes_ids);
-   const auto son_ids = [this, &votes_ids]() {
-      flat_map<sidechain_type, vector<variant>> son_ids;
-      const auto son_bitcoin_ids = get_votes_objects<son_index, by_vote_id_bitcoin>(votes_ids, 5);
-      if (!son_bitcoin_ids.empty())
-         son_ids[sidechain_type::bitcoin] = std::move(son_bitcoin_ids);
-      const auto son_hive_ids = get_votes_objects<son_index, by_vote_id_hive>(votes_ids, 5);
-      if (!son_hive_ids.empty())
-         son_ids[sidechain_type::hive] = std::move(son_hive_ids);
-      const auto son_ethereum_ids = get_votes_objects<son_index, by_vote_id_ethereum>(votes_ids, 5);
-      if (!son_ethereum_ids.empty())
-         son_ids[sidechain_type::ethereum] = std::move(son_ethereum_ids);
-      return son_ids;
-   }();
+   const auto &votes_ids = get_votes_ids(account_name_or_id);
+   const auto &committee_ids = get_votes_objects<committee_member_index, by_vote_id>(votes_ids);
+   const auto &witness_ids = get_votes_objects<witness_index, by_vote_id>(votes_ids);
+   const auto &for_worker_ids = get_votes_objects<worker_index, by_vote_for>(votes_ids);
+   const auto &against_worker_ids = get_votes_objects<worker_index, by_vote_against>(votes_ids);
+   const auto &son_ids = get_votes_objects<son_index, by_vote_id>(votes_ids, 5);
 
    //! Fill votes info
    if (!committee_ids.empty()) {
@@ -2333,17 +2204,11 @@ votes_info database_api_impl::get_votes(const string &account_name_or_id) const 
    }
 
    if (!son_ids.empty()) {
-      flat_map<sidechain_type, vector<votes_info_object>> votes_for_sons;
-      for (const auto &son_sidechain_ids : son_ids) {
-         const auto &sidechain = son_sidechain_ids.first;
-         const auto &sidechain_ids = son_sidechain_ids.second;
-         votes_for_sons[sidechain].reserve(sidechain_ids.size());
-         for (const auto &son : sidechain_ids) {
-            const auto &son_obj = son.as<son_object>(6);
-            if (son_obj.get_sidechain_vote_id(sidechain).valid()) {
-               votes_for_sons[sidechain].emplace_back(votes_info_object{*son_obj.get_sidechain_vote_id(sidechain), son_obj.id});
-            }
-         }
+      vector<votes_info_object> votes_for_sons;
+      votes_for_sons.reserve(son_ids.size());
+      for (const auto &son : son_ids) {
+         const auto &son_obj = son.as<son_object>(6);
+         votes_for_sons.emplace_back(votes_info_object{son_obj.vote_id, son_obj.id});
       }
       result.votes_for_sons = std::move(votes_for_sons);
    }
@@ -2517,16 +2382,12 @@ voters_info database_api_impl::get_voters(const string &account_name_or_id) cons
 
    //! Info for son voters
    if (son_object) {
-      flat_map<sidechain_type, voters_info_object> voters_for_son;
-      for (const auto &vote_id : son_object->sidechain_vote_ids) {
-         const auto &son_voters = get_voters_by_id(vote_id.second);
-         voters_info_object voters_for_sidechain_son;
-         voters_for_sidechain_son.vote_id = vote_id.second;
-         voters_for_sidechain_son.voters.reserve(son_voters.size());
-         for (const auto &voter : son_voters) {
-            voters_for_sidechain_son.voters.emplace_back(voter.get_id());
-         }
-         voters_for_son[vote_id.first] = std::move(voters_for_sidechain_son);
+      const auto &son_voters = get_voters_by_id(son_object->vote_id);
+      voters_info_object voters_for_son;
+      voters_for_son.vote_id = son_object->vote_id;
+      voters_for_son.voters.reserve(son_voters.size());
+      for (const auto &voter : son_voters) {
+         voters_for_son.voters.emplace_back(voter.get_id());
       }
       result.voters_for_son = std::move(voters_for_son);
    }
@@ -2786,6 +2647,29 @@ vector<proposal_object> database_api_impl::get_proposed_transactions(const std::
       else if (p.available_active_approvals.find(id) != p.available_active_approvals.end())
          result.push_back(p);
    });
+   return result;
+}
+
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// Blinded balances                                                 //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+vector<blinded_balance_object> database_api::get_blinded_balances(const flat_set<commitment_type> &commitments) const {
+   return my->get_blinded_balances(commitments);
+}
+
+vector<blinded_balance_object> database_api_impl::get_blinded_balances(const flat_set<commitment_type> &commitments) const {
+   vector<blinded_balance_object> result;
+   result.reserve(commitments.size());
+   const auto &bal_idx = _db.get_index_type<blinded_balance_index>();
+   const auto &by_commitment_idx = bal_idx.indices().get<by_commitment>();
+   for (const auto &c : commitments) {
+      auto itr = by_commitment_idx.find(c);
+      if (itr != by_commitment_idx.end())
+         result.push_back(*itr);
+   }
    return result;
 }
 
@@ -3091,8 +2975,8 @@ uint64_t database_api::nft_get_total_supply(const nft_metadata_id_type nft_metad
 }
 
 uint64_t database_api_impl::nft_get_total_supply(const nft_metadata_id_type nft_metadata_id) const {
-   const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_metadata>();
-   return idx_nft.count(nft_metadata_id);
+   const auto &idx_nft_md = _db.get_index_type<nft_metadata_index>().indices().get<by_id>();
+   return idx_nft_md.size();
 }
 
 nft_object database_api::nft_token_by_index(const nft_metadata_id_type nft_metadata_id, const uint64_t token_idx) const {
@@ -3129,61 +3013,30 @@ nft_object database_api_impl::nft_token_of_owner_by_index(const nft_metadata_id_
    return {};
 }
 
-vector<nft_object> database_api::nft_get_all_tokens(const nft_id_type lower_id, uint32_t limit) const {
-   return my->nft_get_all_tokens(lower_id, limit);
+vector<nft_object> database_api::nft_get_all_tokens() const {
+   return my->nft_get_all_tokens();
 }
 
-vector<nft_object> database_api_impl::nft_get_all_tokens(const nft_id_type lower_id, uint32_t limit) const {
-   FC_ASSERT(limit <= api_limit_nft_tokens,
-             "Number of queried nft tokens can not be greater than ${configured_limit}",
-             ("configured_limit", api_limit_nft_tokens));
-
+vector<nft_object> database_api_impl::nft_get_all_tokens() const {
    const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_id>();
    vector<nft_object> result;
-   result.reserve(limit);
-   auto itr = idx_nft.lower_bound(lower_id);
-   while (limit-- && itr != idx_nft.end())
-      result.emplace_back(*itr++);
+   for (auto itr = idx_nft.begin(); itr != idx_nft.end(); ++itr) {
+      result.push_back(*itr);
+   }
    return result;
 }
 
-vector<nft_object> database_api::nft_get_tokens_by_owner(const account_id_type owner, const nft_id_type lower_id, uint32_t limit) const {
-   return my->nft_get_tokens_by_owner(owner, lower_id, limit);
+vector<nft_object> database_api::nft_get_tokens_by_owner(const account_id_type owner) const {
+   return my->nft_get_tokens_by_owner(owner);
 }
 
-vector<nft_object> database_api_impl::nft_get_tokens_by_owner(const account_id_type owner, const nft_id_type lower_id, uint32_t limit) const {
-   FC_ASSERT(limit <= api_limit_nft_tokens,
-             "Number of queried nft tokens can not be greater than ${configured_limit}",
-             ("configured_limit", api_limit_nft_tokens));
+vector<nft_object> database_api_impl::nft_get_tokens_by_owner(const account_id_type owner) const {
    const auto &idx_nft = _db.get_index_type<nft_index>().indices().get<by_owner>();
    auto idx_nft_range = idx_nft.equal_range(owner);
    vector<nft_object> result;
-   result.reserve(limit);
-   auto itr = std::find_if(idx_nft_range.first, idx_nft_range.second, [&lower_id](const nft_object &obj) {
-      return !(obj.id.instance() < lower_id.instance);
-   });
-   while (limit-- && itr != idx_nft_range.second)
-      result.emplace_back(*itr++);
-   return result;
-}
-
-vector<nft_metadata_object> database_api::nft_get_metadata_by_owner(const account_id_type owner, const nft_metadata_id_type lower_id, uint32_t limit) const {
-   return my->nft_get_metadata_by_owner(owner, lower_id, limit);
-}
-
-vector<nft_metadata_object> database_api_impl::nft_get_metadata_by_owner(const account_id_type owner, const nft_metadata_id_type lower_id, uint32_t limit) const {
-   FC_ASSERT(limit <= api_limit_nft_tokens,
-             "Number of queried nft metadata objects can not be greater than ${configured_limit}",
-             ("configured_limit", api_limit_nft_tokens));
-   const auto &idx_nft = _db.get_index_type<nft_metadata_index>().indices().get<by_owner>();
-   auto idx_nft_range = idx_nft.equal_range(owner);
-   vector<nft_metadata_object> result;
-   result.reserve(limit);
-   auto itr = std::find_if(idx_nft_range.first, idx_nft_range.second, [&lower_id](const nft_metadata_object &obj) {
-      return !(obj.id.instance() < lower_id.instance);
-   });
-   while (limit-- && itr != idx_nft_range.second)
-      result.emplace_back(*itr++);
+   for (auto itr = idx_nft_range.first; itr != idx_nft_range.second; ++itr) {
+      result.push_back(*itr);
+   }
    return result;
 }
 

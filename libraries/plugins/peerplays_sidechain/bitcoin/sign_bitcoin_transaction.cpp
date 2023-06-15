@@ -1,5 +1,4 @@
 #include <graphene/peerplays_sidechain/bitcoin/serialize.hpp>
-#include <secp256k1.h>
 
 #include <fc/io/raw.hpp>
 
@@ -7,8 +6,8 @@
 
 namespace graphene { namespace peerplays_sidechain { namespace bitcoin {
 
-const secp256k1_context *btc_context() {
-   static secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY | SECP256K1_CONTEXT_SIGN);
+const secp256k1_context_t *btc_context() {
+   static secp256k1_context_t *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY | SECP256K1_CONTEXT_SIGN);
    return ctx;
 }
 
@@ -32,14 +31,20 @@ fc::sha256 get_signature_hash(const bitcoin_transaction &tx, const bytes &script
    return fc::sha256::hash(fc::sha256::hash(vec.data(), vec.size()));
 }
 
-std::vector<char> privkey_sign(const bytes &privkey, const fc::sha256 &hash, const secp256k1_context *context_sign) {
+std::vector<char> privkey_sign(const bytes &privkey, const fc::sha256 &hash, const secp256k1_context_t *context_sign) {
    bytes sig;
    sig.resize(72);
    int sig_len = sig.size();
 
-   secp256k1_ecdsa_signature sign;
-   FC_ASSERT(secp256k1_ecdsa_sign(context_sign, &sign, (const unsigned char *)hash.data(), (const unsigned char *)privkey.data(), secp256k1_nonce_function_rfc6979, nullptr));
-   FC_ASSERT(secp256k1_ecdsa_signature_serialize_der(context_sign, (unsigned char *)sig.data(), (size_t *)&sig_len, &sign));
+   FC_ASSERT(secp256k1_ecdsa_sign(
+         context_sign,
+         reinterpret_cast<unsigned char *>(hash.data()),
+         reinterpret_cast<unsigned char *>(sig.data()),
+         &sig_len,
+         reinterpret_cast<const unsigned char *>(privkey.data()),
+         secp256k1_nonce_function_rfc6979,
+         nullptr)); // TODO: replace assert with exception
+
    sig.resize(sig_len);
 
    return sig;
@@ -47,7 +52,7 @@ std::vector<char> privkey_sign(const bytes &privkey, const fc::sha256 &hash, con
 
 std::vector<bytes> sign_witness_transaction_part(const bitcoin_transaction &tx, const std::vector<bytes> &redeem_scripts,
                                                  const std::vector<uint64_t> &amounts, const bytes &privkey,
-                                                 const secp256k1_context *context_sign, int hash_type) {
+                                                 const secp256k1_context_t *context_sign, int hash_type) {
    FC_ASSERT(tx.vin.size() == redeem_scripts.size() && tx.vin.size() == amounts.size());
    FC_ASSERT(!privkey.empty());
 
@@ -72,34 +77,17 @@ void sign_witness_transaction_finalize(bitcoin_transaction &tx, const std::vecto
    }
 }
 
-bool verify_sig(const bytes &sig, const bytes &pubkey, const bytes &msg, const secp256k1_context *context) {
-   //! Get sig_temp
-   FC_ASSERT(sig.size() > 70);
-   FC_ASSERT(sig[0] == 0x30);
-   FC_ASSERT(sig[1] == static_cast<char>(sig.size() - 3));
-   FC_ASSERT(sig[2] == 0x02);
-   const uint r_size = sig[3];
-   std::vector<unsigned char> sig_temp(sig.begin() + 4 + (r_size - 32), sig.begin() + 4 + r_size);
-   FC_ASSERT(sig[4 + r_size] == 0x02);
-   const uint s_size = sig[5 + r_size];
-   FC_ASSERT(sig.size() == r_size + s_size + 7);
-   sig_temp.insert(sig_temp.end(), sig.begin() + 6 + r_size, sig.end());
-
+bool verify_sig(const bytes &sig, const bytes &pubkey, const bytes &msg, const secp256k1_context_t *context) {
+   std::vector<unsigned char> sig_temp(sig.begin(), sig.end());
    std::vector<unsigned char> pubkey_temp(pubkey.begin(), pubkey.end());
    std::vector<unsigned char> msg_temp(msg.begin(), msg.end());
 
-   secp256k1_pubkey pub_key;
-   FC_ASSERT(secp256k1_ec_pubkey_parse(context, &pub_key, (const unsigned char *)pubkey_temp.data(), pubkey_temp.size()));
-
-   secp256k1_ecdsa_signature sign;
-   FC_ASSERT(secp256k1_ecdsa_signature_parse_compact(context, &sign, (const unsigned char *)sig_temp.data()));
-
-   int result = secp256k1_ecdsa_verify(context, &sign, (const unsigned char *)msg_temp.data(), &pub_key);
+   int result = secp256k1_ecdsa_verify(context, msg_temp.data(), sig_temp.data(), sig_temp.size(), pubkey_temp.data(), pubkey_temp.size());
    return result == 1;
 }
 
 std::vector<std::vector<bytes>> sort_sigs(const bitcoin_transaction &tx, const std::vector<bytes> &redeem_scripts,
-                                          const std::vector<uint64_t> &amounts, const secp256k1_context *context) {
+                                          const std::vector<uint64_t> &amounts, const secp256k1_context_t *context) {
    FC_ASSERT(redeem_scripts.size() == amounts.size());
 
    using data = std::pair<size_t, bytes>;

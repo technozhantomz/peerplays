@@ -53,54 +53,7 @@ void verify_authority_accounts( const database& db, const authority& a )
    }
 }
 
-// Overwrites the num_son values from the origin to the destination for those sidechains which are found in the origin.
-// Keeps the values of num_son for the sidechains which are found in the destination, but not in the origin.
-// Returns false if an error is detected.
-bool merge_num_sons( flat_map<sidechain_type, uint16_t>& destination,
-                     const flat_map<sidechain_type, uint16_t>& origin,
-                     fc::optional<time_point_sec> head_block_time = {})
-{
-   const auto active_sidechains = head_block_time.valid() ? active_sidechain_types(*head_block_time) : all_sidechain_types;
-   bool success = true;
-
-   for (const auto &ns : origin)
-   {
-      destination[ns.first] = ns.second;
-      if (active_sidechains.find(ns.first) == active_sidechains.end())
-      {
-         success = false;
-      }
-   }
-
-   return success;
-}
-
-flat_map<sidechain_type, uint16_t> count_SON_votes_per_sidechain( const flat_set<vote_id_type>& votes )
-{
-   flat_map<sidechain_type, uint16_t> SON_votes_per_sidechain = account_options::ext::empty_num_son();
-
-   for (const auto &vote : votes)
-   {
-      switch (vote.type())
-     {
-      case vote_id_type::son_bitcoin:
-         SON_votes_per_sidechain[sidechain_type::bitcoin]++;
-         break;
-      case vote_id_type::son_hive:
-         SON_votes_per_sidechain[sidechain_type::hive]++;
-         break;
-      case vote_id_type::son_ethereum:
-         SON_votes_per_sidechain[sidechain_type::ethereum]++;
-         break;
-      default:
-         break;
-      }
-   }
-
-   return SON_votes_per_sidechain;
-}
-
-void verify_account_votes( const database& db, const account_options& options, fc::optional<account_object> account = {} )
+void verify_account_votes( const database& db, const account_options& options )
 {
    // ensure account's votes satisfy requirements
    // NB only the part of vote checking that requires chain state is here,
@@ -109,47 +62,10 @@ void verify_account_votes( const database& db, const account_options& options, f
    const auto& gpo = db.get_global_properties();
    const auto& chain_params = gpo.parameters;
 
-   FC_ASSERT( db.find_object(options.voting_account), "Invalid proxy account specified." );
-
    FC_ASSERT( options.num_witness <= chain_params.maximum_witness_count,
               "Voted for more witnesses than currently allowed (${c})", ("c", chain_params.maximum_witness_count) );
    FC_ASSERT( options.num_committee <= chain_params.maximum_committee_count,
               "Voted for more committee members than currently allowed (${c})", ("c", chain_params.maximum_committee_count) );
-   FC_ASSERT( chain_params.extensions.value.maximum_son_count.valid() , "Invalid maximum son count" );
-
-   flat_map<sidechain_type, uint16_t> merged_num_sons = account_options::ext::empty_num_son();
-
-   // Merge with existing account if exists
-   if ( account.valid() && account->options.extensions.value.num_son.valid())
-   {
-      merge_num_sons( merged_num_sons, *account->options.extensions.value.num_son, db.head_block_time() );
-   }
-
-   // Apply update operation on top
-   if ( options.extensions.value.num_son.valid() )
-   {
-      merge_num_sons( merged_num_sons, *options.extensions.value.num_son, db.head_block_time() );
-   }
-
-   for(const auto& num_sons : merged_num_sons)
-   {
-      FC_ASSERT( num_sons.second <= *chain_params.extensions.value.maximum_son_count,
-                "Voted for more sons than currently allowed (${c})", ("c", *chain_params.extensions.value.maximum_son_count) );
-   }
-
-   // Count the votes for SONs and confirm that the account did not vote for less SONs than num_son
-   flat_map<sidechain_type, uint16_t> SON_votes_per_sidechain = count_SON_votes_per_sidechain(options.votes);
-
-   for (const auto& number_of_votes : SON_votes_per_sidechain)
-   {
-      // Number of votes of account_options are also checked in account_options::do_evaluate,
-      // but there we are checking the value before merging num_sons, so the values should be checked again
-      const auto sidechain = number_of_votes.first;
-      FC_ASSERT( number_of_votes.second >= merged_num_sons[sidechain],
-                "Voted for less sons than specified in num_son (votes ${v} < num_son ${ns}) for sidechain ${s}",
-                ("v", number_of_votes.second) ("ns", merged_num_sons[sidechain]) ("s", sidechain) );
-   }
-
    FC_ASSERT( db.find_object(options.voting_account), "Invalid proxy account specified." );
 
    uint32_t max_vote_id = gpo.next_available_vote_id;
@@ -263,13 +179,6 @@ object_id_type account_create_evaluator::do_apply( const account_create_operatio
       obj.owner            = o.owner;
       obj.active           = o.active;
       obj.options          = o.options;
-
-      obj.options.extensions.value.num_son = account_options::ext::empty_num_son();
-      if ( o.options.extensions.value.num_son.valid() )
-      {
-         merge_num_sons( *obj.options.extensions.value.num_son, *o.options.extensions.value.num_son );
-      }
-
       obj.statistics = d.create<account_statistics_object>([&obj](account_statistics_object& s){
                            s.owner = obj.id;
                            s.name = obj.name;
@@ -369,7 +278,7 @@ void_result account_update_evaluator::do_evaluate( const account_update_operatio
    acnt = &o.account(d);
 
    if( o.new_options.valid() )
-      verify_account_votes( d, *o.new_options, *acnt );
+      verify_account_votes( d, *o.new_options );
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (o) ) }
@@ -408,31 +317,7 @@ void_result account_update_evaluator::do_apply( const account_update_operation& 
          a.active = *o.active;
          a.top_n_control_flags = 0;
       }
-
-      // New num_son structure initialized to 0
-      flat_map<sidechain_type, uint16_t> new_num_son = account_options::ext::empty_num_son();
-
-      // If num_son of existing object is valid, we should merge the existing data
-      if ( a.options.extensions.value.num_son.valid() )
-      {
-         merge_num_sons( new_num_son, *a.options.extensions.value.num_son );
-      }
-
-      // If num_son of the operation are valid, they should merge the existing data
-      if ( o.new_options )
-      {
-         const auto new_options = *o.new_options;
-
-         if ( new_options.extensions.value.num_son.valid() )
-         {
-            merge_num_sons( new_num_son, *new_options.extensions.value.num_son );
-         }
-
-         a.options = *o.new_options;
-      }
-
-      a.options.extensions.value.num_son = new_num_son;
-
+      if( o.new_options ) a.options = *o.new_options;
       if( o.extensions.value.owner_special_authority.valid() )
       {
          a.owner_special_authority = *(o.extensions.value.owner_special_authority);

@@ -106,9 +106,9 @@ namespace graphene { namespace chain {
             assert_operation,
             balance_claim_operation,
             override_transfer_operation,
-            transfer_to_blind_operation,     //! We don't use this operation
-            blind_transfer_operation,        //! We don't use this operation
-            transfer_from_blind_operation,   //! We don't use this operation
+            transfer_to_blind_operation,
+            blind_transfer_operation,
+            transfer_from_blind_operation,
             asset_settle_cancel_operation,  // VIRTUAL
             asset_claim_fees_operation,
             fba_distribute_operation,        // VIRTUAL

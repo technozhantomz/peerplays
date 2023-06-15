@@ -1,7 +1,0 @@
-#ifndef HARDFORK_SON_FOR_ETHEREUM_TIME
-#ifdef BUILD_PEERPLAYS_TESTNET
-#define HARDFORK_SON_FOR_ETHEREUM_TIME (fc::time_point_sec::from_iso_string("2023-01-24T00:00:00"))
-#else
-#define HARDFORK_SON_FOR_ETHEREUM_TIME (fc::time_point_sec::from_iso_string("2023-03-24T00:00:00"))
-#endif
-#endif

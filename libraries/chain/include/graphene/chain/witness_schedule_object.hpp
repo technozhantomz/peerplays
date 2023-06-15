@@ -96,7 +96,7 @@ class son_schedule_object : public graphene::db::abstract_object<son_schedule_ob
       static const uint8_t space_id = implementation_ids;
       static const uint8_t type_id = impl_son_schedule_object_type;
 
-      vector<son_id_type > current_shuffled_sons;
+      vector< son_id_type > current_shuffled_sons;
 
       son_scheduler scheduler;
       uint32_t last_scheduling_block;

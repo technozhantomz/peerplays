@@ -395,13 +395,6 @@ namespace graphene { namespace chain {
        bool is_valid_muse( const std::string& base58str );
    };
 
-   class pubkey_comparator {
-   public:
-      inline bool operator()(const public_key_type& a, const public_key_type& b) const {
-         return a.key_data < b.key_data;
-      }
-   };
-
    struct extended_public_key_type
    {
       struct binary_key

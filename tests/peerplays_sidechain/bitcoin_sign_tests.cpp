@@ -13,8 +13,8 @@ using namespace fc::ecc;
 
 BOOST_AUTO_TEST_SUITE(bitcoin_sign_tests)
 
-const secp256k1_context *btc_context() {
-   static secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY | SECP256K1_CONTEXT_SIGN);
+const secp256k1_context_t *btc_context() {
+   static secp256k1_context_t *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY | SECP256K1_CONTEXT_SIGN);
    return ctx;
 }
 

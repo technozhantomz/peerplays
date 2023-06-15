@@ -154,7 +154,6 @@ BOOST_AUTO_TEST_CASE( son_wallet_recreate_test ) {
 
       op.payer = db.get_global_properties().parameters.son_account();
 
-      //! Fixme - add hive tests
       {
          son_info si;
          si.son_id = son_id_type(0);

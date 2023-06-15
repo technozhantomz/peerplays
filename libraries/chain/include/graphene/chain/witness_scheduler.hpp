@@ -162,12 +162,8 @@ class generic_witness_scheduler
          _schedule.pop_front();
 
          auto it = _lame_duck.find( result );
-         if( it != _lame_duck.end() ) {
-            set< WitnessID > removal_set;
-            removal_set.insert(*it);
-            remove_all( removal_set );
-            _lame_duck.erase(it);
-         }
+         if( it != _lame_duck.end() )
+            _lame_duck.erase( it );
          if( debug ) check_invariant();
          return result;
       }
@@ -393,7 +389,7 @@ class generic_witness_scheduler
       // scheduled
       std::deque < WitnessID > _schedule;
 
-      // in _schedule, but must be removed
+      // in _schedule, but not to be replaced
       set< WitnessID > _lame_duck;
 };
 

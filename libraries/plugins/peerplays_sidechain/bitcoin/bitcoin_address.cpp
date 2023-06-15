@@ -242,12 +242,12 @@ bytes btc_multisig_segwit_address::get_address_bytes(const bytes &script_hash) {
 }
 
 btc_weighted_multisig_address::btc_weighted_multisig_address(const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data,
-                                                             network ntype, payment_type type) {
+                                                             network ntype) {
    network_type = ntype;
-   this->type = type;
    create_redeem_script(keys_data);
    create_witness_script();
    create_segwit_address();
+   type = payment_type::P2WSH;
 }
 
 void btc_weighted_multisig_address::create_redeem_script(const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data) {
@@ -278,43 +278,26 @@ void btc_weighted_multisig_address::create_witness_script() {
    script_builder builder;
    builder << op::_0;
    builder << fc::sha256::hash(redeem_script_.data(), redeem_script_.size());
+
    witness_script_ = builder;
 }
 
 void btc_weighted_multisig_address::create_segwit_address() {
    std::string hrp;
-   address_types byte_version;
    switch (network_type) {
    case (network::mainnet):
       hrp = "bc";
-      byte_version = address_types::MAINNET_SCRIPT;
       break;
    case (network::testnet):
       hrp = "tb";
-      byte_version = address_types::TESTNET_SCRIPT;
       break;
    case (network::regtest):
       hrp = "bcrt";
-      byte_version = address_types::TESTNET_SCRIPT;
       break;
    }
-
-   if (type == payment_type::P2WSH) {
-      fc::sha256 sh = fc::sha256::hash(&redeem_script_[0], redeem_script_.size());
-      std::vector<uint8_t> hash_data(sh.data(), sh.data() + sh.data_size());
-      address = segwit_addr::encode(hrp, 0, hash_data);
-   } else if (type == payment_type::P2SH_WSH) {
-      fc::sha256 hash256 = fc::sha256::hash(&witness_script_[0], witness_script_.size());
-      fc::ripemd160 hash160 = fc::ripemd160::hash(hash256.data(), hash256.data_size());
-      raw_address = bytes(hash160.data(), hash160.data() + hash160.data_size());
-      bytes address_bytes(1, byte_version); // 1 byte version
-      address_bytes.insert(address_bytes.end(), raw_address.begin(), raw_address.end());
-      fc::sha256 hash256_1 = fc::sha256::hash(fc::sha256::hash(address_bytes.data(), address_bytes.size()));
-      address_bytes.insert(address_bytes.end(), hash256_1.data(), hash256_1.data() + 4); // 4 byte checksum
-      address = fc::to_base58(address_bytes);
-   } else {
-      wlog("Unsupported payment type of address");
-   }
+   fc::sha256 sh = fc::sha256::hash(&redeem_script_[0], redeem_script_.size());
+   std::vector<uint8_t> hash_data(sh.data(), sh.data() + sh.data_size());
+   address = segwit_addr::encode(hrp, 0, hash_data);
 }
 
 btc_one_or_m_of_n_multisig_address::btc_one_or_m_of_n_multisig_address(const fc::ecc::public_key &user_key_data,
@@ -370,12 +353,12 @@ void btc_one_or_m_of_n_multisig_address::create_segwit_address() {
 
 btc_one_or_weighted_multisig_address::btc_one_or_weighted_multisig_address(const fc::ecc::public_key &user_key_data,
                                                                            const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data,
-                                                                           bitcoin_address::network ntype, payment_type type) {
+                                                                           bitcoin_address::network ntype) {
    network_type = ntype;
-   this->type = type;
    create_redeem_script(user_key_data, keys_data);
    create_witness_script();
    create_segwit_address();
+   type = payment_type::P2WSH;
 }
 
 void btc_one_or_weighted_multisig_address::create_redeem_script(const fc::ecc::public_key &user_key_data, const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data) {
@@ -415,39 +398,20 @@ void btc_one_or_weighted_multisig_address::create_witness_script() {
 
 void btc_one_or_weighted_multisig_address::create_segwit_address() {
    std::string hrp;
-   address_types byte_version;
    switch (network_type) {
    case (network::mainnet):
-      byte_version = address_types::MAINNET_SCRIPT;
       hrp = "bc";
       break;
    case (network::testnet):
-      byte_version = address_types::TESTNET_SCRIPT;
       hrp = "tb";
       break;
    case (network::regtest):
-      byte_version = address_types::TESTNET_SCRIPT;
       hrp = "bcrt";
       break;
    }
-
-   if (type == payment_type::P2WSH) {
-      fc::sha256 sh = fc::sha256::hash(&redeem_script_[0], redeem_script_.size());
-      std::vector<uint8_t> hash_data(sh.data(), sh.data() + sh.data_size());
-      address = segwit_addr::encode(hrp, 0, hash_data);
-   } else if (type == payment_type::P2SH_WSH) {
-      fc::sha256 hash256 = fc::sha256::hash(&witness_script_[0], witness_script_.size());
-      fc::ripemd160 hash160 = fc::ripemd160::hash(hash256.data(), hash256.data_size());
-      raw_address = bytes(hash160.data(), hash160.data() + hash160.data_size());
-
-      bytes address_bytes(1, byte_version); // 1 byte version test net
-      address_bytes.insert(address_bytes.end(), raw_address.begin(), raw_address.end());
-      fc::sha256 hash256_1 = fc::sha256::hash(fc::sha256::hash(address_bytes.data(), address_bytes.size()));
-      address_bytes.insert(address_bytes.end(), hash256_1.data(), hash256_1.data() + 4); // 4 byte checksum
-      address = fc::to_base58(address_bytes);
-   } else {
-      elog("Unsupported payment type of address");
-   }
+   fc::sha256 sh = fc::sha256::hash(&redeem_script_[0], redeem_script_.size());
+   std::vector<uint8_t> hash_data(sh.data(), sh.data() + sh.data_size());
+   address = segwit_addr::encode(hrp, 0, hash_data);
 }
 
 btc_timelocked_one_or_weighted_multisig_address::btc_timelocked_one_or_weighted_multisig_address(const fc::ecc::public_key &user_key_data, uint32_t latency, const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data, bitcoin_address::network ntype) :

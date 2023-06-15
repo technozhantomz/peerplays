@@ -362,6 +362,7 @@ public:
             wild_access.allowed_apis.push_back("database_api");
             wild_access.allowed_apis.push_back("network_broadcast_api");
             wild_access.allowed_apis.push_back("history_api");
+            wild_access.allowed_apis.push_back("crypto_api");
             wild_access.allowed_apis.push_back("bookie_api");
             wild_access.allowed_apis.push_back("affiliate_stats_api");
             wild_access.allowed_apis.push_back("sidechain_api");
@@ -764,10 +765,6 @@ public:
       FC_CAPTURE_AND_RETHROW((block_id))
    }
 
-   virtual fc::time_point_sec get_last_known_hardfork_time() override {
-      return _chain_db->_hardfork_times[_chain_db->_hardfork_times.size() - 1];
-   }
-
    /**
        * Returns the time a block was produced (if block_id = 0, returns genesis time).
        * If we don't know about the block, returns time_point_sec::min()
@@ -838,6 +835,7 @@ void application::set_program_options(boost::program_options::options_descriptio
 #ifdef BUILD_PEERPLAYS_TESTNET
 #else
          "wss.homepesa.org"
+        
 #endif
    };
    std::string seed_nodes_str = fc::json::to_string(seed_nodes);
@@ -911,8 +909,7 @@ void application::initialize(const fc::path &data_dir, const boost::program_opti
       wanted.insert("accounts_list");
       wanted.insert("affiliate_stats");
    }
-   if (!wanted.count("delayed_node") && !wanted.count("debug_witness") && !wanted.count("witness")) // explicitly requested delayed_node or debug_witness functionality suppresses witness functions
-      wanted.insert("witness");
+   wanted.insert("witness");
    wanted.insert("bookie");
 
    int es_ah_conflict_counter = 0;
@@ -944,7 +941,7 @@ void application::startup() {
 }
 
 std::shared_ptr<abstract_plugin> application::get_plugin(const string &name) const {
-   return is_plugin_enabled(name) ? my->_active_plugins[name] : nullptr;
+   return my->_active_plugins[name];
 }
 
 bool application::is_plugin_enabled(const string &name) const {

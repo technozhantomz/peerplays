@@ -27,7 +27,7 @@
 #include <graphene/chain/protocol/chain_parameters.hpp>
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/database.hpp>
-#include <graphene/chain/son_sidechain_info.hpp>
+#include <graphene/chain/son_info.hpp>
 #include <graphene/db/object.hpp>
 
 namespace graphene { namespace chain {
@@ -49,18 +49,10 @@ namespace graphene { namespace chain {
          chain_parameters           parameters;
          optional<chain_parameters> pending_parameters;
 
-         uint32_t                                                 next_available_vote_id = 0;
-         vector<committee_member_id_type>                         active_committee_members;  // updated once per maintenance interval
-         flat_set<witness_id_type>                                active_witnesses;          // updated once per maintenance interval
-         flat_map<sidechain_type, vector<son_sidechain_info> >    active_sons = []()         // updated once per maintenance interval
-         {
-            flat_map<sidechain_type, vector<son_sidechain_info> > active_sons;
-            for(const auto& active_sidechain_type : all_sidechain_types)
-            {
-               active_sons[active_sidechain_type] = vector<son_sidechain_info>();
-            }
-            return active_sons;
-         }();
+         uint32_t                           next_available_vote_id = 0;
+         vector<committee_member_id_type>   active_committee_members; // updated once per maintenance interval
+         flat_set<witness_id_type>          active_witnesses; // updated once per maintenance interval
+         vector<son_info>                   active_sons; // updated once per maintenance interval
          // n.b. witness scheduling is done by witness_schedule object
    };
 

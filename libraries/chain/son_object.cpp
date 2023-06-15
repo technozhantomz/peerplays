@@ -6,22 +6,20 @@ namespace graphene { namespace chain {
       db.adjust_balance(son_account, pay);
    }
 
-   bool son_object::has_valid_config(sidechain_type sidechain) const {
-      return (sidechain_public_keys.find( sidechain ) != sidechain_public_keys.end()) &&
-         (sidechain_public_keys.at(sidechain).length() > 0);
+   bool son_object::has_valid_config()const {
+      return ((std::string(signing_key).length() > 0) &&
+             (sidechain_public_keys.size() > 0) &&
+             (sidechain_public_keys.find( sidechain_type::bitcoin ) != sidechain_public_keys.end()) &&
+             (sidechain_public_keys.at(sidechain_type::bitcoin).length() > 0));
    }
 
-   bool son_object::has_valid_config(time_point_sec head_block_time, sidechain_type sidechain) const {
-      bool retval = (std::string(signing_key).length() > 0) && (sidechain_public_keys.size() > 0);
+   bool son_object::has_valid_config(time_point_sec head_block_time)const {
+      bool retval = has_valid_config();
 
-      if (head_block_time < HARDFORK_SON_FOR_HIVE_TIME) {
-         retval = retval && has_valid_config(sidechain_type::bitcoin);
-      }
-      if (head_block_time >= HARDFORK_SON_FOR_HIVE_TIME && head_block_time < HARDFORK_SON_FOR_ETHEREUM_TIME) {
-         retval = retval && has_valid_config(sidechain_type::bitcoin) && has_valid_config(sidechain_type::hive);
-      }
-      else if (head_block_time >= HARDFORK_SON_FOR_ETHEREUM_TIME) {
-         retval = retval && has_valid_config(sidechain);
+      if (head_block_time >= HARDFORK_SON_FOR_HIVE_TIME) {
+          retval = retval &&
+                   (sidechain_public_keys.find( sidechain_type::hive ) != sidechain_public_keys.end()) &&
+                   (sidechain_public_keys.at(sidechain_type::hive).length() > 0);
       }
 
       return retval;

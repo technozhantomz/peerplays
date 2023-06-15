@@ -130,9 +130,6 @@ namespace graphene { namespace chain {
                std::greater< uint32_t >,
                std::greater< object_id_type >
             >
-         >,
-         ordered_non_unique< tag<by_owner>,
-            member<nft_metadata_object, account_id_type, &nft_metadata_object::owner>
          >
       >
    >;

@@ -23,7 +23,8 @@
 namespace graphene { namespace peerplays_sidechain {
 
 sidechain_net_handler_peerplays::sidechain_net_handler_peerplays(peerplays_sidechain_plugin &_plugin, const boost::program_options::variables_map &options) :
-      sidechain_net_handler(sidechain_type::peerplays, _plugin, options) {
+      sidechain_net_handler(_plugin, options) {
+   sidechain = sidechain_type::peerplays;
    //const auto &assets_by_symbol = database.get_index_type<asset_index>().indices().get<by_symbol>();
    //const auto get_asset_id = [&assets_by_symbol](const string &symbol) {
    //   auto asset_itr = assets_by_symbol.find(symbol);
@@ -52,7 +53,7 @@ sidechain_net_handler_peerplays::~sidechain_net_handler_peerplays() {
 
 bool sidechain_net_handler_peerplays::process_proposal(const proposal_object &po) {
 
-   ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id(sidechain)));
+   ilog("Proposal to process: ${po}, SON id ${son_id}", ("po", po.id)("son_id", plugin.get_current_son_id()));
 
    bool should_approve = false;
 
@@ -139,7 +140,7 @@ void sidechain_net_handler_peerplays::process_sidechain_addresses() {
                     if (sao.expires == time_point_sec::maximum()) {
                        if (sao.deposit_address == "") {
                           sidechain_address_update_operation op;
-                          op.payer = plugin.get_current_son_object(sidechain).son_account;
+                          op.payer = plugin.get_current_son_object().son_account;
                           op.sidechain_address_id = sao.id;
                           op.sidechain_address_account = sao.sidechain_address_account;
                           op.sidechain = sao.sidechain;
@@ -149,7 +150,7 @@ void sidechain_net_handler_peerplays::process_sidechain_addresses() {
                           op.withdraw_public_key = sao.withdraw_public_key;
                           op.withdraw_address = sao.withdraw_address;
 
-                          signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), op);
+                          signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), op);
                           try {
                              trx.validate();
                              database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -196,22 +197,15 @@ bool sidechain_net_handler_peerplays::process_deposit(const son_wallet_deposit_o
       stc_op.object_id = swdo.id;
       stc_op.sidechain = sidechain;
       stc_op.transaction = tx_str;
-      for (const auto &signer : gpo.active_sons.at(sidechain)) {
-         son_info si;
-         si.son_id = signer.son_id;
-         si.weight = signer.weight;
-         si.signing_key = signer.signing_key;
-         si.sidechain_public_keys[sidechain] = signer.public_key;
-         stc_op.signers.emplace_back(std::move(si));
-      }
+      stc_op.signers = gpo.active_sons;
 
       proposal_create_operation proposal_op;
-      proposal_op.fee_paying_account = plugin.get_current_son_object(sidechain).son_account;
+      proposal_op.fee_paying_account = plugin.get_current_son_object().son_account;
       proposal_op.proposed_ops.emplace_back(stc_op);
       uint32_t lifetime = (gpo.parameters.block_interval * gpo.active_witnesses.size()) * 3;
       proposal_op.expiration_time = time_point_sec(database.head_block_time().sec_since_epoch() + lifetime);
 
-      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id(sidechain)), proposal_op);
+      signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(plugin.get_current_son_id()), proposal_op);
       try {
          trx.validate();
          database.push_transaction(trx, database::validation_steps::skip_block_size_check);
@@ -236,7 +230,7 @@ std::string sidechain_net_handler_peerplays::process_sidechain_transaction(const
    signed_transaction trx;
    fc::raw::unpack(ss_trx, trx, 1000);
 
-   fc::optional<fc::ecc::private_key> privkey = graphene::utilities::wif_to_key(get_private_key(plugin.get_current_son_object(sidechain).sidechain_public_keys.at(sidechain)));
+   fc::optional<fc::ecc::private_key> privkey = graphene::utilities::wif_to_key(get_private_key(plugin.get_current_son_object().sidechain_public_keys.at(sidechain)));
    signature_type st = trx.sign(*privkey, database.get_chain_id());
 
    std::stringstream ss_st;
@@ -294,11 +288,6 @@ bool sidechain_net_handler_peerplays::settle_sidechain_transaction(const sidecha
    }
 
    return true;
-}
-
-optional<asset> sidechain_net_handler_peerplays::estimate_withdrawal_transaction_fee() const {
-   wlog("estimate_withdrawal_transaction_fee not implemented for sidechain: ${sidechain}", ("sidechain", sidechain));
-   return optional<asset>{};
 }
 
 }} // namespace graphene::peerplays_sidechain

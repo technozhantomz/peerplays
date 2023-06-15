@@ -2,7 +2,7 @@
 #include <boost/multi_index/composite_key.hpp>
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/sidechain_defs.hpp>
-#include <graphene/chain/son_sidechain_info.hpp>
+#include <graphene/chain/son_info.hpp>
 
 namespace graphene { namespace chain {
    using namespace graphene::db;
@@ -30,7 +30,7 @@ namespace graphene { namespace chain {
          sidechain_type sidechain = sidechain_type::unknown;
          object_id_type object_id;
          std::string transaction;
-         std::vector<son_sidechain_info> signers;
+         std::vector<son_info> signers;
          std::vector<std::pair<son_id_type, std::string>> signatures;
          std::string sidechain_transaction;
 

@@ -35,15 +35,15 @@ namespace graphene { namespace chain {
          // Transactions signed since the last son payouts
          flat_map<sidechain_type, uint64_t> txs_signed;
          // Total Voted Active time i.e. duration selected as part of voted active SONs
-         flat_map<sidechain_type, uint64_t> total_voted_time;
+         uint64_t total_voted_time = 0;
          // Total Downtime barring the current down time in seconds, used for stats to present to user
-         flat_map<sidechain_type, uint64_t> total_downtime;
+         uint64_t total_downtime = 0;
          // Current Interval Downtime since last maintenance
-         flat_map<sidechain_type, uint64_t> current_interval_downtime;
+         uint64_t current_interval_downtime = 0;
          // Down timestamp, if son status is in_maintenance use this
-         flat_map<sidechain_type, fc::time_point_sec> last_down_timestamp;
+         fc::time_point_sec last_down_timestamp;
          // Last Active heartbeat timestamp
-         flat_map<sidechain_type, fc::time_point_sec> last_active_timestamp;
+         fc::time_point_sec last_active_timestamp;
          // Deregistered Timestamp
          fc::time_point_sec deregistered_timestamp;
          // Total sidechain transactions reported by SON network while SON was active
@@ -64,48 +64,23 @@ namespace graphene { namespace chain {
          static const uint8_t type_id  = son_object_type;
 
          account_id_type son_account;
-         flat_map<sidechain_type, vote_id_type> sidechain_vote_ids;
-         flat_map<sidechain_type, uint64_t> total_votes = []()
-         {
-            flat_map<sidechain_type, uint64_t> total_votes;
-            for(const auto& active_sidechain_type : all_sidechain_types)
-            {
-               total_votes[active_sidechain_type] = 0;
-            }
-            return total_votes;
-         }();
+         vote_id_type vote_id;
+         uint64_t total_votes = 0;
          string url;
          vesting_balance_id_type deposit;
          public_key_type signing_key;
          vesting_balance_id_type pay_vb;
          son_statistics_id_type statistics;
-         flat_map<sidechain_type, son_status> statuses = []()
-         {
-            flat_map<sidechain_type, son_status> statuses;
-            for(const auto& active_sidechain_type : all_sidechain_types)
-            {
-               statuses[active_sidechain_type] = son_status::inactive;
-            }
-            return statuses;
-         }();
+         son_status status = son_status::inactive;
          flat_map<sidechain_type, string> sidechain_public_keys;
 
          void pay_son_fee(share_type pay, database& db);
-         bool has_valid_config(time_point_sec head_block_time, sidechain_type sidechain) const;
-
-         inline optional<vote_id_type> get_sidechain_vote_id(sidechain_type sidechain) const { return sidechain_vote_ids.contains(sidechain) ? sidechain_vote_ids.at(sidechain) : optional<vote_id_type>{}; }
-         inline optional<vote_id_type> get_bitcoin_vote_id() const { return get_sidechain_vote_id(sidechain_type::bitcoin); }
-         inline optional<vote_id_type> get_hive_vote_id() const { return get_sidechain_vote_id(sidechain_type::hive); }
-         inline optional<vote_id_type> get_ethereum_vote_id() const { return get_sidechain_vote_id(sidechain_type::ethereum); }
-
-      private:
-         bool has_valid_config(sidechain_type sidechain) const;
+         bool has_valid_config()const;
+         bool has_valid_config(time_point_sec head_block_time)const;
    };
 
    struct by_account;
-   struct by_vote_id_bitcoin;
-   struct by_vote_id_hive;
-   struct by_vote_id_ethereum;
+   struct by_vote_id;
    using son_multi_index_type = multi_index_container<
       son_object,
       indexed_by<
@@ -115,14 +90,8 @@ namespace graphene { namespace chain {
          ordered_unique< tag<by_account>,
             member<son_object, account_id_type, &son_object::son_account>
          >,
-         ordered_non_unique< tag<by_vote_id_bitcoin>,
-            const_mem_fun<son_object, optional<vote_id_type>, &son_object::get_bitcoin_vote_id>
-         >,
-         ordered_non_unique< tag<by_vote_id_hive>,
-            const_mem_fun<son_object, optional<vote_id_type>, &son_object::get_hive_vote_id>
-         >,
-         ordered_non_unique< tag<by_vote_id_ethereum>,
-            const_mem_fun<son_object, optional<vote_id_type>, &son_object::get_ethereum_vote_id>
+         ordered_unique< tag<by_vote_id>,
+            member<son_object, vote_id_type, &son_object::vote_id>
          >
       >
    >;
@@ -148,14 +117,14 @@ FC_REFLECT_ENUM(graphene::chain::son_status, (inactive)(active)(request_maintena
 
 FC_REFLECT_DERIVED( graphene::chain::son_object, (graphene::db::object),
                     (son_account)
-                    (sidechain_vote_ids)
+                    (vote_id)
                     (total_votes)
                     (url)
                     (deposit)
                     (signing_key)
                     (pay_vb)
                     (statistics)
-                    (statuses)
+                    (status)
                     (sidechain_public_keys)
                   )
 

@@ -193,34 +193,6 @@ BOOST_AUTO_TEST_CASE(tickets_purchase_fail_test)
     }
 }
 
-BOOST_AUTO_TEST_CASE(tickets_purchase_overflow)
-{
-   try
-   {
-      nft_metadata_id_type test_nft_md_id = db.get_index<nft_metadata_object>().get_next_id();
-      INVOKE(create_lottery_nft_md_test);
-      auto &test_nft_md_obj = test_nft_md_id(db);
-
-      nft_lottery_token_purchase_operation tpo;
-      tpo.fee = asset();
-      tpo.buyer = account_id_type();
-      tpo.lottery_id = test_nft_md_obj.id;
-      tpo.tickets_to_buy = 9223372036854775800; // Large number so that the overall amount overflows
-      trx.operations.push_back(tpo);
-      BOOST_REQUIRE_THROW(PUSH_TX(db, trx, ~0), fc::overflow_exception);
-      trx.operations.clear();
-
-      tpo.tickets_to_buy = -2; // Negative value should also be rejected
-      trx.operations.push_back(tpo);
-      BOOST_REQUIRE_THROW(PUSH_TX(db, trx, ~0), fc::exception);
-   }
-   catch (fc::exception &e)
-   {
-      edump((e.to_detail_string()));
-      throw;
-   }
-}
-
 BOOST_AUTO_TEST_CASE(lottery_end_by_stage_test)
 {
     try
