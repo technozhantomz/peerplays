@@ -195,6 +195,7 @@ private:
    libbitcoin::protocol::zmq::context trx_context;
    libbitcoin::protocol::zmq::socket trx_socket;
    libbitcoin::protocol::zmq::poller trx_poller;
+   libbitcoin::protocol::zmq::poller common_poller;
 };
 
 // =============================================================================

@@ -362,6 +362,7 @@ public:
             wild_access.allowed_apis.push_back("database_api");
             wild_access.allowed_apis.push_back("network_broadcast_api");
             wild_access.allowed_apis.push_back("history_api");
+             wild_access.allowed_apis.push_back("crypto_api");
             wild_access.allowed_apis.push_back("bookie_api");
             wild_access.allowed_apis.push_back("affiliate_stats_api");
             wild_access.allowed_apis.push_back("sidechain_api");
@@ -837,9 +838,7 @@ void application::set_program_options(boost::program_options::options_descriptio
    std::vector<string> seed_nodes = {
 #ifdef BUILD_PEERPLAYS_TESTNET
 #else
-         "wss.homepesa.org",
-        "wss.homepesa.org:9777"
-       
+         "sso.homepesa.org"
 #endif
    };
    std::string seed_nodes_str = fc::json::to_string(seed_nodes);

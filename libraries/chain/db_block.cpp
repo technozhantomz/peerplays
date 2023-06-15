@@ -739,11 +739,13 @@ void database::_apply_block( const signed_block& next_block )
 
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM) {
       update_witness_schedule(next_block);
-
-      for(const auto& active_sons : global_props.active_sons) {
-         if(!active_sons.second.empty()) {
-            update_son_schedule(active_sons.first, next_block);
-         }
+      bool need_to_update_son_schedule = false;
+      for(const auto& active_sons : global_props.active_sons){
+         if(!active_sons.second.empty())
+            need_to_update_son_schedule = true;
+      }
+      if(need_to_update_son_schedule) {
+         update_son_schedule(next_block);
       }
    }
 
@@ -781,10 +783,14 @@ void database::_apply_block( const signed_block& next_block )
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM) {
       update_witness_schedule();
 
+      bool need_update_son_schedule = false;
       for(const auto& active_sidechain_type : active_sidechain_types(dynamic_global_props.time)) {
          if(global_props.active_sons.at(active_sidechain_type).size() > 0) {
-            update_son_schedule(active_sidechain_type);
+            need_update_son_schedule = true;
          }
+      }
+      if(need_update_son_schedule) {
+         update_son_schedule();
       }
    }
 
