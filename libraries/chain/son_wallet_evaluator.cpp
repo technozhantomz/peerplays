@@ -97,10 +97,18 @@ void_result update_son_wallet_evaluator::do_evaluate(const son_wallet_update_ope
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
    FC_ASSERT( op.payer == db().get_global_properties().parameters.son_account(), "SON paying account must be set as payer." );
 
+   const son_wallet_id_type son_wallet_id = [&]{
+      if(db().head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME)
+      {
+         const auto ast = active_sidechain_types(db().head_block_time());
+         const auto id = (op.son_wallet_id.instance.value - std::distance(ast.begin(), ast.find(op.sidechain))) / ast.size();
+         return son_wallet_id_type{ id };
+      }
+
+      return op.son_wallet_id;
+   }();
+
    const auto& idx = db().get_index_type<son_wallet_index>().indices().get<by_id>();
-   const auto ast = active_sidechain_types(db().head_block_time());
-   const auto id = (op.son_wallet_id.instance.value - std::distance(ast.begin(), ast.find(op.sidechain))) / ast.size();
-   const son_wallet_id_type son_wallet_id{ id };
    FC_ASSERT( idx.find(son_wallet_id) != idx.end() );
    //auto itr = idx.find(op.son_wallet_id);
    //FC_ASSERT( itr->addresses.find(op.sidechain) == itr->addresses.end() ||
@@ -110,10 +118,18 @@ void_result update_son_wallet_evaluator::do_evaluate(const son_wallet_update_ope
 
 object_id_type update_son_wallet_evaluator::do_apply(const son_wallet_update_operation& op)
 { try {
+   const son_wallet_id_type son_wallet_id = [&]{
+      if(db().head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME)
+      {
+         const auto ast = active_sidechain_types(db().head_block_time());
+         const auto id = (op.son_wallet_id.instance.value - std::distance(ast.begin(), ast.find(op.sidechain))) / ast.size();
+         return son_wallet_id_type{ id };
+      }
+
+      return op.son_wallet_id;
+   }();
+
    const auto& idx = db().get_index_type<son_wallet_index>().indices().get<by_id>();
-   const auto ast = active_sidechain_types(db().head_block_time());
-   const auto id = (op.son_wallet_id.instance.value - std::distance(ast.begin(), ast.find(op.sidechain))) / ast.size();
-   const son_wallet_id_type son_wallet_id{ id };
    auto itr = idx.find(son_wallet_id);
    if (itr != idx.end())
    {

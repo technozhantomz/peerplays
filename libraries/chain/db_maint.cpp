@@ -2127,7 +2127,7 @@ void database::perform_son_tasks()
 
       const asset_object& hbd_asset =
          create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
-            a.symbol = "HBD";
+            a.symbol = "USD";
             a.precision = 3;
             a.issuer = gpo.parameters.son_account();
             a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
@@ -2161,7 +2161,7 @@ void database::perform_son_tasks()
 
       const asset_object& hive_asset =
          create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
-            a.symbol = "HIVE";
+            a.symbol = "CNY";
             a.precision = 3;
             a.issuer = gpo.parameters.son_account();
             a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;

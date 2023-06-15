@@ -2317,7 +2317,7 @@ public:
    } FC_CAPTURE_AND_RETHROW() }
 
    signed_transaction sidechain_withdrawal_transaction(const string &son_name_or_id,
-		                                      uint32_t block_num,
+                                              uint32_t block_num,
                                                       const sidechain_type& sidechain,
                                                       const std::string &peerplays_uid,
                                                       const std::string &peerplays_transaction_id,
@@ -2338,18 +2338,18 @@ public:
 
       price withdraw_currency_price = {};
       if ("BTC" == withdraw_currency) {
-	 fc::optional<asset_object> a  = get_asset( gpo.parameters.btc_asset());
+     fc::optional<asset_object> a  = get_asset( gpo.parameters.btc_asset());
          withdraw_currency_price = a->options.core_exchange_rate;
       } else
-      if ("HBD" == withdraw_currency) {
-	 fc::optional<asset_object> a  = get_asset( gpo.parameters.hbd_asset());
+      if ("USD" == withdraw_currency) {
+     fc::optional<asset_object> a  = get_asset( gpo.parameters.hbd_asset());
          withdraw_currency_price = a->options.core_exchange_rate;
       } else
-      if ("HIVE" == withdraw_currency) {
+      if ("CNY" == withdraw_currency) {
          fc::optional<asset_object> a  = get_asset( gpo.parameters.hive_asset());
          withdraw_currency_price = a->options.core_exchange_rate;
       } else {
-	      FC_THROW("withdraw_currency ${withdraw_currency}", ("withdraw_currency", withdraw_currency));
+          FC_THROW("withdraw_currency ${withdraw_currency}", ("withdraw_currency", withdraw_currency));
       }
 
       //! Create transaction
@@ -2883,7 +2883,7 @@ public:
          switch (sidechain) {
             case sidechain_type::peerplays : return "peerplays";
             case sidechain_type::bitcoin : return "bitcoin";
-            case sidechain_type::hive : return "hive";
+            case sidechain_type::hive : return "CNY";
             case sidechain_type::ethereum : return "ethereum";
             default:
                FC_THROW("Wrong sidechain type: ${sidechain}", ("sidechain", sidechain));
@@ -2898,16 +2898,16 @@ public:
             FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", "BTC"));
             return asset_obj->options.core_exchange_rate;
          }
-         else if(sidechain_currency == "HBD")
+         else if(sidechain_currency == "USD")
          {
             fc::optional<asset_object> asset_obj = get_asset(object_id_to_string(global_props.parameters.hbd_asset()));
-            FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", "HBD"));
+            FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", "USD"));
             return asset_obj->options.core_exchange_rate;
          }
-         else if(sidechain_currency == "HIVE")
+         else if(sidechain_currency == "CNY")
          {
             fc::optional<asset_object> asset_obj = get_asset(object_id_to_string(global_props.parameters.hive_asset()));
-            FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", "HIVE"));
+            FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", "CNY"));
             return asset_obj->options.core_exchange_rate;
          }
          else
@@ -5363,7 +5363,7 @@ signed_transaction wallet_api::delete_sidechain_address(string account,
 }
 
 signed_transaction wallet_api::sidechain_withdrawal_transaction(const string &son_name_or_id,
-		                                      uint32_t block_num,
+                                              uint32_t block_num,
                                                       const sidechain_type& sidechain,
                                                       const std::string &peerplays_uid,
                                                       const std::string &peerplays_transaction_id,
@@ -7405,3 +7405,4 @@ namespace fc {
       vo = account_multi_index_type(v.begin(), v.end());
    }
 }
+

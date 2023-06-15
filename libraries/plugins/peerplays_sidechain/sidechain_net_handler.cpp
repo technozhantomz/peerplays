@@ -187,8 +187,8 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
    //enable_peerplays_asset_deposits = (sed.sidechain == sidechain_type::peerplays) &&
    //                                  (sed.sidechain_currency.compare("BTC") != 0) &&
    //                                  (sed.sidechain_currency.compare("ETH") != 0) &&
-   //                                  (sed.sidechain_currency.compare("HBD") != 0) &&
-   //                                  (sed.sidechain_currency.compare("HIVE") != 0);
+   //                                  (sed.sidechain_currency.compare("USD") != 0) &&
+   //                                  (sed.sidechain_currency.compare("CNY") != 0);
 #endif
 
    const bool deposit_condition = (sed.peerplays_to == gpo.parameters.son_account()) &&
@@ -196,8 +196,8 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
                                   (sed.type == sidechain_event_type::deposit) &&
                                   (((sed.sidechain == sidechain_type::bitcoin) && (sed.sidechain_currency.compare("BTC") == 0)) ||
                                    ((sed.sidechain == sidechain_type::ethereum) && (!sed.sidechain_currency.empty())) ||
-                                   ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("HBD") == 0)) ||
-                                   ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("HIVE") == 0)) ||
+                                   ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("USD") == 0)) ||
+                                   ((sed.sidechain == sidechain_type::hive) && (sed.sidechain_currency.compare("CNY") == 0)) ||
                                    enable_peerplays_asset_deposits);
 
    const bool withdraw_condition = (sed.peerplays_to == gpo.parameters.son_account()) &&
@@ -265,11 +265,11 @@ void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_
          withdraw_currency_price = database.get<asset_object>(database.get_global_properties().parameters.eth_asset()).options.core_exchange_rate;
       }
       if (sed.sidechain_currency == object_id_to_string(gpo.parameters.hbd_asset())) {
-         withdraw_currency = "HBD";
+         withdraw_currency = "USD";
          withdraw_currency_price = database.get<asset_object>(database.get_global_properties().parameters.hbd_asset()).options.core_exchange_rate;
       }
       if (sed.sidechain_currency == object_id_to_string(gpo.parameters.hive_asset())) {
-         withdraw_currency = "HIVE";
+         withdraw_currency = "CNY";
          withdraw_currency_price = database.get<asset_object>(database.get_global_properties().parameters.hive_asset()).options.core_exchange_rate;
       }
       if (withdraw_currency.empty()) {
@@ -726,3 +726,4 @@ void sidechain_net_handler::on_applied_block(const signed_block &b) {
 }
 
 }} // namespace graphene::peerplays_sidechain
+
