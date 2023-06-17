@@ -353,7 +353,7 @@ bool database::is_asset_creation_allowed(const string &symbol)
    std::unordered_set<std::string> post_son_hf_symbols = {"ETH", "USDT", "BNB", "ADA", "DOGE", "XRP", "USDC", "DOT", "UNI", "BUSD", "BCH", "LTC", "SOL", "LINK", "MATIC", "THETA",
                                                           "WBTC", "XLM", "ICP", "DAI", "VET", "ETC", "TRX", "FIL", "XMR", "EGR", "EOS", "SHIB", "AAVE", "CRO", "ALGO", "AMP", "BTCB",
                                                           "BSV", "KLAY", "CAKE", "FTT", "LEO", "XTZ", "TFUEL", "MIOTA", "LUNA", "NEO", "ATOM", "MKR", "FEI", "WBNB", "UST", "AVAX",
-                                                          "STEEM", "ACNY", "AUSD", "SBD", "BTS"};
+                                                          "STEEM", "HIVE", "HBD", "SBD", "BTS"};
    if (symbol == "BTC")
    {
       if (now < HARDFORK_SON_TIME)

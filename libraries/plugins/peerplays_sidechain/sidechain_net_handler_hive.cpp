@@ -328,10 +328,10 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
                      std::string nai = amount_child.get<std::string>("nai");
                      std::string sidechain_currency = "";
                      if ((nai == "@@000000013" /*?? HBD*/) || (nai == "@@000000013" /*TBD*/)) {
-                        sidechain_currency = "AUSD";
+                        sidechain_currency = "HBD";
                      }
                      if ((nai == "@@000000021") /*?? HIVE*/ || (nai == "@@000000021" /*TESTS*/)) {
-                        sidechain_currency = "ACNY";
+                        sidechain_currency = "HIVE";
                      }
 
                      std::string memo = op_value.get<std::string>("memo");
@@ -400,10 +400,10 @@ bool sidechain_net_handler_hive::process_proposal(const proposal_object &po) {
                   fc::raw::unpack(ss_trx, op_trx, 1000);
 
                   uint64_t symbol = 0;
-                  if (swwo->withdraw_currency == "AUSD") {
+                  if (swwo->withdraw_currency == "HBD") {
                      symbol = hive::asset::hbd_symbol_ser;
                   }
-                  if (swwo->withdraw_currency == "ACNY") {
+                  if (swwo->withdraw_currency == "HIVE") {
                      symbol = hive::asset::hive_symbol_ser;
                   }
 
@@ -607,11 +607,11 @@ bool sidechain_net_handler_hive::process_deposit(const son_wallet_deposit_object
 
    price asset_price;
    asset asset_to_issue;
-   if (swdo.sidechain_currency == "AUSD") {
+   if (swdo.sidechain_currency == "HBD") {
       asset_price = database.get<asset_object>(database.get_global_properties().parameters.hbd_asset()).options.core_exchange_rate;
       asset_to_issue = asset(swdo.peerplays_asset.amount * asset_price.quote.amount / asset_price.base.amount, database.get_global_properties().parameters.hbd_asset());
    }
-   if (swdo.sidechain_currency == "ACNY") {
+   if (swdo.sidechain_currency == "HIVE") {
       asset_price = database.get<asset_object>(database.get_global_properties().parameters.hive_asset()).options.core_exchange_rate;
       asset_to_issue = asset(swdo.peerplays_asset.amount * asset_price.quote.amount / asset_price.base.amount, database.get_global_properties().parameters.hive_asset());
    }
@@ -654,10 +654,10 @@ bool sidechain_net_handler_hive::process_withdrawal(const son_wallet_withdraw_ob
    //=====
 
    uint64_t symbol = 0;
-   if (swwo.withdraw_currency == "AUSD") {
+   if (swwo.withdraw_currency == "HBD") {
       symbol = hive::asset::hbd_symbol_ser;
    }
-   if (swwo.withdraw_currency == "ACNY") {
+   if (swwo.withdraw_currency == "HIVE") {
       symbol = hive::asset::hive_symbol_ser;
    }
 
@@ -789,10 +789,10 @@ bool sidechain_net_handler_hive::settle_sidechain_transaction(const sidechain_tr
       if (tx_block_num <= last_irreversible_block) {
          if (sto.object_id.is<son_wallet_withdraw_id_type>()) {
             auto swwo = database.get<son_wallet_withdraw_object>(sto.object_id);
-            if (swwo.withdraw_currency == "AUSD") {
+            if (swwo.withdraw_currency == "HBD") {
                settle_amount = asset(swwo.withdraw_amount, database.get_global_properties().parameters.hbd_asset());
             }
-            if (swwo.withdraw_currency == "ACNY") {
+            if (swwo.withdraw_currency == "HIVE") {
                settle_amount = asset(swwo.withdraw_amount, database.get_global_properties().parameters.hive_asset());
             }
             return true;
@@ -879,11 +879,11 @@ void sidechain_net_handler_hive::handle_event(const std::string &event_data) {
                   std::string sidechain_currency = "";
                   price sidechain_currency_price = {};
                   if ((nai == "@@000000013" /*?? HBD*/) || (nai == "@@000000013" /*TBD*/)) {
-                     sidechain_currency = "AUSD";
+                     sidechain_currency = "HBD";
                      sidechain_currency_price = database.get<asset_object>(database.get_global_properties().parameters.hbd_asset()).options.core_exchange_rate;
                   }
                   if ((nai == "@@000000021") /*?? HIVE*/ || (nai == "@@000000021" /*TESTS*/)) {
-                     sidechain_currency = "ACNY";
+                     sidechain_currency = "HIVE";
                      sidechain_currency_price = database.get<asset_object>(database.get_global_properties().parameters.hive_asset()).options.core_exchange_rate;
                   }
 
@@ -916,7 +916,7 @@ void sidechain_net_handler_hive::handle_event(const std::string &event_data) {
                   std::string transaction_id = transaction_ids.at(tx_idx);
 
                   std::stringstream ss;
-                  ss << "acny"
+                  ss << "hive"
                      << "-" << transaction_id << "-" << op_idx;
                   std::string sidechain_uid = ss.str();
 
@@ -945,4 +945,3 @@ void sidechain_net_handler_hive::handle_event(const std::string &event_data) {
 }
 
 }} // namespace graphene::peerplays_sidechain
-

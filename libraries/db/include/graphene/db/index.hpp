@@ -277,7 +277,7 @@ namespace graphene { namespace db {
          {
             static_assert( object_id::space_id == Object::space_id, "Space ID mismatch!" );
             static_assert( object_id::type_id == Object::type_id, "Type_ID mismatch!" );
-            if( id.instance >= next ) return nullptr;
+            if( (size_t) id.instance >= next ) return nullptr;
             return content[id.instance.value >> chunkbits][id.instance.value & _mask];
          };
 

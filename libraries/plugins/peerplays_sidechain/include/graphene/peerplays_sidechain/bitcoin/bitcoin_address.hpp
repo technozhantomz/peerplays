@@ -214,10 +214,11 @@ public:
    btc_timelocked_one_or_weighted_multisig_address(const fc::ecc::public_key &user_key_data, uint32_t latency, const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data,
                                                    network network_type = network::regtest);
 
+   uint32_t latency_;
+
 private:
    void create_redeem_script(const fc::ecc::public_key &user_key_data, const std::vector<std::pair<fc::ecc::public_key, uint16_t>> &keys_data);
 
-   uint32_t latency_;
 };
 
 }}} // namespace graphene::peerplays_sidechain::bitcoin

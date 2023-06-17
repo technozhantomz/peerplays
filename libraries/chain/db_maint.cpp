@@ -1964,7 +1964,7 @@ void database::perform_son_tasks()
 
       const asset_object& hbd_asset =
          create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
-            a.symbol = "AUSD";
+            a.symbol = "HBD";
             a.precision = 3;
             a.issuer = gpo.parameters.son_account();
             a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
@@ -1998,7 +1998,7 @@ void database::perform_son_tasks()
 
       const asset_object& hive_asset =
          create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
-            a.symbol = "ACNY";
+            a.symbol = "HIVE";
             a.precision = 3;
             a.issuer = gpo.parameters.son_account();
             a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
@@ -2257,11 +2257,11 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.son_down_time = p.parameters.extensions.value.son_down_time;
          if( !p.pending_parameters->extensions.value.son_bitcoin_min_tx_confirmations.valid() )
             p.pending_parameters->extensions.value.son_bitcoin_min_tx_confirmations = p.parameters.extensions.value.son_bitcoin_min_tx_confirmations;
-     if( !p.pending_parameters->extensions.value.son_account.valid() )
+	 if( !p.pending_parameters->extensions.value.son_account.valid() )
             p.pending_parameters->extensions.value.son_account = p.parameters.extensions.value.son_account;
          if( !p.pending_parameters->extensions.value.btc_asset.valid() )
             p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
-     if( !p.pending_parameters->extensions.value.maximum_son_count.valid() )
+	 if( !p.pending_parameters->extensions.value.maximum_son_count.valid() )
             p.pending_parameters->extensions.value.maximum_son_count = p.parameters.extensions.value.maximum_son_count;
          if( !p.pending_parameters->extensions.value.hbd_asset.valid() )
             p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
@@ -2333,4 +2333,3 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
 } FC_CAPTURE_AND_RETHROW() }
 
 } }
-
