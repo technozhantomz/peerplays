@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_account_history) {
          es.query = query;
 
          auto res = graphene::utilities::simpleQuery(es);
-         variant j = fc::json::from_string(res);
+         fc::variant j = fc::json::from_string(res);
          auto total = j["count"].as_string();
          BOOST_CHECK_EQUAL(total, "5");
 
@@ -163,7 +163,7 @@ BOOST_AUTO_TEST_CASE(elasticsearch_objects) {
          es.query = query;
 
          auto res = graphene::utilities::simpleQuery(es);
-         variant j = fc::json::from_string(res);
+         fc::variant j = fc::json::from_string(res);
          auto total = j["count"].as_string();
          BOOST_CHECK_EQUAL(total, "2");
 

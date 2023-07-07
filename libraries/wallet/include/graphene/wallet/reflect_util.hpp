@@ -27,12 +27,16 @@
 // support the wallet, e.g. allow specifying operations by name
 // instead of ID.
 
+#include "fc/variant.hpp"
+#include <string>
+#include <vector>
+
 namespace graphene { namespace wallet {
 
 struct static_variant_map
 {
-   flat_map< string, int > name_to_which;
-   vector< string > which_to_name;
+   flat_map< std::string, int > name_to_which;
+   std::vector< std::string > which_to_name;
 };
 
 namespace impl {
@@ -84,16 +88,16 @@ struct from_which_visitor
       return result;    // converted from StaticVariant to Result automatically due to return type
    }
 
-   const variant& v;
+   const fc::variant& v;
    const uint32_t _max_depth;
 
-   from_which_visitor( const variant& _v, uint32_t max_depth ) : v(_v), _max_depth(max_depth) {}
+   from_which_visitor( const fc::variant& _v, uint32_t max_depth ) : v(_v), _max_depth(max_depth) {}
 };
 
 } // namespace impl
 
 template< typename T >
-T from_which_variant( int which, const variant& v, uint32_t max_depth )
+T from_which_variant( int which, const fc::variant& v, uint32_t max_depth )
 {
    // Parse a variant for a known which()
    T dummy;

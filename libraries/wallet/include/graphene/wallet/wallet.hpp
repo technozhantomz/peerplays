@@ -47,7 +47,7 @@ typedef uint16_t transaction_handle_type;
  * of the given type, with the new operator.
  */
 
-object* create_object( const variant& v );
+object* create_object( const fc::variant& v );
 
 struct plain_keys
 {
@@ -306,13 +306,13 @@ class wallet_api
 
       fc::ecc::private_key derive_private_key(const std::string& prefix_string, int sequence_number) const;
 
-      variant                           info();
+      fc::variant                           info();
       /** Returns info such as client version, git version of graphene/fc, version of boost, openssl.
        * @returns compile time info and client and dependencies versions
        */
       variant_object                    about() const;
-      optional<signed_block_with_info>    get_block( uint32_t num );
-      vector<optional<signed_block>>      get_blocks(uint32_t block_num_from, uint32_t block_num_to)const;
+      fc::optional<signed_block_with_info>    get_block( uint32_t num );
+      vector<fc::optional<signed_block>>      get_blocks(uint32_t block_num_from, uint32_t block_num_to)const;
       /** Returns the number of accounts registered on the blockchain
        * @returns the number of registered accounts
        */
@@ -460,7 +460,7 @@ class wallet_api
        * @param id the id of the object to return
        * @returns the requested object
        */
-      variant                           get_object(object_id_type id) const;
+      fc::variant                           get_object(object_id_type id) const;
 
       /** Returns the current wallet filename.
        *
@@ -1127,7 +1127,7 @@ class wallet_api
        * @returns the signed transaction updating the asset
        */
       signed_transaction update_asset(string symbol,
-                                      optional<string> new_issuer,
+                                      fc::optional<string> new_issuer,
                                       asset_options new_options,
                                       bool broadcast = false);
 
@@ -1465,8 +1465,8 @@ class wallet_api
        * @param broadcast true if you wish to broadcast the transaction.
        */
       signed_transaction update_son_vesting_balances(string owner_account,
-                                                     optional<vesting_balance_id_type> new_deposit,
-                                                     optional<vesting_balance_id_type> new_pay_vb,
+                                                     fc::optional<vesting_balance_id_type> new_deposit,
+                                                     fc::optional<vesting_balance_id_type> new_pay_vb,
                                                      bool broadcast = false);
 
       /** Modify status of the SON owned by the given account to maintenance.
@@ -1519,21 +1519,21 @@ class wallet_api
        * @brief Get active SON wallet
        * @return Active SON wallet object
        */
-      optional<son_wallet_object> get_active_son_wallet();
+      fc::optional<son_wallet_object> get_active_son_wallet();
 
       /**
        * @brief Get SON wallet that was active for a given time point
        * @param time_point Time point
        * @return SON wallet object, for the wallet that was active for a given time point
        */
-      optional<son_wallet_object> get_son_wallet_by_time_point(time_point_sec time_point);
+      fc::optional<son_wallet_object> get_son_wallet_by_time_point(time_point_sec time_point);
 
       /**
        * @brief Get full list of SON wallets
        * @param limit Maximum number of results to return
        * @return A list of SON wallet objects
        */
-      vector<optional<son_wallet_object>> get_son_wallets(uint32_t limit);
+      vector<fc::optional<son_wallet_object>> get_son_wallets(uint32_t limit);
 
       /** Adds sidechain address owned by the given account for a given sidechain.
        *
@@ -1572,14 +1572,14 @@ class wallet_api
        * @param account the name or id of the account who owns the address
        * @returns the list of all sidechain addresses owned by given account.
        */
-      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_account(string account);
+      vector<fc::optional<sidechain_address_object>> get_sidechain_addresses_by_account(string account);
 
       /** Retrieves all sidechain addresses registered for a given sidechain.
        *
        * @param sidechain the name of the sidechain
        * @returns the list of all sidechain addresses registered for a given sidechain.
        */
-      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(sidechain_type sidechain);
+      vector<fc::optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(sidechain_type sidechain);
 
       /** Retrieves sidechain address owned by given account for a given sidechain.
        *
@@ -1642,7 +1642,7 @@ class wallet_api
          share_type daily_pay,
          string name,
          string url,
-         variant worker_settings,
+         fc::variant worker_settings,
          bool broadcast = false
          );
 
@@ -1908,7 +1908,7 @@ class wallet_api
        * @return the signed transaction changing your vote proxy settings
        */
       signed_transaction set_voting_proxy(string account_to_modify,
-                                          optional<string> voting_account,
+                                          fc::optional<string> voting_account,
                                           bool broadcast = false);
 
       /** Set your vote for the number of witnesses and committee_members in the system.
@@ -2340,13 +2340,13 @@ class wallet_api
                                     string name,
                                     string symbol,
                                     string base_uri,
-                                    optional<string> revenue_partner,
-                                    optional<uint16_t> revenue_split,
+                                    fc::optional<string> revenue_partner,
+                                    fc::optional<uint16_t> revenue_split,
                                     bool is_transferable,
                                     bool is_sellable,
-                                    optional<account_role_id_type> role_id,
-                                    optional<share_type> max_supply,
-                                    optional<nft_lottery_options> lottery_options,
+                                    fc::optional<account_role_id_type> role_id,
+                                    fc::optional<share_type> max_supply,
+                                    fc::optional<nft_lottery_options> lottery_options,
                                     bool broadcast);
 
       /**
@@ -2366,14 +2366,14 @@ class wallet_api
        */
       signed_transaction nft_metadata_update(string owner_account_id_or_name,
                                     nft_metadata_id_type nft_metadata_id,
-                                    optional<string> name,
-                                    optional<string> symbol,
-                                    optional<string> base_uri,
-                                    optional<string> revenue_partner,
-                                    optional<uint16_t> revenue_split,
-                                    optional<bool> is_transferable,
-                                    optional<bool> is_sellable,
-                                    optional<account_role_id_type> role_id,
+                                    fc::optional<string> name,
+                                    fc::optional<string> symbol,
+                                    fc::optional<string> base_uri,
+                                    fc::optional<string> revenue_partner,
+                                    fc::optional<uint16_t> revenue_split,
+                                    fc::optional<bool> is_transferable,
+                                    fc::optional<bool> is_sellable,
+                                    fc::optional<account_role_id_type> role_id,
                                     bool broadcast);
 
       /**
@@ -2405,7 +2405,7 @@ class wallet_api
        * @param token_id NFT ID
        * @return NFT owner account ID
        */
-      optional<account_id_type> nft_owner_of(const nft_id_type token_id) const;
+      fc::optional<account_id_type> nft_owner_of(const nft_id_type token_id) const;
 
       /**
        * @brief Transfers NFT safely
@@ -2470,7 +2470,7 @@ class wallet_api
        * @param token_id NFT ID
        * @return NFT approved account ID
        */
-      optional<account_id_type> nft_get_approved(const nft_id_type token_id) const;
+      fc::optional<account_id_type> nft_get_approved(const nft_id_type token_id) const;
 
       /**
        * @brief Returns operator approved state for all NFT owned by owner
@@ -2493,7 +2493,7 @@ class wallet_api
                                       asset maximum_price,
                                       bool buying_item,
                                       time_point_sec offer_expiration_date,
-                                      optional<memo_data> memo,
+                                      fc::optional<memo_data> memo,
                                       bool broadcast);
       signed_transaction create_bid(string bidder_account_id_or_name,
                                     asset bid_price,
@@ -2502,16 +2502,16 @@ class wallet_api
       signed_transaction cancel_offer(string issuer_account_id_or_name,
                                       offer_id_type offer_id,
                                       bool broadcast);
-      vector<offer_object> list_offers(uint32_t limit, optional<offer_id_type> lower_id) const;
-      vector<offer_object> list_sell_offers(uint32_t limit, optional<offer_id_type> lower_id) const;
-      vector<offer_object> list_buy_offers(uint32_t limit, optional<offer_id_type> lower_id) const;
-      vector<offer_history_object> list_offer_history(uint32_t limit, optional<offer_history_id_type> lower_id) const;
+      vector<offer_object> list_offers(uint32_t limit, fc::optional<offer_id_type> lower_id) const;
+      vector<offer_object> list_sell_offers(uint32_t limit, fc::optional<offer_id_type> lower_id) const;
+      vector<offer_object> list_buy_offers(uint32_t limit, fc::optional<offer_id_type> lower_id) const;
+      vector<offer_history_object> list_offer_history(uint32_t limit, fc::optional<offer_history_id_type> lower_id) const;
       vector<offer_object> get_offers_by_issuer(string issuer_account_id_or_name,
-                                                uint32_t limit, optional<offer_id_type> lower_id) const;
-      vector<offer_object> get_offers_by_item(const nft_id_type item, uint32_t limit, optional<offer_id_type> lower_id) const;
-      vector<offer_history_object> get_offer_history_by_issuer(string issuer_account_id_or_name, uint32_t limit, optional<offer_history_id_type> lower_id) const;
-      vector<offer_history_object> get_offer_history_by_item(const nft_id_type item, uint32_t limit, optional<offer_history_id_type> lower_id) const;
-      vector<offer_history_object> get_offer_history_by_bidder(string bidder_account_id_or_name, uint32_t limit, optional<offer_history_id_type> lower_id) const;
+                                                uint32_t limit, fc::optional<offer_id_type> lower_id) const;
+      vector<offer_object> get_offers_by_item(const nft_id_type item, uint32_t limit, fc::optional<offer_id_type> lower_id) const;
+      vector<offer_history_object> get_offer_history_by_issuer(string issuer_account_id_or_name, uint32_t limit, fc::optional<offer_history_id_type> lower_id) const;
+      vector<offer_history_object> get_offer_history_by_item(const nft_id_type item, uint32_t limit, fc::optional<offer_history_id_type> lower_id) const;
+      vector<offer_history_object> get_offer_history_by_bidder(string bidder_account_id_or_name, uint32_t limit, fc::optional<offer_history_id_type> lower_id) const;
 
       signed_transaction create_account_role(string owner_account_id_or_name,
                                              string name,
@@ -2522,13 +2522,13 @@ class wallet_api
                                              bool broadcast);
       signed_transaction update_account_role(string owner_account_id_or_name,
                                              account_role_id_type role_id,
-                                             optional<string> name,
-                                             optional<string> metadata,
+                                             fc::optional<string> name,
+                                             fc::optional<string> metadata,
                                              flat_set<int> operations_to_add,
                                              flat_set<int> operations_to_remove,
                                              flat_set<account_id_type> accounts_to_add,
                                              flat_set<account_id_type> accounts_to_remove,
-                                             optional<time_point_sec> valid_to,
+                                             fc::optional<time_point_sec> valid_to,
                                              bool broadcast);
       signed_transaction delete_account_role(string owner_account_id_or_name,
                                              account_role_id_type role_id,
@@ -2545,7 +2545,7 @@ class wallet_api
       void flood_network(string prefix, uint32_t number_of_transactions);
 
       void network_add_nodes( const vector<string>& nodes );
-      vector< variant > network_get_connected_peers();
+      vector< fc::variant > network_get_connected_peers();
 
       /**
        *  Used to transfer from one set of blinded balances to another
