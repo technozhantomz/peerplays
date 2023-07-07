@@ -195,10 +195,7 @@ docker run peerplays:latest
 # Start docker image, using Ubuntu 18.04 base
 docker run peerplays-18-04:latest
 ```
-
-
 Rest of the instructions on starting the chain remains same.
-
 Starting A Peerplays Node
 -----------------
 Launching the witness creates required directories. Next, **stop the witness** and continue.
