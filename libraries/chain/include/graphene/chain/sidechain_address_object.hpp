@@ -31,11 +31,20 @@ namespace graphene { namespace chain {
          time_point_sec expires;
 
          sidechain_address_object() :
-            sidechain(sidechain_type::bitcoin),
+            sidechain(sidechain_type::bitcoin), //! FIXME - bitcoin ???
             deposit_public_key(""),
             deposit_address(""),
             withdraw_public_key(""),
             withdraw_address("") {}
+
+         inline string get_deposit_address() const {
+            if(sidechain_type::ethereum != sidechain)
+               return deposit_address;
+
+            auto deposit_address_lower = deposit_address;
+            std::transform(deposit_address_lower.begin(), deposit_address_lower.end(), deposit_address_lower.begin(), ::tolower);
+            return deposit_address_lower;
+         }
    };
 
    struct by_account;
@@ -76,7 +85,7 @@ namespace graphene { namespace chain {
          ordered_non_unique< tag<by_sidechain_and_deposit_address_and_expires>,
             composite_key<sidechain_address_object,
                member<sidechain_address_object, sidechain_type, &sidechain_address_object::sidechain>,
-               member<sidechain_address_object, string, &sidechain_address_object::deposit_address>,
+               const_mem_fun<sidechain_address_object, string, &sidechain_address_object::get_deposit_address>,
                member<sidechain_address_object, time_point_sec, &sidechain_address_object::expires>
             >
          >

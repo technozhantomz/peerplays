@@ -78,25 +78,34 @@ vector<std::reference_wrapper<const typename Index::object_type>> database::sort
 }
 
 template<>
-vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<son_index>(size_t count) const
+vector<std::reference_wrapper<const son_object>> database::sort_votable_objects<son_index>(sidechain_type sidechain, size_t count) const
 {
    const auto& all_sons = get_index_type<son_index>().indices().get< by_id >();
    std::vector<std::reference_wrapper<const son_object>> refs;
    for( auto& son : all_sons )
    {
-      if(son.has_valid_config(head_block_time()) && son.status != son_status::deregistered)
+      if(son.has_valid_config(head_block_time(), sidechain) && son.statuses.at(sidechain) != son_status::deregistered)
       {
          refs.push_back(std::cref(son));
       }
    }
    count = std::min(count, refs.size());
    std::partial_sort(refs.begin(), refs.begin() + count, refs.end(),
-                   [this](const son_object& a, const son_object& b)->bool {
-      share_type oa_vote = _vote_tally_buffer[a.vote_id];
-      share_type ob_vote = _vote_tally_buffer[b.vote_id];
-      if( oa_vote != ob_vote )
-         return oa_vote > ob_vote;
-      return a.vote_id < b.vote_id;
+      [this, sidechain](const son_object& a, const son_object& b)->bool {
+         FC_ASSERT(sidechain == sidechain_type::bitcoin ||
+                   sidechain == sidechain_type::ethereum ||
+                   sidechain == sidechain_type::hive,
+                   "Unexpected sidechain type");
+
+         FC_ASSERT(a.get_sidechain_vote_id(sidechain).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", sidechain)("son", a));
+         FC_ASSERT(b.get_sidechain_vote_id(sidechain).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", sidechain)("son", b));
+         const share_type oa_vote = _vote_tally_buffer.size() > *a.get_sidechain_vote_id(sidechain) ? _vote_tally_buffer[*a.get_sidechain_vote_id(sidechain)] : 0;
+         const share_type ob_vote = _vote_tally_buffer.size() > *b.get_sidechain_vote_id(sidechain) ? _vote_tally_buffer[*b.get_sidechain_vote_id(sidechain)] : 0;
+
+         if( oa_vote != ob_vote )
+            return oa_vote > ob_vote;
+
+         return a.get_sidechain_vote_id(sidechain) < b.get_sidechain_vote_id(sidechain);
    });
 
    refs.resize(count, refs.front());
@@ -176,63 +185,73 @@ void database::update_worker_votes()
    }
 }
 
-void database::pay_sons()
+void database::pay_sons_before_hf_ethereum()
 {
-   time_point_sec now = head_block_time();
+   const auto now = head_block_time();
    const dynamic_global_property_object& dpo = get_dynamic_global_properties();
    // Current requirement is that we have to pay every 24 hours, so the following check
-   if( dpo.son_budget.value > 0 && ((now - dpo.last_son_payout_time) >= fc::seconds(get_global_properties().parameters.son_pay_time()))) {
-      auto sons = sort_votable_objects<son_index>(get_global_properties().parameters.maximum_son_count());
+   if( dpo.son_budget.value > 0 && ((now - dpo.last_son_payout_time) >= fc::seconds(get_global_properties().parameters.son_pay_time())))
+   {
+      const sidechain_type st = sidechain_type::bitcoin;
+      const auto sons = sort_votable_objects<son_index>(st, get_global_properties().parameters.maximum_son_count());
+
       // After SON2 HF
       uint64_t total_votes = 0;
       for( const son_object& son : sons )
       {
-         total_votes += _vote_tally_buffer[son.vote_id];
+         FC_ASSERT(son.get_sidechain_vote_id(st).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", st)("son", son));
+         total_votes += _vote_tally_buffer[*son.get_sidechain_vote_id(st)];
       }
-      int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
+      const int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
       auto get_weight = [&bits_to_drop]( uint64_t son_votes ) {
-         uint16_t weight = std::max((son_votes >> bits_to_drop), uint64_t(1) );
+         const uint16_t weight = std::max((son_votes >> bits_to_drop), uint64_t(1) );
          return weight;
       };
+
       // Before SON2 HF
       auto get_weight_before_son2_hf = []( uint64_t son_votes ) {
-         int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(son_votes)) - 15, 0);
-         uint16_t weight = std::max((son_votes >> bits_to_drop), uint64_t(1) );
+         const int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(son_votes)) - 15, 0);
+         const uint16_t weight = std::max((son_votes >> bits_to_drop), uint64_t(1) );
          return weight;
       };
+
       uint64_t weighted_total_txs_signed = 0;
-      share_type son_budget = dpo.son_budget;
-      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &get_weight, &now, &get_weight_before_son2_hf](const object& o) {
+      const share_type son_budget = dpo.son_budget;
+      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &get_weight, &now, &get_weight_before_son2_hf, &st](const object& o) {
          const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
          const auto& idx = get_index_type<son_index>().indices().get<by_id>();
-         auto son_obj = idx.find( s.owner );
-         auto son_weight = get_weight(_vote_tally_buffer[son_obj->vote_id]);
-         if( now < HARDFORK_SON2_TIME ) {
-            son_weight = get_weight_before_son2_hf(_vote_tally_buffer[son_obj->vote_id]);
+         const auto son_obj = idx.find( s.owner );
+         uint16_t son_weight = 0;
+         FC_ASSERT(son_obj->get_sidechain_vote_id(st).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", st)("son", *son_obj));
+         if( now >= HARDFORK_SON2_TIME ) {
+            son_weight += get_weight(_vote_tally_buffer[*son_obj->get_sidechain_vote_id(st)]);
          }
-         uint64_t txs_signed = 0;
-         for (const auto &ts : s.txs_signed) {
-            txs_signed = txs_signed + ts.second;
+         else {
+            son_weight += get_weight_before_son2_hf(_vote_tally_buffer[*son_obj->get_sidechain_vote_id(st)]);
          }
-         weighted_total_txs_signed += (txs_signed * son_weight);
+         const uint64_t txs_signed_bitcoin = s.txs_signed.contains(sidechain_type::bitcoin) ? s.txs_signed.at(sidechain_type::bitcoin) : 0;
+         const uint64_t txs_signed_hive = s.txs_signed.contains(sidechain_type::hive) ? s.txs_signed.at(sidechain_type::hive) : 0;
+         weighted_total_txs_signed += ((txs_signed_bitcoin + txs_signed_hive) * son_weight);
       });
 
       // Now pay off each SON proportional to the number of transactions signed.
-      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &dpo, &son_budget, &get_weight, &get_weight_before_son2_hf, &now](const object& o) {
+      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &dpo, &son_budget, &get_weight, &get_weight_before_son2_hf, &now, &st](const object& o) {
          const son_statistics_object& s = static_cast<const son_statistics_object&>(o);
-         uint64_t txs_signed = 0;
-         for (const auto &ts : s.txs_signed) {
-            txs_signed = txs_signed + ts.second;
-         }
+         const uint64_t txs_signed_bitcoin = s.txs_signed.contains(sidechain_type::bitcoin) ? s.txs_signed.at(sidechain_type::bitcoin) : 0;
+         const uint64_t txs_signed_hive = s.txs_signed.contains(sidechain_type::hive) ? s.txs_signed.at(sidechain_type::hive) : 0;
 
-         if(txs_signed > 0){
+         if(txs_signed_bitcoin > 0 || txs_signed_hive > 0) {
             const auto& idx = get_index_type<son_index>().indices().get<by_id>();
             auto son_obj = idx.find( s.owner );
-            auto son_weight = get_weight(_vote_tally_buffer[son_obj->vote_id]);
-            if( now < HARDFORK_SON2_TIME ) {
-               son_weight = get_weight_before_son2_hf(_vote_tally_buffer[son_obj->vote_id]);
+            uint16_t son_weight = 0;
+            FC_ASSERT(son_obj->get_sidechain_vote_id(st).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", st)("son", *son_obj));
+            if( now >= HARDFORK_SON2_TIME ) {
+               son_weight += get_weight(_vote_tally_buffer[*son_obj->get_sidechain_vote_id(st)]);
             }
-            share_type pay = (txs_signed * son_weight * son_budget.value)/weighted_total_txs_signed;
+            else {
+               son_weight += get_weight_before_son2_hf(_vote_tally_buffer[*son_obj->get_sidechain_vote_id(st)]);
+            }
+            const share_type pay = ((txs_signed_bitcoin + txs_signed_hive) * son_weight * son_budget.value)/weighted_total_txs_signed;
             modify( *son_obj, [&]( son_object& _son_obj)
             {
                _son_obj.pay_son_fee(pay, *this);
@@ -245,12 +264,14 @@ void database::pay_sons()
             //Reset the tx counter in each son statistics object
             modify( s, [&]( son_statistics_object& _s)
             {
-               for (const auto &ts : s.txs_signed) {
-                  _s.txs_signed.at(ts.first) = 0;
-               }
+               if(_s.txs_signed.contains(sidechain_type::bitcoin))
+                  _s.txs_signed.at(sidechain_type::bitcoin) = 0;
+               if(_s.txs_signed.contains(sidechain_type::hive))
+                  _s.txs_signed.at(sidechain_type::hive) = 0;
             });
          }
       });
+
       //Note the last son pay out time
       modify( dpo, [&]( dynamic_global_property_object& _dpo )
       {
@@ -259,122 +280,228 @@ void database::pay_sons()
    }
 }
 
-void database::update_son_metrics(const vector<son_info>& curr_active_sons)
+void database::pay_sons_after_hf_ethereum()
 {
-   vector<son_id_type> current_sons;
-
-   current_sons.reserve(curr_active_sons.size());
-   std::transform(curr_active_sons.begin(), curr_active_sons.end(),
-                  std::inserter(current_sons, current_sons.end()),
-                  [](const son_info &swi) {
-                     return swi.son_id;
-                  });
-
-   const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
-   for( auto& son : son_idx )
+   const time_point_sec now = head_block_time();
+   const dynamic_global_property_object& dpo = get_dynamic_global_properties();
+   // Current requirement is that we have to pay every 24 hours, so the following check
+   if( dpo.son_budget.value > 0 && ((now - dpo.last_son_payout_time) >= fc::seconds(get_global_properties().parameters.son_pay_time())))
    {
-      auto& stats = son.statistics(*this);
-      bool is_active_son = (std::find(current_sons.begin(), current_sons.end(), son.id) != current_sons.end());
-      modify( stats, [&]( son_statistics_object& _stats )
+      flat_map<sidechain_type, int8_t> bits_to_drop;
+      for(const auto& active_sidechain_type : active_sidechain_types(now))
       {
-         if(is_active_son) {
-            _stats.total_voted_time = _stats.total_voted_time + get_global_properties().parameters.maintenance_interval;
+         assert( _son_count_histogram_buffer.at(active_sidechain_type).size() > 0 );
+         const share_type  stake_target = (_total_voting_stake-_son_count_histogram_buffer.at(active_sidechain_type)[0]) / 2;
+         /// accounts that vote for 0 or 1 son do not get to express an opinion on
+         /// the number of sons to have (they abstain and are non-voting accounts)
+         share_type stake_tally = 0;
+         size_t son_count = 0;
+         if( stake_target > 0 )
+         {
+            while( (son_count < _son_count_histogram_buffer.at(active_sidechain_type).size() - 1)
+                   && (stake_tally <= stake_target) )
+            {
+               stake_tally += _son_count_histogram_buffer.at(active_sidechain_type)[++son_count];
+            }
          }
-         _stats.total_downtime += _stats.current_interval_downtime;
-         _stats.current_interval_downtime = 0;
-         for (const auto &str : _stats.sidechain_txs_reported) {
-            _stats.sidechain_txs_reported.at(str.first) = 0;
+
+         const auto sons = sort_votable_objects<son_index>(active_sidechain_type, (std::max(son_count*2+1, (size_t)get_chain_properties().immutable_parameters.min_son_count)));
+
+         // After SON2 HF
+         uint64_t total_votes = 0;
+         for( const son_object& son : sons )
+         {
+            FC_ASSERT(son.get_sidechain_vote_id(active_sidechain_type).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", active_sidechain_type)("son", son));
+            total_votes += _vote_tally_buffer[*son.get_sidechain_vote_id(active_sidechain_type)];
          }
+         bits_to_drop[active_sidechain_type] = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
+      }
+
+      auto get_weight = [&bits_to_drop]( sidechain_type sidechain, uint64_t son_votes ) {
+         const uint16_t weight = std::max((son_votes >> bits_to_drop.at(sidechain)), uint64_t(1) );
+         return weight;
+      };
+
+      // Calculate weighted_total_txs_signed
+      uint64_t weighted_total_txs_signed = 0;
+      get_index_type<son_stats_index>().inspect_all_objects([this, &weighted_total_txs_signed, &get_weight, &now](const object& o) {
+         for(const auto& active_sidechain_type : active_sidechain_types(now)) {
+            const son_statistics_object &s = static_cast<const son_statistics_object &>(o);
+            const auto &idx = get_index_type<son_index>().indices().get<by_id>();
+            const auto son_obj = idx.find(s.owner);
+            FC_ASSERT(son_obj->get_sidechain_vote_id(active_sidechain_type).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", active_sidechain_type)("son", *son_obj));
+            const uint16_t son_weight = get_weight(active_sidechain_type, _vote_tally_buffer[*son_obj->get_sidechain_vote_id(active_sidechain_type)]);
+            const uint64_t txs_signed = s.txs_signed.contains(active_sidechain_type) ? s.txs_signed.at(active_sidechain_type) : 0;
+            weighted_total_txs_signed += (txs_signed * son_weight);
+         }
+      });
+
+      // Now pay off each SON proportional to the number of transactions signed
+      const share_type son_budget = dpo.son_budget;
+      get_index_type<son_stats_index>().inspect_all_objects([this, &now, &get_weight, &weighted_total_txs_signed, &dpo, &son_budget](const object& o) {
+         for(const auto& active_sidechain_type : active_sidechain_types(now)) {
+            const son_statistics_object &s = static_cast<const son_statistics_object &>(o);
+
+            const uint64_t txs_signed = s.txs_signed.contains(active_sidechain_type) ? s.txs_signed.at(active_sidechain_type) : 0;
+            if (txs_signed > 0) {
+               const auto &idx = get_index_type<son_index>().indices().get<by_id>();
+               auto son_obj = idx.find(s.owner);
+               uint16_t son_weight = 0;
+               FC_ASSERT(son_obj->get_sidechain_vote_id(active_sidechain_type).valid(), "Invalid vote id, sidechain: ${sidechain}, son: ${son}", ("sidechain", active_sidechain_type)("son", *son_obj));
+               son_weight += get_weight(active_sidechain_type, _vote_tally_buffer[*son_obj->get_sidechain_vote_id(active_sidechain_type)]);
+               const share_type pay = (txs_signed * son_weight * son_budget.value) / weighted_total_txs_signed;
+               modify(*son_obj, [&](son_object &_son_obj) {
+                  _son_obj.pay_son_fee(pay, *this);
+               });
+               // Remove the amount paid out to SON from global SON Budget
+               modify(dpo, [&](dynamic_global_property_object &_dpo) {
+                  _dpo.son_budget -= pay;
+               });
+               // Reset the tx counter in each son statistics object
+               modify(s, [&](son_statistics_object &_s) {
+                  if (_s.txs_signed.contains(active_sidechain_type))
+                     _s.txs_signed.at(active_sidechain_type) = 0;
+               });
+            }
+         }
+      });
+
+      //Note the last son pay out time
+      modify( dpo, [&]( dynamic_global_property_object& _dpo )
+      {
+         _dpo.last_son_payout_time = now;
       });
    }
 }
 
-void database::update_son_statuses(const vector<son_info>& curr_active_sons, const vector<son_info>& new_active_sons)
+void database::update_son_metrics(const flat_map<sidechain_type, vector<son_sidechain_info> >& curr_active_sons)
 {
-   vector<son_id_type> current_sons, new_sons;
-   vector<son_id_type> sons_to_remove, sons_to_add;
-   const auto& idx = get_index_type<son_index>().indices().get<by_id>();
+   for(const auto& curr_active_sidechain_sons : curr_active_sons) {
+      const auto& sidechain = curr_active_sidechain_sons.first;
+      const auto& _curr_active_sidechain_sons = curr_active_sidechain_sons.second;
 
-   current_sons.reserve(curr_active_sons.size());
-   std::transform(curr_active_sons.begin(), curr_active_sons.end(),
-                  std::inserter(current_sons, current_sons.end()),
-                  [](const son_info &swi) {
-                     return swi.son_id;
-                  });
+      vector<son_id_type> current_sons;
 
-   new_sons.reserve(new_active_sons.size());
-   std::transform(new_active_sons.begin(), new_active_sons.end(),
-                  std::inserter(new_sons, new_sons.end()),
-                  [](const son_info &swi) {
-                     return swi.son_id;
-                  });
+      current_sons.reserve(_curr_active_sidechain_sons.size());
+      std::transform(_curr_active_sidechain_sons.cbegin(), _curr_active_sidechain_sons.cend(),
+                     std::inserter(current_sons, current_sons.end()),
+                     [](const son_sidechain_info &swi) {
+                        return swi.son_id;
+                     });
 
-   // find all cur_active_sons members that is not in new_active_sons
-   for_each(current_sons.begin(), current_sons.end(),
-            [&sons_to_remove, &new_sons](const son_id_type& si)
-            {
-               if(std::find(new_sons.begin(), new_sons.end(), si) ==
-                     new_sons.end())
-               {
-                  sons_to_remove.push_back(si);
-               }
+      const auto &son_idx = get_index_type<son_index>().indices().get<by_id>();
+      for (auto &son : son_idx) {
+         auto &stats = son.statistics(*this);
+         bool is_active_son = (std::find(current_sons.begin(), current_sons.end(), son.id) != current_sons.end());
+         modify(stats, [&](son_statistics_object &_stats) {
+            if (is_active_son) {
+               _stats.total_voted_time[sidechain] = _stats.total_voted_time[sidechain] + get_global_properties().parameters.maintenance_interval;
             }
-   );
+            if(!_stats.current_interval_downtime.contains(sidechain))
+               _stats.current_interval_downtime[sidechain] = 0;
 
-   for( const auto& sid : sons_to_remove )
-   {
-      auto son = idx.find( sid );
-      if(son == idx.end()) // SON is deleted already
-         continue;
-      // keep maintenance status for nodes becoming inactive
-      if(son->status == son_status::active)
-      {
-         modify( *son, [&]( son_object& obj ){
-                  obj.status = son_status::inactive;
-                  });
+            _stats.total_downtime[sidechain] += _stats.current_interval_downtime.at(sidechain);
+            _stats.current_interval_downtime[sidechain] = 0;
+            _stats.sidechain_txs_reported[sidechain] = 0;
+         });
       }
    }
+}
 
-   // find all new_active_sons members that is not in cur_active_sons
-   for_each(new_sons.begin(), new_sons.end(),
-            [&sons_to_add, &current_sons](const son_id_type& si)
-            {
-               if(std::find(current_sons.begin(), current_sons.end(), si) ==
-                     current_sons.end())
-               {
-                  sons_to_add.push_back(si);
-               }
-            }
-   );
+void database::update_son_statuses( const flat_map<sidechain_type, vector<son_sidechain_info> >& curr_active_sons,
+                                    const flat_map<sidechain_type, vector<son_sidechain_info> >& new_active_sons )
+{
+   for(const auto& new_active_sidechain_sons : new_active_sons) {
+      const auto& sidechain = new_active_sidechain_sons.first;
 
-   for( const auto& sid : sons_to_add )
-   {
-      auto son = idx.find( sid );
-      FC_ASSERT(son != idx.end(), "Invalid SON in active list, id={sonid}.", ("sonid", sid));
-      // keep maintenance status for new nodes
-      if(son->status == son_status::inactive)
-      {
-         modify( *son, [&]( son_object& obj ){
-                  obj.status = son_status::active;
-                  });
+      vector<son_id_type> current_sons, new_sons;
+      vector<son_id_type> sons_to_remove, sons_to_add;
+      const auto &idx = get_index_type<son_index>().indices().get<by_id>();
+
+      if(curr_active_sons.contains(sidechain)) {
+         current_sons.reserve(curr_active_sons.at(sidechain).size());
+         std::transform(curr_active_sons.at(sidechain).cbegin(), curr_active_sons.at(sidechain).cend(),
+                        std::inserter(current_sons, current_sons.end()),
+                        [](const son_sidechain_info &swi) {
+                           return swi.son_id;
+                        });
       }
-   }
 
-   ilog("New SONS");
-   for(size_t i = 0; i < new_sons.size(); i++) {
-         auto son = idx.find( new_sons[i] );
-         if(son == idx.end()) // SON is deleted already
+      new_sons.reserve(new_active_sons.at(sidechain).size());
+      std::transform(new_active_sons.at(sidechain).cbegin(), new_active_sons.at(sidechain).cend(),
+                     std::inserter(new_sons, new_sons.end()),
+                     [](const son_sidechain_info &swi) {
+                        return swi.son_id;
+                     });
+
+      // find all cur_active_sons members that is not in new_active_sons
+      for_each(current_sons.begin(), current_sons.end(),
+               [&sons_to_remove, &new_sons](const son_id_type &si) {
+                  if (std::find(new_sons.begin(), new_sons.end(), si) ==
+                      new_sons.end()) {
+                     sons_to_remove.push_back(si);
+                  }
+               });
+
+      for (const auto &sid : sons_to_remove) {
+         auto son = idx.find(sid);
+         if (son == idx.end()) // SON is deleted already
             continue;
-      ilog( "${s}, status = ${ss}, total_votes = ${sv}", ("s", new_sons[i])("ss", son->status)("sv", son->total_votes) );
+         // keep maintenance status for nodes becoming inactive
+         if (son->statuses.at(sidechain) == son_status::active) {
+            modify(*son, [&](son_object &obj) {
+               obj.statuses.at(sidechain) = son_status::inactive;
+            });
+         }
+      }
+
+      // find all new_active_sons members that is not in cur_active_sons
+      for_each(new_sons.begin(), new_sons.end(),
+               [&sons_to_add, &current_sons](const son_id_type &si) {
+                  if (std::find(current_sons.begin(), current_sons.end(), si) ==
+                      current_sons.end()) {
+                     sons_to_add.push_back(si);
+                  }
+               });
+
+      for (const auto &sid : sons_to_add) {
+         auto son = idx.find(sid);
+         FC_ASSERT(son != idx.end(), "Invalid SON in active list, id = ${sonid}.", ("sonid", sid));
+         // keep maintenance status for new nodes
+         if (son->statuses.at(sidechain) == son_status::inactive) {
+            modify(*son, [&](son_object &obj) {
+               obj.statuses.at(sidechain) = son_status::active;
+            });
+         }
+      }
+
+      ilog("New SONS for sidechain = ${sidechain}", ("sidechain", sidechain));
+      for (size_t i = 0; i < new_sons.size(); i++) {
+         auto son = idx.find(new_sons[i]);
+         if (son == idx.end()) // SON is deleted already
+            continue;
+         ilog("${s}, status = ${ss}, total_votes = ${sv}", ("s", new_sons[i])("ss", son->statuses.at(sidechain))("sv", son->total_votes));
+      }
    }
 
-   if( sons_to_remove.size() > 0 )
-   {
+   //! Remove inactive sons (when all sidechain inactive)
+   vector<son_id_type> sons_to_remove;
+   const auto &idx = get_index_type<son_index>().indices().get<by_id>();
+   for(const auto& son : idx) {
+      bool inactive_son = true;
+      for(const auto& status : son.statuses) {
+         if (status.second != son_status::inactive)
+            inactive_son = false;
+      }
+      if (inactive_son)
+         sons_to_remove.emplace_back(son.id);
+   }
+   if (sons_to_remove.size() > 0) {
       remove_inactive_son_proposals(sons_to_remove);
    }
 }
 
-void database::update_son_wallet(const vector<son_info>& new_active_sons)
+void database::update_son_wallet(const flat_map<sidechain_type, vector<son_sidechain_info> >& new_active_sons)
 {
    bool should_recreate_pw = true;
 
@@ -387,8 +514,16 @@ void database::update_son_wallet(const vector<son_info>& new_active_sons)
 
       bool wallet_son_sets_equal = (cur_wallet_sons.size() == new_active_sons.size());
       if (wallet_son_sets_equal) {
-         for( size_t i = 0; i < cur_wallet_sons.size(); i++ ) {
-            wallet_son_sets_equal = wallet_son_sets_equal && cur_wallet_sons.at(i) == new_active_sons.at(i);
+         for( const auto& cur_wallet_sidechain_sons : cur_wallet_sons ) {
+            const auto& sidechain = cur_wallet_sidechain_sons.first;
+            const auto& _cur_wallet_sidechain_sons = cur_wallet_sidechain_sons.second;
+
+            wallet_son_sets_equal = wallet_son_sets_equal && (_cur_wallet_sidechain_sons.size() == new_active_sons.at(sidechain).size());
+            if (wallet_son_sets_equal) {
+               for (size_t i = 0; i < _cur_wallet_sidechain_sons.size(); i++) {
+                  wallet_son_sets_equal = wallet_son_sets_equal && (_cur_wallet_sidechain_sons.at(i) == new_active_sons.at(sidechain).at(i));
+               }
+            }
          }
       }
 
@@ -401,14 +536,24 @@ void database::update_son_wallet(const vector<son_info>& new_active_sons)
       }
    }
 
-   should_recreate_pw = should_recreate_pw && (new_active_sons.size() >= get_chain_properties().immutable_parameters.min_son_count);
+   bool should_recreate_pw_sidechain = false;
+   for(const auto& new_active_sidechain_sons : new_active_sons) {
+      if(new_active_sidechain_sons.second.size() >= get_chain_properties().immutable_parameters.min_son_count)
+         should_recreate_pw_sidechain = true;
+   }
+   should_recreate_pw = should_recreate_pw && should_recreate_pw_sidechain;
 
    if (should_recreate_pw) {
       // Create new son_wallet_object, to initiate wallet recreation
       create<son_wallet_object>( [&]( son_wallet_object& obj ) {
          obj.valid_from = head_block_time();
          obj.expires = time_point_sec::maximum();
-         obj.sons.insert(obj.sons.end(), new_active_sons.begin(), new_active_sons.end());
+         for(const auto& new_active_sidechain_sons : new_active_sons){
+            const auto& sidechain = new_active_sidechain_sons.first;
+            const auto& _new_active_sidechain_sons = new_active_sidechain_sons.second;
+
+            obj.sons[sidechain].insert(obj.sons[sidechain].end(), _new_active_sidechain_sons.cbegin(), _new_active_sidechain_sons.cend());
+         }
       });
    }
 }
@@ -665,44 +810,71 @@ void database::update_active_sons()
    }
 
    assert( _son_count_histogram_buffer.size() > 0 );
-   share_type stake_target = (_total_voting_stake-_son_count_histogram_buffer[0]) / 2;
+#ifndef NDEBUG
+   for( const auto& son_count_histogram_buffer : _son_count_histogram_buffer ){
+      assert( son_count_histogram_buffer.second.size() > 0 );
+   }
+#endif
 
-   /// accounts that vote for 0 or 1 son do not get to express an opinion on
-   /// the number of sons to have (they abstain and are non-voting accounts)
-
-   share_type stake_tally = 0;
-
-   size_t son_count = 0;
-   if( stake_target > 0 )
+   const auto supported_active_sidechain_types = active_sidechain_types(head_block_time());
+   flat_map<sidechain_type, size_t> son_count;
+   for(const auto& active_sidechain_type : supported_active_sidechain_types)
    {
-      while( (son_count < _son_count_histogram_buffer.size() - 1)
-             && (stake_tally <= stake_target) )
+      const share_type  stake_target = (_total_voting_stake-_son_count_histogram_buffer.at(active_sidechain_type)[0]) / 2;
+
+      /// accounts that vote for 0 or 1 son do not get to express an opinion on
+      /// the number of sons to have (they abstain and are non-voting accounts)
+      share_type stake_tally = 0;
+      son_count[active_sidechain_type] = 0;
+      if( stake_target > 0 )
       {
-         stake_tally += _son_count_histogram_buffer[++son_count];
+         while( (son_count.at(active_sidechain_type) < _son_count_histogram_buffer.at(active_sidechain_type).size() - 1)
+                && (stake_tally <= stake_target) )
+         {
+               stake_tally += _son_count_histogram_buffer.at(active_sidechain_type)[ ++son_count[active_sidechain_type] ];
+         }
       }
    }
 
    const global_property_object& gpo = get_global_properties();
-   const chain_parameters& cp = gpo.parameters;
-   auto sons = sort_votable_objects<son_index>(cp.maximum_son_count());
-
+   const chain_property_object& cpo = get_chain_properties();
    const auto& all_sons = get_index_type<son_index>().indices();
+   flat_map<sidechain_type, vector<std::reference_wrapper<const son_object> > > sons;
+   for(const auto& active_sidechain_type : supported_active_sidechain_types)
+   {
+      if(head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME) {
+         sons[active_sidechain_type] = sort_votable_objects<son_index>(active_sidechain_type,
+                                                                       (std::max(son_count.at(active_sidechain_type) * 2 + 1, (size_t)cpo.immutable_parameters.min_son_count)));
+      }
+      else {
+         sons[active_sidechain_type] = sort_votable_objects<son_index>(sidechain_type::bitcoin, get_global_properties().parameters.maximum_son_count());
+      }
+   }
 
-   auto& local_vote_buffer_ref = _vote_tally_buffer;
    for( const son_object& son : all_sons )
    {
-      if(son.status == son_status::request_maintenance)
+      for(const auto& status: son.statuses)
       {
-         auto& stats = son.statistics(*this);
-         modify( stats, [&]( son_statistics_object& _s){
-               _s.last_down_timestamp = head_block_time();
+         const auto& sidechain = status.first;
+         if(status.second == son_status::in_maintenance)
+         {
+            auto &stats = son.statistics(*this);
+            modify(stats, [&](son_statistics_object &_s) {
+               _s.last_down_timestamp[sidechain] = head_block_time();
             });
+         }
       }
-      modify( son, [local_vote_buffer_ref]( son_object& obj ){
-              obj.total_votes = local_vote_buffer_ref[obj.vote_id];
-              if(obj.status == son_status::request_maintenance)
-                 obj.status = son_status::in_maintenance;
-              });
+
+      modify( son, [this]( son_object& obj ){
+         for(const auto& sidechain_vote_id : obj.sidechain_vote_ids ){
+            obj.total_votes[sidechain_vote_id.first] = _vote_tally_buffer.size() > sidechain_vote_id.second ? _vote_tally_buffer[sidechain_vote_id.second] : 0;
+         }
+         for(auto& status: obj.statuses)
+         {
+            if (status.second == son_status::request_maintenance)
+               status.second = son_status::in_maintenance;
+         }
+      });
    }
 
    // Update SON authority
@@ -710,21 +882,24 @@ void database::update_active_sons()
    {
       modify( get(gpo.parameters.son_account()), [&]( account_object& a )
       {
+         set<account_id_type> account_ids;
+         for(const auto& sidechain_sons : sons)
+         {
+            for( const son_object& son : sidechain_sons.second )
+            {
+               account_ids.emplace(son.son_account);
+            }
+         }
+
          if( head_block_time() < HARDFORK_533_TIME )
          {
-            map<account_id_type, uint64_t> weights;
             a.active.weight_threshold = 0;
             a.active.account_auths.clear();
 
-            for( const son_object& son : sons )
-            {
-               weights.emplace(son.son_account, uint64_t(1));
-            }
-
-            for( const auto& weight : weights )
+            for( const auto& account_id : account_ids )
             {
                // Ensure that everyone has at least one vote. Zero weights aren't allowed.
-               a.active.account_auths[weight.first] += 1;
+               a.active.account_auths[account_id] += 1;
                a.active.weight_threshold += 1;
             }
 
@@ -735,8 +910,10 @@ void database::update_active_sons()
          else
          {
             vote_counter vc;
-            for( const son_object& son : sons )
-               vc.add( son.son_account, UINT64_C(1) );
+            for( const auto& account_id : account_ids )
+            {
+               vc.add(account_id, UINT64_C(1));
+            }
             vc.finish_2_3( a.active );
          }
       } );
@@ -744,22 +921,37 @@ void database::update_active_sons()
 
 
    // Compare current and to-be lists of active sons
-   auto cur_active_sons = gpo.active_sons;
-   vector<son_info> new_active_sons;
+   const auto cur_active_sons = gpo.active_sons;
+   flat_map<sidechain_type, vector<son_sidechain_info> > new_active_sons;
    const auto &acc = get(gpo.parameters.son_account());
-   for( const son_object& son : sons ) {
-      son_info swi;
-      swi.son_id = son.id;
-      swi.weight = acc.active.account_auths.at(son.son_account);
-      swi.signing_key = son.signing_key;
-      swi.sidechain_public_keys = son.sidechain_public_keys;
-      new_active_sons.push_back(swi);
+   for( const auto& sidechain_sons : sons ){
+      const auto& sidechain = sidechain_sons.first;
+      const auto& sons_array = sidechain_sons.second;
+
+      new_active_sons[sidechain].reserve(sons_array.size());
+      for( const son_object& son : sons_array ) {
+         son_sidechain_info swi;
+         swi.son_id = son.id;
+         swi.weight = acc.active.account_auths.at(son.son_account);
+         swi.signing_key = son.signing_key;
+         if (son.sidechain_public_keys.find(sidechain) != son.sidechain_public_keys.end())
+            swi.public_key = son.sidechain_public_keys.at(sidechain);
+         new_active_sons[sidechain].push_back(swi);
+      }
    }
 
    bool son_sets_equal = (cur_active_sons.size() == new_active_sons.size());
    if (son_sets_equal) {
-      for( size_t i = 0; i < cur_active_sons.size(); i++ ) {
-         son_sets_equal = son_sets_equal && cur_active_sons.at(i) == new_active_sons.at(i);
+      for( const auto& cur_active_sidechain_sons : cur_active_sons ){
+         const auto& sidechain = cur_active_sidechain_sons.first;
+         const auto& _cur_active_sidechain_sons = cur_active_sidechain_sons.second;
+
+         son_sets_equal = son_sets_equal && (_cur_active_sidechain_sons.size() == new_active_sons.at(sidechain).size());
+         if (son_sets_equal) {
+            for (size_t i = 0; i < _cur_active_sidechain_sons.size(); i++) {
+               son_sets_equal = son_sets_equal && (_cur_active_sidechain_sons.at(i) == new_active_sons.at(sidechain).at(i));
+            }
+         }
       }
    }
 
@@ -774,28 +966,38 @@ void database::update_active_sons()
    modify(gpo, [&]( global_property_object& gp ){
       gp.active_sons.clear();
       gp.active_sons.reserve(new_active_sons.size());
-      gp.active_sons.insert(gp.active_sons.end(), new_active_sons.begin(), new_active_sons.end());
-   });
+      for( const auto& new_active_sidechain_sons : new_active_sons ) {
+         const auto& sidechain = new_active_sidechain_sons.first;
+         const auto& _new_active_sidechain_sons = new_active_sidechain_sons.second;
 
-   const son_schedule_object& sso = son_schedule_id_type()(*this);
-   modify(sso, [&](son_schedule_object& _sso)
-   {
-      flat_set<son_id_type> active_sons;
-      active_sons.reserve(gpo.active_sons.size());
-      std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
-                     std::inserter(active_sons, active_sons.end()),
-                     [](const son_info& swi) {
-         return swi.son_id;
-      });
-      _sso.scheduler.update(active_sons);
-      // similar to witness, produce schedule for sons
-      if(cur_active_sons.size() == 0 && new_active_sons.size() > 0)
-      {
-         witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
-         for( size_t i=0; i<new_active_sons.size(); ++i )
-            _sso.scheduler.produce_schedule(rng);
+         gp.active_sons[sidechain].reserve(_new_active_sidechain_sons.size());
+         gp.active_sons[sidechain].insert(gp.active_sons[sidechain].end(), _new_active_sidechain_sons.cbegin(), _new_active_sidechain_sons.cend());
       }
    });
+
+   for(const auto& active_sidechain_type : supported_active_sidechain_types)
+   {
+      const son_schedule_object& sidechain_sso = son_schedule_id_type(get_son_schedule_id(active_sidechain_type))(*this);
+      modify(sidechain_sso, [&](son_schedule_object& _sso)
+      {
+         flat_set<son_id_type> active_sons;
+         active_sons.reserve(gpo.active_sons.at(active_sidechain_type).size());
+         std::transform(gpo.active_sons.at(active_sidechain_type).cbegin(), gpo.active_sons.at(active_sidechain_type).cend(),
+                        std::inserter(active_sons, active_sons.end()),
+                        [](const son_sidechain_info& swi) {
+                           return swi.son_id;
+                        });
+         _sso.scheduler.update(active_sons);
+         // similar to witness, produce schedule for sons
+         if( ((cur_active_sons.contains(active_sidechain_type) && cur_active_sons.at(active_sidechain_type).size() == 0) ||
+               !cur_active_sons.contains(active_sidechain_type)) && new_active_sons.at(active_sidechain_type).size() > 0 )
+         {
+            witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+            for( size_t i=0; i<new_active_sons.at(active_sidechain_type).size(); ++i )
+               _sso.scheduler.produce_schedule(rng);
+         }
+      });
+   }
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::initialize_budget_record( fc::time_point_sec now, budget_record& rec )const
@@ -1335,17 +1537,19 @@ void rolling_period_start(database& db)
 {
    if(db.head_block_time() >= HARDFORK_GPOS_TIME)
    {
-      auto gpo = db.get_global_properties();
+      const auto gpo = db.get_global_properties();
       auto period_start = db.get_global_properties().parameters.gpos_period_start();
-      auto vesting_period = db.get_global_properties().parameters.gpos_period();
+      const auto vesting_period = db.get_global_properties().parameters.gpos_period();
 
-      auto now = db.head_block_time();
-      if(now.sec_since_epoch() >= (period_start + vesting_period))
+      const auto now = db.head_block_time();
+      while(now.sec_since_epoch() >= (period_start + vesting_period))
       {
          // roll
          db.modify(db.get_global_properties(), [period_start, vesting_period](global_property_object& p) {
             p.parameters.extensions.value.gpos_period_start =  period_start + vesting_period;
          });
+
+         period_start = db.get_global_properties().parameters.gpos_period_start();
       }
    }
 }
@@ -1921,7 +2125,7 @@ void database::perform_son_tasks()
       });
    }
    // create BTC asset here because son_account is the issuer of the BTC
-   if (gpo.parameters.btc_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_TIME)
+   if (gpo.parameters.btc_asset() == asset_id_type() && head_block_time() >= HARDFORK_SON_TIME)
    {
       const asset_dynamic_data_object& dyn_asset =
          create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
@@ -1940,7 +2144,7 @@ void database::perform_son_tasks()
                               asset_issuer_permission_flags::override_authority;
             a.options.core_exchange_rate.base.amount = 100000;
             a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
-            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
+            a.options.core_exchange_rate.quote.amount = 2500;
             a.options.core_exchange_rate.quote.asset_id = a.id;
             a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
             a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
@@ -1954,8 +2158,42 @@ void database::perform_son_tasks()
                gpo.pending_parameters->extensions.value.btc_asset = btc_asset.get_id();
       });
    }
+   // create ETH asset here because son_account is the issuer of the ETH
+   if (gpo.parameters.eth_asset() == asset_id_type() && head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME)
+   {
+      const asset_dynamic_data_object& dyn_asset =
+         create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
+            a.current_supply = 0;
+         });
+
+      const asset_object& eth_asset =
+         create<asset_object>( [&gpo, &dyn_asset]( asset_object& a ) {
+            a.symbol = "ETH";
+            a.precision = 8;
+            a.issuer = gpo.parameters.son_account();
+            a.options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+            a.options.market_fee_percent = 500; // 5%
+            a.options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
+            a.options.flags = asset_issuer_permission_flags::charge_market_fee |
+                              asset_issuer_permission_flags::override_authority;
+            a.options.core_exchange_rate.base.amount = 100000;
+            a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
+            a.options.core_exchange_rate.quote.amount = 2500;
+            a.options.core_exchange_rate.quote.asset_id = a.id;
+            a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
+            a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
+            a.options.whitelist_markets.clear(); // might be traded with
+            a.options.blacklist_markets.clear(); // might not be traded with
+            a.dynamic_asset_data_id = dyn_asset.id;
+         });
+      modify( gpo, [&eth_asset]( global_property_object& gpo ) {
+            gpo.parameters.extensions.value.eth_asset = eth_asset.get_id();
+            if( gpo.pending_parameters )
+               gpo.pending_parameters->extensions.value.eth_asset = eth_asset.get_id();
+      });
+   }
    // create HBD asset here because son_account is the issuer of the HBD
-   if (gpo.parameters.hbd_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_FOR_HIVE_TIME)
+   if (gpo.parameters.hbd_asset() == asset_id_type() && head_block_time() >= HARDFORK_SON_FOR_HIVE_TIME)
    {
       const asset_dynamic_data_object& dyn_asset =
          create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
@@ -1974,7 +2212,7 @@ void database::perform_son_tasks()
                               asset_issuer_permission_flags::override_authority;
             a.options.core_exchange_rate.base.amount = 100000;
             a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
-            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
+            a.options.core_exchange_rate.quote.amount = 2500;
             a.options.core_exchange_rate.quote.asset_id = a.id;
             a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
             a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
@@ -1989,7 +2227,7 @@ void database::perform_son_tasks()
       });
    }
    // create HIVE asset here because son_account is the issuer of the HIVE
-   if (gpo.parameters.hive_asset() == asset_id_type()  && head_block_time() >= HARDFORK_SON_FOR_HIVE_TIME)
+   if (gpo.parameters.hive_asset() == asset_id_type() && head_block_time() >= HARDFORK_SON_FOR_HIVE_TIME)
    {
       const asset_dynamic_data_object& dyn_asset =
          create<asset_dynamic_data_object>([](asset_dynamic_data_object& a) {
@@ -2008,7 +2246,7 @@ void database::perform_son_tasks()
                               asset_issuer_permission_flags::override_authority;
             a.options.core_exchange_rate.base.amount = 100000;
             a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
-            a.options.core_exchange_rate.quote.amount = 2500; // CoinMarketCap approx value
+            a.options.core_exchange_rate.quote.amount = 2500;
             a.options.core_exchange_rate.quote.asset_id = a.id;
             a.options.whitelist_authorities.clear(); // accounts allowed to use asset, if not empty
             a.options.blacklist_authorities.clear(); // accounts who can blacklist other accounts to use asset, if white_list flag is set
@@ -2022,23 +2260,73 @@ void database::perform_son_tasks()
                gpo.pending_parameters->extensions.value.hive_asset = hive_asset.get_id();
       });
    }
+
    // Pay the SONs
    if (head_block_time() >= HARDFORK_SON_TIME)
    {
       // Before making a budget we should pay out SONs
       // This function should check if its time to pay sons
       // and modify the global son funds accordingly, whatever is left is passed on to next budget
-      pay_sons();
+      if(head_block_time() < HARDFORK_SON_FOR_ETHEREUM_TIME)
+         pay_sons_before_hf_ethereum();
+      else
+         pay_sons_after_hf_ethereum();
+   }
+
+   // Split vote_ids
+   if (head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME) {
+      // Get SON 1.33.0 and check if it has HIVE vote_id
+      const son_id_type sid = son_id_type(0);
+      const auto p_son = find(sid);
+      if(p_son != nullptr) {
+         if (p_son->sidechain_vote_ids.find(sidechain_type::hive) == p_son->sidechain_vote_ids.end()) {
+            // Add vote_ids for HIVE and ETHEREUM to all existing SONs
+            const auto &all_sons = get_index_type<son_index>().indices().get<by_id>();
+            for (const son_object &son : all_sons) {
+               vote_id_type existing_vote_id_bitcoin;
+               vote_id_type new_vote_id_hive;
+               vote_id_type new_vote_id_eth;
+
+               modify(gpo, [&new_vote_id_hive, &new_vote_id_eth](global_property_object &p) {
+                  new_vote_id_hive = get_next_vote_id(p, vote_id_type::son_hive);
+                  new_vote_id_eth = get_next_vote_id(p, vote_id_type::son_ethereum);
+               });
+
+               modify(son, [new_vote_id_hive, new_vote_id_eth](son_object &obj) {
+                  obj.sidechain_vote_ids[sidechain_type::hive] = new_vote_id_hive;
+                  obj.sidechain_vote_ids[sidechain_type::ethereum] = new_vote_id_eth;
+               });
+
+               // Duplicate all votes from bitcoin to hive
+               const auto &all_accounts = get_index_type<account_index>().indices().get<by_id>();
+               for (const auto &account : all_accounts) {
+                  if (account.options.votes.count(existing_vote_id_bitcoin) != 0) {
+                     modify(account, [new_vote_id_hive](account_object &a) {
+                        a.options.votes.insert(new_vote_id_hive);
+                     });
+                  }
+               }
+            }
+         }
+      }
    }
 }
 
 void update_son_params(database& db)
 {
-   if( (db.head_block_time() >= HARDFORK_SON2_TIME) && (db.head_block_time() < HARDFORK_SON3_TIME) )
+   if( (db.head_block_time() >= HARDFORK_SON2_TIME) && (db.head_block_time() < HARDFORK_SON_FOR_ETHEREUM_TIME) )
    {
       const auto& gpo = db.get_global_properties();
       db.modify( gpo, []( global_property_object& gpo ) {
          gpo.parameters.extensions.value.maximum_son_count = 7;
+      });
+   }
+
+   if( (db.head_block_time() >= HARDFORK_SON_FOR_ETHEREUM_TIME) )
+   {
+      const auto& gpo = db.get_global_properties();
+      db.modify( gpo, []( global_property_object& gpo ) {
+         gpo.parameters.extensions.value.maximum_son_count = GRAPHENE_DEFAULT_MAX_SONS;
       });
    }
 }
@@ -2067,7 +2355,9 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          d._vote_tally_buffer.resize(props.next_available_vote_id);
          d._witness_count_histogram_buffer.resize(props.parameters.maximum_witness_count / 2 + 1);
          d._committee_count_histogram_buffer.resize(props.parameters.maximum_committee_count / 2 + 1);
-         d._son_count_histogram_buffer.resize(props.parameters.maximum_son_count() / 2 + 1);
+         for( auto& son_count_histogram_buffer : d._son_count_histogram_buffer ){
+            son_count_histogram_buffer.second.resize(props.parameters.maximum_son_count() / 2 + 1);
+         }
          d._total_voting_stake = 0;
 
          auto balance_type = vesting_balance_type::normal;
@@ -2167,17 +2457,24 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                // same rationale as for witnesses
                d._committee_count_histogram_buffer[offset] += voting_stake;
             }
-            if( opinion_account.options.num_son <= props.parameters.maximum_son_count() )
+
+            if ( opinion_account.options.extensions.value.num_son.valid() )
             {
-               uint16_t offset = std::min(size_t(opinion_account.options.num_son/2),
-                                          d._son_count_histogram_buffer.size() - 1);
-               // votes for a number greater than maximum_son_count
-               // are turned into votes for maximum_son_count.
-               //
-               // in particular, this takes care of the case where a
-               // member was voting for a high number, then the
-               // parameter was lowered.
-               d._son_count_histogram_buffer[offset] += voting_stake;
+               for(const auto& num_sidechain_son : *opinion_account.options.extensions.value.num_son) {
+                  const auto sidechain = num_sidechain_son.first;
+                  const auto& num_son = num_sidechain_son.second;
+                  if (num_son <= props.parameters.maximum_son_count()) {
+                     uint16_t offset = std::min(size_t(num_son / 2),
+                                                d._son_count_histogram_buffer.at(sidechain).size() - 1);
+                     // votes for a number greater than maximum_son_count
+                     // are turned into votes for maximum_son_count.
+                     //
+                     // in particular, this takes care of the case where a
+                     // member was voting for a high number, then the
+                     // parameter was lowered.
+                     d._son_count_histogram_buffer.at(sidechain)[offset] += voting_stake;
+                  }
+               }
             }
 
             d._total_voting_stake += voting_stake;
@@ -2192,10 +2489,20 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    private:
       vector<uint64_t>& target;
    };
+   struct clear_canary_map {
+      clear_canary_map(flat_map<sidechain_type, vector<uint64_t> >& target): target(target){}
+      ~clear_canary_map() {
+         for(auto& sidechain_target : target){
+            sidechain_target.second.clear();
+         }
+      }
+   private:
+      flat_map<sidechain_type, vector<uint64_t> >& target;
+   };
    clear_canary a(_witness_count_histogram_buffer),
                 b(_committee_count_histogram_buffer),
-                d(_son_count_histogram_buffer),
                 c(_vote_tally_buffer);
+   clear_canary_map d{_son_count_histogram_buffer};
 
    perform_son_tasks();
    update_top_n_authorities(*this);
@@ -2267,13 +2574,17 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
          if( !p.pending_parameters->extensions.value.hive_asset.valid() )
             p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
+         if( !p.pending_parameters->extensions.value.eth_asset.valid() )
+            p.pending_parameters->extensions.value.eth_asset = p.parameters.extensions.value.eth_asset;
 
          // the following parameters are not allowed to be changed. So take what is in global property
-         p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
-         p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
-         p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
-         p.pending_parameters->extensions.value.son_account = p.parameters.extensions.value.son_account;
          p.pending_parameters->extensions.value.gpos_period_start = p.parameters.extensions.value.gpos_period_start;
+         p.pending_parameters->extensions.value.son_account = p.parameters.extensions.value.son_account;
+         p.pending_parameters->extensions.value.btc_asset = p.parameters.extensions.value.btc_asset;
+         p.pending_parameters->extensions.value.maximum_son_count = p.parameters.extensions.value.maximum_son_count;
+         p.pending_parameters->extensions.value.hbd_asset = p.parameters.extensions.value.hbd_asset;
+         p.pending_parameters->extensions.value.hive_asset = p.parameters.extensions.value.hive_asset;
+         p.pending_parameters->extensions.value.eth_asset = p.parameters.extensions.value.eth_asset;
 
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();

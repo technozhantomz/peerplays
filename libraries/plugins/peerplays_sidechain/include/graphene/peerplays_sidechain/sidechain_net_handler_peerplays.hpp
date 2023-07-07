@@ -19,6 +19,7 @@ public:
    std::string process_sidechain_transaction(const sidechain_transaction_object &sto);
    std::string send_sidechain_transaction(const sidechain_transaction_object &sto);
    bool settle_sidechain_transaction(const sidechain_transaction_object &sto, asset &settle_amount);
+   virtual optional<asset> estimate_withdrawal_transaction_fee() const override;
 
 private:
 };

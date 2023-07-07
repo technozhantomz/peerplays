@@ -111,12 +111,12 @@ struct stealth_confirmation
    /**
     *  Packs *this then encodes as base58 encoded string.
     */
-   operator string()const;
+   //operator string()const;
    /**
     * Unpacks from a base58 string
     */
-   stealth_confirmation( const std::string& base58 );
-   stealth_confirmation(){}
+   //stealth_confirmation( const std::string& base58 );
+   //stealth_confirmation(){}
 
    public_key_type           one_time_key;
    optional<public_key_type> to;
@@ -152,7 +152,6 @@ struct transfer_to_blind_operation : public base_operation
       uint32_t price_per_output = 5*GRAPHENE_BLOCKCHAIN_PRECISION;
    };
 
-
    asset                 fee;
    asset                 amount;
    account_id_type       from;
@@ -160,8 +159,8 @@ struct transfer_to_blind_operation : public base_operation
    vector<blind_output>  outputs;
 
    account_id_type fee_payer()const { return from; }
-   void            validate()const;
-   share_type      calculate_fee(const fee_parameters_type& )const;
+   //void            validate()const;
+   //share_type      calculate_fee(const fee_parameters_type& )const;
 };
 
 /**
@@ -181,13 +180,12 @@ struct transfer_from_blind_operation : public base_operation
    vector<blind_input>   inputs;
 
    account_id_type fee_payer()const { return GRAPHENE_TEMP_ACCOUNT; }
-   void            validate()const;
-
-   void            get_required_authorities( vector<authority>& a )const
-   {
-      for( const auto& in : inputs )
-         a.push_back( in.owner ); 
-   }
+   //void            validate()const;
+   //void            get_required_authorities( vector<authority>& a )const
+   //{
+   //   for( const auto& in : inputs )
+   //      a.push_back( in.owner );
+   //}
 };
 
 /**
@@ -243,17 +241,16 @@ struct blind_transfer_operation : public base_operation
    asset                 fee;
    vector<blind_input>   inputs;
    vector<blind_output>  outputs;
-    
-   /** graphene TEMP account */
-   account_id_type fee_payer()const;
-   void            validate()const;
-   share_type      calculate_fee( const fee_parameters_type& k )const;
 
-   void            get_required_authorities( vector<authority>& a )const
-   {
-      for( const auto& in : inputs )
-         a.push_back( in.owner ); 
-   }
+   /** graphene TEMP account */
+   account_id_type fee_payer()const { return GRAPHENE_TEMP_ACCOUNT; }
+   //void            validate()const;
+   //share_type      calculate_fee( const fee_parameters_type& k )const;
+   //void            get_required_authorities( vector<authority>& a )const
+   //{
+   //   for( const auto& in : inputs )
+   //      a.push_back( in.owner );
+   //}
 };
 
 ///@} endgroup stealth

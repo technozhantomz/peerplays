@@ -3,12 +3,11 @@
 #include <graphene/chain/sidechain_defs.hpp>
 
 namespace graphene { namespace chain {
-   using namespace graphene::db;
 
    /**
-    * @class son_info
-    * @brief tracks information about a SON info required to re/create primary wallet
-    * @ingroup object
+          * @class son_info
+          * @brief tracks information about a SON info required to re/create primary wallet
+          * @ingroup object
     */
    struct son_info {
       son_id_type son_id;
@@ -26,11 +25,11 @@ namespace graphene { namespace chain {
          if (son_sets_equal) {
             bool sidechain_public_keys_equal = true;
             for (size_t i = 0; i < sidechain_public_keys.size(); i++) {
-                const auto lhs_scpk = sidechain_public_keys.nth(i);
-                const auto rhs_scpk = rhs.sidechain_public_keys.nth(i);
-                sidechain_public_keys_equal = sidechain_public_keys_equal &&
-                        (lhs_scpk->first == rhs_scpk->first) &&
-                        (lhs_scpk->second == rhs_scpk->second);
+               const auto lhs_scpk = sidechain_public_keys.nth(i);
+               const auto rhs_scpk = rhs.sidechain_public_keys.nth(i);
+               sidechain_public_keys_equal = sidechain_public_keys_equal &&
+                                             (lhs_scpk->first == rhs_scpk->first) &&
+                                             (lhs_scpk->second == rhs_scpk->second);
             }
             son_sets_equal = son_sets_equal && sidechain_public_keys_equal;
          }
@@ -40,8 +39,4 @@ namespace graphene { namespace chain {
 
 } }
 
-FC_REFLECT( graphene::chain::son_info,
-      (son_id)
-      (weight)
-      (signing_key)
-      (sidechain_public_keys) )
+FC_REFLECT( graphene::chain::son_info, (son_id) (weight) (signing_key) (sidechain_public_keys) )

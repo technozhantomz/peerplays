@@ -222,16 +222,31 @@ std::set<son_id_type> database::get_sons_to_be_deregistered()
 
    for( auto& son : son_idx )
    {
-      if(son.status == son_status::in_maintenance)
+      bool need_to_be_deregistered = true;
+      for(const auto& status : son.statuses)
       {
-         auto stats = son.statistics(*this);
-         // TODO : We need to add a function that returns if we can deregister SON 
-         // i.e. with introduction of PW code, we have to make a decision if the SON 
-         // is needed for release of funds from the PW
-         if(head_block_time() - stats.last_down_timestamp >= fc::seconds(get_global_properties().parameters.son_deregister_time()))
+         const auto& sidechain = status.first;
+         if(status.second != son_status::in_maintenance)
+            need_to_be_deregistered = false;
+
+         if(need_to_be_deregistered)
          {
-            ret.insert(son.id);
+            auto stats = son.statistics(*this);
+
+            // TODO : We need to add a function that returns if we can deregister SON
+            // i.e. with introduction of PW code, we have to make a decision if the SON
+            // is needed for release of funds from the PW
+            if(stats.last_active_timestamp.contains(sidechain)) {
+               if (head_block_time() - stats.last_active_timestamp.at(sidechain) < fc::seconds(get_global_properties().parameters.son_deregister_time())) {
+                  need_to_be_deregistered = false;
+               }
+            }
          }
+      }
+
+      if(need_to_be_deregistered)
+      {
+         ret.insert(son.id);
       }
    }
    return ret;
@@ -289,27 +304,49 @@ bool database::is_son_dereg_valid( son_id_type son_id )
       return false;
    }
 
-   return (son->status == son_status::in_maintenance &&
-                (head_block_time() - son->statistics(*this).last_down_timestamp >= fc::seconds(get_global_properties().parameters.son_deregister_time())));
+   bool status_son_dereg_valid = true;
+   for (const auto &active_sidechain_type : active_sidechain_types(head_block_time())) {
+      if(son->statuses.at(active_sidechain_type) != son_status::in_maintenance)
+         status_son_dereg_valid = false;
+
+      if(status_son_dereg_valid)
+      {
+         if(son->statistics(*this).last_active_timestamp.contains(active_sidechain_type)) {
+            if (head_block_time() - son->statistics(*this).last_active_timestamp.at(active_sidechain_type) < fc::seconds(get_global_properties().parameters.son_deregister_time())) {
+               status_son_dereg_valid = false;
+            }
+         }
+      }
+   }
+
+   return status_son_dereg_valid;
 }
 
-bool database::is_son_active( son_id_type son_id )
+bool database::is_son_active( sidechain_type type, son_id_type son_id )
 {
    const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
    auto son = son_idx.find( son_id );
-   if(son == son_idx.end())
-   {
+   if(son == son_idx.end()) {
       return false;
    }
 
    const global_property_object& gpo = get_global_properties();
+   if(!gpo.active_sons.contains(type)) {
+      return false;
+   }
+
+   const auto& gpo_as = gpo.active_sons.at(type);
    vector<son_id_type> active_son_ids;
-   active_son_ids.reserve(gpo.active_sons.size());
-   std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+   active_son_ids.reserve(gpo_as.size());
+   std::transform(gpo_as.cbegin(), gpo_as.cend(),
                   std::inserter(active_son_ids, active_son_ids.end()),
-                  [](const son_info& swi) {
+                  [](const son_sidechain_info& swi) {
       return swi.son_id;
    });
+
+   if(active_son_ids.empty()) {
+      return false;
+   }
 
    auto it_son = std::find(active_son_ids.begin(), active_son_ids.end(), son_id);
    return (it_son != active_son_ids.end());

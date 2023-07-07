@@ -12,6 +12,7 @@ public:
    std::shared_ptr<graphene::peerplays_sidechain::peerplays_sidechain_plugin> get_plugin();
 
    std::map<sidechain_type, std::vector<std::string>> get_son_listener_log();
+   optional<asset> estimate_withdrawal_transaction_fee(sidechain_type sidechain);
 
 private:
    app::application &app;
@@ -32,6 +33,10 @@ std::map<sidechain_type, std::vector<std::string>> sidechain_api_impl::get_son_l
    return get_plugin()->get_son_listener_log();
 }
 
+optional<asset> sidechain_api_impl::estimate_withdrawal_transaction_fee(sidechain_type sidechain) {
+   return get_plugin()->estimate_withdrawal_transaction_fee(sidechain);
+}
+
 } // namespace detail
 
 sidechain_api::sidechain_api(graphene::app::application &_app) :
@@ -43,6 +48,10 @@ sidechain_api::~sidechain_api() {
 
 std::map<sidechain_type, std::vector<std::string>> sidechain_api::get_son_listener_log() {
    return my->get_son_listener_log();
+}
+
+optional<asset> sidechain_api::estimate_withdrawal_transaction_fee(sidechain_type sidechain) {
+   return my->estimate_withdrawal_transaction_fee(sidechain);
 }
 
 }} // namespace graphene::peerplays_sidechain
